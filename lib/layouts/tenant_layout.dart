@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../pages/tenant_pages.dart';
 import 'role_layout.dart';
 
 class TenantLayout extends StatelessWidget {
@@ -25,7 +26,6 @@ class TenantLayout extends StatelessWidget {
       accentColor: const Color(0xFF16836F),
       initialDestinationId: 'discovery',
       onPreviewRoleSelected: onPreviewRoleSelected,
-      pageBuilder: pageBuilder,
       tabs: const [
         RoleTab(
           label: 'Khám phá',
@@ -46,10 +46,10 @@ class TenantLayout extends StatelessWidget {
           destinationId: 'invoices',
         ),
         RoleTab(
-          label: 'Tin nhắn',
-          icon: Icons.forum_outlined,
-          selectedIcon: Icons.forum_rounded,
-          destinationId: 'conversations',
+          label: 'Lịch sử',
+          icon: Icons.history_rounded,
+          selectedIcon: Icons.history_rounded,
+          destinationId: 'payments',
         ),
       ],
       destinations: const [
@@ -132,6 +132,7 @@ class TenantLayout extends StatelessWidget {
           group: 'Tài khoản',
         ),
       ],
+      pageBuilder: pageBuilder ?? buildTenantPage,
     );
   }
 }
