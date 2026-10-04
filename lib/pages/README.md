@@ -15,12 +15,18 @@ pages/
       models/       room listing and preview data
     invoices/       tenant_invoices_page.dart, tenant_invoice_detail_page.dart
       components/   invoice card, charge rows, payment instructions
+    incidents/      tenant_incidents_page.dart
     leases/         tenant_home_page.dart
       components/   lease metric, overview card, member row
-  landlord/      dashboard, properties, rooms, room_types, services,
-                 meter_readings, viewings, conversations, leases, members,
-                 billing, payments, announcements, incidents,
-                 payment_accounts, reports, staff
+  landlord/      landlord_page_router.dart, landlord_ui.dart
+    dashboard/      landlord_dashboard_page.dart
+    services/       landlord_services_page.dart (+ models/)
+    meter_readings/ landlord_meter_readings_page.dart (+ models/)
+    members/        landlord_members_page.dart
+    conversations/  landlord_conversations_page.dart, landlord_chat_page.dart (+ models/)
+    incidents/      landlord_incidents_page.dart (+ models/)
+    (chưa làm)      properties, rooms, room_types, viewings, leases, billing,
+                    payments, announcements, payment_accounts, reports, staff
   admin/         dashboard, users, property_verification, moderation,
                  support, audit_logs, settings
 ```

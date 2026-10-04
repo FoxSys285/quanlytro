@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../pages/landlord/landlord_page_router.dart';
 import '../pages/landlord/landlord_demo_store.dart';
+import '../pages/landlord/landlord_page_router.dart';
 import 'role_layout.dart';
 
 class LandlordLayout extends StatelessWidget {
