@@ -50,3 +50,4 @@ class _LandlordSecondaryPage extends StatelessWidget {
     ],
   );
 }
+
