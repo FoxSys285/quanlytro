@@ -17,8 +17,6 @@ pages/
       components/   invoice card, charge rows, payment instructions
     leases/         tenant_home_page.dart
       components/   lease metric, overview card, member row
-    payments/       tenant_payment_history_page.dart
-      components/   history summary, payment card/details
   landlord/      dashboard, properties, rooms, room_types, services,
                  meter_readings, viewings, conversations, leases, members,
                  billing, payments, announcements, incidents,

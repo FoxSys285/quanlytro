@@ -5,7 +5,6 @@ import 'conversations/tenant_conversation_page.dart';
 import 'discovery/tenant_discovery_page.dart';
 import 'invoices/tenant_invoices_page.dart';
 import 'leases/tenant_home_page.dart';
-import 'payments/tenant_payment_history_page.dart';
 import 'tenant_ui.dart';
 
 Widget buildTenantPage(BuildContext context, RoleDestination destination) {
@@ -13,7 +12,6 @@ Widget buildTenantPage(BuildContext context, RoleDestination destination) {
     'discovery' => const TenantDiscoveryPage(),
     'my_lease' => const TenantHomePage(),
     'invoices' => const TenantInvoicesPage(),
-    'payments' => const TenantPaymentHistoryPage(),
     'conversations' => const TenantLandlordConversationPage(),
     _ => _TenantSecondaryPage(destination: destination),
   };

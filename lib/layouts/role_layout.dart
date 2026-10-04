@@ -33,12 +33,14 @@ class RoleDestination {
     required this.label,
     required this.icon,
     required this.group,
+    this.drawerLabel,
   });
 
   final String id;
   final String label;
   final IconData icon;
   final String group;
+  final String? drawerLabel;
 }
 
 @immutable
@@ -613,7 +615,7 @@ class _DrawerDestinationTile extends StatelessWidget {
           size: 21,
         ),
         title: Text(
-          destination.label,
+          destination.drawerLabel ?? destination.label,
           style: TextStyle(
             color: selected ? accentColor : const Color(0xFF344252),
             fontSize: 13,

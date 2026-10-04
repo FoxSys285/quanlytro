@@ -83,12 +83,7 @@ class TenantLayout extends StatelessWidget {
           label: 'Hóa đơn',
           icon: Icons.receipt_long_outlined,
           group: 'Thanh toán',
-        ),
-        RoleDestination(
-          id: 'payments',
-          label: 'Lịch sử thanh toán',
-          icon: Icons.account_balance_wallet_outlined,
-          group: 'Thanh toán',
+          drawerLabel: 'Lịch sử hóa đơn',
         ),
         RoleDestination(
           id: 'conversations',

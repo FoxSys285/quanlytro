@@ -153,7 +153,7 @@ class TenantInvoiceDetailPage extends StatelessWidget {
                 TenantInvoiceChargeRows(amount: amount),
                 const TenantThinDivider(),
                 TenantDataRow(
-                  label: 'Tổng cộng',
+                  label: 'TỔNG CỘNG',
                   value: formatTenantMoney(amount),
                   emphasized: true,
                 ),
