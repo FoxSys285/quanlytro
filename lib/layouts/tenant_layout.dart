@@ -6,8 +6,8 @@ import 'role_layout.dart';
 class TenantLayout extends StatelessWidget {
   const TenantLayout({
     super.key,
-    this.displayName = 'Minh Anh',
-    this.contextLabel = 'Khu vực người thuê',
+    this.displayName = 'Nam đẹp trai',
+    this.contextLabel = 'Người thuê',
     this.onPreviewRoleSelected,
     this.pageBuilder,
   });

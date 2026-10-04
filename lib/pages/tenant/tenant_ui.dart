@@ -14,20 +14,23 @@ class TenantPageFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          constraints.maxWidth < 600 ? 18 : 32,
-          22,
-          constraints.maxWidth < 600 ? 18 : 32,
-          32,
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 920),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: children,
+    return SafeArea(
+      top: false,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            constraints.maxWidth < 600 ? 18 : 32,
+            22,
+            constraints.maxWidth < 600 ? 18 : 32,
+            32,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 920),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: children,
+              ),
             ),
           ),
         ),
