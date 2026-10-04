@@ -1,17 +1,5 @@
-# quanlytro
+# Quản lý trọ
 
-A new Flutter project.
+Ứng dụng Flutter đang trong giai đoạn khởi tạo. Đặc tả nghiệp vụ, quy trình, mô hình dữ liệu, danh sách màn hình và thiết kế service mục tiêu được ghi tại [docs/THIET_KE_NGHIEP_VU.md](docs/THIET_KE_NGHIEP_VU.md).
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Tài liệu là thiết kế đề xuất; repo hiện chưa có backend hoặc các nghiệp vụ được mô tả.
