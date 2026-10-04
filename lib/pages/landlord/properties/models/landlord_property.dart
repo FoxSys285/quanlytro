@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 class LandlordProperty {
   const LandlordProperty({
     required this.id,
@@ -7,6 +9,8 @@ class LandlordProperty {
     required this.phone,
     required this.description,
     this.imageUrl = '',
+    this.imageBytes,
+    this.imageName,
   });
 
   final String id;
@@ -16,4 +20,6 @@ class LandlordProperty {
   final String phone;
   final String description;
   final String imageUrl;
+  final Uint8List? imageBytes;
+  final String? imageName;
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../landlord_demo_store.dart';
 import 'models/landlord_room_type.dart';
@@ -70,7 +71,24 @@ class LandlordRoomTypesPage extends StatelessWidget {
                   color: Colors.white,
                   elevation: 0,
                   child: ListTile(
-                    title: Text(type.name),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    title: Text(
+                      type.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        formatRoomTypePrice(type.monthlyRent),
+                        style: const TextStyle(
+                          color: Color(0xFF3769D6),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -111,31 +129,78 @@ class _RoomTypeEditor extends StatefulWidget {
 class _RoomTypeEditorState extends State<_RoomTypeEditor> {
   final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.type?.name);
+  late final _price = TextEditingController(
+    text: widget.type?.monthlyRent.toString() ?? '',
+  );
 
   @override
   void dispose() {
     _name.dispose();
+    _price.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+    backgroundColor: Colors.white,
+    surfaceTintColor: Colors.transparent,
     title: Text(widget.type == null ? 'Thêm loại phòng' : 'Sửa loại phòng'),
-    content: Form(
-      key: _form,
-      child: TextFormField(
-        controller: _name,
-        maxLength: 80,
-        autofocus: true,
-        decoration: const InputDecoration(labelText: 'Tên loại phòng'),
-        validator: (value) {
-          if (value == null || value.trim().isEmpty) {
-            return 'Nhập tên loại phòng.';
-          }
-          return widget.store.nameExists(value, excludingId: widget.type?.id)
-              ? 'Tên loại phòng đã tồn tại.'
-              : null;
-        },
+    content: SizedBox(
+      width: 420,
+      child: SingleChildScrollView(
+        child: Form(
+          key: _form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _name,
+                maxLength: 80,
+                autofocus: true,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Tên loại phòng',
+                  prefixIcon: Icon(Icons.meeting_room_outlined),
+                  border: OutlineInputBorder(),
+                  counterText: '',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Nhập tên loại phòng.';
+                  }
+                  return widget.store.nameExists(
+                        value,
+                        excludingId: widget.type?.id,
+                      )
+                      ? 'Tên loại phòng đã tồn tại.'
+                      : null;
+                },
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _price,
+                maxLength: 12,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  labelText: 'Giá thuê',
+                  prefixIcon: Icon(Icons.payments_outlined),
+                  suffixText: 'đ/tháng',
+                  hintText: '3000000',
+                  helperText: 'Nhập số tiền, ví dụ: 3000000.',
+                  border: OutlineInputBorder(),
+                  counterText: '',
+                ),
+                validator: (value) {
+                  final price = int.tryParse(value ?? '');
+                  return price == null || price <= 0
+                      ? 'Nhập giá thuê lớn hơn 0.'
+                      : null;
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     ),
     actions: [
@@ -146,7 +211,11 @@ class _RoomTypeEditorState extends State<_RoomTypeEditor> {
       FilledButton(
         onPressed: () {
           if (!_form.currentState!.validate()) return;
-          widget.store.saveRoomType(_name.text, id: widget.type?.id);
+          widget.store.saveRoomType(
+            _name.text,
+            monthlyRent: int.parse(_price.text),
+            id: widget.type?.id,
+          );
           Navigator.pop(context);
         },
         child: const Text('Lưu'),

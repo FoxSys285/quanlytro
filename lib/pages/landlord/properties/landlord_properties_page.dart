@@ -42,7 +42,10 @@ class LandlordPropertiesPage extends StatelessWidget {
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 16),
-                LandlordPropertyImage(url: property.imageUrl),
+                LandlordPropertyImage(
+                  url: property.imageUrl,
+                  bytes: property.imageBytes,
+                ),
                 const SizedBox(height: 20),
                 Card(
                   color: Colors.white,

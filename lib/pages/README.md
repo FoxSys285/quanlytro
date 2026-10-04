@@ -28,3 +28,10 @@ pages/
 Các màn hình người thuê đang được triển khai trong `tenant/`; tiện ích giao diện dùng chung của nhóm màn hình nằm trong `tenant_ui.dart`.
 
 Phạm vi từng màn hình và luồng nghiệp vụ được mô tả trong `docs/THIET_KE_NGHIEP_VU.md`.
+
+Vai trò chủ trọ hiện dùng dữ liệu mẫu của một nhà trọ Mây House trong `landlord/landlord_demo_store.dart`:
+
+- `landlord/properties/`: thông tin nhà trọ và form chỉnh sửa, chọn ảnh từ thiết bị bằng `image_picker`, xem trước trước khi lưu.
+- `landlord/room_types/`: danh sách loại phòng, giá thuê theo tháng và thêm/sửa/xóa.
+
+Thông tin, ảnh và giá đã chỉnh sửa được giữ khi chuyển trang trong phiên chạy hiện tại. Dữ liệu chưa lưu vào cơ sở dữ liệu và sẽ trở về mẫu khi khởi động lại ứng dụng.

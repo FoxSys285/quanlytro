@@ -22,10 +22,22 @@ class LandlordDemoStore extends ChangeNotifier {
 
   static const rooms = {'101': 1, '102': 1, '201': 2, '202': 2};
   final _roomTypes = [
-    const LandlordRoomType(id: 'studio', name: 'Studio'),
-    const LandlordRoomType(id: 'balcony', name: 'Phòng có ban công'),
-    const LandlordRoomType(id: 'loft', name: 'Phòng có gác'),
-    const LandlordRoomType(id: 'group', name: 'Phòng lớn cho 5 người'),
+    const LandlordRoomType(id: 'studio', name: 'Studio', monthlyRent: 3000000),
+    const LandlordRoomType(
+      id: 'balcony',
+      name: 'Phòng có ban công',
+      monthlyRent: 3500000,
+    ),
+    const LandlordRoomType(
+      id: 'loft',
+      name: 'Phòng có gác',
+      monthlyRent: 2800000,
+    ),
+    const LandlordRoomType(
+      id: 'group',
+      name: 'Phòng lớn cho 5 người',
+      monthlyRent: 5000000,
+    ),
   ];
   int _nextType = 1;
   List<LandlordRoomType> get roomTypes => List.unmodifiable(_roomTypes);
@@ -44,19 +56,28 @@ class LandlordDemoStore extends ChangeNotifier {
         type.name.toLowerCase() == name.trim().toLowerCase(),
   );
 
-  void saveRoomType(String name, {String? id}) {
+  void saveRoomType(String name, {required int monthlyRent, String? id}) {
     final trimmed = name.trim();
     if (trimmed.isEmpty || nameExists(trimmed, excludingId: id)) {
       throw ArgumentError('Tên loại phòng trống hoặc trùng.');
     }
+    if (monthlyRent <= 0) throw ArgumentError('Giá thuê phải lớn hơn 0.');
     if (id == null) {
       _roomTypes.add(
-        LandlordRoomType(id: 'custom-${_nextType++}', name: trimmed),
+        LandlordRoomType(
+          id: 'custom-${_nextType++}',
+          name: trimmed,
+          monthlyRent: monthlyRent,
+        ),
       );
     } else {
       final index = _roomTypes.indexWhere((type) => type.id == id);
       if (index == -1) throw ArgumentError('Loại phòng không tồn tại.');
-      _roomTypes[index] = LandlordRoomType(id: id, name: trimmed);
+      _roomTypes[index] = LandlordRoomType(
+        id: id,
+        name: trimmed,
+        monthlyRent: monthlyRent,
+      );
     }
     notifyListeners();
   }

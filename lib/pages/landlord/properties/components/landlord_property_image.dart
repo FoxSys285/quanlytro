@@ -1,16 +1,32 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 class LandlordPropertyImage extends StatelessWidget {
-  const LandlordPropertyImage({super.key, required this.url});
+  const LandlordPropertyImage({
+    super.key,
+    this.url = '',
+    this.bytes,
+    this.height = 240,
+  });
   final String url;
+  final Uint8List? bytes;
+  final double height;
 
   @override
   Widget build(BuildContext context) => ClipRRect(
     borderRadius: BorderRadius.circular(18),
     child: SizedBox(
-      height: 240,
+      height: height,
       width: double.infinity,
-      child: url.isEmpty
+      child: bytes != null
+          ? Image.memory(
+              bytes!,
+              fit: BoxFit.cover,
+              semanticLabel: 'Ảnh nhà trọ',
+              errorBuilder: (_, _, _) => _placeholder(failed: true),
+            )
+          : url.isEmpty
           ? _placeholder()
           : Image.network(
               url,
