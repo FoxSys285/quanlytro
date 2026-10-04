@@ -101,7 +101,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Chào Minh Anh 👋',
+                    'Chào Nam Đẹp Trai',
                     style: TextStyle(
                       color: tenantGreenDark,
                       fontSize: 13,
@@ -110,9 +110,9 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
                   ),
                   SizedBox(height: 5),
                   Text(
-                    'Tìm một nơi gọi là nhà',
+                    'Trọ hợp lý, giá vừa ý!',
                     style: TextStyle(
-                      color: tenantInk,
+                      color: Color.fromARGB(255, 47, 108, 58),
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.6,
