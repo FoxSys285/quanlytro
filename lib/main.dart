@@ -39,7 +39,6 @@ class MyApp extends StatelessWidget {
 class RoleLayoutPreview extends StatefulWidget {
   const RoleLayoutPreview({super.key});
 
-  @override
   State<RoleLayoutPreview> createState() => _RoleLayoutPreviewState();
 }
 

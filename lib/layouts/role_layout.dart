@@ -73,6 +73,7 @@ class RoleLayoutShell extends StatefulWidget {
     required this.tabs,
     required this.initialDestinationId,
     this.appName = 'An Cư',
+    this.showMoreTab = true,
     this.pageBuilder,
     this.onPreviewRoleSelected,
     this.onLogout,
@@ -86,6 +87,7 @@ class RoleLayoutShell extends StatefulWidget {
   final List<RoleTab> tabs;
   final String initialDestinationId;
   final String appName;
+  final bool showMoreTab;
   final RolePageBuilder? pageBuilder;
   final ValueChanged<AppRole>? onPreviewRoleSelected;
   final VoidCallback? onLogout;
@@ -112,13 +114,15 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
     setState(() {
       _selectedDestinationId = id;
       final tabIndex = widget.tabs.indexWhere((tab) => tab.destinationId == id);
-      // The final tab is the drawer shortcut for secondary destinations.
-      _selectedTabIndex = tabIndex == -1 ? widget.tabs.length : tabIndex;
+      // Highlight the drawer shortcut when available for secondary destinations.
+      _selectedTabIndex = tabIndex == -1
+          ? (widget.showMoreTab ? widget.tabs.length : _selectedTabIndex)
+          : tabIndex;
     });
   }
 
   void _onTabSelected(int index) {
-    if (index == widget.tabs.length) {
+    if (widget.showMoreTab && index == widget.tabs.length) {
       setState(() => _selectedTabIndex = index);
       _scaffoldKey.currentState?.openDrawer();
       return;
@@ -308,11 +312,12 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
               selectedIcon: Icon(tab.selectedIcon),
               label: tab.label,
             ),
-          const NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded),
-            label: 'Thêm',
-          ),
+          if (widget.showMoreTab)
+            const NavigationDestination(
+              icon: Icon(Icons.grid_view_outlined),
+              selectedIcon: Icon(Icons.grid_view_rounded),
+              label: 'Thêm',
+            ),
         ],
       ),
     );
