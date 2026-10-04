@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../tenant_ui.dart';
-
 class TenantLeaseMetric extends StatelessWidget {
-  const TenantLeaseMetric({required this.label, required this.value});
+  const TenantLeaseMetric({
+    super.key,
+    required this.label,
+    required this.value,
+  });
 
   final String label;
   final String value;
