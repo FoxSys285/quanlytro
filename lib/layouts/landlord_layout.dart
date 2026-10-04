@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../pages/landlord/landlord_page_router.dart';
 import 'role_layout.dart';
 
 class LandlordLayout extends StatelessWidget {
@@ -25,7 +26,7 @@ class LandlordLayout extends StatelessWidget {
       accentColor: const Color(0xFF3769D6),
       initialDestinationId: 'dashboard',
       onPreviewRoleSelected: onPreviewRoleSelected,
-      pageBuilder: pageBuilder,
+      pageBuilder: pageBuilder ?? buildLandlordPage,
       tabs: const [
         RoleTab(
           label: 'Tổng quan',

@@ -1,0 +1,40 @@
+import 'package:flutter/material.dart';
+
+import '../../layouts/role_layout.dart';
+import 'conversations/landlord_conversations_page.dart';
+import 'dashboard/landlord_dashboard_page.dart';
+import 'incidents/landlord_incidents_page.dart';
+import 'landlord_ui.dart';
+import 'members/landlord_members_page.dart';
+import 'meter_readings/landlord_meter_readings_page.dart';
+import 'services/landlord_services_page.dart';
+
+Widget buildLandlordPage(BuildContext context, RoleDestination destination) {
+  return switch (destination.id) {
+    'dashboard' => const LandlordDashboardPage(),
+    'services' => const LandlordServicesPage(),
+    'meter_readings' => const LandlordMeterReadingsPage(),
+    'members' => const LandlordMembersPage(),
+    'conversations' => const LandlordConversationsPage(),
+    'incidents' => const LandlordIncidentsPage(),
+    _ => _LandlordSecondaryPage(destination: destination),
+  };
+}
+
+class _LandlordSecondaryPage extends StatelessWidget {
+  const _LandlordSecondaryPage({required this.destination});
+  final RoleDestination destination;
+
+  @override
+  Widget build(BuildContext context) => LandlordPageFrame(
+    children: [
+      LandlordPageTitle(
+        title: destination.label,
+        subtitle: 'Không gian chủ trọ tại An Cư.',
+      ),
+      const LandlordEmptyState(
+        message: 'Màn hình này sẽ được thiết kế ở bước tiếp theo.',
+      ),
+    ],
+  );
+}
