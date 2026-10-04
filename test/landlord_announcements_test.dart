@@ -76,12 +76,8 @@ void main() {
       await tester.tap(find.text('Báo cáo sự cố').last);
       await tester.pumpAndSettle();
       expect(find.byType(LandlordAnnouncementCard), findsNWidgets(2));
-      await tester.ensureVisible(find.byType(DropdownButtonFormField<String>));
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Nhà Nâu').last);
-      await tester.pumpAndSettle();
-      expect(find.byType(LandlordAnnouncementCard), findsOneWidget);
+      expect(find.text('Tất cả nhà trọ'), findsNothing);
+      expect(find.text('Nhà Nâu'), findsNothing);
       await tester.ensureVisible(find.byType(TextField));
       await tester.enterText(find.byType(TextField), 'khong-co-thong-bao');
       await tester.pumpAndSettle();
@@ -107,7 +103,7 @@ void main() {
                 onPressed: () async {
                   result = await showDialog<LandlordAnnouncement>(
                     context: context,
-                    builder: (_) => const LandlordAnnouncementComposer(
+                    builder: (_) => LandlordAnnouncementComposer(
                       properties: LandlordAnnouncementDemoData.properties,
                     ),
                   );

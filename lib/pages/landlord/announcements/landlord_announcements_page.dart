@@ -22,7 +22,6 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
   String _query = '';
   String _readFilter = 'all';
   AnnouncementCategory? _category;
-  String? _propertyId;
   bool _showSent = false;
 
   @override
@@ -47,7 +46,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
   Future<void> _compose() async {
     final result = await showDialog<LandlordAnnouncement>(
       context: context,
-      builder: (_) => const LandlordAnnouncementComposer(
+      builder: (_) => LandlordAnnouncementComposer(
         properties: LandlordAnnouncementDemoData.properties,
       ),
     );
@@ -59,7 +58,6 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
       _search.clear();
       _readFilter = 'all';
       _category = null;
-      _propertyId = null;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -133,7 +131,6 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
                       .toLowerCase()
                       .contains(query) &&
                   (_category == null || item.category == _category) &&
-                  (_propertyId == null || item.propertyId == _propertyId) &&
                   (_showSent ||
                       _readFilter == 'all' ||
                       (_readFilter == 'unread' ? !item.isRead : item.isRead)),
@@ -187,7 +184,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
                 controller: _search,
                 onChanged: (value) => setState(() => _query = value),
                 decoration: const InputDecoration(
-                  hintText: 'Tìm theo phòng, nội dung hoặc nhà trọ',
+                  hintText: 'Tìm theo phòng hoặc nội dung',
                   prefixIcon: Icon(Icons.search),
                   filled: true,
                   fillColor: Colors.white,
@@ -218,28 +215,6 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
                           ),
                       ],
                       onChanged: (value) => setState(() => _category = value),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 260,
-                    child: DropdownButtonFormField<String>(
-                      key: ValueKey('property:$_propertyId'),
-                      initialValue: _propertyId,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Cơ sở'),
-                      items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('Tất cả nhà trọ'),
-                        ),
-                        for (final property
-                            in LandlordAnnouncementDemoData.properties)
-                          DropdownMenuItem(
-                            value: property.id,
-                            child: Text(property.name),
-                          ),
-                      ],
-                      onChanged: (value) => setState(() => _propertyId = value),
                     ),
                   ),
                 ],

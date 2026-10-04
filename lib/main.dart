@@ -39,11 +39,12 @@ class MyApp extends StatelessWidget {
 class RoleLayoutPreview extends StatefulWidget {
   const RoleLayoutPreview({super.key});
 
+  @override
   State<RoleLayoutPreview> createState() => _RoleLayoutPreviewState();
 }
 
 class _RoleLayoutPreviewState extends State<RoleLayoutPreview> {
-  AppRole _role = AppRole.tenant;
+  AppRole _role = AppRole.landlord;
 
   @override
   Widget build(BuildContext context) {

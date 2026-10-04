@@ -18,7 +18,7 @@ class _LandlordAnnouncementComposerState
   final _form = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _content = TextEditingController();
-  late String _propertyId = widget.properties.first.id;
+  late final String _propertyId = widget.properties.first.id;
   _Audience _audience = _Audience.all;
   String? _target;
   AnnouncementCategory _category = AnnouncementCategory.operations;
@@ -59,21 +59,9 @@ class _LandlordAnnouncementComposerState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _propertyId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Nhà trọ'),
-                  items: [
-                    for (final property in widget.properties)
-                      DropdownMenuItem(
-                        value: property.id,
-                        child: Text(property.name),
-                      ),
-                  ],
-                  onChanged: (value) => setState(() {
-                    _propertyId = value!;
-                    _target = null;
-                  }),
+                Text(
+                  'Nhà trọ: ${_property.name}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<_Audience>(

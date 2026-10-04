@@ -101,7 +101,12 @@ class RoleLayoutShell extends StatefulWidget {
 class _RoleLayoutShellState extends State<RoleLayoutShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   late String _selectedDestinationId = widget.initialDestinationId;
-  late int _selectedTabIndex = 0;
+  late int _selectedTabIndex = _tabIndexFor(widget.initialDestinationId);
+
+  int _tabIndexFor(String id) {
+    final index = widget.tabs.indexWhere((tab) => tab.destinationId == id);
+    return index == -1 ? (widget.showMoreTab ? widget.tabs.length : 0) : index;
+  }
 
   RoleDestination get _selectedDestination => widget.destinations.firstWhere(
     (destination) => destination.id == _selectedDestinationId,
@@ -115,11 +120,8 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
 
     setState(() {
       _selectedDestinationId = id;
-      final tabIndex = widget.tabs.indexWhere((tab) => tab.destinationId == id);
       // Highlight the drawer shortcut when available for secondary destinations.
-      _selectedTabIndex = tabIndex == -1
-          ? (widget.showMoreTab ? widget.tabs.length : _selectedTabIndex)
-          : tabIndex;
+      _selectedTabIndex = _tabIndexFor(id);
     });
   }
 

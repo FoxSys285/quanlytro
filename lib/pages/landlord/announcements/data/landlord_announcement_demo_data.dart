@@ -1,21 +1,12 @@
 import '../models/landlord_announcement.dart';
+import '../../landlord_demo_store.dart';
 
 class LandlordAnnouncementDemoData {
-  static const properties = [
+  static List<AnnouncementProperty> get properties => [
     AnnouncementProperty(
-      id: 'may',
-      name: 'Mây House',
-      rooms: {'101': 1, '102': 1, '201': 2, '202': 2},
-    ),
-    AnnouncementProperty(
-      id: 'nau',
-      name: 'Nhà Nâu',
-      rooms: {'101': 1, '102': 1, '201': 2},
-    ),
-    AnnouncementProperty(
-      id: 'mai',
-      name: 'Ban Mai',
-      rooms: {'101': 1, '201': 2, '301': 3},
+      id: LandlordDemoStore.instance.property.id,
+      name: LandlordDemoStore.instance.property.name,
+      rooms: LandlordDemoStore.rooms,
     ),
   ];
 
@@ -44,7 +35,7 @@ class LandlordAnnouncementDemoData {
     ),
     LandlordAnnouncement(
       id: 'debt',
-      propertyId: 'nau',
+      propertyId: 'may',
       title: 'Phòng 101 - Chậm thanh toán tiền nhà',
       content:
           'Hóa đơn tháng này đã quá hạn 3 ngày, còn 3.400.000 đ '
@@ -55,8 +46,9 @@ class LandlordAnnouncementDemoData {
     ),
     LandlordAnnouncement(
       id: 'viewing',
-      propertyId: 'mai',
-      title: 'Ban Mai - Có lịch xem phòng mới',
+      propertyId: 'may',
+      title:
+          '${LandlordDemoStore.instance.property.name} - Có lịch xem phòng mới',
       content:
           'Lê Thu Hà đặt lịch xem studio lúc 16:00 ngày mai. '
           'Nhu cầu: nội thất sẵn, không gian làm việc yên tĩnh.',
@@ -65,7 +57,7 @@ class LandlordAnnouncementDemoData {
     ),
     LandlordAnnouncement(
       id: 'water',
-      propertyId: 'nau',
+      propertyId: 'may',
       title: 'Phòng 201 - Báo rỉ nước trong nhà tắm',
       content:
           'Vòi nước bị rỉ liên tục. Người thuê đề nghị kiểm tra '
@@ -87,8 +79,9 @@ class LandlordAnnouncementDemoData {
     ),
     LandlordAnnouncement(
       id: 'meter',
-      propertyId: 'mai',
-      title: 'Ban Mai - Nhắc chốt chỉ số điện nước',
+      propertyId: 'may',
+      title:
+          '${LandlordDemoStore.instance.property.name} - Nhắc chốt chỉ số điện nước',
       content:
           'Đến kỳ chốt điện nước. Kiểm tra chỉ số và đơn giá '
           'trước khi lập hóa đơn cho người thuê.',

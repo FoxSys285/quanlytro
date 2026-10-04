@@ -36,6 +36,11 @@ void main() {
       final data = LandlordViewingDemoData.create(
         referenceDate: DateTime(2026, 12, 31),
       );
+      expect(data.map((item) => item.address).toSet().length, 1);
+      expect(
+        data.every((item) => item.roomName.startsWith('Mây House · Phòng')),
+        isTrue,
+      );
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(body: LandlordViewingsPage(viewings: data)),

@@ -1,11 +1,12 @@
-import '../../../tenant/discovery/models/tenant_room_listing.dart';
+import '../../landlord_demo_store.dart';
 import '../models/landlord_viewing.dart';
 
 class LandlordViewingDemoData {
   static List<LandlordViewing> create({DateTime? referenceDate}) {
     final now = referenceDate ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final rooms = TenantRoomDemoData.listings;
+    final property = LandlordDemoStore.instance.property;
+    final rooms = LandlordDemoStore.rooms.keys.toList();
     LandlordViewing appointment(
       int index,
       int day,
@@ -17,11 +18,11 @@ class LandlordViewingDemoData {
       ViewingStatus status,
     ) {
       final date = today.add(Duration(days: day));
-      final room = rooms[index];
+      final room = rooms[index % rooms.length];
       return LandlordViewing(
         id: 'viewing-demo-$index',
-        roomName: room.name,
-        address: room.address,
+        roomName: '${property.name} · Phòng $room',
+        address: property.address,
         startsAt: DateTime(date.year, date.month, date.day, hour, minute),
         customerName: name,
         phone: phone,
