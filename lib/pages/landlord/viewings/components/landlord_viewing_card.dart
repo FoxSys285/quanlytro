@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/viewings/components/viewing_status_badge.dart';
 import '../models/landlord_viewing.dart';
 
 class LandlordViewingCard extends StatelessWidget {
-  const LandlordViewingCard({super.key, required this.viewing});
+  const LandlordViewingCard({
+    super.key,
+    required this.viewing,
+    this.onConfirm,
+    this.onCancel,
+    this.onMessage,
+  });
   final LandlordViewing viewing;
+  final VoidCallback? onConfirm;
+  final VoidCallback? onCancel;
+  final VoidCallback? onMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -12,10 +22,6 @@ class LandlordViewingCard extends StatelessWidget {
     final time =
         '${date.hour.toString().padLeft(2, '0')}:'
         '${date.minute.toString().padLeft(2, '0')}';
-    final confirmed = viewing.status == ViewingStatus.confirmed;
-    final statusColor = confirmed
-        ? const Color(0xFF16836F)
-        : const Color(0xFF946000);
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 14),
@@ -52,29 +58,18 @@ class LandlordViewingCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    viewing.status.label,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                ViewingStatusBadge(status: viewing.status),
               ],
             ),
             const SizedBox(height: 14),
             Text(
-              viewing.roomName,
+              viewing.customerName,
               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              viewing.roomName,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             Text(
@@ -82,12 +77,6 @@ class LandlordViewingCard extends StatelessWidget {
               style: const TextStyle(color: Colors.blueGrey),
             ),
             const Divider(height: 28),
-            _Information(
-              icon: Icons.person_outline,
-              label: 'Người đặt',
-              value: viewing.customerName,
-            ),
-            const SizedBox(height: 10),
             _Information(
               icon: Icons.phone_outlined,
               label: 'Số điện thoại',
@@ -100,6 +89,34 @@ class LandlordViewingCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(viewing.personalNeeds, style: const TextStyle(height: 1.5)),
+            const Divider(height: 28),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: onConfirm,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF3769D6),
+                  ),
+                  icon: const Icon(Icons.check_circle_outline, size: 18),
+                  label: const Text('Xác nhận lịch'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onCancel,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red.shade700,
+                  ),
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('Hủy lịch'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onMessage,
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: const Text('Nhắn tin'),
+                ),
+              ],
+            ),
           ],
         ),
       ),

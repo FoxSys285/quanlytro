@@ -91,6 +91,7 @@ class _LandlordChatPageState extends State<LandlordChatPage> {
                   ),
                   const SizedBox(width: 6),
                   IconButton.filled(
+                    tooltip: 'Gửi tin nhắn',
                     onPressed: _send,
                     style: IconButton.styleFrom(backgroundColor: landlordBlue),
                     icon: const Icon(Icons.send_rounded, size: 18),

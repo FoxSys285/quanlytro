@@ -4,7 +4,7 @@ Thư mục được chia theo vai trò và feature. Các thư mục feature dùn
 
 ```text
 pages/
-  shared/          auth, profile, notifications, support
+  shared/          auth, profile, notifications, support, viewings (model/store chung)
   tenant/          tenant_page_router.dart, tenant_ui.dart
     conversations/ tenant_conversation_page.dart
       components/   message bubble
@@ -18,6 +18,7 @@ pages/
     incidents/      tenant_incidents_page.dart
     leases/         tenant_home_page.dart
       components/   lease metric, overview card, member row
+    viewings/       tenant_viewings_page.dart (+ components/)
   landlord/      landlord_page_router.dart, landlord_ui.dart
     dashboard/      landlord_dashboard_page.dart
     services/       landlord_services_page.dart (+ models/)
@@ -25,8 +26,11 @@ pages/
     members/        landlord_members_page.dart
     conversations/  landlord_conversations_page.dart, landlord_chat_page.dart (+ models/)
     incidents/      landlord_incidents_page.dart (+ models/)
-    (chưa làm)      properties, rooms, room_types, viewings, leases, billing,
-                    payments, announcements, payment_accounts, reports, staff
+    properties/     landlord_properties_page.dart (+ components/, models/, services/)
+    room_types/     landlord_room_types_page.dart (+ models/)
+    viewings/       landlord_viewings_page.dart (+ components/, data/, models/)
+    announcements/  landlord_announcements_page.dart
+    (chưa làm)      rooms, leases, billing, payments, payment_accounts, reports, staff
   admin/         dashboard, users, property_verification, moderation,
                  support, audit_logs, settings
 ```
@@ -39,5 +43,9 @@ Vai trò chủ trọ hiện dùng dữ liệu mẫu của một nhà trọ Mây 
 
 - `landlord/properties/`: thông tin nhà trọ và form chỉnh sửa, chọn ảnh từ thiết bị bằng `image_picker`, xem trước trước khi lưu.
 - `landlord/room_types/`: danh sách loại phòng, giá thuê theo tháng và thêm/sửa/xóa.
+- `landlord/viewings/`: người đặt lịch, ngày giờ, nút xác nhận/hủy và mở cuộc trò chuyện.
+- `tenant/viewings/`: các phòng người thuê đã đặt lịch với trạng thái đang chờ xác nhận, đã xác nhận, đã hủy.
+
+Hai trang lịch dùng chung `shared/viewings/viewing_store.dart`. Mẫu người thuê hiện tại là Trần Hoàng Nam (`tenant-demo`); chủ trọ chỉ thấy lịch của Mây House (`may`). Thay `tenantId` và nguồn dữ liệu bằng thông tin đăng nhập/repository khi có backend. Trạng thái đổi bên chủ trọ sẽ hiển thị bên người thuê khi chuyển vai trò. Tin nhắn thử được giữ trong phiên chạy và xuất hiện trong danh sách Tin nhắn của chủ trọ.
 
 Thông tin, ảnh và giá đã chỉnh sửa được giữ khi chuyển trang trong phiên chạy hiện tại. Dữ liệu chưa lưu vào cơ sở dữ liệu và sẽ trở về mẫu khi khởi động lại ứng dụng.
