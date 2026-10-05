@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
+import '../viewings/data/viewing_conversation_store.dart';
 import 'landlord_chat_page.dart';
 import 'models/landlord_conversation.dart';
 
@@ -63,15 +64,19 @@ class _LandlordConversationsPageState extends State<LandlordConversationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final conversations = [
+      ...ViewingConversationStore.instance.conversations,
+      ..._conversations,
+    ];
     return LandlordPageFrame(
       children: [
         const LandlordPageTitle(
           title: 'Tin nhắn',
           subtitle: 'Trao đổi với người thuê theo từng phòng.',
         ),
-        if (_conversations.isEmpty)
+        if (conversations.isEmpty)
           const LandlordEmptyState(message: 'Chưa có cuộc trò chuyện nào.'),
-        for (final conversation in _conversations)
+        for (final conversation in conversations)
           LandlordCard(
             padding: EdgeInsets.zero,
             onTap: () => _openChat(conversation),

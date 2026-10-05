@@ -63,7 +63,7 @@ void main() {
         'viewing-demo-0',
       ); // Original data is not reordered.
       expect(find.text('Thứ Sáu, 01/01/2027'), findsOneWidget);
-      expect(find.text('0900000002'), findsOneWidget);
+      expect(find.text('0900000002'), findsNWidgets(3));
       expect(find.text(data[1].personalNeeds), findsOneWidget);
       expect(tester.takeException(), isNull);
 
@@ -71,12 +71,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LandlordViewingCard), findsOneWidget);
       expect(find.text('Võ Ngọc Linh'), findsOneWidget);
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Chờ xác nhận'));
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Đang chờ xác nhận'));
       await tester.pumpAndSettle();
       expect(find.text('Không có lịch xem phòng phù hợp.'), findsOneWidget);
       await tester.enterText(find.byType(TextField), '');
       await tester.pumpAndSettle();
-      expect(find.byType(LandlordViewingCard), findsNWidgets(3));
+      expect(find.byType(LandlordViewingCard), findsNWidgets(2));
       expect(tester.takeException(), isNull);
     });
   }

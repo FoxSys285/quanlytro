@@ -7,10 +7,12 @@ import 'incidents/tenant_incidents_page.dart';
 import 'invoices/tenant_invoices_page.dart';
 import 'leases/tenant_home_page.dart';
 import 'tenant_ui.dart';
+import 'viewings/tenant_viewings_page.dart';
 
 Widget buildTenantPage(BuildContext context, RoleDestination destination) {
   return switch (destination.id) {
     'discovery' => const TenantDiscoveryPage(),
+    'viewings' => const TenantViewingsPage(),
     'my_lease' => const TenantHomePage(),
     'invoices' => const TenantInvoicesPage(),
     'conversations' => const TenantLandlordConversationPage(),
