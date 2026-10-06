@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../layouts/role_layout.dart';
-import 'conversations/tenant_conversation_page.dart';
+import 'announcements/tenant_announcements_page.dart';
+import 'conversations/tenant_conversations_page.dart';
 import 'discovery/tenant_discovery_page.dart';
 import 'incidents/tenant_incidents_page.dart';
 import 'invoices/tenant_invoices_page.dart';
