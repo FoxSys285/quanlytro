@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../tenant_ui.dart';
 import 'components/tenant_message_bubble.dart';
+import 'models/tenant_conversation.dart';
 import 'models/tenant_conversation_message.dart';
 
 class TenantLandlordConversationPage extends StatefulWidget {
-  const TenantLandlordConversationPage({super.key});
+  const TenantLandlordConversationPage({super.key, this.conversation});
+
+  final TenantConversation? conversation;
 
   @override
   State<TenantLandlordConversationPage> createState() =>
@@ -15,23 +18,15 @@ class TenantLandlordConversationPage extends StatefulWidget {
 class _TenantLandlordConversationPageState
     extends State<TenantLandlordConversationPage> {
   final _controller = TextEditingController();
-  final _messages = <TenantConversationMessage>[
-    const TenantConversationMessage(
-      text: 'Chào bạn, bạn cần hỗ trợ gì về phòng đang thuê?',
-      time: '09:12',
-      fromTenant: false,
-    ),
-    const TenantConversationMessage(
-      text: 'Dạ em muốn hỏi về lịch sửa máy lạnh ạ.',
-      time: '09:15',
-      fromTenant: true,
-    ),
-    const TenantConversationMessage(
-      text: 'Chủ trọ sẽ ghé kiểm tra vào chiều nay nhé.',
-      time: '09:18',
-      fromTenant: false,
-    ),
-  ];
+  late final _conversation =
+      widget.conversation ?? TenantConversation.demoConversations.first;
+  List<TenantConversationMessage> get _messages => _conversation.messages;
+
+  @override
+  void initState() {
+    super.initState();
+    _conversation.unread = 0;
+  }
 
   @override
   void dispose() {
@@ -49,12 +44,12 @@ class _TenantLandlordConversationPageState
         titleSpacing: 0,
         title: Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 19,
-              backgroundColor: Color(0xFFE8F2EE),
+              backgroundColor: const Color(0xFFE8F2EE),
               child: Text(
-                'NA',
-                style: TextStyle(
+                _conversation.initials,
+                style: const TextStyle(
                   color: tenantGreenDark,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
@@ -62,22 +57,28 @@ class _TenantLandlordConversationPageState
               ),
             ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Nguyễn Văn An',
-                  style: TextStyle(
-                    color: tenantInk,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _conversation.landlordName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: tenantInk,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                Text(
-                  'Chủ trọ · Phòng A.302',
-                  style: TextStyle(color: tenantMuted, fontSize: 10),
-                ),
-              ],
+                  Text(
+                    _conversation.contextLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: tenantMuted, fontSize: 10),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -95,14 +96,21 @@ class _TenantLandlordConversationPageState
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
             color: const Color(0xFFEDF4F1),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.home_outlined, size: 15, color: tenantGreenDark),
-                SizedBox(width: 7),
+                const Icon(
+                  Icons.home_outlined,
+                  size: 15,
+                  color: tenantGreenDark,
+                ),
+                const SizedBox(width: 7),
                 Expanded(
                   child: Text(
-                    'Cuộc trò chuyện về chỗ ở hiện tại của bạn',
-                    style: TextStyle(color: tenantGreenDark, fontSize: 10),
+                    _conversation.contextLabel,
+                    style: const TextStyle(
+                      color: tenantGreenDark,
+                      fontSize: 10,
+                    ),
                   ),
                 ),
               ],
@@ -117,7 +125,10 @@ class _TenantLandlordConversationPageState
                   return const Padding(
                     padding: EdgeInsets.only(bottom: 16),
                     child: Center(
-                      child: TenantStatusPill('Hôm nay', color: tenantMuted),
+                      child: TenantStatusPill(
+                        'Cuộc trò chuyện',
+                        color: tenantMuted,
+                      ),
                     ),
                   );
                 }
@@ -167,6 +178,7 @@ class _TenantLandlordConversationPageState
                   ),
                   const SizedBox(width: 7),
                   IconButton.filled(
+                    tooltip: 'Gửi tin nhắn',
                     onPressed: _sendMessage,
                     style: IconButton.styleFrom(
                       backgroundColor: tenantGreen,

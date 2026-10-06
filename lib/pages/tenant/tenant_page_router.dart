@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../layouts/role_layout.dart';
-import 'conversations/tenant_conversation_page.dart';
+import 'conversations/tenant_conversations_page.dart';
 import 'discovery/tenant_discovery_page.dart';
 import 'incidents/tenant_incidents_page.dart';
 import 'invoices/tenant_invoices_page.dart';
@@ -15,7 +15,7 @@ Widget buildTenantPage(BuildContext context, RoleDestination destination) {
     'viewings' => const TenantViewingsPage(),
     'my_lease' => const TenantHomePage(),
     'invoices' => const TenantInvoicesPage(),
-    'conversations' => const TenantLandlordConversationPage(),
+    'conversations' => const TenantConversationsPage(),
     'incidents' => const TenantIncidentsPage(),
     _ => _TenantSecondaryPage(destination: destination),
   };
