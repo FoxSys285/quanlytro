@@ -6,6 +6,7 @@ import 'package:quanlytro/pages/landlord/announcements/components/landlord_annou
 import 'package:quanlytro/pages/landlord/announcements/data/landlord_announcement_demo_data.dart';
 import 'package:quanlytro/pages/landlord/announcements/landlord_announcements_page.dart';
 import 'package:quanlytro/pages/landlord/announcements/models/landlord_announcement.dart';
+import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
 
 void main() {
   test('Relative time distinguishes yesterday and earlier dates', () {
@@ -120,14 +121,18 @@ void main() {
         await tester.tap(find.text('Tất cả các phòng trong nhà trọ'));
         await tester.pumpAndSettle();
         await tester.tap(
-          find.text(audience == 'floor' ? 'Theo tầng' : 'Phòng cụ thể').last,
+          find
+              .text(audience == 'floor' ? 'Theo tầng' : 'Chọn nhiều phòng')
+              .last,
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.byType(DropdownButtonFormField<String>).last);
-        await tester.pumpAndSettle();
-        await tester.tap(
-          find.text(audience == 'floor' ? 'Tầng 2' : 'Phòng 102').last,
-        );
+        if (audience == 'floor') {
+          await tester.tap(find.byType(DropdownButtonFormField<String>).last);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Tầng 2').last);
+        } else {
+          await tester.tap(find.widgetWithText(FilterChip, 'Phòng 102'));
+        }
         await tester.pumpAndSettle();
       }
       await tester.tap(find.text('Gửi thử'));
@@ -145,7 +150,7 @@ void main() {
       expect(
         result?.recipients,
         audience == 'all'
-            ? ['101', '102', '201', '202']
+            ? LandlordDemoStore.rooms.keys.toList()
             : audience == 'floor'
             ? ['201', '202']
             : ['102'],
@@ -153,5 +158,107 @@ void main() {
       expect(result?.propertyId, 'may');
       expect(tester.takeException(), isNull);
     });
+  }
+
+  for (final width in [390.0, 1280.0]) {
+    testWidgets(
+      'Choose exact rooms across floors, deselect and validate at $width',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 1000);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        LandlordAnnouncement? result;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () async {
+                    result = await showDialog<LandlordAnnouncement>(
+                      context: context,
+                      builder: (_) => LandlordAnnouncementComposer(
+                        properties: LandlordAnnouncementDemoData.properties,
+                      ),
+                    );
+                  },
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Tất cả các phòng trong nhà trọ'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Chọn nhiều phòng').last);
+        await tester.pumpAndSettle();
+        expect(find.text('Nhận thông báo: 0 phòng'), findsOneWidget);
+        final fields = find.byType(TextFormField);
+        await tester.ensureVisible(fields.at(0));
+        await tester.enterText(fields.at(0), 'Kiểm tra điện');
+        await tester.ensureVisible(fields.at(1));
+        await tester.enterText(
+          fields.at(1),
+          'Chủ trọ kiểm tra điện vào chiều mai.',
+        );
+        await tester.tap(find.text('Gửi thử'));
+        await tester.pumpAndSettle();
+        expect(result, isNull);
+        expect(
+          find.text('Chọn ít nhất một phòng nhận thông báo.'),
+          findsOneWidget,
+        );
+
+        Future<void> choose(String code) async {
+          final chip = find.widgetWithText(FilterChip, 'Phòng $code');
+          await tester.ensureVisible(chip);
+          await tester.tap(chip);
+          await tester.pumpAndSettle();
+        }
+
+        await choose('101');
+        await choose('201');
+        expect(
+          find.text('Nhận thông báo: 2 phòng\nPhòng 101, 201'),
+          findsOneWidget,
+        );
+        await choose('101');
+        await choose('102');
+        expect(
+          find.text('Nhận thông báo: 2 phòng\nPhòng 102, 201'),
+          findsOneWidget,
+        );
+
+        // A new audience mode must not retain hidden selections.
+        await tester.ensureVisible(find.text('Chọn nhiều phòng'));
+        await tester.tap(find.text('Chọn nhiều phòng'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Theo tầng').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(DropdownButtonFormField<String>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Tầng 2').last);
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Nhận thông báo: 2 phòng\nPhòng 201, 202'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('Theo tầng'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Chọn nhiều phòng').last);
+        await tester.pumpAndSettle();
+        expect(find.text('Nhận thông báo: 0 phòng'), findsOneWidget);
+        await choose('102');
+        await choose('201');
+        await tester.tap(find.text('Gửi thử'));
+        await tester.pumpAndSettle();
+        expect(result!.recipients, ['102', '201']);
+        expect(result!.propertyId, 'may');
+        expect(result!.audienceLabel, 'Các phòng được chọn (2)');
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 }

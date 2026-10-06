@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'properties/models/landlord_property.dart';
 import 'room_types/models/landlord_room_type.dart';
+import 'rooms/models/landlord_room.dart';
 import 'finance/landlord_finance_models.dart';
 
 /// Temporary data for one authenticated landlord, replaced by a repository later.
@@ -21,7 +22,84 @@ class LandlordDemoStore extends ChangeNotifier {
   );
   LandlordProperty get property => _property;
 
-  static const rooms = {'101': 1, '102': 1, '201': 2, '202': 2};
+  static const roomCatalog = [
+    LandlordRoom(
+      code: '101',
+      floor: 1,
+      roomTypeId: 'studio',
+      area: 25,
+      capacity: 2,
+      leaseRoomCode: 'A.101',
+    ),
+    LandlordRoom(
+      code: '102',
+      floor: 1,
+      roomTypeId: 'balcony',
+      area: 28,
+      capacity: 2,
+    ),
+    LandlordRoom(
+      code: 'B.105',
+      floor: 1,
+      roomTypeId: 'studio',
+      area: 25,
+      capacity: 2,
+    ),
+    LandlordRoom(
+      code: '201',
+      floor: 2,
+      roomTypeId: 'loft',
+      area: 22,
+      capacity: 3,
+    ),
+    LandlordRoom(
+      code: '202',
+      floor: 2,
+      roomTypeId: 'group',
+      area: 40,
+      capacity: 5,
+    ),
+    LandlordRoom(
+      code: 'A.302',
+      floor: 3,
+      roomTypeId: 'balcony',
+      area: 28,
+      capacity: 4,
+    ),
+  ];
+  static final Map<String, int> rooms = Map.unmodifiable({
+    for (final room in roomCatalog) room.code: room.floor,
+  });
+
+  List<LandlordRoomDetails> get roomDetails => List.unmodifiable(
+    roomCatalog.map((room) {
+      LandlordRoomType? type;
+      for (final item in _roomTypes) {
+        if (item.id == room.roomTypeId) {
+          type = item;
+          break;
+        }
+      }
+      final leases =
+          _leases
+              .where(
+                (lease) =>
+                    lease.room.trim().toLowerCase() ==
+                        (room.leaseRoomCode ?? room.code).toLowerCase() &&
+                    (lease.isCurrent || lease.isUpcoming),
+              )
+              .toList()
+            ..sort((a, b) {
+              if (a.isCurrent != b.isCurrent) return a.isCurrent ? -1 : 1;
+              return a.startDate.compareTo(b.startDate);
+            });
+      return LandlordRoomDetails(
+        room: room,
+        type: type,
+        lease: leases.isEmpty ? null : leases.first,
+      );
+    }),
+  );
 
   final _leases = <LandlordLease>[
     LandlordLease(

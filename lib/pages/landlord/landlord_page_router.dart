@@ -14,6 +14,7 @@ import 'members/landlord_members_page.dart';
 import 'meter_readings/landlord_meter_readings_page.dart';
 import 'properties/landlord_properties_page.dart';
 import 'room_types/landlord_room_types_page.dart';
+import 'rooms/landlord_rooms_page.dart';
 import 'services/landlord_services_page.dart';
 import 'viewings/landlord_viewings_page.dart';
 
@@ -30,6 +31,7 @@ Widget buildLandlordPage(BuildContext context, RoleDestination destination) {
     // Phần của Nguyên
     'properties' => const LandlordPropertiesPage(),
     'room_types' => const LandlordRoomTypesPage(),
+    'rooms' => const LandlordRoomsPage(),
     'viewings' => const LandlordViewingsPage(),
     'announcements' || 'notifications' => const LandlordAnnouncementsPage(),
     'leases' => const LandlordLeasesPage(),
