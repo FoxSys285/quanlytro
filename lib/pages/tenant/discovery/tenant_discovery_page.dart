@@ -6,18 +6,30 @@ import 'components/tenant_discovery_filter_sheet.dart';
 import 'components/tenant_room_card.dart';
 import 'components/tenant_room_details_sheet.dart';
 import 'models/tenant_room_listing.dart';
+import '../../shared/viewings/viewing_store.dart';
 import 'tenant_favorites_page.dart';
 import 'tenant_favorites_store.dart';
 import '../tenant_ui.dart';
+import '../viewings/components/tenant_viewing_request_sheet.dart';
+import '../viewings/models/tenant_viewing_request.dart';
 
 class TenantDiscoveryPage extends StatefulWidget {
-  const TenantDiscoveryPage({super.key});
+  const TenantDiscoveryPage({
+    super.key,
+    this.viewingStore,
+    this.tenantId = ViewingStore.demoTenantId,
+  });
+
+  final ViewingStore? viewingStore;
+  final String tenantId;
 
   @override
   State<TenantDiscoveryPage> createState() => _TenantDiscoveryPageState();
 }
 
 class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
+  ViewingStore get _viewingStore =>
+      widget.viewingStore ?? ViewingStore.instance;
   String _query = '';
   int _maxRent = 20000000;
   RangeValues _electricityRange = const RangeValues(0, 5);
@@ -702,11 +714,58 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       isScrollControlled: true,
       builder: (_) => TenantRoomDetailsSheet(
         room: room,
-        onBook: () => showTenantPreviewNotice(context),
+        onBook: () => _openViewingRequest(room),
         isFavorite: TenantFavoritesStore.contains(room.name),
         onFavoriteToggle: () => _toggleFavorite(room),
       ),
     );
+  }
+
+  Future<void> _openViewingRequest(TenantRoomListing room) async {
+    final request = await showModalBottomSheet<TenantViewingRequest>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => TenantViewingRequestSheet(
+        room: room,
+        initialName: 'Trần Hoàng Nam',
+        initialPhone: '0900000002',
+      ),
+    );
+    if (!mounted || request == null) return;
+    try {
+      final viewing = _viewingStore.createRequest(
+        propertyId: room.propertyId,
+        tenantId: widget.tenantId,
+        roomName: room.name,
+        address: room.address,
+        startsAt: request.startsAt,
+        customerName: request.customerName,
+        phone: request.phone,
+        attendeeCount: request.attendeeCount,
+        personalNeeds: request.personalNeeds,
+      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'Đã gửi yêu cầu xem ${viewing.roomName}. Chờ chủ trọ xác nhận lịch.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    } on ArgumentError catch (error) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(error.message.toString()),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    }
   }
 
   void _toggleFavorite(TenantRoomListing room) {

@@ -5,6 +5,10 @@ import 'announcements/landlord_announcements_page.dart';
 import 'conversations/landlord_conversations_page.dart';
 import 'dashboard/landlord_dashboard_page.dart';
 import 'incidents/landlord_incidents_page.dart';
+import 'billing/landlord_billing_page.dart';
+import 'leases/landlord_leases_page.dart';
+import 'payments/landlord_payments_page.dart';
+import 'payment_accounts/landlord_payment_accounts_page.dart';
 import 'landlord_ui.dart';
 import 'members/landlord_members_page.dart';
 import 'meter_readings/landlord_meter_readings_page.dart';
@@ -28,6 +32,10 @@ Widget buildLandlordPage(BuildContext context, RoleDestination destination) {
     'room_types' => const LandlordRoomTypesPage(),
     'viewings' => const LandlordViewingsPage(),
     'announcements' || 'notifications' => const LandlordAnnouncementsPage(),
+    'leases' => const LandlordLeasesPage(),
+    'billing' => const LandlordBillingPage(),
+    'payments' => const LandlordPaymentsPage(),
+    'payment_accounts' => const LandlordPaymentAccountsPage(),
 
     _ => _LandlordSecondaryPage(destination: destination),
   };
@@ -50,4 +58,3 @@ class _LandlordSecondaryPage extends StatelessWidget {
     ],
   );
 }
-

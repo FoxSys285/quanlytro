@@ -89,6 +89,18 @@ class LandlordViewingCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(viewing.personalNeeds, style: const TextStyle(height: 1.5)),
+            if (viewing.attendeeCount != null) ...[
+              const SizedBox(height: 13),
+              const Text(
+                'Thông tin người đi xem',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 7),
+              _RequestDetail(
+                label: 'Số người cùng đến',
+                value: '${viewing.attendeeCount} người',
+              ),
+            ],
             const Divider(height: 28),
             Wrap(
               spacing: 10,
@@ -122,6 +134,33 @@ class LandlordViewingCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RequestDetail extends StatelessWidget {
+  const _RequestDetail({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SizedBox(
+        width: 145,
+        child: Text(
+          label,
+          style: const TextStyle(color: Colors.blueGrey, fontSize: 12),
+        ),
+      ),
+      Expanded(
+        child: Text(
+          value,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ),
+    ],
+  );
 }
 
 class _Information extends StatelessWidget {

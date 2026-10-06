@@ -109,6 +109,7 @@ class ViewingStore extends ChangeNotifier {
   }
 
   final List<RoomViewing> _records;
+  int _nextRequestId = 1;
   List<RoomViewing> get records => List.unmodifiable(_records);
   List<RoomViewing> forProperty(String id) =>
       _ordered(_records.where((item) => item.propertyId == id));
@@ -119,6 +120,65 @@ class ViewingStore extends ChangeNotifier {
         final order = a.startsAt.compareTo(b.startsAt);
         return order == 0 ? a.id.compareTo(b.id) : order;
       });
+
+  RoomViewing createRequest({
+    required String propertyId,
+    required String tenantId,
+    required String roomName,
+    required String address,
+    required DateTime startsAt,
+    required String customerName,
+    required String phone,
+    required String personalNeeds,
+    required int attendeeCount,
+  }) {
+    final cleanName = customerName.trim();
+    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanName.isEmpty || cleanPhone.length < 9 || cleanPhone.length > 12) {
+      throw ArgumentError('Vui lòng nhập họ tên và số điện thoại hợp lệ.');
+    }
+    if (!startsAt.isAfter(DateTime.now())) {
+      throw ArgumentError('Chọn thời gian xem phòng trong tương lai.');
+    }
+    if (attendeeCount < 1 || attendeeCount > 10) {
+      throw ArgumentError('Số người đi xem phải từ 1 đến 10.');
+    }
+    if (_records.any(
+      (record) =>
+          record.propertyId == propertyId &&
+          record.roomName == roomName &&
+          record.startsAt == startsAt &&
+          record.status != ViewingStatus.cancelled,
+    )) {
+      throw ArgumentError(
+        'Khung giờ này vừa được một người khác đặt. Hãy chọn giờ khác.',
+      );
+    }
+
+    String id;
+    do {
+      id = 'viewing-request-${_nextRequestId++}';
+    } while (_records.any((record) => record.id == id));
+
+    final request = RoomViewing(
+      id: id,
+      propertyId: propertyId,
+      tenantId: tenantId,
+      roomName: roomName,
+      address: address,
+      startsAt: startsAt,
+      customerName: cleanName,
+      phone: cleanPhone,
+      personalNeeds: personalNeeds.trim().isEmpty
+          ? 'Chưa có ghi chú bổ sung.'
+          : personalNeeds.trim(),
+      status: ViewingStatus.pending,
+      attendeeCount: attendeeCount,
+    );
+    _records.add(request);
+    notifyListeners();
+    return request;
+  }
 
   bool confirm(String id, {required String propertyId}) =>
       _update(id, propertyId, ViewingStatus.confirmed);

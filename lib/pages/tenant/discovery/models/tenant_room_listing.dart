@@ -32,6 +32,15 @@ class TenantRoomListing {
   final int variant;
   final String rating;
   final List<String> tags;
+
+  String get propertyId {
+    if (name.startsWith('Mây House')) return 'may';
+    final slug = name
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+    return 'listing-$slug';
+  }
 }
 
 class TenantRoomDemoData {
