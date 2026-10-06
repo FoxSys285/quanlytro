@@ -6,6 +6,8 @@ Thư mục được chia theo vai trò và feature. Các thư mục feature dùn
 pages/
   shared/          auth, profile, notifications, support, viewings (model/store chung)
   tenant/          tenant_page_router.dart, tenant_ui.dart
+    announcements/  tenant_announcements_page.dart (+ components/, models/)
+    members/        tenant_members_page.dart (+ components/, models/)
     conversations/ tenant_conversation_page.dart
       components/   message bubble
       models/       conversation message
@@ -36,6 +38,8 @@ pages/
 ```
 
 Các màn hình người thuê đang được triển khai trong `tenant/`; tiện ích giao diện dùng chung của nhóm màn hình nằm trong `tenant_ui.dart`.
+
+Thông báo nhà trọ và Thành viên phòng của người thuê dùng dữ liệu tĩnh cho Mây House, phòng A.302, khớp với trang Chỗ ở của tôi. Sửa mẫu tại `tenant/announcements/models/tenant_announcement.dart` và `tenant/members/models/tenant_room_member.dart`. Mở thông báo để xem đầy đủ nội dung và đánh dấu đã đọc trong lần mở trang hiện tại; chưa kết nối với thông báo gửi từ chủ trọ hoặc cơ sở dữ liệu.
 
 Phạm vi từng màn hình và luồng nghiệp vụ được mô tả trong `docs/THIET_KE_NGHIEP_VU.md`.
 
