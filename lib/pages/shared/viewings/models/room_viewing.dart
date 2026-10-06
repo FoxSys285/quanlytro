@@ -19,6 +19,7 @@ class RoomViewing {
     required this.status,
     this.propertyId = 'may',
     this.tenantId = '',
+    this.attendeeCount,
   });
   final String id;
   final String propertyId;
@@ -30,6 +31,7 @@ class RoomViewing {
   final String phone;
   final String personalNeeds;
   final ViewingStatus status;
+  final int? attendeeCount;
 
   RoomViewing withStatus(ViewingStatus status) => RoomViewing(
     id: id,
@@ -42,5 +44,6 @@ class RoomViewing {
     phone: phone,
     personalNeeds: personalNeeds,
     status: status,
+    attendeeCount: attendeeCount,
   );
 }

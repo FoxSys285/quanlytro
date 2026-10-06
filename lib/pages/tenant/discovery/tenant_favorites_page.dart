@@ -5,6 +5,9 @@ import 'components/tenant_room_details_sheet.dart';
 import 'models/tenant_room_listing.dart';
 import 'tenant_favorites_store.dart';
 import '../tenant_ui.dart';
+import '../../shared/viewings/viewing_store.dart';
+import '../viewings/components/tenant_viewing_request_sheet.dart';
+import '../viewings/models/tenant_viewing_request.dart';
 
 class TenantFavoritesPage extends StatefulWidget {
   const TenantFavoritesPage({super.key});
@@ -125,7 +128,7 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
                   isScrollControlled: true,
                   builder: (_) => TenantRoomDetailsSheet(
                     room: room,
-                    onBook: () => showTenantPreviewNotice(context),
+                    onBook: () => _openViewingRequest(room),
                     isFavorite: TenantFavoritesStore.contains(room.name),
                     onFavoriteToggle: () =>
                         setState(() => TenantFavoritesStore.toggle(room.name)),
@@ -137,5 +140,48 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _openViewingRequest(TenantRoomListing room) async {
+    final request = await showModalBottomSheet<TenantViewingRequest>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => TenantViewingRequestSheet(
+        room: room,
+        initialName: 'Trần Hoàng Nam',
+        initialPhone: '0900000002',
+      ),
+    );
+    if (!mounted || request == null) return;
+    try {
+      final viewing = ViewingStore.instance.createRequest(
+        propertyId: room.propertyId,
+        tenantId: ViewingStore.demoTenantId,
+        roomName: room.name,
+        address: room.address,
+        startsAt: request.startsAt,
+        customerName: request.customerName,
+        phone: request.phone,
+        attendeeCount: request.attendeeCount,
+        personalNeeds: request.personalNeeds,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Đã gửi yêu cầu xem ${viewing.roomName}. Chờ chủ trọ xác nhận lịch.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } on ArgumentError catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message.toString()),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }
