@@ -13,7 +13,7 @@ class TenantInvoicesPage extends StatelessWidget {
       children: [
         const TenantPageTitle(
           title: 'Lịch sử hóa đơn',
-          subtitle: 'Hóa đơn được sắp xếp theo ngày, mới nhất ở trên.',
+          subtitle: '',
         ),
         Container(
           padding: const EdgeInsets.all(18),

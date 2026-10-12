@@ -15,7 +15,7 @@ class TenantHomePage extends StatelessWidget {
       children: [
         const TenantPageTitle(
           title: 'Chỗ ở của tôi',
-          subtitle: 'Thông tin phòng và hợp đồng đang có hiệu lực.',
+          subtitle: '',
         ),
         Container(
           width: double.infinity,
