@@ -17,20 +17,31 @@ class TenantLandlordConversationPage extends StatefulWidget {
 
 class _TenantLandlordConversationPageState
     extends State<TenantLandlordConversationPage> {
-  final _controller = TextEditingController();
-  late final _conversation =
-      widget.conversation ?? TenantConversation.demoConversations.first;
-  List<TenantConversationMessage> get _messages => _conversation.messages;
+  // Bộ điều khiển ô nhập tin nhắn
+  final _oNhapTinNhan = TextEditingController();
+
+  // Thông tin cuộc trò chuyện hiện tại
+  late final TenantConversation _cuocTroChuyen;
+
+  // Lấy danh sách tin nhắn từ cuộc trò chuyện
+  List<TenantConversationMessage> get _danhSachTinNhan => _cuocTroChuyen.messages;
 
   @override
   void initState() {
     super.initState();
-    _conversation.unread = 0;
+    // Nếu có truyền cuộc trò chuyện vào thì dùng, không thì lấy mẫu đầu tiên
+    if (widget.conversation != null) {
+      _cuocTroChuyen = widget.conversation!;
+    } else {
+      _cuocTroChuyen = TenantConversation.demoConversations.first;
+    }
+    // Đánh dấu đã đọc hết tin nhắn
+    _cuocTroChuyen.unread = 0;
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _oNhapTinNhan.dispose();
     super.dispose();
   }
 
@@ -48,7 +59,7 @@ class _TenantLandlordConversationPageState
               radius: 19,
               backgroundColor: const Color(0xFFE8F2EE),
               child: Text(
-                _conversation.initials,
+                _cuocTroChuyen.initials,
                 style: const TextStyle(
                   color: tenantGreenDark,
                   fontSize: 11,
@@ -62,7 +73,7 @@ class _TenantLandlordConversationPageState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _conversation.landlordName,
+                    _cuocTroChuyen.landlordName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -72,7 +83,7 @@ class _TenantLandlordConversationPageState
                     ),
                   ),
                   Text(
-                    _conversation.contextLabel,
+                    _cuocTroChuyen.contextLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: tenantMuted, fontSize: 10),
@@ -106,7 +117,7 @@ class _TenantLandlordConversationPageState
                 const SizedBox(width: 7),
                 Expanded(
                   child: Text(
-                    _conversation.contextLabel,
+                    _cuocTroChuyen.contextLabel,
                     style: const TextStyle(
                       color: tenantGreenDark,
                       fontSize: 10,
@@ -119,7 +130,7 @@ class _TenantLandlordConversationPageState
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(15, 18, 15, 14),
-              itemCount: _messages.length + 1,
+              itemCount: _danhSachTinNhan.length + 1,
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return const Padding(
@@ -132,8 +143,8 @@ class _TenantLandlordConversationPageState
                     ),
                   );
                 }
-                final message = _messages[index - 1];
-                return TenantMessageBubble(message: message);
+                final tinNhan = _danhSachTinNhan[index - 1];
+                return TenantMessageBubble(message: tinNhan);
               },
             ),
           ),
@@ -157,7 +168,7 @@ class _TenantLandlordConversationPageState
                   ),
                   Expanded(
                     child: TextField(
-                      controller: _controller,
+                      controller: _oNhapTinNhan,
                       minLines: 1,
                       maxLines: 4,
                       textCapitalization: TextCapitalization.sentences,
@@ -179,7 +190,7 @@ class _TenantLandlordConversationPageState
                   const SizedBox(width: 7),
                   IconButton.filled(
                     tooltip: 'Gửi tin nhắn',
-                    onPressed: _sendMessage,
+                    onPressed: _guiTinNhan,
                     style: IconButton.styleFrom(
                       backgroundColor: tenantGreen,
                       foregroundColor: Colors.white,
@@ -195,18 +206,26 @@ class _TenantLandlordConversationPageState
     );
   }
 
-  void _sendMessage() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+  // Hàm gửi tin nhắn đi
+  void _guiTinNhan() {
+    final noiDung = _oNhapTinNhan.text.trim();
+    if (noiDung.isEmpty) {
+      return;
+    }
+    // Lấy thời gian hiện tại định dạng giờ:phút
+    final bayGio = DateTime.now();
+    final gio = bayGio.hour.toString().padLeft(2, '0');
+    final phut = bayGio.minute.toString().padLeft(2, '0');
+
     setState(() {
-      _messages.add(
+      _danhSachTinNhan.add(
         TenantConversationMessage(
-          text: text,
-          time: TimeOfDay.now().format(context),
+          text: noiDung,
+          time: '$gio:$phut',
           fromTenant: true,
         ),
       );
-      _controller.clear();
+      _oNhapTinNhan.clear();
     });
   }
 }

@@ -6,19 +6,29 @@ import '../../landlord_ui.dart';
 enum IncidentStatus { newly, inProgress, resolved, closed }
 
 extension IncidentStatusX on IncidentStatus {
-  String get label => switch (this) {
-    IncidentStatus.newly => 'Mới',
-    IncidentStatus.inProgress => 'Đang xử lý',
-    IncidentStatus.resolved => 'Đã xử lý',
-    IncidentStatus.closed => 'Đã đóng',
-  };
+  String get label {
+    if (this == IncidentStatus.newly) {
+      return 'Mới';
+    } else if (this == IncidentStatus.inProgress) {
+      return 'Đang xử lý';
+    } else if (this == IncidentStatus.resolved) {
+      return 'Đã xử lý';
+    } else {
+      return 'Đã đóng';
+    }
+  }
 
-  Color get color => switch (this) {
-    IncidentStatus.newly => const Color(0xFFD64545),
-    IncidentStatus.inProgress => const Color(0xFFE08A1E),
-    IncidentStatus.resolved => const Color(0xFF16836F),
-    IncidentStatus.closed => landlordMuted,
-  };
+  Color get color {
+    if (this == IncidentStatus.newly) {
+      return const Color(0xFFD64545);
+    } else if (this == IncidentStatus.inProgress) {
+      return const Color(0xFFE08A1E);
+    } else if (this == IncidentStatus.resolved) {
+      return const Color(0xFF16836F);
+    } else {
+      return landlordMuted;
+    }
+  }
 }
 
 class LandlordIncident {

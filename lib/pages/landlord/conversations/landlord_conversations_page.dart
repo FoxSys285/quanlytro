@@ -14,7 +14,8 @@ class LandlordConversationsPage extends StatefulWidget {
 }
 
 class _LandlordConversationsPageState extends State<LandlordConversationsPage> {
-  final _conversations = <LandlordConversation>[
+  // Danh sách các cuộc trò chuyện mẫu với người thuê
+  final List<LandlordConversation> _danhSachCuocTroChuyen = [
     LandlordConversation(
       tenantName: 'Minh Anh',
       room: 'A.302',
@@ -62,29 +63,102 @@ class _LandlordConversationsPageState extends State<LandlordConversationsPage> {
     ),
   ];
 
+  // Hàm mở màn hình chat chi tiết với người thuê
+  Future<void> _moManHinhTroChuyen(LandlordConversation cuocTroChuyen) async {
+    // Đánh dấu đã đọc hết tin nhắn
+    setState(() {
+      cuocTroChuyen.unread = 0;
+    });
+
+    // Chuyển sang màn hình chat
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LandlordChatPage(conversation: cuocTroChuyen),
+      ),
+    );
+
+    // Cập nhật lại tin nhắn cuối sau khi quay về
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final conversations = [
-      ...ViewingConversationStore.instance.conversations,
-      ..._conversations,
+    // Gom tất cả cuộc trò chuyện từ hệ thống xem phòng và danh sách nội bộ
+    final List<LandlordConversation> tatCaCuocTroChuyen = [];
+    tatCaCuocTroChuyen.addAll(ViewingConversationStore.instance.conversations);
+    tatCaCuocTroChuyen.addAll(_danhSachCuocTroChuyen);
+
+    // Danh sách widget hiển thị trên giao diện
+    final List<Widget> danhSachWidget = [
+      const LandlordPageTitle(
+        title: 'Tin nhắn',
+        subtitle: 'Trao đổi với người thuê theo từng phòng.',
+      ),
     ];
-    return LandlordPageFrame(
-      children: [
-        const LandlordPageTitle(
-          title: 'Tin nhắn',
-          subtitle: 'Trao đổi với người thuê theo từng phòng.',
-        ),
-        if (conversations.isEmpty)
-          const LandlordEmptyState(message: 'Chưa có cuộc trò chuyện nào.'),
-        for (final conversation in conversations)
+
+    // Kiểm tra nếu chưa có cuộc trò chuyện nào
+    if (tatCaCuocTroChuyen.isEmpty) {
+      danhSachWidget.add(
+        const LandlordEmptyState(message: 'Chưa có cuộc trò chuyện nào.'),
+      );
+    } else {
+      for (int i = 0; i < tatCaCuocTroChuyen.length; i++) {
+        final cuocTroChuyen = tatCaCuocTroChuyen[i];
+
+        // Nếu có tin nhắn chưa đọc thì in đậm tiêu đề
+        FontWeight doDamTieuDe;
+        if (cuocTroChuyen.unread > 0) {
+          doDamTieuDe = FontWeight.w800;
+        } else {
+          doDamTieuDe = FontWeight.w600;
+        }
+
+        // Tạo chấm thông báo số tin nhắn chưa đọc
+        Widget? huyHieuChuaDoc;
+        if (cuocTroChuyen.unread > 0) {
+          huyHieuChuaDoc = Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: CircleAvatar(
+              radius: 9,
+              backgroundColor: landlordBlue,
+              child: Text(
+                '${cuocTroChuyen.unread}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Cột bên phải: hiển thị thời gian và số tin chưa đọc nếu có
+        final List<Widget> danhSachCotPhai = [
+          Text(
+            cuocTroChuyen.lastMessage.time,
+            style: const TextStyle(color: landlordMuted, fontSize: 11),
+          ),
+        ];
+
+        if (huyHieuChuaDoc != null) {
+          danhSachCotPhai.add(huyHieuChuaDoc);
+        }
+
+        // Thêm thẻ cuộc trò chuyện vào danh sách hiển thị
+        danhSachWidget.add(
           LandlordCard(
             padding: EdgeInsets.zero,
-            onTap: () => _openChat(conversation),
+            onTap: () {
+              _moManHinhTroChuyen(cuocTroChuyen);
+            },
             child: ListTile(
               leading: CircleAvatar(
                 backgroundColor: landlordBlue.withValues(alpha: 0.1),
                 child: Text(
-                  conversation.tenantName[0],
+                  cuocTroChuyen.tenantName[0],
                   style: const TextStyle(
                     color: landlordBlue,
                     fontWeight: FontWeight.w700,
@@ -92,57 +166,29 @@ class _LandlordConversationsPageState extends State<LandlordConversationsPage> {
                 ),
               ),
               title: Text(
-                '${conversation.tenantName} · ${conversation.room}',
+                '${cuocTroChuyen.tenantName} · ${cuocTroChuyen.room}',
                 style: TextStyle(
-                  fontWeight: conversation.unread > 0
-                      ? FontWeight.w800
-                      : FontWeight.w600,
+                  fontWeight: doDamTieuDe,
                 ),
               ),
               subtitle: Text(
-                conversation.lastMessage.text,
+                cuocTroChuyen.lastMessage.text,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               trailing: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    conversation.lastMessage.time,
-                    style: const TextStyle(color: landlordMuted, fontSize: 11),
-                  ),
-                  if (conversation.unread > 0) ...[
-                    const SizedBox(height: 4),
-                    CircleAvatar(
-                      radius: 9,
-                      backgroundColor: landlordBlue,
-                      child: Text(
-                        '${conversation.unread}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+                children: danhSachCotPhai,
               ),
             ),
           ),
-      ],
-    );
-  }
+        );
+      }
+    }
 
-  Future<void> _openChat(LandlordConversation conversation) async {
-    setState(() => conversation.unread = 0);
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LandlordChatPage(conversation: conversation),
-      ),
+    return LandlordPageFrame(
+      children: danhSachWidget,
     );
-    // Cập nhật lại tin nhắn cuối sau khi quay về.
-    if (mounted) setState(() {});
   }
 }

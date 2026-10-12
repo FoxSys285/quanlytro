@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
 
+// Lớp đại diện cho thông tin một người thuê phòng
 class LandlordTenant {
   LandlordTenant({
     required this.name,
@@ -12,11 +13,11 @@ class LandlordTenant {
     this.pending = false,
   });
 
-  final String name;
-  final String phone;
-  final String room;
-  final String moveIn;
-  final bool isRepresentative;
+  final String name; // Tên người thuê
+  final String phone; // Số điện thoại
+  final String room; // Số phòng
+  final String moveIn; // Ngày vào ở
+  final bool isRepresentative; // Là người đại diện hợp đồng
 
   /// true = yêu cầu thêm thành viên đang chờ chủ trọ duyệt.
   bool pending;
@@ -30,9 +31,11 @@ class LandlordMembersPage extends StatefulWidget {
 }
 
 class _LandlordMembersPageState extends State<LandlordMembersPage> {
-  String _search = '';
+  // Từ khóa tìm kiếm người thuê
+  String _tuKhoaTimKiem = '';
 
-  final _tenants = <LandlordTenant>[
+  // Danh sách mẫu người thuê trọ
+  final List<LandlordTenant> _danhSachNguoiThue = [
     LandlordTenant(
       name: 'Minh Anh',
       phone: '0901 234 567',
@@ -69,62 +72,122 @@ class _LandlordMembersPageState extends State<LandlordMembersPage> {
     ),
   ];
 
+  // Hàm xử lý từ chối yêu cầu thành viên mới
+  void _tuChoiThanhVien(LandlordTenant nguoiThue) {
+    setState(() {
+      _danhSachNguoiThue.remove(nguoiThue);
+    });
+    showLandlordMessage(context, 'Đã từ chối ${nguoiThue.name}.');
+  }
+
+  // Hàm xử lý duyệt thành viên mới vào phòng
+  void _duyetThanhVien(LandlordTenant nguoiThue) {
+    setState(() {
+      nguoiThue.pending = false;
+    });
+    showLandlordMessage(context, 'Đã duyệt ${nguoiThue.name}.');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final pending = _tenants.where((t) => t.pending).toList();
-    final active = _tenants
-        .where((t) => !t.pending)
-        .where(
-          (t) =>
-              t.name.toLowerCase().contains(_search.toLowerCase()) ||
-              t.room.toLowerCase().contains(_search.toLowerCase()),
-        )
-        .toList();
+    // Tách riêng danh sách chờ duyệt và danh sách đang ở
+    final List<LandlordTenant> danhSachChoDuyet = [];
+    final List<LandlordTenant> danhSachDangO = [];
+    final tuKhoaThuong = _tuKhoaTimKiem.toLowerCase();
+
+    // Dùng vòng lặp for đơn giản để phân loại và lọc tìm kiếm
+    for (int i = 0; i < _danhSachNguoiThue.length; i++) {
+      final nguoiThue = _danhSachNguoiThue[i];
+      if (nguoiThue.pending) {
+        danhSachChoDuyet.add(nguoiThue);
+      } else {
+        if (tuKhoaThuong.isEmpty) {
+          danhSachDangO.add(nguoiThue);
+        } else if (nguoiThue.name.toLowerCase().contains(tuKhoaThuong) ||
+            nguoiThue.room.toLowerCase().contains(tuKhoaThuong)) {
+          danhSachDangO.add(nguoiThue);
+        }
+      }
+    }
+
+    // Danh sách các widget hiển thị trên màn hình
+    final List<Widget> danhSachWidget = [];
+
+    // Tiêu đề trang
+    danhSachWidget.add(
+      LandlordPageTitle(
+        title: 'Người thuê',
+        subtitle: '${danhSachDangO.length} người đang ở · ${danhSachChoDuyet.length} chờ duyệt',
+      ),
+    );
+
+    // Phần danh sách chờ duyệt nếu có
+    if (danhSachChoDuyet.isNotEmpty) {
+      danhSachWidget.add(
+        const Text(
+          'Chờ duyệt thành viên',
+          style: TextStyle(
+            color: landlordInk,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+      danhSachWidget.add(const SizedBox(height: 8));
+      for (int i = 0; i < danhSachChoDuyet.length; i++) {
+        danhSachWidget.add(_taoTheChoDuyet(danhSachChoDuyet[i]));
+      }
+      danhSachWidget.add(const SizedBox(height: 10));
+    }
+
+    // Ô tìm kiếm người thuê
+    danhSachWidget.add(
+      TextField(
+        decoration: const InputDecoration(
+          hintText: 'Tìm theo tên hoặc phòng',
+          prefixIcon: Icon(Icons.search),
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        onChanged: (giaTri) {
+          setState(() {
+            _tuKhoaTimKiem = giaTri;
+          });
+        },
+      ),
+    );
+    danhSachWidget.add(const SizedBox(height: 12));
+
+    // Hiển thị danh sách người thuê đang ở hoặc thông báo trống
+    if (danhSachDangO.isEmpty) {
+      danhSachWidget.add(
+        const LandlordEmptyState(message: 'Không tìm thấy người thuê.'),
+      );
+    } else {
+      for (int i = 0; i < danhSachDangO.length; i++) {
+        danhSachWidget.add(_taoTheNguoiThue(danhSachDangO[i]));
+      }
+    }
 
     return LandlordPageFrame(
-      children: [
-        LandlordPageTitle(
-          title: 'Người thuê',
-          subtitle: '${active.length} người đang ở · ${pending.length} chờ duyệt',
-        ),
-        if (pending.isNotEmpty) ...[
-          const Text(
-            'Chờ duyệt thành viên',
-            style: TextStyle(
-              color: landlordInk,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          for (final tenant in pending) _buildPendingCard(tenant),
-          const SizedBox(height: 10),
-        ],
-        TextField(
-          decoration: const InputDecoration(
-            hintText: 'Tìm theo tên hoặc phòng',
-            prefixIcon: Icon(Icons.search),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-          onChanged: (value) => setState(() => _search = value),
-        ),
-        const SizedBox(height: 12),
-        if (active.isEmpty)
-          const LandlordEmptyState(message: 'Không tìm thấy người thuê.'),
-        for (final tenant in active) _buildTenantCard(tenant),
-      ],
+      children: danhSachWidget,
     );
   }
 
-  Widget _buildTenantCard(LandlordTenant tenant) {
+  // Tạo thẻ hiển thị thông tin người thuê đang ở
+  Widget _taoTheNguoiThue(LandlordTenant nguoiThue) {
+    Widget? nhanDaiDien;
+    if (nguoiThue.isRepresentative) {
+      nhanDaiDien = const LandlordStatusPill('Đại diện', color: landlordBlue);
+    }
+
     return LandlordCard(
       padding: EdgeInsets.zero,
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: landlordBlue.withValues(alpha: 0.1),
           child: Text(
-            tenant.name[0],
+            nguoiThue.name[0],
             style: const TextStyle(
               color: landlordBlue,
               fontWeight: FontWeight.w700,
@@ -132,27 +195,26 @@ class _LandlordMembersPageState extends State<LandlordMembersPage> {
           ),
         ),
         title: Text(
-          tenant.name,
+          nguoiThue.name,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
-          'Phòng ${tenant.room} · ${tenant.phone}\nVào ở: ${tenant.moveIn}',
+          'Phòng ${nguoiThue.room} · ${nguoiThue.phone}\nVào ở: ${nguoiThue.moveIn}',
         ),
         isThreeLine: true,
-        trailing: tenant.isRepresentative
-            ? const LandlordStatusPill('Đại diện', color: landlordBlue)
-            : null,
+        trailing: nhanDaiDien,
       ),
     );
   }
 
-  Widget _buildPendingCard(LandlordTenant tenant) {
+  // Tạo thẻ cho người thuê đang chờ duyệt
+  Widget _taoTheChoDuyet(LandlordTenant nguoiThue) {
     return LandlordCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            tenant.name,
+            nguoiThue.name,
             style: const TextStyle(
               color: landlordInk,
               fontWeight: FontWeight.w700,
@@ -160,7 +222,7 @@ class _LandlordMembersPageState extends State<LandlordMembersPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Xin vào phòng ${tenant.room} · dự kiến ${tenant.moveIn}',
+            'Xin vào phòng ${nguoiThue.room} · dự kiến ${nguoiThue.moveIn}',
             style: const TextStyle(color: landlordMuted, fontSize: 12),
           ),
           const SizedBox(height: 10),
@@ -169,16 +231,14 @@ class _LandlordMembersPageState extends State<LandlordMembersPage> {
             children: [
               OutlinedButton(
                 onPressed: () {
-                  setState(() => _tenants.remove(tenant));
-                  showLandlordMessage(context, 'Đã từ chối ${tenant.name}.');
+                  _tuChoiThanhVien(nguoiThue);
                 },
                 child: const Text('Từ chối'),
               ),
               const SizedBox(width: 8),
               FilledButton(
                 onPressed: () {
-                  setState(() => tenant.pending = false);
-                  showLandlordMessage(context, 'Đã duyệt ${tenant.name}.');
+                  _duyetThanhVien(nguoiThue);
                 },
                 child: const Text('Duyệt'),
               ),

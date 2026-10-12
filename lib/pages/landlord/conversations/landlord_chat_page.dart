@@ -13,32 +13,44 @@ class LandlordChatPage extends StatefulWidget {
 }
 
 class _LandlordChatPageState extends State<LandlordChatPage> {
-  final _controller = TextEditingController();
+  // Bộ điều khiển ô nhập tin nhắn
+  final TextEditingController _boDieuKhienNhapTin = TextEditingController();
 
   @override
   void dispose() {
-    _controller.dispose();
+    _boDieuKhienNhapTin.dispose();
     super.dispose();
   }
 
-  void _send() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+  // Hàm gửi tin nhắn mới
+  void _guiTinNhan() {
+    final noiDung = _boDieuKhienNhapTin.text.trim();
+    // Nếu tin nhắn trống thì không gửi
+    if (noiDung.isEmpty) {
+      return;
+    }
+
+    // Định dạng giờ phút 24h
+    final bayGio = DateTime.now();
+    final gio = bayGio.hour.toString().padLeft(2, '0');
+    final phut = bayGio.minute.toString().padLeft(2, '0');
+    final thoiGianGui = '$gio:$phut';
+
     setState(() {
       widget.conversation.messages.add(
         LandlordMessage(
-          text: text,
-          time: TimeOfDay.now().format(context),
-          fromLandlord: true,
+          text: noiDung,
+          time: thoiGianGui,
+          fromLandlord: true, // Tin nhắn do chủ trọ gửi
         ),
       );
-      _controller.clear();
+      _boDieuKhienNhapTin.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final messages = widget.conversation.messages;
+    final danhSachTinNhan = widget.conversation.messages;
 
     return Scaffold(
       backgroundColor: landlordCanvas,
@@ -52,16 +64,19 @@ class _LandlordChatPageState extends State<LandlordChatPage> {
       ),
       body: Column(
         children: [
+          // Danh sách hiển thị các bong bóng tin nhắn
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(14),
-              itemCount: messages.length,
+              itemCount: danhSachTinNhan.length,
               itemBuilder: (context, index) {
-                final message = messages[index];
-                return _Bubble(message: message);
+                final tinNhan = danhSachTinNhan[index];
+                return _BongBongTinNhan(tinNhan: tinNhan);
               },
             ),
           ),
+
+          // Thanh công cụ nhập và gửi tin nhắn ở dưới đáy màn hình
           SafeArea(
             top: false,
             child: Container(
@@ -71,7 +86,7 @@ class _LandlordChatPageState extends State<LandlordChatPage> {
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: _controller,
+                      controller: _boDieuKhienNhapTin,
                       minLines: 1,
                       maxLines: 4,
                       decoration: InputDecoration(
@@ -92,7 +107,7 @@ class _LandlordChatPageState extends State<LandlordChatPage> {
                   const SizedBox(width: 6),
                   IconButton.filled(
                     tooltip: 'Gửi tin nhắn',
-                    onPressed: _send,
+                    onPressed: _guiTinNhan,
                     style: IconButton.styleFrom(backgroundColor: landlordBlue),
                     icon: const Icon(Icons.send_rounded, size: 18),
                   ),
@@ -106,40 +121,64 @@ class _LandlordChatPageState extends State<LandlordChatPage> {
   }
 }
 
-class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message});
+// Widget hiển thị từng bong bóng tin nhắn trong cuộc trò chuyện
+class _BongBongTinNhan extends StatelessWidget {
+  const _BongBongTinNhan({required this.tinNhan});
 
-  final LandlordMessage message;
+  final LandlordMessage tinNhan;
 
   @override
   Widget build(BuildContext context) {
-    final mine = message.fromLandlord;
+    // Xác định tin nhắn là của chủ trọ gửi hay người thuê gửi
+    final bool laCuaChuTro = tinNhan.fromLandlord;
+
+    Alignment canLeBongBong;
+    Color mauNenBongBong;
+    Border? vienBongBong;
+    Color mauChuTinNhan;
+    Color mauChuThoiGian;
+
+    // Phân biệt kiểu dáng bong bóng bằng if-else tường minh
+    if (laCuaChuTro) {
+      canLeBongBong = Alignment.centerRight;
+      mauNenBongBong = landlordBlue;
+      vienBongBong = null;
+      mauChuTinNhan = Colors.white;
+      mauChuThoiGian = Colors.white70;
+    } else {
+      canLeBongBong = Alignment.centerLeft;
+      mauNenBongBong = Colors.white;
+      vienBongBong = Border.all(color: landlordLine);
+      mauChuTinNhan = landlordInk;
+      mauChuThoiGian = landlordMuted;
+    }
+
     return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: canLeBongBong,
       child: Container(
         constraints: const BoxConstraints(maxWidth: 300),
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: mine ? landlordBlue : Colors.white,
+          color: mauNenBongBong,
           borderRadius: BorderRadius.circular(14),
-          border: mine ? null : Border.all(color: landlordLine),
+          border: vienBongBong,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              message.text,
+              tinNhan.text,
               style: TextStyle(
-                color: mine ? Colors.white : landlordInk,
+                color: mauChuTinNhan,
                 fontSize: 13,
               ),
             ),
             const SizedBox(height: 3),
             Text(
-              message.time,
+              tinNhan.time,
               style: TextStyle(
-                color: mine ? Colors.white70 : landlordMuted,
+                color: mauChuThoiGian,
                 fontSize: 10,
               ),
             ),

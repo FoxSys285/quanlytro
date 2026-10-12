@@ -11,9 +11,16 @@ class LandlordServicesPage extends StatefulWidget {
 }
 
 class _LandlordServicesPageState extends State<LandlordServicesPage> {
-  static const _bases = ['Theo chỉ số', 'Theo phòng', 'Theo người', 'Cố định'];
+  // Các hình thức tính phí dịch vụ
+  static const _danhSachCachTinh = [
+    'Theo chỉ số',
+    'Theo phòng',
+    'Theo người',
+    'Cố định',
+  ];
 
-  final _services = <LandlordService>[
+  // Danh sách các dịch vụ đang được áp dụng
+  final _danhSachDichVu = <LandlordService>[
     LandlordService(
       name: 'Điện',
       unit: 'kWh',
@@ -43,27 +50,43 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return LandlordPageFrame(
-      children: [
-        LandlordPageTitle(
-          title: 'Dịch vụ và bảng giá',
-          subtitle: 'Đơn giá áp dụng khi lập hóa đơn hằng tháng.',
-          trailing: FilledButton.icon(
-            onPressed: () => _openForm(),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Thêm'),
-          ),
+    // Danh sách widget hiển thị trên trang
+    final List<Widget> danhSachWidget = [
+      LandlordPageTitle(
+        title: 'Dịch vụ và bảng giá',
+        subtitle: 'Đơn giá áp dụng khi lập hóa đơn hằng tháng.',
+        trailing: FilledButton.icon(
+          onPressed: () {
+            _moFormDichVu();
+          },
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Thêm'),
         ),
-        if (_services.isEmpty)
-          const LandlordEmptyState(message: 'Chưa có dịch vụ nào.'),
-        for (final service in _services)
+      ),
+    ];
+
+    // Kiểm tra nếu chưa có dịch vụ nào
+    if (_danhSachDichVu.isEmpty) {
+      danhSachWidget.add(
+        const LandlordEmptyState(message: 'Chưa có dịch vụ nào.'),
+      );
+    } else {
+      // Duyệt qua từng dịch vụ để tạo thẻ hiển thị
+      for (int i = 0; i < _danhSachDichVu.length; i++) {
+        final dichVu = _danhSachDichVu[i];
+        danhSachWidget.add(
           LandlordCard(
-            onTap: () => _openForm(service: service),
+            onTap: () {
+              _moFormDichVu(dichVuCanSua: dichVu);
+            },
             child: Row(
               children: [
                 CircleAvatar(
                   backgroundColor: landlordBlue.withValues(alpha: 0.1),
-                  child: Icon(_iconFor(service.name), color: landlordBlue),
+                  child: Icon(
+                    _layIconDichVu(dichVu.name),
+                    color: landlordBlue,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -71,7 +94,7 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        service.name,
+                        dichVu.name,
                         style: const TextStyle(
                           color: landlordInk,
                           fontSize: 15,
@@ -80,7 +103,7 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${formatLandlordMoney(service.price)} / ${service.unit} · ${service.basis}',
+                        '${formatLandlordMoney(dichVu.price)} / ${dichVu.unit} · ${dichVu.basis}',
                         style: const TextStyle(
                           color: landlordMuted,
                           fontSize: 12,
@@ -90,79 +113,115 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
                   ),
                 ),
                 Switch(
-                  value: service.active,
-                  onChanged: (value) =>
-                      setState(() => service.active = value),
+                  value: dichVu.active,
+                  onChanged: (giaTriKichHoat) {
+                    setState(() {
+                      dichVu.active = giaTriKichHoat;
+                    });
+                  },
                 ),
               ],
             ),
           ),
-      ],
-    );
-  }
-
-  IconData _iconFor(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('điện')) return Icons.bolt_outlined;
-    if (lower.contains('nước')) return Icons.water_drop_outlined;
-    if (lower.contains('internet') || lower.contains('wifi')) {
-      return Icons.wifi_rounded;
+        );
+      }
     }
-    if (lower.contains('xe')) return Icons.two_wheeler_outlined;
-    return Icons.room_service_outlined;
+
+    return LandlordPageFrame(
+      children: danhSachWidget,
+    );
   }
 
-  Future<void> _openForm({LandlordService? service}) async {
-    final nameController = TextEditingController(text: service?.name ?? '');
-    final unitController = TextEditingController(text: service?.unit ?? '');
-    final priceController = TextEditingController(
-      text: service == null ? '' : service.price.toString(),
-    );
-    var basis = service?.basis ?? _bases.first;
+  // Hàm chọn icon tương ứng với tên dịch vụ
+  IconData _layIconDichVu(String tenDichVu) {
+    final tenVietThuong = tenDichVu.toLowerCase();
+    if (tenVietThuong.contains('điện')) {
+      return Icons.bolt_outlined;
+    } else if (tenVietThuong.contains('nước')) {
+      return Icons.water_drop_outlined;
+    } else if (tenVietThuong.contains('internet') ||
+        tenVietThuong.contains('wifi')) {
+      return Icons.wifi_rounded;
+    } else if (tenVietThuong.contains('xe')) {
+      return Icons.two_wheeler_outlined;
+    } else {
+      return Icons.room_service_outlined;
+    }
+  }
 
-    final saved = await showDialog<bool>(
+  // Hàm mở form thêm mới hoặc chỉnh sửa dịch vụ
+  Future<void> _moFormDichVu({LandlordService? dichVuCanSua}) async {
+    String tenBanDau = '';
+    String donViBanDau = '';
+    String giaBanDau = '';
+    String cachTinh = _danhSachCachTinh.first;
+
+    // Nếu là chế độ sửa thì gán dữ liệu hiện có
+    if (dichVuCanSua != null) {
+      tenBanDau = dichVuCanSua.name;
+      donViBanDau = dichVuCanSua.unit;
+      giaBanDau = dichVuCanSua.price.toString();
+      cachTinh = dichVuCanSua.basis;
+    }
+
+    final oNhapTen = TextEditingController(text: tenBanDau);
+    final oNhapDonVi = TextEditingController(text: donViBanDau);
+    final oNhapDonGia = TextEditingController(text: giaBanDau);
+
+    String tieuDeHopThoai = 'Thêm dịch vụ';
+    if (dichVuCanSua != null) {
+      tieuDeHopThoai = 'Sửa dịch vụ';
+    }
+
+    final daLuu = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(service == null ? 'Thêm dịch vụ' : 'Sửa dịch vụ'),
+          title: Text(tieuDeHopThoai),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: nameController,
+                  controller: oNhapTen,
                   decoration: const InputDecoration(labelText: 'Tên dịch vụ'),
                 ),
                 TextField(
-                  controller: unitController,
+                  controller: oNhapDonVi,
                   decoration: const InputDecoration(
                     labelText: 'Đơn vị (kWh, m³, phòng...)',
                   ),
                 ),
                 TextField(
-                  controller: priceController,
+                  controller: oNhapDonGia,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Đơn giá (đ)'),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  initialValue: basis,
+                  initialValue: cachTinh,
                   decoration: const InputDecoration(labelText: 'Cách tính'),
                   items: [
-                    for (final item in _bases)
-                      DropdownMenuItem(value: item, child: Text(item)),
+                    for (final cach in _danhSachCachTinh)
+                      DropdownMenuItem(value: cach, child: Text(cach)),
                   ],
-                  onChanged: (value) =>
-                      setDialogState(() => basis = value ?? basis),
+                  onChanged: (giaTri) {
+                    setDialogState(() {
+                      if (giaTri != null) {
+                        cachTinh = giaTri;
+                      }
+                    });
+                  },
                 ),
               ],
             ),
           ),
           actions: [
-            if (service != null)
+            // Nút xóa nếu đang chỉnh sửa dịch vụ có sẵn
+            if (dichVuCanSua != null)
               TextButton(
                 onPressed: () {
-                  setState(() => _services.remove(service));
+                  setState(() => _danhSachDichVu.remove(dichVuCanSua));
                   Navigator.pop(context, false);
                 },
                 child: const Text('Xóa', style: TextStyle(color: Colors.red)),
@@ -180,29 +239,40 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
       ),
     );
 
-    if (saved != true || !mounted) return;
+    // Kiểm tra nếu người dùng không bấm lưu hoặc màn hình đã đóng
+    if (daLuu != true) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
 
-    final name = nameController.text.trim();
-    final unit = unitController.text.trim();
-    final price = int.tryParse(priceController.text.trim());
-    if (name.isEmpty || unit.isEmpty || price == null || price < 0) {
+    final tenDichVu = oNhapTen.text.trim();
+    final donVi = oNhapDonVi.text.trim();
+    final donGia = int.tryParse(oNhapDonGia.text.trim());
+    if (tenDichVu.isEmpty || donVi.isEmpty || donGia == null || donGia < 0) {
       showLandlordMessage(context, 'Vui lòng nhập đầy đủ và đúng đơn giá.');
       return;
     }
 
+    // Cập nhật vào danh sách
     setState(() {
-      if (service == null) {
-        _services.add(
-          LandlordService(name: name, unit: unit, basis: basis, price: price),
+      if (dichVuCanSua == null) {
+        _danhSachDichVu.add(
+          LandlordService(
+            name: tenDichVu,
+            unit: donVi,
+            basis: cachTinh,
+            price: donGia,
+          ),
         );
       } else {
-        service
-          ..name = name
-          ..unit = unit
-          ..basis = basis
-          ..price = price;
+        dichVuCanSua.name = tenDichVu;
+        dichVuCanSua.unit = donVi;
+        dichVuCanSua.basis = cachTinh;
+        dichVuCanSua.price = donGia;
       }
     });
-    showLandlordMessage(context, 'Đã lưu dịch vụ $name.');
+    showLandlordMessage(context, 'Đã lưu dịch vụ $tenDichVu.');
   }
 }
