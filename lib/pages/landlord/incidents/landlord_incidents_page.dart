@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
 import 'models/landlord_incident.dart';
 
 class LandlordIncidentsPage extends StatefulWidget {
-  const LandlordIncidentsPage({super.key});
+  const LandlordIncidentsPage({super.key, this.store});
+  final LandlordDemoStore? store;
 
   @override
   State<LandlordIncidentsPage> createState() => _LandlordIncidentsPageState();
@@ -14,36 +16,26 @@ class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
   // Bộ lọc trạng thái đang chọn (null là hiển thị tất cả)
   IncidentStatus? _boLocTrangThai;
 
-  // Danh sách mẫu các sự cố / yêu cầu sửa chữa từ người thuê
-  final List<LandlordIncident> _danhSachSuCo = [
-    LandlordIncident(
-      title: 'Máy lạnh không lạnh',
-      room: 'A.302',
-      reporter: 'Minh Anh',
-      category: 'Điện lạnh',
-      description: 'Máy lạnh chạy nhưng không ra hơi lạnh từ tối qua.',
-      date: '04/10/2026',
-      urgent: true,
-    ),
-    LandlordIncident(
-      title: 'Vòi nước rò rỉ',
-      room: 'A.101',
-      reporter: 'Lê Văn Khoa',
-      category: 'Nước',
-      description: 'Vòi trong nhà vệ sinh bị rỉ nước liên tục.',
-      date: '02/10/2026',
-      status: IncidentStatus.inProgress,
-    ),
-    LandlordIncident(
-      title: 'Bóng đèn hành lang hỏng',
-      room: 'B.105',
-      reporter: 'Phạm Quốc Bảo',
-      category: 'Điện',
-      description: 'Bóng đèn trước cửa phòng không sáng.',
-      date: '28/09/2026',
-      status: IncidentStatus.resolved,
-    ),
-  ];
+  LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
+  List<LandlordIncident> get _danhSachSuCo => _store.incidents;
+
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_capNhat);
+  }
+
+  void _capNhat() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_capNhat);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -182,9 +174,7 @@ class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
           label: Text(trangThai.label),
           selected: suCo.status == trangThai,
           onSelected: (_) {
-            setState(() {
-              suCo.status = trangThai;
-            });
+            _store.updateIncident(suCo, trangThai);
             Navigator.pop(context);
             showLandlordMessage(
               context,
