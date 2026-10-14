@@ -69,11 +69,7 @@ class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: [
-            _taoChipLoc('Tất cả', null),
-            for (final trangThai in IncidentStatus.values)
-              _taoChipLoc(trangThai.label, trangThai),
-          ],
+          children: _taoDanhSachChipLoc(),
         ),
       ),
       const SizedBox(height: 12),
@@ -148,6 +144,17 @@ class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
     );
   }
 
+  // Hàm tạo danh sách chip lọc trạng thái bằng vòng lặp for cơ bản
+  List<Widget> _taoDanhSachChipLoc() {
+    final List<Widget> danhSachChip = [];
+    danhSachChip.add(_taoChipLoc('Tất cả', null));
+    for (int i = 0; i < IncidentStatus.values.length; i++) {
+      final trangThai = IncidentStatus.values[i];
+      danhSachChip.add(_taoChipLoc(trangThai.label, trangThai));
+    }
+    return danhSachChip;
+  }
+
   // Hàm tạo chip lọc trạng thái
   Widget _taoChipLoc(String nhan, IncidentStatus? trangThai) {
     return Padding(
@@ -166,6 +173,28 @@ class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
 
   // Hàm mở bảng chi tiết sự cố và cho phép chủ trọ chuyển đổi trạng thái
   void _moChiTietSuCo(LandlordIncident suCo) {
+    // Tạo danh sách các chip chọn trạng thái bằng vòng lặp for cơ bản
+    final List<Widget> danhSachNutChonTrangThai = [];
+    for (int i = 0; i < IncidentStatus.values.length; i++) {
+      final trangThai = IncidentStatus.values[i];
+      danhSachNutChonTrangThai.add(
+        ChoiceChip(
+          label: Text(trangThai.label),
+          selected: suCo.status == trangThai,
+          onSelected: (_) {
+            setState(() {
+              suCo.status = trangThai;
+            });
+            Navigator.pop(context);
+            showLandlordMessage(
+              context,
+              'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
+            );
+          },
+        ),
+      );
+    }
+
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -192,23 +221,7 @@ class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: [
-                for (final trangThai in IncidentStatus.values)
-                  ChoiceChip(
-                    label: Text(trangThai.label),
-                    selected: suCo.status == trangThai,
-                    onSelected: (_) {
-                      setState(() {
-                        suCo.status = trangThai;
-                      });
-                      Navigator.pop(nguCanhBang);
-                      showLandlordMessage(
-                        context,
-                        'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
-                      );
-                    },
-                  ),
-              ],
+              children: danhSachNutChonTrangThai,
             ),
           ],
         ),

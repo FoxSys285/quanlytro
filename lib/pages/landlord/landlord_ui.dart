@@ -9,7 +9,7 @@ const landlordCanvas = Color(0xFFF5F7FA);
 class LandlordPageFrame extends StatelessWidget {
   const LandlordPageFrame({super.key, required this.children});
 
-  final List<Widget> children;
+  final List<Widget> children; // <-- Tham số bắt buộc: children
 
   @override
   Widget build(BuildContext context) {
@@ -153,21 +153,48 @@ class LandlordEmptyState extends StatelessWidget {
   }
 }
 
+// Hàm hiển thị thanh thông báo (SnackBar) nổi ở cuối màn hình
 void showLandlordMessage(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
+  // Lấy bộ quản lý thông báo của màn hình hiện tại
+  final quanLyThongBao = ScaffoldMessenger.of(context);
+
+  // Nếu đang có thông báo cũ thì ẩn đi trước
+  quanLyThongBao.hideCurrentSnackBar();
+
+  // Tạo và hiển thị thông báo mới
+  quanLyThongBao.showSnackBar(
+    SnackBar(
+      content: Text(message),
+      behavior: SnackBarBehavior.floating, // Hiển thị dạng nổi
+    ),
+  );
 }
 
+// Hàm định dạng số tiền sang kiểu Việt Nam (ví dụ: 3500000 -> "3.500.000 đ")
 String formatLandlordMoney(int amount) {
-  final digits = amount.toString();
-  final result = StringBuffer();
-  for (var i = 0; i < digits.length; i++) {
-    result.write(digits[i]);
-    final remaining = digits.length - i - 1;
-    if (remaining > 0 && remaining % 3 == 0) result.write('.');
+  // Chuyển số nguyên thành chuỗi ký tự (ví dụ: 3500 -> "3500")
+  final chuoiSo = amount.toString();
+  String ketQua = ''; // Chuỗi kết quả ban đầu rỗng
+
+  // Dùng vòng lặp for duyệt từng chữ số từ trái qua phải
+  for (int i = 0; i < chuoiSo.length; i++) {
+    ketQua = '$ketQua${chuoiSo[i]}'; // Ghép chữ số hiện tại vào kết quả ketQua += chuoiSo[i];
+
+    // Tính số chữ số còn lại phía sau
+    final soChuSoConLai = chuoiSo.length - i - 1;
+
+    // Cứ cách mỗi 3 chữ số (tính từ đuôi về) thì chèn thêm 1 dấu chấm "."
+    if (soChuSoConLai > 0 && soChuSoConLai % 3 == 0) {
+      ketQua = '$ketQua.';
+    }
   }
-  return '${result.toString()} đ';
+
+  // Thêm đơn vị tiền tệ " đ" ở cuối
+  return '$ketQua đ';
 }
+
+// Ví dụ truyền vào: 3500000 
+// → Kết quả trả về: '3.500.000 đ'.
+// Truyền vào: 50000 
+// → Kết quả: '50.000 đ'.
+// Cách hoạt động: Dùng vòng lặp duyệt từng số, cứ cách 3 chữ số (tính từ đuôi về) thì chèn thêm dấu . và gắn đuôi đ.

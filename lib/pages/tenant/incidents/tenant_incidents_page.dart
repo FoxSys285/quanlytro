@@ -189,6 +189,18 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
     );
   }
 
+  // Hàm tạo danh sách loại sự cố cho Dropdown bằng vòng lặp for cơ bản
+  List<DropdownMenuItem<String>> _taoDanhSachMucSuCo() {
+    final List<DropdownMenuItem<String>> danhSachItem = [];
+    for (int i = 0; i < _danhMucSuCo.length; i++) {
+      final muc = _danhMucSuCo[i];
+      danhSachItem.add(
+        DropdownMenuItem(value: muc, child: Text(muc)),
+      );
+    }
+    return danhSachItem;
+  }
+
   // Hàm mở form tạo yêu cầu sửa chữa mới
   Future<void> _moFormTaoMoi() async {
     final oNhapTieuDe = TextEditingController();
@@ -229,10 +241,7 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
                   labelText: 'Loại sự cố',
                   border: OutlineInputBorder(),
                 ),
-                items: [
-                  for (final muc in _danhMucSuCo)
-                    DropdownMenuItem(value: muc, child: Text(muc)),
-                ],
+                items: _taoDanhSachMucSuCo(),
                 onChanged: (giaTri) {
                   setSheetState(() {
                     if (giaTri != null) {

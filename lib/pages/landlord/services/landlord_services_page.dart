@@ -149,6 +149,18 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
     }
   }
 
+  // Hàm tạo danh sách lựa chọn cho Dropdown bằng vòng lặp for cơ bản
+  List<DropdownMenuItem<String>> _taoDanhSachLuaChonCachTinh() {
+    final List<DropdownMenuItem<String>> danhSachItem = [];
+    for (int i = 0; i < _danhSachCachTinh.length; i++) {
+      final cach = _danhSachCachTinh[i];
+      danhSachItem.add(
+        DropdownMenuItem(value: cach, child: Text(cach)),
+      );
+    }
+    return danhSachItem;
+  }
+
   // Hàm mở form thêm mới hoặc chỉnh sửa dịch vụ
   Future<void> _moFormDichVu({LandlordService? dichVuCanSua}) async {
     String tenBanDau = '';
@@ -201,10 +213,7 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
                 DropdownButtonFormField<String>(
                   initialValue: cachTinh,
                   decoration: const InputDecoration(labelText: 'Cách tính'),
-                  items: [
-                    for (final cach in _danhSachCachTinh)
-                      DropdownMenuItem(value: cach, child: Text(cach)),
-                  ],
+                  items: _taoDanhSachLuaChonCachTinh(),
                   onChanged: (giaTri) {
                     setDialogState(() {
                       if (giaTri != null) {
