@@ -1,11 +1,11 @@
 {
-    "name": "quanlytro",
-    "short_name": "quanlytro",
+    "name": "Ứng dụng thuê trọ",
+    "short_name": "Thuê trọ",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Ứng dụng quản lý và tìm kiếm phòng trọ.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

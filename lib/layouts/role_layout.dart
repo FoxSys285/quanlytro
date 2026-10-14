@@ -74,7 +74,7 @@ class RoleLayoutShell extends StatefulWidget {
     required this.destinations,
     required this.tabs,
     required this.initialDestinationId,
-    this.appName = 'An Cư',
+    this.appName = 'Ứng dụng thuê trọ',
     this.showMoreTab = true,
     this.pageBuilder,
     this.onPreviewRoleSelected,

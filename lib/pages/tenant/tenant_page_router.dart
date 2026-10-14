@@ -34,7 +34,7 @@ class _TenantSecondaryPage extends StatelessWidget {
     children: [
       TenantPageTitle(
         title: destination.label,
-        subtitle: 'Không gian người thuê tại An Cư.',
+        subtitle: 'Không gian người thuê trên Ứng dụng thuê trọ.',
       ),
       TenantSurface(
         padding: const EdgeInsets.fromLTRB(23, 28, 23, 28),

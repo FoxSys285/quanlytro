@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Hệ thống quản lý trọ',
+      title: 'Ứng dụng thuê trọ',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

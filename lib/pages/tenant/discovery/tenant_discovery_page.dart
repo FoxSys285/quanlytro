@@ -708,7 +708,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         icon: const Icon(Icons.location_on_rounded, color: tenantGreen),
         title: const Text('Cho phép truy cập vị trí?'),
         content: const Text(
-          'An Cư sẽ dùng vị trí để điền sẵn khu vực lọc và ưu tiên phòng gần bạn. Bản xem trước sẽ dùng vị trí mẫu tại Phường 25, Bình Thạnh.',
+          'Ứng dụng thuê trọ sẽ dùng vị trí để điền sẵn khu vực lọc và ưu tiên phòng gần bạn. Bản xem trước sẽ dùng vị trí mẫu tại Phường 25, Bình Thạnh.',
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
