@@ -4,10 +4,12 @@ class LandlordService {
     required this.unit,
     required this.basis,
     required this.price,
+    this.id = '',
     this.active = true,
   });
 
   String name;
+  final String id;
   String unit;
 
   /// Cách tính: Theo chỉ số / Theo phòng / Theo người / Cố định.

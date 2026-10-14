@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../models/tenant_room_listing.dart';
 import 'tenant_room_artwork.dart';
 import '../../tenant_ui.dart';
+import '../../../landlord/properties/components/landlord_property_image.dart';
 
 class TenantRoomCard extends StatelessWidget {
   const TenantRoomCard({
+    super.key,
     required this.room,
     required this.onTap,
     this.isFavorite = false,
@@ -33,12 +35,35 @@ class TenantRoomCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TenantRoomArtwork(
-                variant: room.variant,
-                height: 157,
-                isFavorite: isFavorite,
-                onFavoriteTap: onFavoriteToggle,
-              ),
+              if (room.imageBytes != null || room.imageUrl.isNotEmpty)
+                Stack(
+                  children: [
+                    LandlordPropertyImage(
+                      bytes: room.imageBytes,
+                      url: room.imageUrl,
+                      height: 157,
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton.filledTonal(
+                        onPressed: onFavoriteToggle,
+                        icon: Icon(
+                          isFavorite
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                TenantRoomArtwork(
+                  variant: room.variant,
+                  height: 157,
+                  isFavorite: isFavorite,
+                  onFavoriteTap: onFavoriteToggle,
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(15, 13, 15, 15),
                 child: Column(

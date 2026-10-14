@@ -79,11 +79,13 @@ class LandlordCard extends StatelessWidget {
     required this.child,
     this.onTap,
     this.padding = const EdgeInsets.all(14),
+    this.backgroundColor = Colors.white,
   });
 
   final Widget child;
   final VoidCallback? onTap;
   final EdgeInsetsGeometry padding;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +93,7 @@ class LandlordCard extends StatelessWidget {
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: landlordLine),
       ),

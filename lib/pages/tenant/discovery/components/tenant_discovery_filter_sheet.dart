@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../tenant_ui.dart';
+import '../models/tenant_room_listing.dart';
 
 class TenantDiscoveryFilterSelection {
   const TenantDiscoveryFilterSelection({
@@ -22,6 +23,7 @@ class TenantDiscoveryFilterSelection {
 
 class TenantDiscoveryFilterSheet extends StatefulWidget {
   const TenantDiscoveryFilterSheet({
+    super.key,
     required this.initialRent,
     required this.initialCity,
     required this.initialWard,
@@ -44,8 +46,8 @@ class TenantDiscoveryFilterSheet extends StatefulWidget {
 
 class TenantDiscoveryFilterSheetState
     extends State<TenantDiscoveryFilterSheet> {
-  static const _cities = ['TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng'];
-  static const _wardsByCity = <String, List<String>>{
+  static const _presetCities = ['TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng'];
+  static const _presetWardsByCity = <String, List<String>>{
     'TP. Hồ Chí Minh': [
       'Phường 25',
       'Phường 26',
@@ -70,7 +72,18 @@ class TenantDiscoveryFilterSheetState
     text: _formatRent(widget.initialRent),
   );
 
-  List<String> get _wards => _wardsByCity[_city] ?? const [];
+  List<String> get _cities => {
+    ..._presetCities,
+    ...TenantRoomDemoData.allListings.map((room) => room.city),
+    ?_city,
+  }.toList();
+  List<String> get _wards => {
+    ...?_presetWardsByCity[_city],
+    ...TenantRoomDemoData.allListings
+        .where((room) => room.city == _city)
+        .map((room) => room.ward),
+    ?_ward,
+  }.toList();
 
   @override
   void dispose() {

@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../landlord/landlord_demo_store.dart';
+import '../../shared/rental/tenant_session.dart';
+
 import 'components/tenant_discovery_filter_sheet.dart';
 import 'components/tenant_room_card.dart';
 import 'components/tenant_room_details_sheet.dart';
@@ -54,9 +57,20 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
 
   @override
   void dispose() {
+    LandlordDemoStore.instance.removeListener(_refreshListings);
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    LandlordDemoStore.instance.addListener(_refreshListings);
+  }
+
+  void _refreshListings() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -105,59 +119,106 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
 
     return TenantPageFrame(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF145E52), Color(0xFF218C74)],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x2016836F),
+                blurRadius: 20,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: 42,
+                top: -47,
+                child: Container(
+                  width: 115,
+                  height: 115,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.06),
+                  ),
+                ),
+              ),
+              Row(
                 children: [
-                  Text(
-                    'Chào Nam Đẹp Trai',
-                    style: TextStyle(
-                      color: tenantGreenDark,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'KHÁM PHÁ CHỖ Ở',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        SizedBox(height: 7),
+                        Text(
+                          'Tìm nơi ở\nvừa ý bạn',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 23,
+                            height: 1.13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.45,
+                          ),
+                        ),
+                        SizedBox(height: 7),
+                        Text(
+                          'Lọc nhanh theo giá, khu vực và tiện ích.',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  SizedBox(height: 5),
-                  Text(
-                    'Trọ hợp lý, giá vừa ý!',
-                    style: TextStyle(
-                      color: Color.fromARGB(255, 47, 108, 58),
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.6,
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: _openFavorites,
+                    icon: const Icon(Icons.favorite_rounded, size: 15),
+                    label: const Text('Yêu thích'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(13),
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: _openFavorites,
-              icon: const Icon(Icons.favorite_rounded, size: 16),
-              label: const Text('Yêu thích'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFBC5362),
-                side: const BorderSide(color: Color(0xFFF0D5D9)),
-                backgroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 11,
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(13),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 17),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -342,7 +403,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
           for (final room in visibleRooms) ...[
             TenantRoomCard(
               room: room,
-              isFavorite: TenantFavoritesStore.contains(room.name),
+              isFavorite: TenantFavoritesStore.contains(room.id),
               onFavoriteToggle: () => _toggleFavorite(room),
               onTap: () => _showRoomDetails(context, room),
             ),
@@ -398,10 +459,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       );
     }
     if (_selectedCity != null || _selectedWard != null) {
-      final location = [
-        if (_selectedWard != null) _selectedWard!,
-        if (_selectedCity != null) _selectedCity!,
-      ].join(' · ');
+      final location = [?_selectedWard, ?_selectedCity].join(' · ');
       filters.add(MapEntry('location', location));
     }
     if (_electricityRange.start > 0 || _electricityRange.end < 5) {
@@ -650,7 +708,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         icon: const Icon(Icons.location_on_rounded, color: tenantGreen),
         title: const Text('Cho phép truy cập vị trí?'),
         content: const Text(
-          'An Cư sẽ dùng vị trí để điền sẵn khu vực lọc và ưu tiên phòng gần bạn. Bản xem trước sẽ dùng vị trí mẫu tại Phường 25, Bình Thạnh.',
+          'Ứng dụng thuê trọ sẽ dùng vị trí để điền sẵn khu vực lọc và ưu tiên phòng gần bạn. Bản xem trước sẽ dùng vị trí mẫu tại Phường 25, Bình Thạnh.',
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
@@ -715,7 +773,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       builder: (_) => TenantRoomDetailsSheet(
         room: room,
         onBook: () => _openViewingRequest(room),
-        isFavorite: TenantFavoritesStore.contains(room.name),
+        isFavorite: TenantFavoritesStore.contains(room.id),
         onFavoriteToggle: () => _toggleFavorite(room),
       ),
     );
@@ -729,14 +787,23 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       useSafeArea: true,
       builder: (_) => TenantViewingRequestSheet(
         room: room,
-        initialName: 'Trần Hoàng Nam',
-        initialPhone: '0900000002',
+        initialName:
+            LandlordDemoStore.instance
+                .currentLeaseForTenant(TenantSession.tenantId)
+                ?.tenantName ??
+            TenantSession.name,
+        initialPhone:
+            LandlordDemoStore.instance
+                .currentLeaseForTenant(TenantSession.tenantId)
+                ?.phone ??
+            TenantSession.phone,
       ),
     );
     if (!mounted || request == null) return;
     try {
       final viewing = _viewingStore.createRequest(
         propertyId: room.propertyId,
+        roomId: room.id,
         tenantId: widget.tenantId,
         roomName: room.name,
         address: room.address,
@@ -769,7 +836,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   }
 
   void _toggleFavorite(TenantRoomListing room) {
-    setState(() => TenantFavoritesStore.toggle(room.name));
+    setState(() => TenantFavoritesStore.toggle(room.id));
   }
 
   Future<void> _openFavorites() async {

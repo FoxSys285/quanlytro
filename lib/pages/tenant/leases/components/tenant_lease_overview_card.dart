@@ -4,6 +4,7 @@ import '../../tenant_ui.dart';
 
 class TenantLeaseOverviewCard extends StatelessWidget {
   const TenantLeaseOverviewCard({
+    super.key,
     required this.icon,
     required this.title,
     required this.value,

@@ -39,11 +39,17 @@ class LandlordIncident {
     required this.category,
     required this.description,
     required this.date,
+    required this.id,
+    required this.leaseId,
+    required this.reporterId,
     this.status = IncidentStatus.newly,
     this.urgent = false,
   });
 
   final String title;
+  final String id;
+  final String leaseId;
+  final String reporterId;
   final String room;
   final String reporter;
   final String category;

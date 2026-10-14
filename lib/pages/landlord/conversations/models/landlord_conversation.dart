@@ -16,12 +16,26 @@ class LandlordConversation {
     required this.room,
     required this.messages,
     this.unread = 0,
+    this.id = '',
+    this.propertyId = 'may',
+    this.tenantId = '',
+    this.landlordName = 'Nguyễn Văn An',
+    this.propertyName = 'Mây House',
+    this.leaseId,
+    this.tenantUnread = 0,
   });
 
-  final String tenantName;
-  final String room;
+  String tenantName;
+  String room;
+  final String id;
+  final String propertyId;
+  final String tenantId;
+  String landlordName;
+  String propertyName;
+  final String? leaseId;
   final List<LandlordMessage> messages;
   int unread;
+  int tenantUnread;
 
   LandlordMessage get lastMessage => messages.last;
 }

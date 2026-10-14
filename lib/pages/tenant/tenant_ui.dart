@@ -8,7 +8,7 @@ const tenantLine = Color(0xFFE7ECEF);
 const tenantCanvas = Color(0xFFF5F7F8);
 
 class TenantPageFrame extends StatelessWidget {
-  const TenantPageFrame({required this.children});
+  const TenantPageFrame({super.key, required this.children});
 
   final List<Widget> children;
 
@@ -40,7 +40,11 @@ class TenantPageFrame extends StatelessWidget {
 }
 
 class TenantPageTitle extends StatelessWidget {
-  const TenantPageTitle({required this.title, required this.subtitle});
+  const TenantPageTitle({
+    super.key,
+    required this.title,
+    required this.subtitle,
+  });
 
   final String title;
   final String subtitle;
@@ -77,7 +81,7 @@ class TenantPageTitle extends StatelessWidget {
 }
 
 class TenantSectionHeading extends StatelessWidget {
-  const TenantSectionHeading(this.title, {this.trailing});
+  const TenantSectionHeading(this.title, {super.key, this.trailing});
 
   final String title;
   final Widget? trailing;
@@ -98,7 +102,7 @@ class TenantSectionHeading extends StatelessWidget {
               ),
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );
@@ -107,6 +111,7 @@ class TenantSectionHeading extends StatelessWidget {
 
 class TenantSurface extends StatelessWidget {
   const TenantSurface({
+    super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
   });
@@ -131,13 +136,18 @@ class TenantSurface extends StatelessWidget {
           ),
         ],
       ),
-      child: child,
+      child: Material(type: MaterialType.transparency, child: child),
     );
   }
 }
 
 class TenantStatusPill extends StatelessWidget {
-  const TenantStatusPill(this.label, {required this.color, this.icon});
+  const TenantStatusPill(
+    this.label, {
+    super.key,
+    required this.color,
+    this.icon,
+  });
 
   final String label;
   final Color color;
@@ -174,6 +184,7 @@ class TenantStatusPill extends StatelessWidget {
 
 class TenantOutlineAction extends StatelessWidget {
   const TenantOutlineAction({
+    super.key,
     required this.icon,
     required this.label,
     this.onPressed,
@@ -225,6 +236,7 @@ String formatTenantMoney(int amount) {
 
 class TenantDataRow extends StatelessWidget {
   const TenantDataRow({
+    super.key,
     required this.label,
     required this.value,
     this.emphasized = false,
@@ -275,7 +287,7 @@ class TenantDataRow extends StatelessWidget {
 }
 
 class TenantThinDivider extends StatelessWidget {
-  const TenantThinDivider();
+  const TenantThinDivider({super.key});
 
   @override
   Widget build(BuildContext context) => const Padding(
@@ -285,7 +297,7 @@ class TenantThinDivider extends StatelessWidget {
 }
 
 class TenantFeatureTag extends StatelessWidget {
-  const TenantFeatureTag(this.label);
+  const TenantFeatureTag(this.label, {super.key});
   final String label;
 
   @override
@@ -308,6 +320,7 @@ class TenantFeatureTag extends StatelessWidget {
 
 class TenantEmptyState extends StatelessWidget {
   const TenantEmptyState({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -346,7 +359,7 @@ class TenantEmptyState extends StatelessWidget {
 }
 
 class TenantBottomSheetSurface extends StatelessWidget {
-  const TenantBottomSheetSurface({required this.child});
+  const TenantBottomSheetSurface({super.key, required this.child});
   final Widget child;
 
   @override
@@ -372,7 +385,7 @@ class TenantBottomSheetSurface extends StatelessWidget {
 }
 
 class TenantSheetHandle extends StatelessWidget {
-  const TenantSheetHandle();
+  const TenantSheetHandle({super.key});
 
   @override
   Widget build(BuildContext context) => Center(

@@ -4,12 +4,14 @@ import '../../tenant_ui.dart';
 
 class TenantInvoiceCard extends StatelessWidget {
   const TenantInvoiceCard({
+    super.key,
     required this.month,
     required this.invoiceId,
     required this.amount,
     required this.date,
     required this.paid,
     required this.onTap,
+    this.statusLabel,
   });
   final String month;
   final String invoiceId;
@@ -17,6 +19,7 @@ class TenantInvoiceCard extends StatelessWidget {
   final String date;
   final bool paid;
   final VoidCallback onTap;
+  final String? statusLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +78,7 @@ class TenantInvoiceCard extends StatelessWidget {
                     ),
                   ),
                   TenantStatusPill(
-                    paid ? 'Đã thanh toán' : 'Chưa thanh toán',
+                    statusLabel ?? (paid ? 'Đã thanh toán' : 'Chưa thanh toán'),
                     color: statusColor,
                   ),
                 ],
@@ -96,7 +99,7 @@ class TenantInvoiceCard extends StatelessWidget {
                   const SizedBox(width: 5),
                   Expanded(
                     child: Text(
-                      '${paid ? 'Thanh toán' : 'Đến hạn'} · $date',
+                      'Đến hạn · $date',
                       style: const TextStyle(color: tenantMuted, fontSize: 10),
                     ),
                   ),

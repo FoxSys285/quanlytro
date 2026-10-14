@@ -1,5 +1,5 @@
 # Quản lý trọ
 
-Ứng dụng Flutter đang trong giai đoạn khởi tạo. Đặc tả nghiệp vụ, quy trình, mô hình dữ liệu, danh sách màn hình và thiết kế service mục tiêu được ghi tại [docs/THIET_KE_NGHIEP_VU.md](docs/THIET_KE_NGHIEP_VU.md).
+Ứng dụng Flutter có giao diện Chủ trọ và Người thuê, dùng chung dữ liệu trong phiên chạy. Đặc tả nghiệp vụ và thiết kế backend mục tiêu nằm tại [docs/THIET_KE_NGHIEP_VU.md](docs/THIET_KE_NGHIEP_VU.md).
 
-Tài liệu là thiết kế đề xuất; repo hiện chưa có backend hoặc các nghiệp vụ được mô tả.
+Kết quả rà soát, các trường đã đồng bộ và cách kiểm tra nằm tại [docs/DONG_BO_CHU_TRO_NGUOI_THUE.md](docs/DONG_BO_CHU_TRO_NGUOI_THUE.md). Repo chưa có backend, đăng nhập hoặc lưu trữ lâu dài; dữ liệu trở về mẫu khi khởi động lại ứng dụng.

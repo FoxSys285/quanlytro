@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../landlord/landlord_demo_store.dart';
+import '../../landlord/finance/landlord_finance_models.dart';
+import '../../shared/rental/tenant_session.dart';
 import '../tenant_ui.dart';
 import 'components/tenant_invoice_charge_rows.dart';
 import 'components/tenant_payment_instructions_sheet.dart';
@@ -7,247 +10,156 @@ import 'components/tenant_payment_instructions_sheet.dart';
 class TenantInvoiceDetailPage extends StatelessWidget {
   const TenantInvoiceDetailPage({
     super.key,
-    required this.paid,
-    required this.amount,
-    required this.month,
     required this.invoiceId,
-    required this.date,
+    this.store,
+    this.tenantId = TenantSession.tenantId,
   });
-
-  final bool paid;
-  final int amount;
-  final String month;
   final String invoiceId;
-  final String date;
+  final LandlordDemoStore? store;
+  final String tenantId;
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = paid ? tenantGreen : const Color(0xFFD18A22);
+    final data = store ?? LandlordDemoStore.instance;
     return Scaffold(
       backgroundColor: tenantCanvas,
-      appBar: AppBar(
-        backgroundColor: tenantCanvas,
-        surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'Chi tiết hóa đơn',
-          style: TextStyle(color: tenantInk, fontWeight: FontWeight.w800),
-        ),
-      ),
-      body: TenantPageFrame(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(19),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [tenantGreenDark, tenantGreen],
-              ),
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x2110685A),
-                  blurRadius: 20,
-                  offset: Offset(0, 8),
+      appBar: AppBar(title: const Text('Chi tiết hóa đơn')),
+      body: ListenableBuilder(
+        listenable: data,
+        builder: (context, _) {
+          final invoice = data.invoiceById(invoiceId);
+          if (invoice == null ||
+              !data.invoicesForTenant(tenantId).contains(invoice)) {
+            return const TenantEmptyState(
+              icon: Icons.receipt_long_outlined,
+              title: 'Không tìm thấy hóa đơn',
+              subtitle: 'Hóa đơn không thuộc hợp đồng của bạn.',
+            );
+          }
+          final payments = data
+              .paymentsForTenant(tenantId)
+              .where((payment) => payment.invoiceId == invoiceId)
+              .toList();
+          final pending = payments.any(
+            (payment) => payment.status == LandlordPaymentStatus.pending,
+          );
+          return TenantPageFrame(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [tenantGreenDark, tenantGreen],
+                  ),
+                  borderRadius: BorderRadius.circular(22),
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: const Icon(
-                        Icons.receipt_long_rounded,
+                    Text(
+                      'HÓA ĐƠN · PHÒNG ${invoice.room}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      landlordMonth(invoice.period),
+                      style: const TextStyle(color: Colors.white, fontSize: 17),
+                    ),
+                    Text(
+                      formatTenantMoney(invoice.total),
+                      style: const TextStyle(
                         color: Colors.white,
+                        fontSize: 29,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(width: 11),
-                    const Expanded(
-                      child: Text(
-                        'HÓA ĐƠN · PHÒNG A.302',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.7,
-                        ),
-                      ),
+                    const SizedBox(height: 10),
+                    Text(
+                      invoice.id,
+                      style: const TextStyle(color: Colors.white),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Text(
-                        paid ? 'Đã thanh toán' : 'Chưa thanh toán',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                    Text(
+                      'Đến hạn · ${landlordDate(invoice.dueDate)}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    Text(
+                      invoice.status.label,
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ],
                 ),
-                const SizedBox(height: 19),
-                Text(
-                  month,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  formatTenantMoney(amount),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 29,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 15,
-                  runSpacing: 6,
+              ),
+              const SizedBox(height: 20),
+              const TenantSectionHeading('Chi tiết các khoản'),
+              TenantSurface(
+                child: Column(
                   children: [
-                    _InvoiceMetaItem(icon: Icons.tag_rounded, label: invoiceId),
-                    _InvoiceMetaItem(
-                      icon: paid
-                          ? Icons.event_available_outlined
-                          : Icons.event_outlined,
-                      label: '${paid ? 'Thanh toán' : 'Đến hạn'} · $date',
+                    TenantInvoiceChargeRows(charges: invoice.charges),
+                    const TenantThinDivider(),
+                    TenantDataRow(
+                      label: 'TỔNG CỘNG',
+                      value: formatTenantMoney(invoice.total),
+                      emphasized: true,
+                    ),
+                    TenantDataRow(
+                      label: 'Đã xác nhận',
+                      value: formatTenantMoney(invoice.paidAmount),
+                    ),
+                    TenantDataRow(
+                      label: 'Còn phải trả',
+                      value: formatTenantMoney(invoice.remaining),
+                      emphasized: true,
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          TenantSectionHeading(
-            'Chi tiết các khoản',
-            trailing: TenantStatusPill(
-              paid ? 'Hoàn tất' : 'Chờ thanh toán',
-              color: statusColor,
-            ),
-          ),
-          TenantSurface(
-            padding: const EdgeInsets.fromLTRB(15, 10, 15, 13),
-            child: Column(
-              children: [
-                TenantInvoiceChargeRows(amount: amount),
-                const TenantThinDivider(),
-                TenantDataRow(
-                  label: 'TỔNG CỘNG',
-                  value: formatTenantMoney(amount),
-                  emphasized: true,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 13),
-          TenantSurface(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  paid ? Icons.verified_rounded : Icons.info_outline_rounded,
-                  color: statusColor,
-                  size: 19,
-                ),
-                const SizedBox(width: 9),
-                Expanded(
+              ),
+              const SizedBox(height: 15),
+              for (final payment in payments) ...[
+                TenantSurface(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        paid
-                            ? 'Hóa đơn đã hoàn tất'
-                            : 'Hóa đơn đang chờ thanh toán',
-                        style: const TextStyle(
-                          color: tenantInk,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        '${formatTenantMoney(payment.reportedAmount)} · ${payment.method}',
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        paid
-                            ? 'Khoản thanh toán đã được ghi nhận vào ngày $date.'
-                            : 'Vui lòng thanh toán trước ngày $date.',
-                        style: const TextStyle(
-                          color: tenantMuted,
-                          fontSize: 10,
-                          height: 1.45,
-                        ),
-                      ),
+                      Text('Tham chiếu: ${payment.reference}'),
+                      Text('Ngày báo trả: ${landlordDate(payment.paidAt)}'),
+                      Text(switch (payment.status) {
+                        LandlordPaymentStatus.pending => 'Chờ chủ trọ duyệt',
+                        LandlordPaymentStatus.approved =>
+                          'Đã xác nhận ${formatTenantMoney(payment.approvedAmount ?? 0)}',
+                        LandlordPaymentStatus.rejected =>
+                          'Từ chối: ${payment.rejectionReason}',
+                      }),
+                      if (payment.proofName != null)
+                        Text('Minh chứng: ${payment.proofName}'),
                     ],
                   ),
                 ),
+                const SizedBox(height: 10),
               ],
-            ),
-          ),
-          if (!paid) ...[
-            const SizedBox(height: 17),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => showTenantPaymentInstructions(context),
-                icon: const Icon(Icons.qr_code_2_rounded, size: 19),
-                label: const Text('Thanh toán hóa đơn'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: tenantGreen,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(49),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(13),
+              if (!invoice.cancelled && invoice.remaining > 0)
+                FilledButton.icon(
+                  onPressed: pending
+                      ? null
+                      : () => showTenantPaymentInstructions(
+                          context,
+                          invoiceId: invoice.id,
+                          store: data,
+                          tenantId: tenantId,
+                        ),
+                  icon: const Icon(Icons.payments_outlined),
+                  label: Text(
+                    pending
+                        ? 'Đang chờ duyệt thanh toán'
+                        : 'Thanh toán hóa đơn',
                   ),
                 ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 10),
-          const Center(
-            child: Text(
-              'Thông tin minh họa trong bản xem trước',
-              style: TextStyle(color: tenantMuted, fontSize: 10),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
-}
-
-class _InvoiceMetaItem extends StatelessWidget {
-  const _InvoiceMetaItem({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(icon, color: Colors.white70, size: 13),
-      const SizedBox(width: 4),
-      Text(label, style: const TextStyle(color: Colors.white, fontSize: 9)),
-    ],
-  );
 }

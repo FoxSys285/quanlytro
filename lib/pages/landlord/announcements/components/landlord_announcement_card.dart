@@ -132,7 +132,7 @@ class LandlordAnnouncementCard extends StatelessWidget {
                           ),
                         if (isSent)
                           Text(
-                            'Gửi thử · ${announcement.recipients.length} phòng',
+                            'Đã gửi · ${announcement.recipients.length} phòng',
                             style: const TextStyle(
                               color: Color(0xFF16836F),
                               fontSize: 12,

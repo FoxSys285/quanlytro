@@ -24,10 +24,12 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
           return invoice.status == LandlordInvoiceStatus.unpaid ||
               invoice.status == LandlordInvoiceStatus.overdue;
         }
-        if (_filter == 'Thanh toán một phần')
+        if (_filter == 'Thanh toán một phần') {
           return invoice.status == LandlordInvoiceStatus.partial;
-        if (_filter == 'Đã thanh toán')
+        }
+        if (_filter == 'Đã thanh toán') {
           return invoice.status == LandlordInvoiceStatus.paid;
+        }
         return true;
       }).toList()..sort((a, b) => b.period.compareTo(a.period));
       final debt = _store.payableInvoices.fold<int>(
@@ -37,6 +39,9 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
       final pendingCount = _store.payments
           .where((payment) => payment.status == LandlordPaymentStatus.pending)
           .length;
+      final overdueAmount = _store.invoices
+          .where((invoice) => invoice.status == LandlordInvoiceStatus.overdue)
+          .fold<int>(0, (sum, invoice) => sum + invoice.remaining);
 
       return LandlordPageFrame(
         children: [
@@ -50,26 +55,37 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
               label: const Text('Lập hóa đơn'),
             ),
           ),
-          Row(
-            children: [
-              Expanded(
-                child: _metric(
-                  'Còn phải thu',
-                  formatLandlordMoney(debt),
-                  Icons.account_balance_wallet_outlined,
-                  landlordBlue,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _metric(
-                  'Chờ duyệt',
-                  '$pendingCount khoản',
-                  Icons.fact_check_outlined,
-                  const Color(0xFFE08A1E),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final metricWidth = (constraints.maxWidth - 10) / 2;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _metric(
+                    'Còn phải thu',
+                    formatLandlordMoney(debt),
+                    Icons.account_balance_wallet_outlined,
+                    landlordBlue,
+                    width: metricWidth,
+                  ),
+                  _metric(
+                    'Chờ duyệt',
+                    '$pendingCount khoản',
+                    Icons.fact_check_outlined,
+                    const Color(0xFFE08A1E),
+                    width: metricWidth,
+                  ),
+                  _metric(
+                    'Quá hạn',
+                    formatLandlordMoney(overdueAmount),
+                    Icons.event_busy_outlined,
+                    const Color(0xFFD64545),
+                    width: metricWidth,
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           SingleChildScrollView(
@@ -85,7 +101,7 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                   Padding(
                     padding: const EdgeInsets.only(right: 7),
                     child: ChoiceChip(
-                      label: Text(label),
+                      label: Text('$label · ${_invoiceCount(label)}'),
                       selected: _filter == label,
                       onSelected: (_) => setState(() => _filter = label),
                     ),
@@ -109,47 +125,67 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
     },
   );
 
-  Widget _metric(String label, String value, IconData icon, Color color) =>
-      Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: landlordLine),
+  int _invoiceCount(String label) => _store.invoices.where((invoice) {
+    if (label == 'Chưa thanh toán') {
+      return invoice.status == LandlordInvoiceStatus.unpaid ||
+          invoice.status == LandlordInvoiceStatus.overdue;
+    }
+    if (label == 'Thanh toán một phần') {
+      return invoice.status == LandlordInvoiceStatus.partial;
+    }
+    if (label == 'Đã thanh toán') {
+      return invoice.status == LandlordInvoiceStatus.paid;
+    }
+    return true;
+  }).length;
+
+  Widget _metric(
+    String label,
+    String value,
+    IconData icon,
+    Color color, {
+    required double width,
+  }) => Container(
+    width: width,
+    padding: const EdgeInsets.all(13),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: landlordLine),
+    ),
+    child: Row(
+      children: [
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: color.withValues(alpha: 0.1),
+          child: Icon(icon, color: color, size: 19),
         ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: color.withValues(alpha: 0.1),
-              child: Icon(icon, color: color, size: 19),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(color: landlordMuted, fontSize: 10),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: landlordInk,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(color: landlordMuted, fontSize: 10),
               ),
-            ),
-          ],
+              const SizedBox(height: 3),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: landlordInk,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   Widget _invoiceCard(LandlordInvoice invoice) {
     final (label, color) = _invoiceStatus(invoice.status);
@@ -350,11 +386,12 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                             _store.cancelInvoice(invoice);
                             if (context.mounted) Navigator.pop(context);
                           } on ArgumentError catch (error) {
-                            if (context.mounted)
+                            if (context.mounted) {
                               showLandlordMessage(
                                 context,
                                 error.message.toString(),
                               );
+                            }
                           }
                         }
                       },
@@ -501,6 +538,25 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _loadReading();
+  }
+
+  void _loadReading() {
+    final reading = LandlordDemoStore.instance.readingForRoom(
+      _lease.room,
+      _period,
+    );
+    _electric.text = reading?.newElectric == null
+        ? ''
+        : reading!.electricUsage.toString();
+    _water.text = reading?.newWater == null
+        ? ''
+        : reading!.waterUsage.toString();
+  }
+
   List<DateTime> get _periods {
     final now = DateTime.now();
     return [
@@ -512,6 +568,18 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
   @override
   Widget build(BuildContext context) {
     final periodByKey = {for (final period in _periods) _key(period): period};
+    final electricKwh = int.tryParse(_electric.text.trim()) ?? 0;
+    final waterM3 = int.tryParse(_water.text.trim()) ?? 0;
+    final extraFee = int.tryParse(_extra.text.trim()) ?? 0;
+    final estimatedTotal =
+        _lease.monthlyRent +
+        electricKwh * _lease.electricityPrice +
+        (_lease.waterType == 'Theo tháng'
+            ? _lease.waterPrice
+            : waterM3 * _lease.waterPrice) +
+        _lease.vehicleFee +
+        _lease.serviceFee +
+        extraFee;
     return AlertDialog(
       title: const Text('Lập hóa đơn'),
       content: SizedBox(
@@ -519,7 +587,18 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const Text(
+                'Chọn hợp đồng, nhập chỉ số tiêu thụ và kiểm tra tổng tiền trước khi phát hành.',
+                style: TextStyle(
+                  color: landlordMuted,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 13),
+              _sectionLabel('HỢP ĐỒNG VÀ KỲ THU'),
               DropdownButtonFormField<String>(
                 initialValue: _leaseId,
                 decoration: const InputDecoration(
@@ -534,8 +613,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
                 ],
                 onChanged: (value) => setState(() {
                   _leaseId = value ?? _leaseId;
-                  _electric.clear();
-                  _water.clear();
+                  _loadReading();
                   _dueDate = _dueDateFor(_period, _lease.dueDay);
                 }),
               ),
@@ -551,91 +629,79 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
                 ],
                 onChanged: (value) => setState(() {
                   _period = periodByKey[value] ?? _period;
+                  _loadReading();
                   _dueDate = _dueDateFor(_period, _lease.dueDay);
                 }),
               ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    'Tiền thuê phòng: ${formatLandlordMoney(_lease.monthlyRent)}',
-                    style: const TextStyle(
-                      color: landlordInk,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+              const SizedBox(height: 12),
+              LandlordCard(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 12,
                 ),
-              ),
-              _contractChargeLine(
-                'Đơn giá điện',
-                '${formatLandlordMoney(_lease.electricityPrice)}/kWh',
-              ),
-              _contractChargeLine(
-                'Tiền xe',
-                '${formatLandlordMoney(_lease.vehicleFee)}/tháng',
-              ),
-              _contractChargeLine(
-                'Tiền dịch vụ',
-                '${formatLandlordMoney(_lease.serviceFee)}/tháng',
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _electric,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Điện tiêu thụ (kWh)',
-                      ),
+                child: Column(
+                  children: [
+                    _contractChargeLine(
+                      'Tiền thuê phòng',
+                      formatLandlordMoney(_lease.monthlyRent),
                     ),
-                  ),
-                  if (_lease.waterType == 'Theo m³') ...[
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _water,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: 'Nước tiêu thụ (m³)',
-                          helperText:
-                              '${formatLandlordMoney(_lease.waterPrice)}/m³',
-                        ),
-                      ),
+                    _contractChargeLine(
+                      'Đơn giá điện',
+                      '${formatLandlordMoney(_lease.electricityPrice)}/kWh',
+                    ),
+                    _contractChargeLine(
+                      'Tiền xe',
+                      '${formatLandlordMoney(_lease.vehicleFee)}/tháng',
+                    ),
+                    _contractChargeLine(
+                      'Tiền dịch vụ',
+                      '${formatLandlordMoney(_lease.serviceFee)}/tháng',
                     ),
                   ],
-                ],
+                ),
               ),
+              _sectionLabel('CHỈ SỐ TIÊU THỤ'),
+              TextField(
+                controller: _electric,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: 'Điện tiêu thụ (kWh)',
+                  helperText:
+                      '${formatLandlordMoney(_lease.electricityPrice)}/kWh',
+                ),
+              ),
+              if (_lease.waterType == 'Theo m³')
+                TextField(
+                  controller: _water,
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    labelText: 'Nước tiêu thụ (m³)',
+                    helperText: '${formatLandlordMoney(_lease.waterPrice)}/m³',
+                  ),
+                ),
               if (_lease.waterType == 'Theo tháng')
                 _contractChargeLine(
                   'Tiền nước',
                   '${formatLandlordMoney(_lease.waterPrice)}/tháng',
                 ),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: TextField(
-                      controller: _extraName,
-                      decoration: const InputDecoration(
-                        labelText: 'Khoản thu khác',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: TextField(
-                      controller: _extra,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Số tiền (đ)',
-                      ),
-                    ),
-                  ),
-                ],
+              _sectionLabel('KHOẢN THU THÊM'),
+              TextField(
+                controller: _extraName,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Tên khoản thu',
+                  hintText: 'Ví dụ: Vệ sinh thêm',
+                ),
               ),
-              const SizedBox(height: 6),
+              TextField(
+                controller: _extra,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(labelText: 'Số tiền (đ)'),
+              ),
+              _sectionLabel('THỜI HẠN'),
               InkWell(
                 onTap: () async {
                   final picked = await showDatePicker(
@@ -655,6 +721,56 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
                 ),
               ),
               const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2B5FB9), landlordBlue],
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'TỔNG TẠM TÍNH',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Kiểm tra trước khi phát hành',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        formatLandlordMoney(estimatedTotal),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
               const Text(
                 'Đơn giá, tiền xe và dịch vụ lấy từ hợp đồng đang chọn.',
                 style: TextStyle(color: landlordMuted, fontSize: 10),
@@ -675,6 +791,22 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
 
   String _key(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
+  Widget _sectionLabel(String label) => Padding(
+    padding: const EdgeInsets.only(top: 14, bottom: 2),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: landlordBlue,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.6,
+        ),
+      ),
+    ),
+  );
 
   Widget _contractChargeLine(String label, String value) => Padding(
     padding: const EdgeInsets.only(top: 8),

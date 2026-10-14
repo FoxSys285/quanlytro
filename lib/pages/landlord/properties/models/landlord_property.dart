@@ -11,6 +11,8 @@ class LandlordProperty {
     this.imageUrl = '',
     this.imageBytes,
     this.imageName,
+    this.city = 'TP. Hồ Chí Minh',
+    this.ward = 'Phường 25',
   });
 
   final String id;
@@ -22,4 +24,6 @@ class LandlordProperty {
   final String imageUrl;
   final Uint8List? imageBytes;
   final String? imageName;
+  final String city;
+  final String ward;
 }

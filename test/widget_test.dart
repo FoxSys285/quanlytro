@@ -1,16 +1,15 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/main.dart';
-import 'package:quanlytro/pages/landlord/properties/landlord_properties_page.dart';
+import 'package:quanlytro/pages/landlord/dashboard/landlord_dashboard_page.dart';
 import 'package:quanlytro/pages/landlord/room_types/landlord_room_types_page.dart';
 
 void main() {
-  testWidgets('App opens the updated landlord property and room types', (
+  testWidgets('App opens the synchronized landlord dashboard and room types', (
     tester,
   ) async {
     await tester.pumpWidget(const MyApp());
-    expect(find.byType(LandlordPropertiesPage), findsOneWidget);
-    expect(find.text('Thông tin nhà trọ'), findsOneWidget);
+    expect(find.byType(LandlordDashboardPage), findsOneWidget);
+    expect(find.text('Tình hình nhà trọ Mây House hôm nay.'), findsOneWidget);
     expect(find.text('Danh sách nhà trọ'), findsNothing);
     await tester.tap(find.byTooltip('Mở danh mục chức năng'));
     await tester.pumpAndSettle();

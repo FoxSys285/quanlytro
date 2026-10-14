@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../tenant_ui.dart';
+import '../../shared/conversations/conversation_store.dart';
 import 'models/tenant_conversation.dart';
 import 'tenant_conversation_page.dart';
 
@@ -15,6 +16,22 @@ class TenantConversationsPage extends StatefulWidget {
 class _TenantConversationsPageState extends State<TenantConversationsPage> {
   // Từ khóa tìm kiếm cuộc trò chuyện
   String _tuKhoaTimKiem = '';
+
+  @override
+  void initState() {
+    super.initState();
+    ConversationStore.instance.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    ConversationStore.instance.removeListener(_refresh);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

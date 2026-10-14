@@ -4,6 +4,7 @@ import '../../tenant_ui.dart';
 
 class TenantRoomArtwork extends StatelessWidget {
   const TenantRoomArtwork({
+    super.key,
     required this.variant,
     this.height = 170,
     this.isFavorite = false,

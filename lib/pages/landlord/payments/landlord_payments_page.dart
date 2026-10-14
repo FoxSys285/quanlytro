@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../finance/landlord_finance_models.dart';
@@ -22,21 +24,69 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
       final pending = _store.payments
           .where((payment) => payment.status == LandlordPaymentStatus.pending)
           .length;
+      final pendingAmount = _store.payments
+          .where((payment) => payment.status == LandlordPaymentStatus.pending)
+          .fold<int>(0, (sum, payment) => sum + payment.reportedAmount);
+      final approvedCount = _store.payments
+          .where((payment) => payment.status == LandlordPaymentStatus.approved)
+          .length;
+      final rejectedCount = _store.payments
+          .where((payment) => payment.status == LandlordPaymentStatus.rejected)
+          .length;
       final payments = _store.payments.where((payment) {
-        if (_filter == 'Chờ duyệt')
+        if (_filter == 'Chờ duyệt') {
           return payment.status == LandlordPaymentStatus.pending;
-        if (_filter == 'Đã xác nhận')
+        }
+        if (_filter == 'Đã xác nhận') {
           return payment.status == LandlordPaymentStatus.approved;
-        if (_filter == 'Từ chối')
+        }
+        if (_filter == 'Từ chối') {
           return payment.status == LandlordPaymentStatus.rejected;
+        }
         return true;
       }).toList()..sort((a, b) => b.paidAt.compareTo(a.paidAt));
       return LandlordPageFrame(
         children: [
           LandlordPageTitle(
             title: 'Duyệt thanh toán',
-            subtitle: '$pending khoản đang chờ đối soát',
+            subtitle: '$pending khoản đang chờ · ưu tiên xử lý khoản mới nhất',
           ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final metricWidth = (constraints.maxWidth - 9) / 2;
+              return Wrap(
+                spacing: 9,
+                runSpacing: 9,
+                children: [
+                  _paymentMetric(
+                    width: metricWidth,
+                    label: 'Chờ đối soát',
+                    value: '$pending khoản',
+                    caption: formatLandlordMoney(pendingAmount),
+                    icon: Icons.pending_actions_rounded,
+                    color: const Color(0xFFE08A1E),
+                  ),
+                  _paymentMetric(
+                    width: metricWidth,
+                    label: 'Đã xác nhận',
+                    value: '$approvedCount khoản',
+                    caption: 'Đã ghi nhận vào hóa đơn',
+                    icon: Icons.verified_outlined,
+                    color: const Color(0xFF16836F),
+                  ),
+                  _paymentMetric(
+                    width: metricWidth,
+                    label: 'Đã từ chối',
+                    value: '$rejectedCount khoản',
+                    caption: 'Có lưu lý do xử lý',
+                    icon: Icons.highlight_off_rounded,
+                    color: const Color(0xFFD64545),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 14),
           if (pending > 0)
             Container(
               width: double.infinity,
@@ -53,7 +103,7 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Đối chiếu mã giao dịch và số tiền với tài khoản nhận trước khi xác nhận.',
+                      'Đối chiếu mã giao dịch, số tiền và hóa đơn trước khi xác nhận.',
                       style: TextStyle(
                         color: Color(0xFF765B31),
                         fontSize: 12,
@@ -77,7 +127,7 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
                   Padding(
                     padding: const EdgeInsets.only(right: 7),
                     child: ChoiceChip(
-                      label: Text(label),
+                      label: Text('$label · ${_paymentCount(label)}'),
                       selected: _filter == label,
                       onSelected: (_) => setState(() => _filter = label),
                     ),
@@ -99,6 +149,75 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
         ],
       );
     },
+  );
+
+  int _paymentCount(String label) => _store.payments.where((payment) {
+    if (label == 'Chờ duyệt') {
+      return payment.status == LandlordPaymentStatus.pending;
+    }
+    if (label == 'Đã xác nhận') {
+      return payment.status == LandlordPaymentStatus.approved;
+    }
+    if (label == 'Từ chối') {
+      return payment.status == LandlordPaymentStatus.rejected;
+    }
+    return true;
+  }).length;
+
+  Widget _paymentMetric({
+    required double width,
+    required String label,
+    required String value,
+    required String caption,
+    required IconData icon,
+    required Color color,
+  }) => Container(
+    width: width,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(color: landlordLine),
+    ),
+    child: Row(
+      children: [
+        CircleAvatar(
+          radius: 17,
+          backgroundColor: color.withValues(alpha: 0.1),
+          child: Icon(icon, color: color, size: 17),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: landlordMuted, fontSize: 10),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: landlordInk,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                caption,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: color, fontSize: 9),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
 
   Widget _paymentCard(LandlordPayment payment) {
@@ -343,6 +462,16 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
             _infoRow('Phương thức', widget.payment.method),
             const SizedBox(height: 8),
             _infoRow('Tham chiếu giao dịch', widget.payment.reference),
+            if (widget.payment.proofBytes != null) ...[
+              const SizedBox(height: 12),
+              Text(widget.payment.proofName ?? 'Minh chứng thanh toán'),
+              Image.memory(
+                Uint8List.fromList(widget.payment.proofBytes!),
+                height: 180,
+                errorBuilder: (_, _, _) =>
+                    const Text('Không đọc được ảnh minh chứng.'),
+              ),
+            ],
             const SizedBox(height: 13),
             TextField(
               controller: _amount,

@@ -20,6 +20,8 @@ class RoomViewing {
     this.propertyId = 'may',
     this.tenantId = '',
     this.attendeeCount,
+    this.roomId,
+    this.createdAt,
   });
   final String id;
   final String propertyId;
@@ -32,6 +34,8 @@ class RoomViewing {
   final String personalNeeds;
   final ViewingStatus status;
   final int? attendeeCount;
+  final String? roomId;
+  final DateTime? createdAt;
 
   RoomViewing withStatus(ViewingStatus status) => RoomViewing(
     id: id,
@@ -45,5 +49,7 @@ class RoomViewing {
     personalNeeds: personalNeeds,
     status: status,
     attendeeCount: attendeeCount,
+    roomId: roomId,
+    createdAt: createdAt,
   );
 }

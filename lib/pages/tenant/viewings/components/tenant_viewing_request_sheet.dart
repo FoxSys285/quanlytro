@@ -6,6 +6,7 @@ import '../models/tenant_viewing_request.dart';
 
 class TenantViewingRequestSheet extends StatefulWidget {
   const TenantViewingRequestSheet({
+    super.key,
     required this.room,
     this.initialName = '',
     this.initialPhone = '',

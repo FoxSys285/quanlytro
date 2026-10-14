@@ -4,6 +4,7 @@ import '../../tenant_ui.dart';
 
 class TenantLeaseMemberRow extends StatelessWidget {
   const TenantLeaseMemberRow({
+    super.key,
     required this.initials,
     required this.name,
     required this.detail,
