@@ -1,78 +1,73 @@
 import 'package:flutter/material.dart';
 
+import '../../landlord/incidents/models/landlord_incident.dart';
+import '../../landlord/landlord_demo_store.dart';
+import '../../shared/rental/tenant_session.dart';
 import '../tenant_ui.dart';
 
-class TenantIncident {
-  TenantIncident({
-    required this.title,
-    required this.category,
-    required this.description,
-    required this.date,
-    this.status = 'Mới gửi',
+class TenantIncidentsPage extends StatefulWidget {
+  const TenantIncidentsPage({
+    super.key,
+    this.store,
+    this.tenantId = TenantSession.tenantId,
   });
 
-  final String title;
-  final String category;
-  final String description;
-  final String date;
-
-  /// Mới gửi / Đang xử lý / Đã xử lý / Đã xác nhận.
-  String status;
-}
-
-class TenantIncidentsPage extends StatefulWidget {
-  const TenantIncidentsPage({super.key});
+  final LandlordDemoStore? store;
+  final String tenantId;
 
   @override
   State<TenantIncidentsPage> createState() => _TenantIncidentsPageState();
 }
 
 class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
-  // Danh sách các loại sự cố phổ biến
+  // Danh sách các danh mục sự cố phổ biến
   static const _danhMucSuCo = ['Điện', 'Nước', 'Điện lạnh', 'Internet', 'Khác'];
 
-  // Danh sách các sự cố của người thuê phòng hiện tại
-  final _danhSachSuCo = <TenantIncident>[
-    TenantIncident(
-      title: 'Máy lạnh không lạnh',
-      category: 'Điện lạnh',
-      description: 'Máy lạnh chạy nhưng không ra hơi lạnh từ tối qua.',
-      date: '04/10/2026',
-    ),
-    TenantIncident(
-      title: 'Bóng đèn nhà tắm hỏng',
-      category: 'Điện',
-      description: 'Bóng đèn không sáng.',
-      date: '20/09/2026',
-      status: 'Đã xử lý',
-    ),
-  ];
+  LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
+  List<LandlordIncident> get _danhSachSuCo =>
+      _store.incidentsForTenant(widget.tenantId);
 
-  // Hàm xác định màu sắc hiển thị theo trạng thái sự cố
-  Color _layMauTrangThai(String trangThai) {
-    if (trangThai == 'Mới gửi') {
-      return const Color(0xFFD64545);
-    } else if (trangThai == 'Đang xử lý') {
-      return const Color(0xFFE08A1E);
-    } else if (trangThai == 'Đã xử lý') {
-      return tenantGreen;
-    } else {
-      return tenantMuted;
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_capNhat);
+  }
+
+  void _capNhat() {
+    if (mounted) {
+      setState(() {});
     }
   }
 
   @override
+  void dispose() {
+    _store.removeListener(_capNhat);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    String tieuDePhu = 'Gửi yêu cầu sửa chữa cho chủ trọ.';
+    final hopDong = _store.currentLeaseForTenant(widget.tenantId);
+    if (hopDong != null) {
+      tieuDePhu = 'Gửi yêu cầu sửa chữa cho chủ trọ phòng ${hopDong.room}.';
+    }
+
+    VoidCallback? hamTaoMoi;
+    if (hopDong != null) {
+      hamTaoMoi = _moFormTaoMoi;
+    }
+
     // Danh sách widget hiển thị trên toàn màn hình
     final List<Widget> danhSachWidget = [
-      const TenantPageTitle(
+      TenantPageTitle(
         title: 'Báo sự cố',
-        subtitle: 'Gửi yêu cầu sửa chữa cho chủ trọ phòng A.302.',
+        subtitle: tieuDePhu,
       ),
       SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
-          onPressed: _moFormTaoMoi,
+          onPressed: hamTaoMoi,
           style: FilledButton.styleFrom(backgroundColor: tenantGreen),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Tạo yêu cầu mới'),
@@ -92,13 +87,13 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
         ),
       );
     } else {
-      // Duyệt qua từng sự cố để tạo thẻ hiển thị
+      // Duyệt qua từng sự cố để tạo thẻ hiển thị bằng vòng lặp for đơn giản
       for (int i = 0; i < _danhSachSuCo.length; i++) {
         final suCo = _danhSachSuCo[i];
 
-        // Nếu sự cố đã xử lý thì hiển thị thêm nút bấm xác nhận hoặc mở lại
+        // Nếu sự cố đã được chủ trọ xử lý thì hiển thị 2 nút: Mở lại hoặc Xác nhận
         Widget? dongNutThaoTac;
-        if (suCo.status == 'Đã xử lý') {
+        if (suCo.status == IncidentStatus.resolved) {
           dongNutThaoTac = Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Row(
@@ -106,14 +101,14 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
               children: [
                 TextButton(
                   onPressed: () {
-                    _capNhatTrangThai(suCo, 'Mới gửi');
+                    _capNhatTrangThai(suCo, IncidentStatus.newly);
                   },
                   child: const Text('Mở lại'),
                 ),
                 const SizedBox(width: 6),
                 FilledButton(
                   onPressed: () {
-                    _capNhatTrangThai(suCo, 'Đã xác nhận');
+                    _capNhatTrangThai(suCo, IncidentStatus.closed);
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: tenantGreen,
@@ -140,8 +135,8 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
                 ),
               ),
               TenantStatusPill(
-                suCo.status,
-                color: _layMauTrangThai(suCo.status),
+                suCo.status.label,
+                color: suCo.status.color,
               ),
             ],
           ),
@@ -180,12 +175,10 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
   }
 
   // Hàm cập nhật trạng thái sự cố và hiển thị thông báo
-  void _capNhatTrangThai(TenantIncident suCo, String trangThaiMoi) {
-    setState(() {
-      suCo.status = trangThaiMoi;
-    });
+  void _capNhatTrangThai(LandlordIncident suCo, IncidentStatus trangThaiMoi) {
+    _store.updateIncident(suCo, trangThaiMoi, tenantId: widget.tenantId);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Đã cập nhật: $trangThaiMoi')),
+      SnackBar(content: Text('Đã cập nhật: ${trangThaiMoi.label}')),
     );
   }
 
@@ -291,20 +284,20 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
       return;
     }
 
-    // Lấy ngày hiện tại và thêm vào đầu danh sách
-    final thoiGianHienTai = DateTime.now();
-    setState(() {
-      _danhSachSuCo.insert(
-        0,
-        TenantIncident(
-          title: tieuDe,
-          category: loaiSuCo,
-          description: moTa,
-          date:
-              '${thoiGianHienTai.day}/${thoiGianHienTai.month}/${thoiGianHienTai.year}',
-        ),
+    try {
+      _store.createIncident(
+        tenantId: widget.tenantId,
+        title: tieuDe,
+        category: loaiSuCo,
+        description: moTa,
       );
-    });
+    } on ArgumentError catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message.toString())),
+      );
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Đã gửi yêu cầu cho chủ trọ.')),
     );
