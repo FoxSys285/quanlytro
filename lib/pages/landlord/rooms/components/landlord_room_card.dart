@@ -10,13 +10,19 @@ class LandlordRoomCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final room = details.room;
+    final cardColor = switch (details.status) {
+      LandlordRoomStatus.vacant => const Color(0xFFFFF7F6),
+      LandlordRoomStatus.occupied => const Color(0xFFF4F8FF),
+      LandlordRoomStatus.upcoming => Colors.white,
+    };
     final statusColor = switch (details.status) {
-      LandlordRoomStatus.vacant => const Color(0xFF16836F),
+      LandlordRoomStatus.vacant => const Color(0xFFC25C63),
       LandlordRoomStatus.occupied => landlordBlue,
       LandlordRoomStatus.upcoming => const Color(0xFF946000),
     };
     return LandlordCard(
       padding: const EdgeInsets.all(18),
+      backgroundColor: cardColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -25,12 +31,12 @@ class LandlordRoomCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: landlordBlue.withValues(alpha: 0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.meeting_room_outlined,
-                  color: landlordBlue,
+                  color: statusColor,
                 ),
               ),
               const SizedBox(width: 12),

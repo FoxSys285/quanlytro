@@ -7,6 +7,7 @@ import 'package:quanlytro/pages/landlord/announcements/data/landlord_announcemen
 import 'package:quanlytro/pages/landlord/announcements/landlord_announcements_page.dart';
 import 'package:quanlytro/pages/landlord/announcements/models/landlord_announcement.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
+import 'package:quanlytro/pages/shared/announcements/announcement_store.dart';
 
 void main() {
   test('Relative time distinguishes yesterday and earlier dates', () {
@@ -40,7 +41,10 @@ void main() {
     await tester.tap(find.text('Gửi thông báo'));
     await tester.pumpAndSettle();
     expect(find.byType(LandlordAnnouncementsPage), findsOneWidget);
-    expect(find.byType(LandlordAnnouncementCard), findsNWidgets(8));
+    expect(
+      find.byType(LandlordAnnouncementCard),
+      findsNWidgets(AnnouncementStore.instance.inbox.length),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -50,13 +54,18 @@ void main() {
       tester.view.physicalSize = Size(width, 1000);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      final store = AnnouncementStore();
+      addTearDown(store.dispose);
+      final unreadCount = store.inbox.where((item) => !item.isRead).length;
       await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: LandlordAnnouncementsPage())),
+        MaterialApp(
+          home: Scaffold(body: LandlordAnnouncementsPage(store: store)),
+        ),
       );
       expect(tester.takeException(), isNull);
       await tester.tap(find.widgetWithText(ChoiceChip, 'Chưa đọc'));
       await tester.pumpAndSettle();
-      expect(find.byType(LandlordAnnouncementCard), findsNWidgets(5));
+      expect(find.byType(LandlordAnnouncementCard), findsNWidgets(unreadCount));
       final first = find.byType(LandlordAnnouncementCard).first;
       await tester.ensureVisible(first);
       await tester.tap(first);
@@ -64,7 +73,10 @@ void main() {
       expect(find.byType(AlertDialog), findsOneWidget);
       await tester.tap(find.text('Đóng'));
       await tester.pumpAndSettle();
-      expect(find.byType(LandlordAnnouncementCard), findsNWidgets(4));
+      expect(
+        find.byType(LandlordAnnouncementCard),
+        findsNWidgets(unreadCount - 1),
+      );
       await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'Tất cả'));
       await tester.tap(find.widgetWithText(ChoiceChip, 'Tất cả'));
       await tester.ensureVisible(
@@ -135,7 +147,7 @@ void main() {
         }
         await tester.pumpAndSettle();
       }
-      await tester.tap(find.text('Gửi thử'));
+      await tester.tap(find.text('Gửi thông báo'));
       await tester.pumpAndSettle();
       expect(result, isNull);
       final title = find.byType(TextFormField).at(0);
@@ -144,7 +156,7 @@ void main() {
       await tester.enterText(title, 'Thông báo cúp điện');
       await tester.ensureVisible(content);
       await tester.enterText(content, 'Cúp điện từ 09:00 đến 10:00 ngày mai.');
-      await tester.tap(find.text('Gửi thử'));
+      await tester.tap(find.text('Gửi thông báo'));
       await tester.pumpAndSettle();
       expect(result?.title, 'Thông báo cúp điện');
       expect(
@@ -203,7 +215,7 @@ void main() {
           fields.at(1),
           'Chủ trọ kiểm tra điện vào chiều mai.',
         );
-        await tester.tap(find.text('Gửi thử'));
+        await tester.tap(find.text('Gửi thông báo'));
         await tester.pumpAndSettle();
         expect(result, isNull);
         expect(
@@ -252,7 +264,7 @@ void main() {
         expect(find.text('Nhận thông báo: 0 phòng'), findsOneWidget);
         await choose('102');
         await choose('201');
-        await tester.tap(find.text('Gửi thử'));
+        await tester.tap(find.text('Gửi thông báo'));
         await tester.pumpAndSettle();
         expect(result!.recipients, ['102', '201']);
         expect(result!.propertyId, 'may');

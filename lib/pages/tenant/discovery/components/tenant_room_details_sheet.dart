@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import '../models/tenant_room_listing.dart';
 import 'tenant_room_artwork.dart';
 import '../../tenant_ui.dart';
+import '../../../landlord/properties/components/landlord_property_image.dart';
+import '../../../landlord/landlord_demo_store.dart';
 
 class TenantRoomDetailsSheet extends StatefulWidget {
   const TenantRoomDetailsSheet({
+    super.key,
     required this.room,
     required this.onBook,
     required this.isFavorite,
@@ -23,6 +26,31 @@ class TenantRoomDetailsSheet extends StatefulWidget {
 
 class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
   late bool _isFavorite = widget.isFavorite;
+  TenantRoomListing get _room {
+    for (final room in TenantRoomDemoData.allListings) {
+      if (room.id == widget.room.id) return room;
+    }
+    return widget.room;
+  }
+
+  bool get _available =>
+      widget.room.roomCode == null ||
+      TenantRoomDemoData.allListings.any((room) => room.id == widget.room.id);
+  @override
+  void initState() {
+    super.initState();
+    LandlordDemoStore.instance.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    LandlordDemoStore.instance.removeListener(_refresh);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,19 +71,25 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(18),
-                  child: TenantRoomArtwork(
-                    variant: widget.room.variant,
-                    height: 175,
-                    isFavorite: _isFavorite,
-                    onFavoriteTap: () {
-                      widget.onFavoriteToggle();
-                      setState(() => _isFavorite = !_isFavorite);
-                    },
-                  ),
+                  child: _room.imageBytes != null || _room.imageUrl.isNotEmpty
+                      ? LandlordPropertyImage(
+                          bytes: _room.imageBytes,
+                          url: _room.imageUrl,
+                          height: 175,
+                        )
+                      : TenantRoomArtwork(
+                          variant: _room.variant,
+                          height: 175,
+                          isFavorite: _isFavorite,
+                          onFavoriteTap: () {
+                            widget.onFavoriteToggle();
+                            setState(() => _isFavorite = !_isFavorite);
+                          },
+                        ),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  widget.room.name,
+                  _room.name,
                   style: const TextStyle(
                     color: tenantInk,
                     fontSize: 19,
@@ -64,7 +98,7 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
                 ),
                 const SizedBox(height: 7),
                 Text(
-                  widget.room.address,
+                  _room.address,
                   style: const TextStyle(color: tenantMuted, fontSize: 12),
                 ),
                 const SizedBox(height: 15),
@@ -73,37 +107,38 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
                     children: [
                       TenantDataRow(
                         label: 'Giá thuê',
-                        value:
-                            '${formatTenantMoney(widget.room.price)} / tháng',
+                        value: '${formatTenantMoney(_room.price)} / tháng',
                         emphasized: true,
                       ),
                       const TenantThinDivider(),
-                      TenantDataRow(
-                        label: 'Diện tích',
-                        value: widget.room.size,
-                      ),
+                      TenantDataRow(label: 'Diện tích', value: _room.size),
+                      if (_room.capacity != null)
+                        TenantDataRow(
+                          label: 'Sức chứa',
+                          value: '${_room.capacity} người',
+                        ),
                       const TenantThinDivider(),
                       TenantDataRow(
                         label: 'Khoảng cách',
-                        value: widget.room.distance,
+                        value: _room.distance,
                       ),
                       const TenantThinDivider(),
                       TenantDataRow(
                         label: 'Tiền điện',
                         value:
-                            '${formatTenantMoney(widget.room.electricityPrice)}/kWh',
+                            '${formatTenantMoney(_room.electricityPrice)}/kWh',
                       ),
                       const TenantThinDivider(),
                       TenantDataRow(
                         label: 'Tiền nước',
-                        value: widget.room.waterType == 'Theo tháng'
-                            ? '${formatTenantMoney(widget.room.waterPrice)}/tháng'
-                            : '${formatTenantMoney(widget.room.waterPrice)}/m³',
+                        value: _room.waterType == 'Theo tháng'
+                            ? '${formatTenantMoney(_room.waterPrice)}/tháng'
+                            : '${formatTenantMoney(_room.waterPrice)}/m³',
                       ),
                       const TenantThinDivider(),
                       TenantDataRow(
                         label: 'Đánh giá',
-                        value: '★ ${widget.room.rating} / 5',
+                        value: '★ ${_room.rating} / 5',
                       ),
                     ],
                   ),
@@ -114,12 +149,14 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final tag in widget.room.tags) TenantFeatureTag(tag),
+                    for (final tag in _room.tags) TenantFeatureTag(tag),
                   ],
                 ),
                 const SizedBox(height: 18),
-                const Text(
-                  'Không gian sáng thoáng, khu vực an ninh và thuận tiện di chuyển. Liên hệ để xem phòng trực tiếp.',
+                Text(
+                  _room.description.isEmpty
+                      ? 'Liên hệ để xem phòng trực tiếp.'
+                      : _room.description,
                   style: TextStyle(
                     color: tenantMuted,
                     fontSize: 12,
@@ -128,12 +165,16 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
                 ),
                 const SizedBox(height: 20),
                 FilledButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    widget.onBook();
-                  },
+                  onPressed: !_available
+                      ? null
+                      : () {
+                          Navigator.of(context).pop();
+                          widget.onBook();
+                        },
                   icon: const Icon(Icons.calendar_month_rounded, size: 18),
-                  label: const Text('Đặt lịch xem phòng'),
+                  label: Text(
+                    _available ? 'Đặt lịch xem phòng' : 'Phòng không còn trống',
+                  ),
                   style: FilledButton.styleFrom(
                     backgroundColor: tenantGreen,
                     foregroundColor: Colors.white,

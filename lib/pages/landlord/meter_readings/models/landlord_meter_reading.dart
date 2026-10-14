@@ -3,11 +3,13 @@ class LandlordMeterReading {
     required this.room,
     required this.oldElectric,
     required this.oldWater,
+    required this.period,
     this.newElectric,
     this.newWater,
   });
 
   final String room;
+  final DateTime period;
   final int oldElectric;
   final int oldWater;
   int? newElectric;

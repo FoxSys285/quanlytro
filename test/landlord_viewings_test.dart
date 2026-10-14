@@ -63,7 +63,7 @@ void main() {
         'viewing-demo-0',
       ); // Original data is not reordered.
       expect(find.text('Thứ Sáu, 01/01/2027'), findsOneWidget);
-      expect(find.text('0900000002'), findsNWidgets(3));
+      expect(find.text('0901 234 567'), findsNWidgets(3));
       expect(find.text(data[1].personalNeeds), findsOneWidget);
       expect(tester.takeException(), isNull);
 

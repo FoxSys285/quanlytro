@@ -4,7 +4,7 @@ Thư mục được chia theo vai trò và feature. Các thư mục feature dùn
 
 ```text
 pages/
-  shared/          auth, profile, notifications, support, viewings (model/store chung)
+  shared/          rental (định danh/thành viên), viewings, conversations, announcements
   tenant/          tenant_page_router.dart, tenant_ui.dart
     announcements/  tenant_announcements_page.dart (+ components/, models/)
     members/        tenant_members_page.dart (+ components/, models/)
@@ -44,7 +44,7 @@ pages/
 
 Các màn hình người thuê đang được triển khai trong `tenant/`; tiện ích giao diện dùng chung của nhóm màn hình nằm trong `tenant_ui.dart`.
 
-Thông báo nhà trọ và Thành viên phòng của người thuê dùng dữ liệu tĩnh cho Mây House, phòng A.302, khớp với trang Chỗ ở của tôi. Sửa mẫu tại `tenant/announcements/models/tenant_announcement.dart` và `tenant/members/models/tenant_room_member.dart`. Mở thông báo để xem đầy đủ nội dung và đánh dấu đã đọc trong lần mở trang hiện tại; chưa kết nối với thông báo gửi từ chủ trọ hoặc cơ sở dữ liệu.
+Thông báo, thành viên, hợp đồng, hóa đơn, thanh toán, sự cố và hội thoại dùng dữ liệu chung giữa Chủ trọ và Người thuê. `LandlordDemoStore` là nguồn dữ liệu nghiệp vụ hiện có; `shared/announcements/` lưu thông báo/người nhận/trạng thái đọc, `shared/conversations/` lưu hội thoại chung. Mẫu Người thuê hiện tại là Minh Anh (`tenant-demo`), liên kết với hợp đồng HD-2026-0302 qua ID, không lọc cố định theo tên hay phòng.
 
 Phạm vi từng màn hình và luồng nghiệp vụ được mô tả trong `docs/THIET_KE_NGHIEP_VU.md`.
 
@@ -53,12 +53,14 @@ Vai trò chủ trọ hiện dùng dữ liệu mẫu của một nhà trọ Mây 
 - `landlord/properties/`: thông tin nhà trọ và form chỉnh sửa, chọn ảnh từ thiết bị bằng `image_picker`, xem trước trước khi lưu.
 - `landlord/room_types/`: danh sách loại phòng, giá thuê theo tháng và thêm/sửa/xóa.
 - `landlord/rooms/`: danh sách phòng của nhà trọ hiện tại, lọc tầng/trạng thái và tìm mã phòng, loại phòng, người thuê. Giá phòng có hợp đồng lấy từ hợp đồng; phòng trống lấy giá của loại phòng.
-- `landlord/announcements/`: gửi thử đến tất cả phòng, một tầng hoặc nhiều phòng được chọn; kiểm tra danh sách người nhận trước khi gửi.
+- `landlord/announcements/`: gửi đến tất cả phòng, một tầng hoặc nhiều phòng được chọn trong phiên; Người thuê đúng phạm vi nhận cùng thông báo. Hộp nhận được lấy từ dữ liệu nghiệp vụ hiện tại.
 - `landlord/viewings/`: người đặt lịch, ngày giờ, nút xác nhận/hủy và mở cuộc trò chuyện.
 - `tenant/viewings/`: các phòng người thuê đã đặt lịch với trạng thái đang chờ xác nhận, đã xác nhận, đã hủy.
 
-Hai trang lịch dùng chung `shared/viewings/viewing_store.dart`. Mẫu người thuê hiện tại là Trần Hoàng Nam (`tenant-demo`); chủ trọ chỉ thấy lịch của Mây House (`may`). Thay `tenantId` và nguồn dữ liệu bằng thông tin đăng nhập/repository khi có backend. Trạng thái đổi bên chủ trọ sẽ hiển thị bên người thuê khi chuyển vai trò. Tin nhắn thử được giữ trong phiên chạy và xuất hiện trong danh sách Tin nhắn của chủ trọ.
+Hai trang lịch dùng chung `shared/viewings/viewing_store.dart`. Chủ trọ chỉ thấy lịch của Mây House (`may`); Người thuê chỉ thấy lịch của ID phiên mình. Trạng thái đổi bên Chủ trọ hiển thị bên Người thuê. Hội thoại từ lịch xem dùng cùng danh sách tin ở hai vai trò. Thay ID phiên và các store bằng phiên đăng nhập/repository khi có backend.
 
 Thông tin, ảnh và giá đã chỉnh sửa được giữ khi chuyển trang trong phiên chạy hiện tại. Dữ liệu chưa lưu vào cơ sở dữ liệu và sẽ trở về mẫu khi khởi động lại ứng dụng.
 
 Danh mục phòng mẫu dùng chung giữa danh sách phòng và bộ chọn người nhận tại `LandlordDemoStore.roomCatalog`. Phòng 101 liên kết với mã A.101 của hợp đồng mẫu; A.302 và B.105 giữ mã như các hợp đồng hiện có. Giá và trạng thái trên danh sách phòng cập nhật theo loại phòng/hợp đồng trong phiên chạy.
+
+Chi tiết đối chiếu trường, quy tắc giữ lịch sử và các bước kiểm tra nằm tại `docs/DONG_BO_CHU_TRO_NGUOI_THUE.md`.

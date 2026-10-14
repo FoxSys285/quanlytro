@@ -253,7 +253,7 @@ class _LandlordAnnouncementComposerState
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'Gửi thử chỉ lưu trong phiên hiện tại, chưa gửi đến người thuê.',
+                  'Thông báo sẽ xuất hiện ở phía người thuê thuộc các phòng đã chọn trong phiên hiện tại.',
                   style: TextStyle(color: Colors.blueGrey, fontSize: 12),
                 ),
               ],
@@ -268,7 +268,7 @@ class _LandlordAnnouncementComposerState
         ),
         FilledButton.icon(
           icon: const Icon(Icons.send_outlined),
-          label: const Text('Gửi thử'),
+          label: const Text('Gửi thông báo'),
           onPressed: () {
             if (!_form.currentState!.validate() || rooms.isEmpty) return;
             final now = DateTime.now();

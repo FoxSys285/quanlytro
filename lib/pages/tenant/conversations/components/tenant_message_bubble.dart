@@ -4,7 +4,7 @@ import '../models/tenant_conversation_message.dart';
 import '../../tenant_ui.dart';
 
 class TenantMessageBubble extends StatelessWidget {
-  const TenantMessageBubble({required this.message});
+  const TenantMessageBubble({super.key, required this.message});
   final TenantConversationMessage message;
 
   @override

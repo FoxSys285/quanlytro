@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
+import '../../shared/conversations/conversation_store.dart';
 import 'models/landlord_conversation.dart';
 
 class LandlordChatPage extends StatefulWidget {
@@ -16,7 +17,18 @@ class _LandlordChatPageState extends State<LandlordChatPage> {
   final _controller = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    ConversationStore.instance.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    ConversationStore.instance.removeListener(_refresh);
     _controller.dispose();
     super.dispose();
   }
@@ -24,16 +36,13 @@ class _LandlordChatPageState extends State<LandlordChatPage> {
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-    setState(() {
-      widget.conversation.messages.add(
-        LandlordMessage(
-          text: text,
-          time: TimeOfDay.now().format(context),
-          fromLandlord: true,
-        ),
-      );
-      _controller.clear();
-    });
+    ConversationStore.instance.send(
+      widget.conversation,
+      text: text,
+      time: TimeOfDay.now().format(context),
+      fromLandlord: true,
+    );
+    setState(() => _controller.clear());
   }
 
   @override

@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../tenant_ui.dart';
+import '../../shared/announcements/announcement_store.dart';
+import '../../shared/rental/tenant_session.dart';
+import '../../landlord/announcements/models/landlord_announcement.dart';
 import 'components/tenant_announcement_card.dart';
 import 'models/tenant_announcement.dart';
 
 class TenantAnnouncementsPage extends StatefulWidget {
-  const TenantAnnouncementsPage({super.key});
+  const TenantAnnouncementsPage({
+    super.key,
+    this.store,
+    this.tenantId = TenantSession.tenantId,
+  });
+  final AnnouncementStore? store;
+  final String tenantId;
 
   @override
   State<TenantAnnouncementsPage> createState() =>
@@ -13,14 +22,28 @@ class TenantAnnouncementsPage extends StatefulWidget {
 }
 
 class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
-  final _readIds = <String>{
-    for (final item in TenantAnnouncementDemoData.announcements)
-      if (item.isRead) item.id,
-  };
+  AnnouncementStore get _store => widget.store ?? AnnouncementStore.instance;
+  bool _isRead(String id) => _store.isRead(id, widget.tenantId);
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_refresh);
+    super.dispose();
+  }
+
   bool _unreadOnly = false;
 
   void _open(TenantAnnouncement item) {
-    setState(() => _readIds.add(item.id));
+    _store.markTenantRead(item.id, widget.tenantId);
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -50,8 +73,8 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  TenantAnnouncementDemoData.sender,
+                Text(
+                  'Chủ trọ · ${_store.rental.property.ownerName}',
                   style: TextStyle(
                     color: tenantInk,
                     fontWeight: FontWeight.w600,
@@ -92,18 +115,31 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final all = TenantAnnouncementDemoData.announcements;
-    final unreadCount = all.where((item) => !_readIds.contains(item.id)).length;
+    final all = _store
+        .forTenant(widget.tenantId)
+        .map(
+          (item) => TenantAnnouncement(
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            category: item.category.label,
+            recipient:
+                item.audienceLabel ?? 'Phòng ${item.recipients.join(', ')}',
+            publishedAt: item.createdAt,
+            isImportant: item.priority != AnnouncementPriority.normal,
+          ),
+        )
+        .toList();
+    final unreadCount = all.where((item) => !_isRead(item.id)).length;
     final items =
-        all
-            .where((item) => !_unreadOnly || !_readIds.contains(item.id))
-            .toList()
+        all.where((item) => !_unreadOnly || !_isRead(item.id)).toList()
           ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
     return TenantPageFrame(
       children: [
-        const TenantPageTitle(
+        TenantPageTitle(
           title: 'Thông báo nhà trọ',
-          subtitle: 'Thông tin từ chủ trọ dành cho Mây House · phòng A.302.',
+          subtitle:
+              'Thông tin từ chủ trọ dành cho ${_store.rental.property.name}.',
         ),
         TenantSurface(
           child: Row(
@@ -114,8 +150,8 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      TenantAnnouncementDemoData.propertyName,
+                    Text(
+                      _store.rental.property.name,
                       style: TextStyle(
                         color: tenantInk,
                         fontSize: 16,
@@ -161,7 +197,7 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
           TenantAnnouncementCard(
             key: ValueKey(item.id),
             announcement: item,
-            isRead: _readIds.contains(item.id),
+            isRead: _isRead(item.id),
             onTap: () => _open(item),
           ),
       ],

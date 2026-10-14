@@ -1,78 +1,120 @@
+import 'dart:collection';
+
+import '../../../landlord/conversations/models/landlord_conversation.dart';
+import '../../../shared/conversations/conversation_store.dart';
+import '../../../shared/rental/tenant_session.dart';
 import 'tenant_conversation_message.dart';
 
+/// Tenant presentation adapter over the same messages used by the landlord.
 class TenantConversation {
   TenantConversation({
-    required this.landlordName,
-    required this.initials,
-    required this.contextLabel,
-    required this.messages,
-    this.unread = 0,
-  });
+    required this._landlordName,
+    required this._initials,
+    required this._contextLabel,
+    required this._messages,
+    this._unread = 0,
+  }) : source = null;
+  TenantConversation.shared(this.source)
+    : _landlordName = '',
+      _initials = '',
+      _contextLabel = '',
+      _messages = [],
+      _unread = 0;
+  final LandlordConversation? source;
+  final String _landlordName;
+  final String _initials;
+  final String _contextLabel;
+  final List<TenantConversationMessage> _messages;
+  int _unread;
+  String get landlordName => source?.landlordName ?? _landlordName;
+  String get initials => source == null
+      ? _initials
+      : landlordName
+            .split(' ')
+            .where((part) => part.isNotEmpty)
+            .map((part) => part[0])
+            .take(2)
+            .join();
+  String get contextLabel => source == null
+      ? _contextLabel
+      : source!.leaseId == null
+      ? 'Chủ trọ · ${source!.room}'
+      : 'Chủ trọ · Phòng ${source!.room}';
+  List<TenantConversationMessage> get messages =>
+      source == null ? _messages : _SharedMessages(source!);
+  int get unread => source?.tenantUnread ?? _unread;
+  set unread(int value) {
+    if (source == null) {
+      _unread = value;
+    } else {
+      source!.tenantUnread = value;
+    }
+  }
 
-  final String landlordName;
-  final String initials;
-  final String contextLabel;
-  final List<TenantConversationMessage> messages;
-  int unread;
+  static final _adapters = <String, TenantConversation>{};
+  static List<TenantConversation> get demoConversations => ConversationStore
+      .instance
+      .forTenant(TenantSession.tenantId)
+      .map(
+        (source) => _adapters.putIfAbsent(
+          source.id,
+          () => TenantConversation.shared(source),
+        ),
+      )
+      .toList();
+  void send(String text, String time) {
+    if (source == null) {
+      _messages.add(
+        TenantConversationMessage(text: text, time: time, fromTenant: true),
+      );
+    } else {
+      ConversationStore.instance.send(
+        source!,
+        text: text,
+        time: time,
+        fromLandlord: false,
+        tenantId: TenantSession.tenantId,
+      );
+    }
+  }
+}
 
-  static final demoConversations = <TenantConversation>[
-    TenantConversation(
-      landlordName: 'Nguyễn Văn An',
-      initials: 'NA',
-      contextLabel: 'Chủ trọ · Phòng A.302',
-      unread: 1,
-      messages: [
-        const TenantConversationMessage(
-          text: 'Chào bạn, bạn cần hỗ trợ gì về phòng đang thuê?',
-          time: '09:12',
-          fromTenant: false,
-        ),
-        const TenantConversationMessage(
-          text: 'Dạ em muốn hỏi về lịch sửa máy lạnh ạ.',
-          time: '09:15',
-          fromTenant: true,
-        ),
-        const TenantConversationMessage(
-          text: 'Chủ trọ sẽ ghé kiểm tra vào chiều nay nhé.',
-          time: '09:18',
-          fromTenant: false,
-        ),
-      ],
+class _SharedMessages extends ListBase<TenantConversationMessage> {
+  _SharedMessages(this.conversation);
+  final LandlordConversation conversation;
+  @override
+  int get length => conversation.messages.length;
+  @override
+  set length(int value) {
+    if (value > length) throw UnsupportedError('Use add to append a message.');
+    conversation.messages.removeRange(value, length);
+  }
+
+  @override
+  TenantConversationMessage operator [](int index) {
+    final message = conversation.messages[index];
+    return TenantConversationMessage(
+      text: message.text,
+      time: message.time,
+      fromTenant: !message.fromLandlord,
+    );
+  }
+
+  @override
+  void operator []=(int index, TenantConversationMessage value) {
+    conversation.messages[index] = LandlordMessage(
+      text: value.text,
+      time: value.time,
+      fromLandlord: !value.fromTenant,
+    );
+  }
+
+  @override
+  void add(TenantConversationMessage value) => conversation.messages.add(
+    LandlordMessage(
+      text: value.text,
+      time: value.time,
+      fromLandlord: !value.fromTenant,
     ),
-    TenantConversation(
-      landlordName: 'Trần Thị Mai',
-      initials: 'TM',
-      contextLabel: 'Chủ trọ · Nhà trọ Hoa Mai',
-      unread: 2,
-      messages: [
-        const TenantConversationMessage(
-          text: 'Dạ phòng có ban công còn trống không cô?',
-          time: '08:30',
-          fromTenant: true,
-        ),
-        const TenantConversationMessage(
-          text: 'Phòng còn trống nhé, bạn có thể ghé xem chiều nay.',
-          time: '08:35',
-          fromTenant: false,
-        ),
-        const TenantConversationMessage(
-          text: 'Bạn báo cô giờ đến để cô mở cửa nhé.',
-          time: '08:40',
-          fromTenant: false,
-        ),
-      ],
-    ),
-    TenantConversation(
-      landlordName: 'Lê Minh Hùng',
-      initials: 'LH',
-      contextLabel: 'Chủ trọ · Nhà trọ An Bình',
-      messages: [
-        const TenantConversationMessage(
-          text: 'Dạ em cảm ơn anh, em sẽ liên hệ lại sau ạ.',
-          time: 'Hôm qua',
-          fromTenant: true,
-        ),
-      ],
-    ),
-  ];
+  );
 }

@@ -1,17 +1,23 @@
 import 'package:flutter/foundation.dart';
 
 import 'models/room_viewing.dart';
+import '../rental/tenant_session.dart';
+import '../../landlord/landlord_demo_store.dart';
+import '../../landlord/rooms/models/landlord_room.dart';
 
 /// Demo session data. Replace with a database repository after authentication.
 class ViewingStore extends ChangeNotifier {
-  ViewingStore(List<RoomViewing> records) : _records = List.of(records);
-  static const demoTenantId = 'tenant-demo';
-  static final instance = ViewingStore.demo();
+  ViewingStore(List<RoomViewing> records, {this.rental})
+    : _records = List.of(records);
+  final LandlordDemoStore? rental;
+  static const demoTenantId = TenantSession.tenantId;
+  static final instance = ViewingStore.demo(rental: LandlordDemoStore.instance);
 
   factory ViewingStore.demo({
     DateTime? referenceDate,
     String propertyName = 'Mây House',
     String address = '25 Nguyễn Gia Trí, Bình Thạnh, TP. Hồ Chí Minh',
+    LandlordDemoStore? rental,
   }) {
     final now = referenceDate ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -34,8 +40,10 @@ class ViewingStore extends ChangeNotifier {
         roomName: '$propertyName · Phòng ${rooms[index % rooms.length]}',
         address: address,
         startsAt: DateTime(date.year, date.month, date.day, hour, minute),
-        customerName: name,
-        phone: phone,
+        customerName: mine ? TenantSession.name : name,
+        phone: mine ? TenantSession.phone : phone,
+        roomId: 'may:${rooms[index % rooms.length]}',
+        createdAt: today.subtract(Duration(hours: index + 1)),
         personalNeeds: needs,
         status: status,
       );
@@ -105,7 +113,7 @@ class ViewingStore extends ChangeNotifier {
         ViewingStatus.cancelled,
         mine: true,
       ),
-    ]);
+    ], rental: rental);
   }
 
   final List<RoomViewing> _records;
@@ -131,8 +139,25 @@ class ViewingStore extends ChangeNotifier {
     required String phone,
     required String personalNeeds,
     required int attendeeCount,
+    String? roomId,
   }) {
     final cleanName = customerName.trim();
+    if (propertyId.trim().isEmpty ||
+        tenantId.trim().isEmpty ||
+        roomName.trim().isEmpty) {
+      throw ArgumentError('Thiếu mã người thuê, nhà trọ hoặc phòng.');
+    }
+    if (rental != null && propertyId == rental!.property.id && roomId != null) {
+      final available = rental!.roomDetails.any(
+        (details) =>
+            '$propertyId:${details.room.code}' == roomId &&
+            details.type != null &&
+            details.status == LandlordRoomStatus.vacant,
+      );
+      if (!available) {
+        throw ArgumentError('Phòng không còn trống hoặc không còn được đăng.');
+      }
+    }
     final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
     if (cleanName.isEmpty || cleanPhone.length < 9 || cleanPhone.length > 12) {
       throw ArgumentError('Vui lòng nhập họ tên và số điện thoại hợp lệ.');
@@ -146,7 +171,9 @@ class ViewingStore extends ChangeNotifier {
     if (_records.any(
       (record) =>
           record.propertyId == propertyId &&
-          record.roomName == roomName &&
+          (roomId == null
+              ? record.roomName == roomName
+              : record.roomId == roomId) &&
           record.startsAt == startsAt &&
           record.status != ViewingStatus.cancelled,
     )) {
@@ -174,6 +201,8 @@ class ViewingStore extends ChangeNotifier {
           : personalNeeds.trim(),
       status: ViewingStatus.pending,
       attendeeCount: attendeeCount,
+      roomId: roomId,
+      createdAt: DateTime.now(),
     );
     _records.add(request);
     notifyListeners();

@@ -6,9 +6,11 @@ import 'components/landlord_announcement_card.dart';
 import 'components/landlord_announcement_composer.dart';
 import 'data/landlord_announcement_demo_data.dart';
 import 'models/landlord_announcement.dart';
+import '../../shared/announcements/announcement_store.dart';
 
 class LandlordAnnouncementsPage extends StatefulWidget {
-  const LandlordAnnouncementsPage({super.key});
+  const LandlordAnnouncementsPage({super.key, this.store});
+  final AnnouncementStore? store;
 
   @override
   State<LandlordAnnouncementsPage> createState() =>
@@ -16,8 +18,9 @@ class LandlordAnnouncementsPage extends StatefulWidget {
 }
 
 class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
-  final _inbox = LandlordAnnouncementDemoData.inbox(DateTime.now());
-  final _sent = <LandlordAnnouncement>[];
+  AnnouncementStore get _store => widget.store ?? AnnouncementStore.instance;
+  List<LandlordAnnouncement> get _inbox => _store.inbox;
+  List<LandlordAnnouncement> get _sent => _store.sent;
   Timer? _timer;
   String _query = '';
   String _readFilter = 'all';
@@ -27,11 +30,17 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
   @override
   void initState() {
     super.initState();
+    _store.addListener(_refresh);
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _store.removeListener(_refresh);
     _timer?.cancel();
     _search.dispose();
     super.dispose();
@@ -52,7 +61,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
     );
     if (!mounted || result == null) return;
     setState(() {
-      _sent.add(result);
+      _store.send(result);
       _showSent = true;
       _query = '';
       _search.clear();
@@ -61,7 +70,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Đã lưu thông báo gửi thử. Chưa gửi đến người thuê.'),
+        content: Text('Đã gửi thông báo đến người thuê trong phiên hiện tại.'),
       ),
     );
   }
@@ -70,7 +79,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
 
   void _open(LandlordAnnouncement item) {
     if (!_showSent && !item.isRead) {
-      setState(() => _inbox[_inbox.indexOf(item)] = item.read());
+      _store.markLandlordRead(item.id);
     }
     showDialog<void>(
       context: context,
@@ -102,7 +111,6 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
                   Text('Đối tượng: ${item.audienceLabel}'),
                   Text('Phòng ${item.recipients.join(', ')}'),
                   const SizedBox(height: 8),
-                  const Text('Thông báo gửi thử, chưa gửi đến người thuê.'),
                 ],
               ],
             ),
@@ -173,7 +181,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
                     onSelected: (_) => setState(() => _showSent = false),
                   ),
                   ChoiceChip(
-                    label: Text('Đã gửi thử (${_sent.length})'),
+                    label: Text('Đã gửi (${_sent.length})'),
                     selected: _showSent,
                     onSelected: (_) => setState(() => _showSent = true),
                   ),
@@ -239,11 +247,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
                     TextButton(
                       onPressed: unread == 0
                           ? null
-                          : () => setState(() {
-                              for (var i = 0; i < _inbox.length; i++) {
-                                _inbox[i] = _inbox[i].read();
-                              }
-                            }),
+                          : _store.markAllLandlordRead,
                       child: const Text('Đánh dấu tất cả đã đọc'),
                     ),
                   ],
@@ -271,7 +275,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
                 ),
               const SizedBox(height: 12),
               const Text(
-                'Dữ liệu mẫu. Trạng thái đọc và thông báo gửi thử chỉ lưu trong phiên hiện tại.',
+                'Thông báo và trạng thái đọc được lưu trong phiên hiện tại.',
                 style: TextStyle(color: Colors.blueGrey, fontSize: 12),
               ),
             ],

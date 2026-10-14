@@ -12,6 +12,8 @@ class LandlordLease {
     required this.deposit,
     required this.termMonths,
     required this.dueDay,
+    this.tenantId = '',
+    this.propertyId = 'may',
     this.landlordName = '',
     this.landlordPermanentAddress = '',
     this.landlordCitizenId = '',
@@ -36,6 +38,8 @@ class LandlordLease {
   });
 
   final String id;
+  final String tenantId;
+  final String propertyId;
   String room;
   String tenantName;
   String phone;
@@ -105,6 +109,16 @@ class LandlordInvoiceCharge {
 
 enum LandlordInvoiceStatus { unpaid, partial, paid, overdue, cancelled }
 
+extension LandlordInvoiceStatusLabel on LandlordInvoiceStatus {
+  String get label => switch (this) {
+    LandlordInvoiceStatus.unpaid => 'Chưa thanh toán',
+    LandlordInvoiceStatus.partial => 'Thanh toán một phần',
+    LandlordInvoiceStatus.paid => 'Đã thanh toán',
+    LandlordInvoiceStatus.overdue => 'Quá hạn',
+    LandlordInvoiceStatus.cancelled => 'Đã hủy',
+  };
+}
+
 class LandlordInvoice {
   LandlordInvoice({
     required this.id,
@@ -147,8 +161,9 @@ class LandlordInvoice {
       59,
       59,
     );
-    if (DateTime.now().isAfter(endOfDueDate))
+    if (DateTime.now().isAfter(endOfDueDate)) {
       return LandlordInvoiceStatus.overdue;
+    }
     return LandlordInvoiceStatus.unpaid;
   }
 }
@@ -168,6 +183,9 @@ class LandlordPayment {
     this.status = LandlordPaymentStatus.pending,
     this.approvedAmount,
     this.rejectionReason,
+    this.proofBytes,
+    this.proofName,
+    this.paymentAccountId,
   });
 
   final String id;
@@ -181,6 +199,10 @@ class LandlordPayment {
   LandlordPaymentStatus status;
   int? approvedAmount;
   String? rejectionReason;
+  final List<int>? proofBytes;
+  final String? proofName;
+  final String? paymentAccountId;
+  DateTime? reviewedAt;
 }
 
 class LandlordPaymentAccount {

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
-import '../viewings/data/viewing_conversation_store.dart';
+import '../../shared/conversations/conversation_store.dart';
+import '../landlord_demo_store.dart';
 import 'landlord_chat_page.dart';
 import 'models/landlord_conversation.dart';
 
@@ -14,60 +15,28 @@ class LandlordConversationsPage extends StatefulWidget {
 }
 
 class _LandlordConversationsPageState extends State<LandlordConversationsPage> {
-  final _conversations = <LandlordConversation>[
-    LandlordConversation(
-      tenantName: 'Minh Anh',
-      room: 'A.302',
-      unread: 1,
-      messages: [
-        const LandlordMessage(
-          text: 'Chào bạn, bạn cần hỗ trợ gì về phòng đang thuê?',
-          time: '09:12',
-          fromLandlord: true,
-        ),
-        const LandlordMessage(
-          text: 'Dạ em muốn hỏi về lịch sửa máy lạnh ạ.',
-          time: '09:15',
-          fromLandlord: false,
-        ),
-      ],
-    ),
-    LandlordConversation(
-      tenantName: 'Lê Văn Khoa',
-      room: 'A.101',
-      messages: [
-        const LandlordMessage(
-          text: 'Anh ơi hóa đơn tháng này em chuyển khoản rồi nhé.',
-          time: 'Hôm qua',
-          fromLandlord: false,
-        ),
-        const LandlordMessage(
-          text: 'Ok em, anh sẽ kiểm tra và xác nhận.',
-          time: 'Hôm qua',
-          fromLandlord: true,
-        ),
-      ],
-    ),
-    LandlordConversation(
-      tenantName: 'Phạm Quốc Bảo',
-      room: 'B.105',
-      unread: 2,
-      messages: [
-        const LandlordMessage(
-          text: 'Em muốn thêm bạn vào ở cùng phòng được không anh?',
-          time: '08:40',
-          fromLandlord: false,
-        ),
-      ],
-    ),
-  ];
+  final _store = ConversationStore.instance;
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_refresh);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final conversations = [
-      ...ViewingConversationStore.instance.conversations,
-      ..._conversations,
-    ];
+    final conversations = _store.forProperty(
+      LandlordDemoStore.instance.property.id,
+    );
     return LandlordPageFrame(
       children: [
         const LandlordPageTitle(
@@ -135,7 +104,7 @@ class _LandlordConversationsPageState extends State<LandlordConversationsPage> {
   }
 
   Future<void> _openChat(LandlordConversation conversation) async {
-    setState(() => conversation.unread = 0);
+    _store.markRead(conversation, landlord: true);
     await Navigator.push(
       context,
       MaterialPageRoute(

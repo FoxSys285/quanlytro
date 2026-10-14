@@ -190,4 +190,3 @@ class LandlordLayout extends StatelessWidget {
     );
   }
 }
-

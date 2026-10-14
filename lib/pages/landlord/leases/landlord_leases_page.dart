@@ -40,6 +40,9 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
       final expiringCount = _store.leases
           .where((lease) => lease.isExpiringSoon)
           .length;
+      final draftCount = _store.leases
+          .where((lease) => lease.status == LandlordLeaseStatus.draft)
+          .length;
 
       return LandlordPageFrame(
         children: [
@@ -53,12 +56,58 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
               label: const Text('Tạo hợp đồng'),
             ),
           ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = (constraints.maxWidth - 9) / 2;
+              return Wrap(
+                spacing: 9,
+                runSpacing: 9,
+                children: [
+                  _overviewMetric(
+                    width: cardWidth,
+                    label: 'Đang hiệu lực',
+                    value: '$currentCount',
+                    icon: Icons.verified_outlined,
+                    color: const Color(0xFF16836F),
+                  ),
+                  _overviewMetric(
+                    width: cardWidth,
+                    label: 'Sắp hết hạn',
+                    value: '$expiringCount',
+                    icon: Icons.event_busy_outlined,
+                    color: const Color(0xFFE08A1E),
+                  ),
+                  _overviewMetric(
+                    width: cardWidth,
+                    label: 'Bản nháp',
+                    value: '$draftCount',
+                    icon: Icons.drafts_outlined,
+                    color: landlordBlue,
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 14),
           TextField(
             decoration: const InputDecoration(
               hintText: 'Tìm theo người thuê, phòng hoặc mã hợp đồng',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
-              isDense: true,
+              prefixIcon: Icon(Icons.search_rounded),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: EdgeInsets.symmetric(vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(15)),
+                borderSide: BorderSide(color: landlordLine),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(15)),
+                borderSide: BorderSide(color: landlordLine),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(15)),
+                borderSide: BorderSide(color: landlordBlue, width: 1.4),
+              ),
             ),
             onChanged: (value) => setState(() => _search = value.trim()),
           ),
@@ -79,7 +128,7 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                   Padding(
                     padding: const EdgeInsets.only(right: 7),
                     child: ChoiceChip(
-                      label: Text(label),
+                      label: Text('$label · ${_countForFilter(label)}'),
                       selected: _filter == label,
                       onSelected: (_) => setState(() => _filter = label),
                     ),
@@ -100,6 +149,71 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
         ],
       );
     },
+  );
+
+  int _countForFilter(String label) => switch (label) {
+    'Đang thuê' => _store.leases.where((lease) => lease.isCurrent).length,
+    'Sắp hết hạn' =>
+      _store.leases.where((lease) => lease.isExpiringSoon).length,
+    'Sắp bắt đầu' => _store.leases.where((lease) => lease.isUpcoming).length,
+    'Hết hạn' => _store.leases.where((lease) => lease.isExpired).length,
+    'Nháp' =>
+      _store.leases
+          .where((lease) => lease.status == LandlordLeaseStatus.draft)
+          .length,
+    'Đã kết thúc' =>
+      _store.leases
+          .where((lease) => lease.status == LandlordLeaseStatus.terminated)
+          .length,
+    _ => _store.leases.length,
+  };
+
+  Widget _overviewMetric({
+    required double width,
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) => Container(
+    width: width,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(color: landlordLine),
+    ),
+    child: Row(
+      children: [
+        CircleAvatar(
+          radius: 17,
+          backgroundColor: color.withValues(alpha: 0.1),
+          child: Icon(icon, size: 17, color: color),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: landlordMuted, fontSize: 10),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
 
   Widget _leaseCard(LandlordLease lease) {
@@ -192,8 +306,9 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
     if (lease.status == LandlordLeaseStatus.terminated) {
       return ('Đã kết thúc', landlordMuted);
     }
-    if (lease.status == LandlordLeaseStatus.draft)
+    if (lease.status == LandlordLeaseStatus.draft) {
       return ('Nháp', const Color(0xFFE08A1E));
+    }
     if (lease.isExpiringSoon) return ('Sắp hết hạn', const Color(0xFFE08A1E));
     if (lease.isUpcoming) return ('Sắp bắt đầu', landlordBlue);
     if (lease.isExpired) return ('Hết hạn', landlordMuted);
@@ -527,18 +642,9 @@ class _LeaseEditor extends StatefulWidget {
 }
 
 class _LeaseEditorState extends State<_LeaseEditor> {
-  static const _allRooms = [
-    'A.101',
-    'A.102',
-    'A.103',
-    'A.201',
-    'A.202',
-    'A.203',
-    'A.302',
-    'B.102',
-    'B.105',
-    'B.201',
-  ];
+  List<String> get _allRooms => LandlordDemoStore.roomCatalog
+      .map((room) => room.leaseRoomCode ?? room.code)
+      .toList();
   final _formKey = GlobalKey<FormState>();
   late final _landlordName = TextEditingController(
     text:
@@ -546,7 +652,9 @@ class _LeaseEditorState extends State<_LeaseEditor> {
         LandlordDemoStore.instance.property.ownerName,
   );
   late final _landlordAddress = TextEditingController(
-    text: widget.lease?.landlordPermanentAddress ?? '',
+    text:
+        widget.lease?.landlordPermanentAddress ??
+        LandlordDemoStore.instance.property.address,
   );
   late final _landlordId = TextEditingController(
     text: widget.lease?.landlordCitizenId ?? '',
@@ -579,16 +687,28 @@ class _LeaseEditorState extends State<_LeaseEditor> {
     text: widget.lease?.termMonths.toString() ?? '12',
   );
   late final _electricity = TextEditingController(
-    text: widget.lease?.electricityPrice.toString() ?? '3500',
+    text:
+        widget.lease?.electricityPrice.toString() ??
+        (LandlordDemoStore.instance.serviceById('electricity')?.price ?? 0)
+            .toString(),
   );
   late final _water = TextEditingController(
-    text: widget.lease?.waterPrice.toString() ?? '15000',
+    text:
+        widget.lease?.waterPrice.toString() ??
+        (LandlordDemoStore.instance.serviceById('water')?.price ?? 0)
+            .toString(),
   );
   late final _vehicle = TextEditingController(
-    text: widget.lease?.vehicleFee.toString() ?? '80000',
+    text:
+        widget.lease?.vehicleFee.toString() ??
+        (LandlordDemoStore.instance.serviceById('vehicle')?.price ?? 0)
+            .toString(),
   );
   late final _service = TextEditingController(
-    text: widget.lease?.serviceFee.toString() ?? '100000',
+    text:
+        widget.lease?.serviceFee.toString() ??
+        (LandlordDemoStore.instance.serviceById('internet')?.price ?? 0)
+            .toString(),
   );
   late final _dueDay = TextEditingController(
     text: widget.lease?.dueDay.toString() ?? '10',
@@ -853,7 +973,8 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                     Expanded(
                       child: _textField(
                         _occupants,
-                        'Số người ở',
+                        'Số người đã duyệt',
+                        readOnly: true,
                         keyboardType: TextInputType.number,
                         validator: _occupantsValidator,
                       ),
@@ -998,12 +1119,14 @@ class _LeaseEditorState extends State<_LeaseEditor> {
     TextEditingController controller,
     String label, {
     TextInputType? keyboardType,
+    bool readOnly = false,
     String? Function(String?)? validator,
     TextCapitalization capitalization = TextCapitalization.none,
   }) => Padding(
     padding: const EdgeInsets.only(top: 7),
     child: TextFormField(
       controller: controller,
+      readOnly: readOnly,
       keyboardType: keyboardType,
       textCapitalization: capitalization,
       validator: validator,

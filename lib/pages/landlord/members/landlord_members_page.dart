@@ -1,191 +1,176 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
-
-class LandlordTenant {
-  LandlordTenant({
-    required this.name,
-    required this.phone,
-    required this.room,
-    required this.moveIn,
-    this.isRepresentative = false,
-    this.pending = false,
-  });
-
-  final String name;
-  final String phone;
-  final String room;
-  final String moveIn;
-  final bool isRepresentative;
-
-  /// true = yêu cầu thêm thành viên đang chờ chủ trọ duyệt.
-  bool pending;
-}
+import '../landlord_demo_store.dart';
+import '../finance/landlord_finance_models.dart';
+import '../../shared/rental/lease_member.dart';
 
 class LandlordMembersPage extends StatefulWidget {
-  const LandlordMembersPage({super.key});
-
+  const LandlordMembersPage({super.key, this.store});
+  final LandlordDemoStore? store;
   @override
   State<LandlordMembersPage> createState() => _LandlordMembersPageState();
 }
 
 class _LandlordMembersPageState extends State<LandlordMembersPage> {
   String _search = '';
+  LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _store,
+    builder: (context, _) {
+      final members = _store.members.where(
+        (member) => _store.leaseById(member.leaseId)?.isCurrent ?? false,
+      );
+      final pending = members
+          .where((member) => member.status == LeaseMemberStatus.pending)
+          .toList();
+      final active = members
+          .where((member) => member.status == LeaseMemberStatus.active)
+          .toList();
+      final filtered = active
+          .where(
+            (member) =>
+                '${member.name} ${_store.leaseById(member.leaseId)!.room}'
+                    .toLowerCase()
+                    .contains(_search.toLowerCase()),
+          )
+          .toList();
+      return LandlordPageFrame(
+        children: [
+          LandlordPageTitle(
+            title: 'Người thuê',
+            subtitle:
+                '${active.length} người đang ở · ${pending.length} chờ duyệt',
+          ),
+          if (pending.isNotEmpty)
+            const Text(
+              'Chờ duyệt thành viên',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          for (final member in pending)
+            LandlordCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    member.name,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    'Xin vào phòng ${_store.leaseById(member.leaseId)!.room} · dự kiến ${landlordDate(member.joinedAt)}',
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => _review(member, false),
+                        child: const Text('Từ chối'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: () => _review(member, true),
+                        child: const Text('Duyệt'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          TextField(
+            decoration: const InputDecoration(
+              hintText: 'Tìm theo tên hoặc phòng',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: (value) => setState(() => _search = value),
+          ),
+          const SizedBox(height: 12),
+          if (filtered.isEmpty)
+            const LandlordEmptyState(message: 'Không tìm thấy người thuê.'),
+          for (final member in filtered)
+            LandlordCard(
+              padding: EdgeInsets.zero,
+              child: ListTile(
+                leading: CircleAvatar(child: Text(member.name[0])),
+                title: Text(member.name),
+                subtitle: Text(
+                  'Phòng ${_store.leaseById(member.leaseId)!.room} · ${member.phone}\nVào ở: ${landlordDate(member.joinedAt)}',
+                ),
+                isThreeLine: true,
+                trailing: member.isRepresentative
+                    ? const LandlordStatusPill('Đại diện', color: landlordBlue)
+                    : null,
+              ),
+            ),
+        ],
+      );
+    },
+  );
 
-  final _tenants = <LandlordTenant>[
-    LandlordTenant(
-      name: 'Minh Anh',
-      phone: '0901 234 567',
-      room: 'A.302',
-      moveIn: '01/03/2026',
-      isRepresentative: true,
-    ),
-    LandlordTenant(
-      name: 'Trần Thu Hà',
-      phone: '0912 888 111',
-      room: 'A.302',
-      moveIn: '01/03/2026',
-    ),
-    LandlordTenant(
-      name: 'Lê Văn Khoa',
-      phone: '0987 654 321',
-      room: 'A.101',
-      moveIn: '15/05/2026',
-      isRepresentative: true,
-    ),
-    LandlordTenant(
-      name: 'Phạm Quốc Bảo',
-      phone: '0933 222 444',
-      room: 'B.105',
-      moveIn: '10/08/2026',
-      isRepresentative: true,
-    ),
-    LandlordTenant(
-      name: 'Võ Ngọc Lan',
-      phone: '0977 111 999',
-      room: 'B.105',
-      moveIn: '15/10/2026',
-      pending: true,
-    ),
-  ];
+  Future<void> _review(LeaseMember member, bool approve) async {
+    var reason = '';
+    if (!approve) {
+      final result = await showDialog<String>(
+        context: context,
+        builder: (_) => _RejectionDialog(),
+      );
+      if (!mounted || result == null) return;
+      reason = result;
+    }
+    try {
+      _store.reviewMember(member, approve: approve, reason: reason);
+      showLandlordMessage(
+        context,
+        'Đã ${approve ? 'duyệt' : 'từ chối'} ${member.name}.',
+      );
+    } on ArgumentError catch (error) {
+      showLandlordMessage(context, error.message.toString());
+    }
+  }
+}
+
+class _RejectionDialog extends StatefulWidget {
+  @override
+  State<_RejectionDialog> createState() => _RejectionDialogState();
+}
+
+class _RejectionDialogState extends State<_RejectionDialog> {
+  final _reason = TextEditingController();
+  final _form = GlobalKey<FormState>();
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
 
   @override
-  Widget build(BuildContext context) {
-    final pending = _tenants.where((t) => t.pending).toList();
-    final active = _tenants
-        .where((t) => !t.pending)
-        .where(
-          (t) =>
-              t.name.toLowerCase().contains(_search.toLowerCase()) ||
-              t.room.toLowerCase().contains(_search.toLowerCase()),
-        )
-        .toList();
-
-    return LandlordPageFrame(
-      children: [
-        LandlordPageTitle(
-          title: 'Người thuê',
-          subtitle: '${active.length} người đang ở · ${pending.length} chờ duyệt',
-        ),
-        if (pending.isNotEmpty) ...[
-          const Text(
-            'Chờ duyệt thành viên',
-            style: TextStyle(
-              color: landlordInk,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          for (final tenant in pending) _buildPendingCard(tenant),
-          const SizedBox(height: 10),
-        ],
-        TextField(
-          decoration: const InputDecoration(
-            hintText: 'Tìm theo tên hoặc phòng',
-            prefixIcon: Icon(Icons.search),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-          onChanged: (value) => setState(() => _search = value),
-        ),
-        const SizedBox(height: 12),
-        if (active.isEmpty)
-          const LandlordEmptyState(message: 'Không tìm thấy người thuê.'),
-        for (final tenant in active) _buildTenantCard(tenant),
-      ],
-    );
-  }
-
-  Widget _buildTenantCard(LandlordTenant tenant) {
-    return LandlordCard(
-      padding: EdgeInsets.zero,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: landlordBlue.withValues(alpha: 0.1),
-          child: Text(
-            tenant.name[0],
-            style: const TextStyle(
-              color: landlordBlue,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        title: Text(
-          tenant.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          'Phòng ${tenant.room} · ${tenant.phone}\nVào ở: ${tenant.moveIn}',
-        ),
-        isThreeLine: true,
-        trailing: tenant.isRepresentative
-            ? const LandlordStatusPill('Đại diện', color: landlordBlue)
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Từ chối thành viên'),
+    content: Form(
+      key: _form,
+      child: TextFormField(
+        controller: _reason,
+        decoration: const InputDecoration(labelText: 'Lý do từ chối'),
+        validator: (value) => value == null || value.trim().isEmpty
+            ? 'Nhập lý do từ chối.'
             : null,
       ),
-    );
-  }
-
-  Widget _buildPendingCard(LandlordTenant tenant) {
-    return LandlordCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            tenant.name,
-            style: const TextStyle(
-              color: landlordInk,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Xin vào phòng ${tenant.room} · dự kiến ${tenant.moveIn}',
-            style: const TextStyle(color: landlordMuted, fontSize: 12),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              OutlinedButton(
-                onPressed: () {
-                  setState(() => _tenants.remove(tenant));
-                  showLandlordMessage(context, 'Đã từ chối ${tenant.name}.');
-                },
-                child: const Text('Từ chối'),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: () {
-                  setState(() => tenant.pending = false);
-                  showLandlordMessage(context, 'Đã duyệt ${tenant.name}.');
-                },
-                child: const Text('Duyệt'),
-              ),
-            ],
-          ),
-        ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Hủy'),
       ),
-    );
-  }
+      FilledButton(
+        onPressed: () {
+          if (_form.currentState!.validate()) {
+            Navigator.pop(context, _reason.text.trim());
+          }
+        },
+        child: const Text('Từ chối'),
+      ),
+    ],
+  );
 }

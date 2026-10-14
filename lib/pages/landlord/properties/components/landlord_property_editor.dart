@@ -25,6 +25,8 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
   late final _address = TextEditingController(text: widget.property.address);
   late final _owner = TextEditingController(text: widget.property.ownerName);
   late final _phone = TextEditingController(text: widget.property.phone);
+  late final _city = TextEditingController(text: widget.property.city);
+  late final _ward = TextEditingController(text: widget.property.ward);
   late final _description = TextEditingController(
     text: widget.property.description,
   );
@@ -36,7 +38,15 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
 
   @override
   void dispose() {
-    for (final controller in [_name, _address, _owner, _phone, _description]) {
+    for (final controller in [
+      _name,
+      _address,
+      _owner,
+      _phone,
+      _description,
+      _city,
+      _ward,
+    ]) {
       controller.dispose();
     }
     super.dispose();
@@ -106,6 +116,8 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
         imageUrl: _imageUrl,
         imageBytes: _imageBytes,
         imageName: _imageName,
+        city: _city.text.trim(),
+        ward: _ward.text.trim(),
       ),
     );
   }
@@ -335,6 +347,24 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                         'Giới thiệu nhà trọ',
                         Icons.notes_rounded,
                       ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _city,
+                      decoration: _decoration(
+                        'Tỉnh / thành phố',
+                        Icons.location_city_outlined,
+                      ),
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _ward,
+                      decoration: _decoration(
+                        'Phường / xã',
+                        Icons.location_on_outlined,
+                      ),
+                      validator: _required,
                     ),
                   ],
                 ),

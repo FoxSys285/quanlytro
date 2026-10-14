@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
+import '../landlord_demo_store.dart';
 import 'models/landlord_service.dart';
 
 class LandlordServicesPage extends StatefulWidget {
@@ -13,33 +14,23 @@ class LandlordServicesPage extends StatefulWidget {
 class _LandlordServicesPageState extends State<LandlordServicesPage> {
   static const _bases = ['Theo chỉ số', 'Theo phòng', 'Theo người', 'Cố định'];
 
-  final _services = <LandlordService>[
-    LandlordService(
-      name: 'Điện',
-      unit: 'kWh',
-      basis: 'Theo chỉ số',
-      price: 3500,
-    ),
-    LandlordService(name: 'Nước', unit: 'm³', basis: 'Theo chỉ số', price: 15000),
-    LandlordService(
-      name: 'Internet',
-      unit: 'phòng',
-      basis: 'Theo phòng',
-      price: 100000,
-    ),
-    LandlordService(
-      name: 'Gửi xe máy',
-      unit: 'xe',
-      basis: 'Cố định',
-      price: 80000,
-    ),
-    LandlordService(
-      name: 'Vệ sinh',
-      unit: 'người',
-      basis: 'Theo người',
-      price: 20000,
-    ),
-  ];
+  final _store = LandlordDemoStore.instance;
+  List<LandlordService> get _services => _store.services;
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_refresh);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +38,7 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
       children: [
         LandlordPageTitle(
           title: 'Dịch vụ và bảng giá',
-          subtitle: 'Đơn giá áp dụng khi lập hóa đơn hằng tháng.',
+          subtitle: 'Bảng giá cho tin đăng và hợp đồng mới. Hợp đồng hiện tại giữ đơn giá đã thỏa thuận.',
           trailing: FilledButton.icon(
             onPressed: () => _openForm(),
             icon: const Icon(Icons.add, size: 18),
@@ -91,8 +82,7 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
                 ),
                 Switch(
                   value: service.active,
-                  onChanged: (value) =>
-                      setState(() => service.active = value),
+                  onChanged: (value) => _store.setServiceActive(service, value),
                 ),
               ],
             ),
@@ -162,7 +152,7 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
             if (service != null)
               TextButton(
                 onPressed: () {
-                  setState(() => _services.remove(service));
+                  _store.deleteService(service);
                   Navigator.pop(context, false);
                 },
                 child: const Text('Xóa', style: TextStyle(color: Colors.red)),
@@ -190,19 +180,13 @@ class _LandlordServicesPageState extends State<LandlordServicesPage> {
       return;
     }
 
-    setState(() {
-      if (service == null) {
-        _services.add(
-          LandlordService(name: name, unit: unit, basis: basis, price: price),
-        );
-      } else {
-        service
-          ..name = name
-          ..unit = unit
-          ..basis = basis
-          ..price = price;
-      }
-    });
+    _store.saveService(
+      existing: service,
+      name: name,
+      unit: unit,
+      basis: basis,
+      price: price,
+    );
     showLandlordMessage(context, 'Đã lưu dịch vụ $name.');
   }
 }

@@ -80,7 +80,7 @@ void main() {
         onClosed: (value) => saved = value,
       );
       expect(find.text('Đường dẫn ảnh'), findsNothing);
-      expect(find.byType(TextFormField), findsNWidgets(5));
+      expect(find.byType(TextFormField), findsNWidgets(7));
       await tester.tap(find.text('Chọn ảnh'));
       await tester.pumpAndSettle();
       expect(find.text('may-house.png'), findsOneWidget);

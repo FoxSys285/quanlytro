@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
+import '../landlord_demo_store.dart';
+import '../finance/landlord_finance_models.dart';
 import 'models/landlord_meter_reading.dart';
 
 class LandlordMeterReadingsPage extends StatefulWidget {
@@ -12,30 +14,27 @@ class LandlordMeterReadingsPage extends StatefulWidget {
 }
 
 class _LandlordMeterReadingsPageState extends State<LandlordMeterReadingsPage> {
-  static const _electricPrice = 3500;
-  static const _waterPrice = 15000;
-
+  final _store = LandlordDemoStore.instance;
   String _period = 'Tháng 10/2026';
+  DateTime get _periodDate =>
+      _period == 'Tháng 10/2026' ? DateTime(2026, 10) : DateTime(2026, 9);
+  List<LandlordMeterReading> get _readings =>
+      _store.readingsForPeriod(_periodDate);
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_refresh);
+  }
 
-  final _readings = <LandlordMeterReading>[
-    LandlordMeterReading(
-      room: 'A.101',
-      oldElectric: 1250,
-      oldWater: 320,
-      newElectric: 1362,
-      newWater: 328,
-    ),
-    LandlordMeterReading(room: 'A.102', oldElectric: 980, oldWater: 210),
-    LandlordMeterReading(
-      room: 'A.302',
-      oldElectric: 2104,
-      oldWater: 455,
-      newElectric: 2230,
-      newWater: 462,
-    ),
-    LandlordMeterReading(room: 'B.105', oldElectric: 640, oldWater: 150),
-    LandlordMeterReading(room: 'B.201', oldElectric: 1530, oldWater: 298),
-  ];
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_refresh);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,12 +80,22 @@ class _LandlordMeterReadingsPageState extends State<LandlordMeterReadingsPage> {
           ],
         ),
         const SizedBox(height: 14),
+        if (_readings.isEmpty)
+          const LandlordEmptyState(message: 'Chưa có chỉ số cho kỳ đã chọn.'),
         for (final reading in _readings) _buildReadingCard(reading),
       ],
     );
   }
 
   Widget _buildReadingCard(LandlordMeterReading reading) {
+    LandlordLease? lease;
+    for (final item in _store.activeLeases) {
+      if (_store.canonicalRoom(item.room) ==
+          _store.canonicalRoom(reading.room)) {
+        lease = item;
+        break;
+      }
+    }
     return LandlordCard(
       onTap: () => _openInput(reading),
       child: Column(
@@ -122,18 +131,25 @@ class _LandlordMeterReadingsPageState extends State<LandlordMeterReadingsPage> {
             newValue: reading.newElectric,
             usage: reading.electricUsage,
             unit: 'kWh',
-            price: _electricPrice,
+            price:
+                lease?.electricityPrice ??
+                _store.serviceById('electricity')?.price ??
+                0,
           ),
           const SizedBox(height: 6),
-          _meterRow(
-            icon: Icons.water_drop_outlined,
-            label: 'Nước',
-            oldValue: reading.oldWater,
-            newValue: reading.newWater,
-            usage: reading.waterUsage,
-            unit: 'm³',
-            price: _waterPrice,
-          ),
+          if (lease?.waterType == 'Theo tháng')
+            Text('Nước theo tháng · ${formatLandlordMoney(lease!.waterPrice)}')
+          else
+            _meterRow(
+              icon: Icons.water_drop_outlined,
+              label: 'Nước',
+              oldValue: reading.oldWater,
+              newValue: reading.newWater,
+              usage: reading.waterUsage,
+              unit: 'm³',
+              price:
+                  lease?.waterPrice ?? _store.serviceById('water')?.price ?? 0,
+            ),
         ],
       ),
     );
@@ -228,11 +244,7 @@ class _LandlordMeterReadingsPageState extends State<LandlordMeterReadingsPage> {
       return;
     }
 
-    setState(() {
-      reading
-        ..newElectric = electric
-        ..newWater = water;
-    });
+    _store.saveReading(reading, electric, water);
     showLandlordMessage(context, 'Đã lưu chỉ số phòng ${reading.room}.');
   }
 }

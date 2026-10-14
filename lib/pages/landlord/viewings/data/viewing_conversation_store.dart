@@ -1,17 +1,23 @@
 import '../../../shared/viewings/models/room_viewing.dart';
+import '../../../shared/conversations/conversation_store.dart';
 import '../../conversations/models/landlord_conversation.dart';
 
 class ViewingConversationStore {
-  static final instance = ViewingConversationStore();
-  final _conversations = <String, LandlordConversation>{};
-  List<LandlordConversation> get conversations =>
-      List.unmodifiable(_conversations.values);
+  ViewingConversationStore({ConversationStore? store})
+    : store = store ?? ConversationStore();
+  static final instance = ViewingConversationStore(
+    store: ConversationStore.instance,
+  );
+  final ConversationStore store;
+  List<LandlordConversation> get conversations => store.conversations
+      .where((item) => item.id.startsWith('viewing:'))
+      .toList();
 
-  LandlordConversation forViewing(
-    RoomViewing viewing,
-  ) => _conversations.putIfAbsent(
-    '${viewing.propertyId}:${viewing.tenantId.isEmpty ? viewing.phone : viewing.tenantId}:${viewing.roomName}',
-    () => LandlordConversation(
+  LandlordConversation forViewing(RoomViewing viewing) => store.getOrCreate(
+    LandlordConversation(
+      id: 'viewing:${viewing.propertyId}:${viewing.tenantId.isEmpty ? viewing.phone : viewing.tenantId}:${viewing.roomId ?? viewing.roomName}',
+      propertyId: viewing.propertyId,
+      tenantId: viewing.tenantId,
       tenantName: viewing.customerName,
       room: viewing.roomName,
       messages: [

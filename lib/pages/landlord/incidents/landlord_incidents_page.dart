@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
+import '../landlord_demo_store.dart';
 import 'models/landlord_incident.dart';
 
 class LandlordIncidentsPage extends StatefulWidget {
-  const LandlordIncidentsPage({super.key});
+  const LandlordIncidentsPage({super.key, this.store});
+  final LandlordDemoStore? store;
 
   @override
   State<LandlordIncidentsPage> createState() => _LandlordIncidentsPageState();
@@ -13,35 +15,23 @@ class LandlordIncidentsPage extends StatefulWidget {
 class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
   IncidentStatus? _filter;
 
-  final _incidents = <LandlordIncident>[
-    LandlordIncident(
-      title: 'Máy lạnh không lạnh',
-      room: 'A.302',
-      reporter: 'Minh Anh',
-      category: 'Điện lạnh',
-      description: 'Máy lạnh chạy nhưng không ra hơi lạnh từ tối qua.',
-      date: '04/10/2026',
-      urgent: true,
-    ),
-    LandlordIncident(
-      title: 'Vòi nước rò rỉ',
-      room: 'A.101',
-      reporter: 'Lê Văn Khoa',
-      category: 'Nước',
-      description: 'Vòi trong nhà vệ sinh bị rỉ nước liên tục.',
-      date: '02/10/2026',
-      status: IncidentStatus.inProgress,
-    ),
-    LandlordIncident(
-      title: 'Bóng đèn hành lang hỏng',
-      room: 'B.105',
-      reporter: 'Phạm Quốc Bảo',
-      category: 'Điện',
-      description: 'Bóng đèn trước cửa phòng không sáng.',
-      date: '28/09/2026',
-      status: IncidentStatus.resolved,
-    ),
-  ];
+  LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
+  List<LandlordIncident> get _incidents => _store.incidents;
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_refresh);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +142,7 @@ class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
                     label: Text(status.label),
                     selected: incident.status == status,
                     onSelected: (_) {
-                      setState(() => incident.status = status);
+                      _store.updateIncident(incident, status);
                       Navigator.pop(sheetContext);
                       showLandlordMessage(
                         context,

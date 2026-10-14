@@ -1,27 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../tenant_ui.dart';
-
-class TenantIncident {
-  TenantIncident({
-    required this.title,
-    required this.category,
-    required this.description,
-    required this.date,
-    this.status = 'Mới gửi',
-  });
-
-  final String title;
-  final String category;
-  final String description;
-  final String date;
-
-  /// Mới gửi / Đang xử lý / Đã xử lý / Đã xác nhận.
-  String status;
-}
+import '../../landlord/landlord_demo_store.dart';
+import '../../landlord/incidents/models/landlord_incident.dart';
+import '../../shared/rental/tenant_session.dart';
 
 class TenantIncidentsPage extends StatefulWidget {
-  const TenantIncidentsPage({super.key});
+  const TenantIncidentsPage({
+    super.key,
+    this.store,
+    this.tenantId = TenantSession.tenantId,
+  });
+  final LandlordDemoStore? store;
+  final String tenantId;
 
   @override
   State<TenantIncidentsPage> createState() => _TenantIncidentsPageState();
@@ -30,41 +21,40 @@ class TenantIncidentsPage extends StatefulWidget {
 class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
   static const _categories = ['Điện', 'Nước', 'Điện lạnh', 'Internet', 'Khác'];
 
-  final _incidents = <TenantIncident>[
-    TenantIncident(
-      title: 'Máy lạnh không lạnh',
-      category: 'Điện lạnh',
-      description: 'Máy lạnh chạy nhưng không ra hơi lạnh từ tối qua.',
-      date: '04/10/2026',
-    ),
-    TenantIncident(
-      title: 'Bóng đèn nhà tắm hỏng',
-      category: 'Điện',
-      description: 'Bóng đèn không sáng.',
-      date: '20/09/2026',
-      status: 'Đã xử lý',
-    ),
-  ];
+  LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
+  List<LandlordIncident> get _incidents =>
+      _store.incidentsForTenant(widget.tenantId);
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_refresh);
+  }
 
-  Color _statusColor(String status) => switch (status) {
-    'Mới gửi' => const Color(0xFFD64545),
-    'Đang xử lý' => const Color(0xFFE08A1E),
-    'Đã xử lý' => tenantGreen,
-    _ => tenantMuted,
-  };
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_refresh);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return TenantPageFrame(
       children: [
-        const TenantPageTitle(
+        TenantPageTitle(
           title: 'Báo sự cố',
-          subtitle: 'Gửi yêu cầu sửa chữa cho chủ trọ phòng A.302.',
+          subtitle:
+              'Gửi yêu cầu sửa chữa cho chủ trọ${_store.currentLeaseForTenant(widget.tenantId) == null ? '' : ' phòng ${_store.currentLeaseForTenant(widget.tenantId)!.room}'}.',
         ),
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed: _openCreateSheet,
+            onPressed: _store.currentLeaseForTenant(widget.tenantId) == null
+                ? null
+                : _openCreateSheet,
             style: FilledButton.styleFrom(backgroundColor: tenantGreen),
             icon: const Icon(Icons.add_rounded),
             label: const Text('Tạo yêu cầu mới'),
@@ -96,8 +86,8 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
                       ),
                     ),
                     TenantStatusPill(
-                      incident.status,
-                      color: _statusColor(incident.status),
+                      incident.status.label,
+                      color: incident.status.color,
                     ),
                   ],
                 ),
@@ -112,19 +102,20 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
                   style: const TextStyle(color: tenantInk, fontSize: 13),
                 ),
                 // Khi chủ trọ báo đã xử lý, người thuê xác nhận hoặc mở lại.
-                if (incident.status == 'Đã xử lý') ...[
+                if (incident.status == IncidentStatus.resolved) ...[
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: () => _changeStatus(incident, 'Mới gửi'),
+                        onPressed: () =>
+                            _changeStatus(incident, IncidentStatus.newly),
                         child: const Text('Mở lại'),
                       ),
                       const SizedBox(width: 6),
                       FilledButton(
                         onPressed: () =>
-                            _changeStatus(incident, 'Đã xác nhận'),
+                            _changeStatus(incident, IncidentStatus.closed),
                         style: FilledButton.styleFrom(
                           backgroundColor: tenantGreen,
                         ),
@@ -142,11 +133,10 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
     );
   }
 
-  void _changeStatus(TenantIncident incident, String status) {
-    setState(() => incident.status = status);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Đã cập nhật: $status')),
-    );
+  void _changeStatus(LandlordIncident incident, IncidentStatus status) {
+    _store.updateIncident(incident, status, tenantId: widget.tenantId);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Đã cập nhật: ${status.label}')));
   }
 
   Future<void> _openCreateSheet() async {
@@ -230,18 +220,18 @@ class _TenantIncidentsPageState extends State<TenantIncidentsPage> {
       return;
     }
 
-    final now = DateTime.now();
-    setState(() {
-      _incidents.insert(
-        0,
-        TenantIncident(
-          title: title,
-          category: category,
-          description: description,
-          date: '${now.day}/${now.month}/${now.year}',
-        ),
+    try {
+      _store.createIncident(
+        tenantId: widget.tenantId,
+        title: title,
+        category: category,
+        description: description,
       );
-    });
+    } on ArgumentError catch (error) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message.toString())));
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Đã gửi yêu cầu cho chủ trọ.')),
     );

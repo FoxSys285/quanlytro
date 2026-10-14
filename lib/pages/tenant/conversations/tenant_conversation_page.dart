@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../tenant_ui.dart';
+import '../../shared/conversations/conversation_store.dart';
 import 'components/tenant_message_bubble.dart';
 import 'models/tenant_conversation.dart';
 import 'models/tenant_conversation_message.dart';
@@ -26,10 +27,16 @@ class _TenantLandlordConversationPageState
   void initState() {
     super.initState();
     _conversation.unread = 0;
+    ConversationStore.instance.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    ConversationStore.instance.removeListener(_refresh);
     _controller.dispose();
     super.dispose();
   }
@@ -199,13 +206,7 @@ class _TenantLandlordConversationPageState
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     setState(() {
-      _messages.add(
-        TenantConversationMessage(
-          text: text,
-          time: TimeOfDay.now().format(context),
-          fromTenant: true,
-        ),
-      );
+      _conversation.send(text, TimeOfDay.now().format(context));
       _controller.clear();
     });
   }
