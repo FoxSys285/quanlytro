@@ -9,9 +9,40 @@ class TenantMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isTenant = message.fromTenant;
+    // Kiểm tra xem tin nhắn có phải do người thuê gửi hay không
+    final laTinNhanNguoiThue = message.fromTenant;
+
+    // Các biến định dạng giao diện cho bong bóng chat
+    Alignment canLe;
+    Color mauNenBongBong;
+    Border? vienBongBong;
+    Color mauChu;
+    Color mauThoiGian;
+    Radius boGocDuoiTrai;
+    Radius boGocDuoiPhai;
+
+    // Nếu người thuê gửi: căn phải, nền xanh, chữ trắng
+    // Nếu chủ trọ gửi: căn trái, nền trắng, chữ đậm
+    if (laTinNhanNguoiThue) {
+      canLe = Alignment.centerRight;
+      mauNenBongBong = tenantGreen;
+      vienBongBong = null;
+      mauChu = Colors.white;
+      mauThoiGian = Colors.white70;
+      boGocDuoiTrai = const Radius.circular(16);
+      boGocDuoiPhai = const Radius.circular(4);
+    } else {
+      canLe = Alignment.centerLeft;
+      mauNenBongBong = Colors.white;
+      vienBongBong = Border.all(color: tenantLine);
+      mauChu = tenantInk;
+      mauThoiGian = tenantMuted;
+      boGocDuoiTrai = const Radius.circular(4);
+      boGocDuoiPhai = const Radius.circular(16);
+    }
+
     return Align(
-      alignment: isTenant ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: canLe,
       child: Container(
         constraints: BoxConstraints(
           maxWidth: MediaQuery.sizeOf(context).width * 0.76,
@@ -19,14 +50,14 @@ class TenantMessageBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 11),
         padding: const EdgeInsets.fromLTRB(13, 10, 13, 7),
         decoration: BoxDecoration(
-          color: isTenant ? tenantGreen : Colors.white,
+          color: mauNenBongBong,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isTenant ? 16 : 4),
-            bottomRight: Radius.circular(isTenant ? 4 : 16),
+            bottomLeft: boGocDuoiTrai,
+            bottomRight: boGocDuoiPhai,
           ),
-          border: isTenant ? null : Border.all(color: tenantLine),
+          border: vienBongBong,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -34,7 +65,7 @@ class TenantMessageBubble extends StatelessWidget {
             Text(
               message.text,
               style: TextStyle(
-                color: isTenant ? Colors.white : tenantInk,
+                color: mauChu,
                 fontSize: 12,
                 height: 1.4,
               ),
@@ -43,7 +74,7 @@ class TenantMessageBubble extends StatelessWidget {
             Text(
               message.time,
               style: TextStyle(
-                color: isTenant ? Colors.white70 : tenantMuted,
+                color: mauThoiGian,
                 fontSize: 9,
               ),
             ),

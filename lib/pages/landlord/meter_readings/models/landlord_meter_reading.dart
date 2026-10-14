@@ -15,7 +15,27 @@ class LandlordMeterReading {
   int? newElectric;
   int? newWater;
 
-  bool get isDone => newElectric != null && newWater != null;
-  int get electricUsage => (newElectric ?? oldElectric) - oldElectric;
-  int get waterUsage => (newWater ?? oldWater) - oldWater;
+  bool get isDone {
+    if (newElectric != null && newWater != null) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  int get electricUsage {
+    if (newElectric != null) {
+      return newElectric! - oldElectric;
+    } else {
+      return 0;
+    }
+  }
+
+  int get waterUsage {
+    if (newWater != null) {
+      return newWater! - oldWater;
+    } else {
+      return 0;
+    }
+  }
 }

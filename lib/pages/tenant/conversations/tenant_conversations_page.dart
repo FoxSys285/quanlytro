@@ -14,7 +14,8 @@ class TenantConversationsPage extends StatefulWidget {
 }
 
 class _TenantConversationsPageState extends State<TenantConversationsPage> {
-  String _query = '';
+  // Từ khóa tìm kiếm cuộc trò chuyện
+  String _tuKhoaTimKiem = '';
 
   @override
   void initState() {
@@ -34,48 +35,127 @@ class _TenantConversationsPageState extends State<TenantConversationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final conversations = TenantConversation.demoConversations
-        .where(
-          (conversation) =>
-              '${conversation.landlordName} ${conversation.contextLabel}'
-                  .toLowerCase()
-                  .contains(_query),
-        )
-        .toList();
+    // Lọc danh sách cuộc trò chuyện theo từ khóa tìm kiếm
+    final List<TenantConversation> danhSachHoiThoai = [];
+    for (int i = 0; i < TenantConversation.demoConversations.length; i++) {
+      final cuocTroChuyen = TenantConversation.demoConversations[i];
+      final chuoiTimKiem =
+          '${cuocTroChuyen.landlordName} ${cuocTroChuyen.contextLabel}'
+              .toLowerCase();
+      if (chuoiTimKiem.contains(_tuKhoaTimKiem)) {
+        danhSachHoiThoai.add(cuocTroChuyen);
+      }
+    }
 
-    return TenantPageFrame(
-      children: [
-        const TenantPageTitle(
-          title: 'Tin nhắn',
-          subtitle: 'Trao đổi với chủ trọ về chỗ ở và phòng bạn quan tâm.',
-        ),
-        TextField(
-          onChanged: (value) =>
-              setState(() => _query = value.trim().toLowerCase()),
-          decoration: InputDecoration(
-            hintText: 'Tìm chủ trọ, nhà trọ hoặc phòng...',
-            prefixIcon: const Icon(Icons.search_rounded, color: tenantMuted),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: tenantLine),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: tenantLine),
-            ),
+    // Danh sách widget hiển thị trên trang
+    final List<Widget> danhSachWidget = [
+      const TenantPageTitle(
+        title: 'Tin nhắn',
+        subtitle: 'Trao đổi với chủ trọ về chỗ ở và phòng bạn quan tâm.',
+      ),
+      TextField(
+        onChanged: (giaTri) {
+          setState(() {
+            _tuKhoaTimKiem = giaTri.trim().toLowerCase();
+          });
+        },
+        decoration: InputDecoration(
+          hintText: 'Tìm chủ trọ, nhà trọ hoặc phòng...',
+          prefixIcon: const Icon(Icons.search_rounded, color: tenantMuted),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: tenantLine),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: tenantLine),
           ),
         ),
-        const SizedBox(height: 20),
-        TenantSectionHeading('Cuộc trò chuyện (${conversations.length})'),
-        if (conversations.isEmpty)
-          const TenantEmptyState(
-            icon: Icons.forum_outlined,
-            title: 'Không tìm thấy cuộc trò chuyện',
-            subtitle: 'Thử tìm bằng tên chủ trọ, nhà trọ hoặc số phòng khác.',
+      ),
+      const SizedBox(height: 20),
+      TenantSectionHeading('Cuộc trò chuyện (${danhSachHoiThoai.length})'),
+    ];
+
+    // Kiểm tra nếu danh sách rỗng thì hiển thị thông báo chưa có cuộc trò chuyện
+    if (danhSachHoiThoai.isEmpty) {
+      danhSachWidget.add(
+        const TenantEmptyState(
+          icon: Icons.forum_outlined,
+          title: 'Không tìm thấy cuộc trò chuyện',
+          subtitle: 'Thử tìm bằng tên chủ trọ, nhà trọ hoặc số phòng khác.',
+        ),
+      );
+    } else {
+      // Duyệt qua từng cuộc trò chuyện để tạo item hiển thị
+      for (int i = 0; i < danhSachHoiThoai.length; i++) {
+        final cuocTroChuyen = danhSachHoiThoai[i];
+
+        // Nếu có tin nhắn chưa đọc thì in đậm tiêu đề
+        FontWeight doDamTieuDe;
+        if (cuocTroChuyen.unread > 0) {
+          doDamTieuDe = FontWeight.w800;
+        } else {
+          doDamTieuDe = FontWeight.w600;
+        }
+
+        // Lấy nội dung tin nhắn cuối cùng để hiển thị bản xem trước
+        String noiDungTinNhanCuoi;
+        if (cuocTroChuyen.messages.isEmpty) {
+          noiDungTinNhanCuoi = 'Chưa có tin nhắn';
+        } else {
+          final tinNhanCuoi = cuocTroChuyen.messages.last;
+          if (tinNhanCuoi.fromTenant) {
+            noiDungTinNhanCuoi = 'Bạn: ${tinNhanCuoi.text}';
+          } else {
+            noiDungTinNhanCuoi = tinNhanCuoi.text;
+          }
+        }
+
+        // Lấy thời gian của tin nhắn cuối
+        String thoiGianTinNhan = '';
+        if (cuocTroChuyen.messages.isNotEmpty) {
+          thoiGianTinNhan = cuocTroChuyen.messages.last.time;
+        }
+
+        // Tạo huy hiệu số tin nhắn chưa đọc nếu có
+        Widget? huyHieuChuaDoc;
+        if (cuocTroChuyen.unread > 0) {
+          huyHieuChuaDoc = Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Semantics(
+              label: '${cuocTroChuyen.unread} tin nhắn chưa đọc',
+              child: CircleAvatar(
+                radius: 10,
+                backgroundColor: tenantGreen,
+                child: Text(
+                  '${cuocTroChuyen.unread}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Gom các widget bên phải của thẻ item (thời gian + huy hiệu chưa đọc)
+        final List<Widget> danhSachWidgetBenPhai = [
+          Text(
+            thoiGianTinNhan,
+            style: const TextStyle(
+              color: tenantMuted,
+              fontSize: 10,
+            ),
           ),
-        for (final conversation in conversations)
+        ];
+        if (huyHieuChuaDoc != null) {
+          danhSachWidgetBenPhai.add(huyHieuChuaDoc);
+        }
+
+        danhSachWidget.add(
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: TenantSurface(
@@ -87,11 +167,11 @@ class _TenantConversationsPageState extends State<TenantConversationsPage> {
                     horizontal: 14,
                     vertical: 8,
                   ),
-                  onTap: () => _openChat(conversation),
+                  onTap: () => _moManHinhTroChuyen(cuocTroChuyen),
                   leading: CircleAvatar(
                     backgroundColor: const Color(0xFFE8F2EE),
                     child: Text(
-                      conversation.initials,
+                      cuocTroChuyen.initials,
                       style: const TextStyle(
                         color: tenantGreenDark,
                         fontSize: 13,
@@ -100,22 +180,20 @@ class _TenantConversationsPageState extends State<TenantConversationsPage> {
                     ),
                   ),
                   title: Text(
-                    conversation.landlordName,
+                    cuocTroChuyen.landlordName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: tenantInk,
                       fontSize: 14,
-                      fontWeight: conversation.unread > 0
-                          ? FontWeight.w800
-                          : FontWeight.w600,
+                      fontWeight: doDamTieuDe,
                     ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        conversation.contextLabel,
+                        cuocTroChuyen.contextLabel,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -125,9 +203,7 @@ class _TenantConversationsPageState extends State<TenantConversationsPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        conversation.messages.isEmpty
-                            ? 'Chưa có tin nhắn'
-                            : '${conversation.messages.last.fromTenant ? 'Bạn: ' : ''}${conversation.messages.last.text}',
+                        noiDungTinNhanCuoi,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(color: tenantInk, fontSize: 12),
@@ -137,51 +213,34 @@ class _TenantConversationsPageState extends State<TenantConversationsPage> {
                   trailing: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        conversation.messages.isEmpty
-                            ? ''
-                            : conversation.messages.last.time,
-                        style: const TextStyle(
-                          color: tenantMuted,
-                          fontSize: 10,
-                        ),
-                      ),
-                      if (conversation.unread > 0) ...[
-                        const SizedBox(height: 6),
-                        Semantics(
-                          label: '${conversation.unread} tin nhắn chưa đọc',
-                          child: CircleAvatar(
-                            radius: 10,
-                            backgroundColor: tenantGreen,
-                            child: Text(
-                              '${conversation.unread}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    children: danhSachWidgetBenPhai,
                   ),
                 ),
               ),
             ),
           ),
-      ],
+        );
+      }
+    }
+
+    return TenantPageFrame(
+      children: danhSachWidget,
     );
   }
 
-  Future<void> _openChat(TenantConversation conversation) async {
-    setState(() => conversation.unread = 0);
+  // Hàm chuyển sang màn hình chat chi tiết với chủ trọ
+  Future<void> _moManHinhTroChuyen(TenantConversation cuocTroChuyen) async {
+    setState(() {
+      cuocTroChuyen.unread = 0;
+    });
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) =>
-            TenantLandlordConversationPage(conversation: conversation),
+            TenantLandlordConversationPage(conversation: cuocTroChuyen),
       ),
     );
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 }
