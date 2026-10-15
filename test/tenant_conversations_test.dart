@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/layouts/tenant_layout.dart';
 import 'package:quanlytro/pages/tenant/conversations/models/tenant_conversation.dart';
-import 'package:quanlytro/pages/tenant/conversations/tenant_conversation_page.dart';
-import 'package:quanlytro/pages/tenant/conversations/tenant_conversations_page.dart';
+import 'package:quanlytro/pages/tenant/conversations/tenant_tinnhan_page.dart';
+import 'package:quanlytro/pages/tenant/conversations/tenant_danhsachtinnhan_page.dart';
 
 void main() {
   for (final width in [390.0, 1280.0]) {
@@ -29,8 +29,8 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: TenantLayout()));
       await tester.tap(find.byIcon(Icons.forum_outlined));
       await tester.pumpAndSettle();
-      expect(find.byType(TenantConversationsPage), findsOneWidget);
-      expect(find.byType(TenantLandlordConversationPage), findsNothing);
+      expect(find.byType(TenantDanhSachTinNhanPage), findsOneWidget);
+      expect(find.byType(TenantTinNhanPage), findsNothing);
       expect(find.text('Nguyễn Văn An'), findsOneWidget);
       expect(find.text('Trần Thị Mai'), findsOneWidget);
       expect(find.text('Lê Minh Hùng'), findsOneWidget);
@@ -44,7 +44,7 @@ void main() {
       expect(find.text('Nguyễn Văn An'), findsNothing);
       await tester.tap(find.text('Trần Thị Mai'));
       await tester.pumpAndSettle();
-      expect(find.byType(TenantLandlordConversationPage), findsOneWidget);
+      expect(find.byType(TenantTinNhanPage), findsOneWidget);
       expect(find.text('Trần Thị Mai'), findsOneWidget);
       expect(conversations[1].unread, 0);
       expect(find.text('Bạn báo cô giờ đến để cô mở cửa nhé.'), findsOneWidget);

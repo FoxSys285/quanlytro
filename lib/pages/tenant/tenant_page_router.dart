@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../layouts/role_layout.dart';
 import 'announcements/tenant_announcements_page.dart';
-import 'conversations/tenant_conversations_page.dart';
+import 'conversations/tenant_danhsachtinnhan_page.dart';
 import 'discovery/tenant_discovery_page.dart';
-import 'incidents/tenant_incidents_page.dart';
+import 'incidents/tenant_baosuco_page.dart';
 import 'invoices/tenant_invoices_page.dart';
 import 'leases/tenant_home_page.dart';
 import 'members/tenant_members_page.dart';
@@ -19,8 +19,8 @@ Widget buildTenantPage(BuildContext context, RoleDestination destination) {
     'members' => const TenantMembersPage(),
     'announcements' => const TenantAnnouncementsPage(),
     'invoices' => const TenantInvoicesPage(),
-    'conversations' => const TenantConversationsPage(),
-    'incidents' => const TenantIncidentsPage(),
+    'conversations' => const TenantDanhSachTinNhanPage(),
+    'incidents' => const TenantBaoSuCoPage(),
     _ => _TenantSecondaryPage(destination: destination),
   };
 }

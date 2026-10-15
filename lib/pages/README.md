@@ -8,7 +8,7 @@ pages/
   tenant/          tenant_page_router.dart, tenant_ui.dart
     announcements/  tenant_announcements_page.dart (+ components/, models/)
     members/        tenant_members_page.dart (+ components/, models/)
-    conversations/ tenant_conversation_page.dart
+    conversations/ tenant_danhsachtinnhan_page.dart, tenant_tinnhan_page.dart
       components/   message bubble
       models/       conversation message
     discovery/      tenant_discovery_page.dart, tenant_favorites_page.dart,
@@ -17,17 +17,17 @@ pages/
       models/       room listing and preview data
     invoices/       tenant_invoices_page.dart, tenant_invoice_detail_page.dart
       components/   invoice card, charge rows, payment instructions
-    incidents/      tenant_incidents_page.dart
+    incidents/      tenant_baosuco_page.dart
     leases/         tenant_home_page.dart
       components/   lease metric, overview card, member row
     viewings/       tenant_viewings_page.dart (+ components/)
   landlord/      landlord_page_router.dart, landlord_ui.dart
-    dashboard/      landlord_dashboard_page.dart
-    services/       landlord_services_page.dart (+ models/)
-    meter_readings/ landlord_meter_readings_page.dart (+ models/)
-    members/        landlord_members_page.dart
-    conversations/  landlord_conversations_page.dart, landlord_chat_page.dart (+ models/)
-    incidents/      landlord_incidents_page.dart (+ models/)
+    dashboard/      landlord_tongquan_page.dart
+    services/       landlord_dichvubanggia_page.dart (+ models/)
+    meter_readings/ landlord_chisodiennuoc_page.dart (+ models/)
+    members/        landlord_nguoithue_page.dart
+    conversations/  landlord_danhsachtinnhan_page.dart, landlord_tinnhan_page.dart (+ models/)
+    incidents/      landlord_yeucausuachua_page.dart (+ models/)
     properties/     landlord_properties_page.dart (+ components/, models/, services/)
     room_types/     landlord_room_types_page.dart (+ models/)
     rooms/          landlord_rooms_page.dart (+ components/, models/)

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../landlord/finance/landlord_finance_models.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
-import '../conversations/tenant_conversation_page.dart';
-import '../incidents/tenant_incidents_page.dart';
+import '../conversations/tenant_tinnhan_page.dart';
+import '../incidents/tenant_baosuco_page.dart';
 import '../invoices/tenant_invoices_page.dart';
 import '../tenant_ui.dart';
 import 'components/tenant_lease_member_row.dart';
@@ -253,7 +253,7 @@ class TenantHomePage extends StatelessWidget {
                   label: 'Nhắn tin',
                   onPressed: () => Navigator.of(context).push<void>(
                     MaterialPageRoute(
-                      builder: (_) => const TenantLandlordConversationPage(),
+                      builder: (_) => const TenantTinNhanPage(),
                     ),
                   ),
                 ),
@@ -263,7 +263,7 @@ class TenantHomePage extends StatelessWidget {
                   onPressed: () => _openPage(
                     context,
                     'Báo sự cố',
-                    TenantIncidentsPage(store: data, tenantId: tenantId),
+                    TenantBaoSuCoPage(store: data, tenantId: tenantId),
                   ),
                 ),
               ],

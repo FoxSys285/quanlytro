@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/pages/landlord/announcements/models/landlord_announcement.dart';
 import 'package:quanlytro/pages/landlord/conversations/models/landlord_conversation.dart';
 import 'package:quanlytro/pages/landlord/finance/landlord_finance_models.dart';
-import 'package:quanlytro/pages/landlord/incidents/landlord_incidents_page.dart';
+import 'package:quanlytro/pages/landlord/incidents/landlord_yeucausuachua_page.dart';
 import 'package:quanlytro/pages/landlord/incidents/models/landlord_incident.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
 import 'package:quanlytro/pages/landlord/properties/models/landlord_property.dart';
@@ -15,7 +15,7 @@ import 'package:quanlytro/pages/shared/viewings/viewing_store.dart';
 import 'package:quanlytro/pages/tenant/announcements/tenant_announcements_page.dart';
 import 'package:quanlytro/pages/tenant/conversations/models/tenant_conversation.dart';
 import 'package:quanlytro/pages/tenant/discovery/models/tenant_room_listing.dart';
-import 'package:quanlytro/pages/tenant/incidents/tenant_incidents_page.dart';
+import 'package:quanlytro/pages/tenant/incidents/tenant_baosuco_page.dart';
 import 'package:quanlytro/pages/tenant/invoices/tenant_invoice_detail_page.dart';
 import 'package:quanlytro/pages/tenant/leases/tenant_home_page.dart';
 import 'package:quanlytro/pages/tenant/leases/components/tenant_lease_overview_card.dart';
@@ -723,7 +723,7 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(body: LandlordIncidentsPage(store: store)),
+            home: Scaffold(body: LandlordYeuCauSuaChuaPage(store: store)),
           ),
         );
         await tester.tap(find.text('Máy lạnh không lạnh'));
@@ -741,7 +741,7 @@ void main() {
         expect(incident.status, IncidentStatus.resolved);
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(body: TenantIncidentsPage(store: store)),
+            home: Scaffold(body: TenantBaoSuCoPage(store: store)),
           ),
         );
         final confirm = find.widgetWithText(FilledButton, 'Xác nhận').first;

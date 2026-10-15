@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../shared/viewings/components/viewing_status_badge.dart';
 import '../../shared/viewings/viewing_store.dart';
-import '../conversations/landlord_chat_page.dart';
+import '../conversations/landlord_tinnhan_page.dart';
 import '../landlord_demo_store.dart';
 import 'components/landlord_viewing_card.dart';
 import 'data/viewing_conversation_store.dart';
@@ -103,7 +103,7 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => LandlordChatPage(conversation: conversation),
+        builder: (_) => LandlordTinNhanPage(conversation: conversation),
       ),
     );
   }

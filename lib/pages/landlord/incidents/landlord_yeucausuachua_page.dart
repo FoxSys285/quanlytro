@@ -4,21 +4,25 @@ import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
 import 'models/landlord_incident.dart';
 
-class LandlordIncidentsPage extends StatefulWidget {
-  const LandlordIncidentsPage({super.key, this.store});
+// Tên Class chính bằng tiếng Việt
+class LandlordYeuCauSuaChuaPage extends StatefulWidget {
+  const LandlordYeuCauSuaChuaPage({super.key, this.store});
+
   final LandlordDemoStore? store;
 
   @override
-  State<LandlordIncidentsPage> createState() => _LandlordIncidentsPageState();
+  State<LandlordYeuCauSuaChuaPage> createState() =>
+      _LandlordYeuCauSuaChuaPageState();
 }
 
-class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
-  // Bộ lọc trạng thái đang chọn (null là hiển thị tất cả)
+class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
+  // 1. DỮ KIỆN (Biến trạng thái đưa lên đầu)
   IncidentStatus? _boLocTrangThai;
 
   LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
   List<LandlordIncident> get _danhSachSuCo => _store.incidents;
 
+  // 2. VÒNG ĐỜI VÀ LẮNG NGHE
   @override
   void initState() {
     super.initState();
@@ -37,6 +41,91 @@ class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
     super.dispose();
   }
 
+  // 3. CÁC HÀM XỬ LÝ (Viết trước hàm build)
+  // Hàm tạo chip lọc trạng thái
+  Widget _taoChipLoc(String nhan, IncidentStatus? trangThai) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(nhan),
+        selected: _boLocTrangThai == trangThai,
+        onSelected: (_) {
+          setState(() {
+            _boLocTrangThai = trangThai;
+          });
+        },
+      ),
+    );
+  }
+
+  // Hàm tạo danh sách chip lọc trạng thái bằng vòng lặp for cơ bản
+  List<Widget> _taoDanhSachChipLoc() {
+    final List<Widget> danhSachChip = [];
+    danhSachChip.add(_taoChipLoc('Tất cả', null));
+    for (int i = 0; i < IncidentStatus.values.length; i++) {
+      final trangThai = IncidentStatus.values[i];
+      danhSachChip.add(_taoChipLoc(trangThai.label, trangThai));
+    }
+    return danhSachChip;
+  }
+
+  // Hàm mở bảng chi tiết sự cố và cho phép chủ trọ chuyển đổi trạng thái
+  void _moChiTietSuCo(LandlordIncident suCo) {
+    // Tạo danh sách các chip chọn trạng thái bằng vòng lặp for cơ bản
+    final List<Widget> danhSachNutChonTrangThai = [];
+    for (int i = 0; i < IncidentStatus.values.length; i++) {
+      final trangThai = IncidentStatus.values[i];
+      danhSachNutChonTrangThai.add(
+        ChoiceChip(
+          label: Text(trangThai.label),
+          selected: suCo.status == trangThai,
+          onSelected: (_) {
+            _store.updateIncident(suCo, trangThai);
+            Navigator.pop(context);
+            showLandlordMessage(
+              context,
+              'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
+            );
+          },
+        ),
+      );
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (nguCanhBang) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              suCo.title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text('Phòng ${suCo.room} · ${suCo.category}'),
+            Text('Người báo: ${suCo.reporter} · ${suCo.date}'),
+            const SizedBox(height: 10),
+            Text(suCo.description),
+            const SizedBox(height: 16),
+            const Text(
+              'Cập nhật trạng thái',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: danhSachNutChonTrangThai,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 4. HÀM BUILD ĐẶT Ở DƯỚI CÙNG
   @override
   Widget build(BuildContext context) {
     // Lọc danh sách sự cố theo trạng thái được chọn bằng vòng lặp for đơn giản
@@ -135,87 +224,5 @@ class _LandlordIncidentsPageState extends State<LandlordIncidentsPage> {
       children: danhSachWidget,
     );
   }
-
-  // Hàm tạo danh sách chip lọc trạng thái bằng vòng lặp for cơ bản
-  List<Widget> _taoDanhSachChipLoc() {
-    final List<Widget> danhSachChip = [];
-    danhSachChip.add(_taoChipLoc('Tất cả', null));
-    for (int i = 0; i < IncidentStatus.values.length; i++) {
-      final trangThai = IncidentStatus.values[i];
-      danhSachChip.add(_taoChipLoc(trangThai.label, trangThai));
-    }
-    return danhSachChip;
-  }
-
-  // Hàm tạo chip lọc trạng thái
-  Widget _taoChipLoc(String nhan, IncidentStatus? trangThai) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(nhan),
-        selected: _boLocTrangThai == trangThai,
-        onSelected: (_) {
-          setState(() {
-            _boLocTrangThai = trangThai;
-          });
-        },
-      ),
-    );
-  }
-
-  // Hàm mở bảng chi tiết sự cố và cho phép chủ trọ chuyển đổi trạng thái
-  void _moChiTietSuCo(LandlordIncident suCo) {
-    // Tạo danh sách các chip chọn trạng thái bằng vòng lặp for cơ bản
-    final List<Widget> danhSachNutChonTrangThai = [];
-    for (int i = 0; i < IncidentStatus.values.length; i++) {
-      final trangThai = IncidentStatus.values[i];
-      danhSachNutChonTrangThai.add(
-        ChoiceChip(
-          label: Text(trangThai.label),
-          selected: suCo.status == trangThai,
-          onSelected: (_) {
-            _store.updateIncident(suCo, trangThai);
-            Navigator.pop(context);
-            showLandlordMessage(
-              context,
-              'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
-            );
-          },
-        ),
-      );
-    }
-
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (nguCanhBang) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              suCo.title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-            Text('Phòng ${suCo.room} · ${suCo.category}'),
-            Text('Người báo: ${suCo.reporter} · ${suCo.date}'),
-            const SizedBox(height: 10),
-            Text(suCo.description),
-            const SizedBox(height: 16),
-            const Text(
-              'Cập nhật trạng thái',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: danhSachNutChonTrangThai,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
+

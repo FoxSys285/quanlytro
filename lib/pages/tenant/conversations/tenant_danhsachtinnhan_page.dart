@@ -3,36 +3,58 @@ import 'package:flutter/material.dart';
 import '../tenant_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
 import 'models/tenant_conversation.dart';
-import 'tenant_conversation_page.dart';
+import 'tenant_tinnhan_page.dart';
 
-class TenantConversationsPage extends StatefulWidget {
-  const TenantConversationsPage({super.key});
+// Tên Class chính bằng tiếng Việt
+class TenantDanhSachTinNhanPage extends StatefulWidget {
+  const TenantDanhSachTinNhanPage({super.key});
 
   @override
-  State<TenantConversationsPage> createState() =>
-      _TenantConversationsPageState();
+  State<TenantDanhSachTinNhanPage> createState() =>
+      _TenantDanhSachTinNhanPageState();
 }
 
-class _TenantConversationsPageState extends State<TenantConversationsPage> {
-  // Từ khóa tìm kiếm cuộc trò chuyện
+class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
+  // 1. DỮ KIỆN (Biến trạng thái đưa lên đầu)
   String _tuKhoaTimKiem = '';
 
+  // 2. VÒNG ĐỜI VÀ LẮNG NGHE DỮ LIỆU
   @override
   void initState() {
     super.initState();
-    ConversationStore.instance.addListener(_refresh);
+    ConversationStore.instance.addListener(_capNhat);
   }
 
-  void _refresh() {
-    if (mounted) setState(() {});
+  void _capNhat() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
-    ConversationStore.instance.removeListener(_refresh);
+    ConversationStore.instance.removeListener(_capNhat);
     super.dispose();
   }
 
+  // 3. CÁC HÀM XỬ LÝ (Viết trước hàm build)
+  // Hàm chuyển sang màn hình chat chi tiết với chủ trọ
+  Future<void> _moManHinhTroChuyen(TenantConversation cuocTroChuyen) async {
+    setState(() {
+      cuocTroChuyen.unread = 0;
+    });
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            TenantTinNhanPage(conversation: cuocTroChuyen),
+      ),
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  // 4. HÀM BUILD ĐẶT Ở DƯỚI CÙNG, CHẠY MỘT MẠCH LIỀN
   @override
   Widget build(BuildContext context) {
     // Lọc danh sách cuộc trò chuyện theo từ khóa tìm kiếm
@@ -47,7 +69,7 @@ class _TenantConversationsPageState extends State<TenantConversationsPage> {
       }
     }
 
-    // Danh sách widget hiển thị trên trang
+    // Danh sách widget hiển thị trên toàn màn hình
     final List<Widget> danhSachWidget = [
       const TenantPageTitle(
         title: 'Tin nhắn',
@@ -78,7 +100,7 @@ class _TenantConversationsPageState extends State<TenantConversationsPage> {
       TenantSectionHeading('Cuộc trò chuyện (${danhSachHoiThoai.length})'),
     ];
 
-    // Kiểm tra nếu danh sách rỗng thì hiển thị thông báo chưa có cuộc trò chuyện
+    // Kiểm tra nếu danh sách rỗng thì hiển thị thông báo trống
     if (danhSachHoiThoai.isEmpty) {
       danhSachWidget.add(
         const TenantEmptyState(
@@ -88,7 +110,7 @@ class _TenantConversationsPageState extends State<TenantConversationsPage> {
         ),
       );
     } else {
-      // Duyệt qua từng cuộc trò chuyện để tạo item hiển thị
+      // Duyệt qua từng cuộc trò chuyện để tạo thẻ ListTile hiển thị
       for (int i = 0; i < danhSachHoiThoai.length; i++) {
         final cuocTroChuyen = danhSachHoiThoai[i];
 
@@ -167,7 +189,9 @@ class _TenantConversationsPageState extends State<TenantConversationsPage> {
                     horizontal: 14,
                     vertical: 8,
                   ),
-                  onTap: () => _moManHinhTroChuyen(cuocTroChuyen),
+                  onTap: () {
+                    _moManHinhTroChuyen(cuocTroChuyen);
+                  },
                   leading: CircleAvatar(
                     backgroundColor: const Color(0xFFE8F2EE),
                     child: Text(
@@ -226,21 +250,5 @@ class _TenantConversationsPageState extends State<TenantConversationsPage> {
     return TenantPageFrame(
       children: danhSachWidget,
     );
-  }
-
-  // Hàm chuyển sang màn hình chat chi tiết với chủ trọ
-  Future<void> _moManHinhTroChuyen(TenantConversation cuocTroChuyen) async {
-    setState(() {
-      cuocTroChuyen.unread = 0;
-    });
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            TenantLandlordConversationPage(conversation: cuocTroChuyen),
-      ),
-    );
-    if (mounted) {
-      setState(() {});
-    }
   }
 }

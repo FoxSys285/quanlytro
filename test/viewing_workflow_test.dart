@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/layouts/tenant_layout.dart';
-import 'package:quanlytro/pages/landlord/conversations/landlord_chat_page.dart';
+import 'package:quanlytro/pages/landlord/conversations/landlord_tinnhan_page.dart';
 import 'package:quanlytro/pages/landlord/viewings/data/viewing_conversation_store.dart';
 import 'package:quanlytro/pages/landlord/viewings/landlord_viewings_page.dart';
 import 'package:quanlytro/pages/shared/viewings/components/viewing_status_badge.dart';
@@ -160,7 +160,7 @@ void main() {
         await tester.ensureVisible(message);
         await tester.tap(message);
         await tester.pumpAndSettle();
-        expect(find.byType(LandlordChatPage), findsOneWidget);
+        expect(find.byType(LandlordTinNhanPage), findsOneWidget);
         expect(conversations.conversations.single.tenantName, 'Minh Anh');
         await tester.enterText(
           find.byType(TextField),
