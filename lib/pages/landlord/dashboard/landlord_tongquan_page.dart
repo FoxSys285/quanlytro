@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
+
+
 import '../landlord_demo_store.dart';
 import '../finance/landlord_finance_models.dart';
-import '../incidents/models/landlord_incident.dart';
+import '../incidents/models/landlord_suco.dart';
 import '../rooms/models/landlord_room.dart';
 import '../../shared/rental/lease_member.dart';
 import '../../shared/conversations/conversation_store.dart';
@@ -173,112 +175,83 @@ class LandlordTongQuanPage extends StatelessWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([khoDuLieu, khoTroChuyen]),
       builder: (context, _) {
-        // 1. Thống kê số phòng trống và phòng đang thuê
+        // 1. Thống kê số phòng trống và phòng đang thuê bằng LINQ
         final danhSachPhong = khoDuLieu.roomDetails;
-        int soPhongTrong = 0;
-        int soPhongDangThue = 0;
+        final soPhongTrong = danhSachPhong
+            .where((p) => p.status == LandlordRoomStatus.vacant)
+            .length;
+        final soPhongDangThue = danhSachPhong
+            .where((p) => p.status == LandlordRoomStatus.occupied)
+            .length;
 
-        for (int i = 0; i < danhSachPhong.length; i++) {
-          final phong = danhSachPhong[i];
-          if (phong.status == LandlordRoomStatus.vacant) {
-            soPhongTrong = soPhongTrong + 1;
-          } else if (phong.status == LandlordRoomStatus.occupied) {
-            soPhongDangThue = soPhongDangThue + 1;
-          }
-        }
-
-        // 2. Tính tiền cần thu và tiền đã thu trong tháng hiện tại
+        // 2. Tính tiền cần thu và tiền đã thu trong tháng hiện tại bằng LINQ (giống C# Select(...).Sum())
         final thoiGianHienTai = DateTime.now();
-        int tongTienCanThu = 0;
-        int tongTienDaThu = 0;
-        int soHoaDonChuaThu = 0;
+        final hoaDonThangNay = khoDuLieu.invoices.where(
+          (h) =>
+              !h.cancelled &&
+              h.period.year == thoiGianHienTai.year &&
+              h.period.month == thoiGianHienTai.month,
+        );
+        final tongTienCanThu = hoaDonThangNay.map((h) => h.total).sum;
+        final tongTienDaThu = hoaDonThangNay.map((h) => h.paidAmount).sum;
+        final soHoaDonChuaThu = khoDuLieu.invoices
+            .where(
+              (h) =>
+                  !h.cancelled &&
+                  (h.status == LandlordInvoiceStatus.unpaid ||
+                      h.status == LandlordInvoiceStatus.overdue),
+            )
+            .length;
 
-        for (int i = 0; i < khoDuLieu.invoices.length; i++) {
-          final hoaDon = khoDuLieu.invoices[i];
-          if (!hoaDon.cancelled) {
-            if (hoaDon.period.year == thoiGianHienTai.year &&
-                hoaDon.period.month == thoiGianHienTai.month) {
-              tongTienCanThu = tongTienCanThu + hoaDon.total;
-              tongTienDaThu = tongTienDaThu + hoaDon.paidAmount;
-            }
-            if (hoaDon.status == LandlordInvoiceStatus.unpaid ||
-                hoaDon.status == LandlordInvoiceStatus.overdue) {
-              soHoaDonChuaThu = soHoaDonChuaThu + 1;
-            }
-          }
-        }
+        // 3. Đếm số tin nhắn mới chưa đọc từ người thuê bằng LINQ (giống C# Where(...).Select(...).Sum())
+        final soTinNhanChuaDoc = khoTroChuyen.conversations
+            .where((h) => h.propertyId == khoDuLieu.property.id)
+            .map((h) => h.unread)
+            .sum;
 
-        // 3. Đếm số tin nhắn mới chưa đọc từ người thuê
-        int soTinNhanChuaDoc = 0;
-        final danhSachHoiThoai = khoTroChuyen.conversations;
-        for (int i = 0; i < danhSachHoiThoai.length; i++) {
-          final hoiThoai = danhSachHoiThoai[i];
-          if (hoiThoai.propertyId == khoDuLieu.property.id) {
-            soTinNhanChuaDoc = soTinNhanChuaDoc + hoiThoai.unread;
-          }
-        }
 
-        // 4. Lấy danh sách sự cố mới cần xử lý
-        final List<LandlordIncident> danhSachSuCoMoi = [];
-        for (int i = 0; i < khoDuLieu.incidents.length; i++) {
-          final suCo = khoDuLieu.incidents[i];
-          if (suCo.status == IncidentStatus.newly) {
-            danhSachSuCoMoi.add(suCo);
-          }
-        }
+        // 4. Lấy danh sách sự cố mới cần xử lý bằng LINQ
+        final danhSachSuCoMoi = khoDuLieu.incidents
+            .where((suCo) => suCo.status == IncidentStatus.newly)
+            .toList();
 
-        // 5. Đếm số phòng đang thuê chưa nhập chỉ số điện nước tháng này
-        int soPhongChuaGhiChiSo = 0;
+        // 5. Đếm số phòng đang thuê chưa nhập chỉ số điện nước tháng này bằng LINQ
         final thangNay = DateTime(thoiGianHienTai.year, thoiGianHienTai.month);
-        for (int i = 0; i < khoDuLieu.activeLeases.length; i++) {
-          final hopDong = khoDuLieu.activeLeases[i];
+        final soPhongChuaGhiChiSo = khoDuLieu.activeLeases.where((hopDong) {
           final chiSo = khoDuLieu.readingForRoom(hopDong.room, thangNay);
-          if (chiSo == null || !chiSo.isDone) {
-            soPhongChuaGhiChiSo = soPhongChuaGhiChiSo + 1;
-          }
-        }
+          return chiSo == null || !chiSo.isDone;
+        }).length;
 
-        // 6. Đếm số thành viên mới đang chờ duyệt
-        int soThanhVienChoDuyet = 0;
-        for (int i = 0; i < khoDuLieu.members.length; i++) {
-          final thanhVien = khoDuLieu.members[i];
+        // 6. Đếm số thành viên mới đang chờ duyệt bằng LINQ
+        final soThanhVienChoDuyet = khoDuLieu.members.where((thanhVien) {
           final hopDong = khoDuLieu.leaseById(thanhVien.leaseId);
-          if (thanhVien.status == LeaseMemberStatus.pending &&
+          return thanhVien.status == LeaseMemberStatus.pending &&
               hopDong != null &&
-              hopDong.isCurrent) {
-            soThanhVienChoDuyet = soThanhVienChoDuyet + 1;
-          }
-        }
+              hopDong.isCurrent;
+        }).length;
 
-        // 7. Đếm số khoản thanh toán chờ duyệt
-        int soKhoanChoDuyet = 0;
-        for (int i = 0; i < khoDuLieu.payments.length; i++) {
-          if (khoDuLieu.payments[i].status == LandlordPaymentStatus.pending) {
-            soKhoanChoDuyet = soKhoanChoDuyet + 1;
-          }
-        }
+        // 7. Đếm số khoản thanh toán chờ duyệt bằng LINQ
+        final soKhoanChoDuyet = khoDuLieu.payments
+            .where((p) => p.status == LandlordPaymentStatus.pending)
+            .length;
 
-        // 8. Đếm số lịch xem phòng của khách mới
+        // 8. Đếm số lịch xem phòng của khách mới bằng LINQ
         final khoXemPhong = ViewingStore.instance;
-        int soLichXemPhong = 0;
-        for (int i = 0; i < khoXemPhong.records.length; i++) {
-          final lich = khoXemPhong.records[i];
-          if (lich.status == ViewingStatus.pending ||
-              lich.status == ViewingStatus.confirmed) {
-            soLichXemPhong = soLichXemPhong + 1;
-          }
-        }
+        final soLichXemPhong = khoXemPhong.records
+            .where(
+              (lich) =>
+                  lich.status == ViewingStatus.pending ||
+                  lich.status == ViewingStatus.confirmed,
+            )
+            .length;
 
-        // 9. Đếm số hợp đồng sắp hết hạn trong vòng 30 ngày
-        int soHopDongSapHetHan = 0;
-        for (int i = 0; i < khoDuLieu.activeLeases.length; i++) {
-          final hopDong = khoDuLieu.activeLeases[i];
+        // 9. Đếm số hợp đồng sắp hết hạn trong vòng 30 ngày bằng LINQ
+        final soHopDongSapHetHan = khoDuLieu.activeLeases.where((hopDong) {
           final soNgayConLai =
               hopDong.endDate.difference(thoiGianHienTai).inDays;
-          if (soNgayConLai >= 0 && soNgayConLai <= 30) {
-            soHopDongSapHetHan = soHopDongSapHetHan + 1;
-          }
-        }
+          return soNgayConLai >= 0 && soNgayConLai <= 30;
+        }).length;
+
 
         // 10. Tính tỉ lệ phần trăm thu tiền bằng if-else (tránh chia cho 0)
         double tyLeTienDo = 0.0;

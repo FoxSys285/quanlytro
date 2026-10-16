@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../tenant_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
-import 'models/tenant_conversation.dart';
+import 'models/tenant_cuoctrochuyen.dart';
 import 'tenant_tinnhan_page.dart';
 
 // Tên Class chính bằng tiếng Việt
@@ -57,17 +57,14 @@ class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
   // 4. HÀM BUILD ĐẶT Ở DƯỚI CÙNG, CHẠY MỘT MẠCH LIỀN
   @override
   Widget build(BuildContext context) {
-    // Lọc danh sách cuộc trò chuyện theo từ khóa tìm kiếm
-    final List<TenantConversation> danhSachHoiThoai = [];
-    for (int i = 0; i < TenantConversation.demoConversations.length; i++) {
-      final cuocTroChuyen = TenantConversation.demoConversations[i];
+    // Lọc danh sách cuộc trò chuyện theo từ khóa tìm kiếm bằng LINQ gọn gàng
+    final danhSachHoiThoai = TenantConversation.demoConversations.where((cuocTroChuyen) {
       final chuoiTimKiem =
           '${cuocTroChuyen.landlordName} ${cuocTroChuyen.contextLabel}'
               .toLowerCase();
-      if (chuoiTimKiem.contains(_tuKhoaTimKiem)) {
-        danhSachHoiThoai.add(cuocTroChuyen);
-      }
-    }
+      return chuoiTimKiem.contains(_tuKhoaTimKiem);
+    }).toList();
+
 
     // Danh sách widget hiển thị trên toàn màn hình
     final List<Widget> danhSachWidget = [

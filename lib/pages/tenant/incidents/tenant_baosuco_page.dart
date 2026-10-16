@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../landlord/incidents/models/landlord_incident.dart';
+import '../../landlord/incidents/models/landlord_suco.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
 import '../tenant_ui.dart';
@@ -56,17 +56,13 @@ class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
     );
   }
 
-  // Hàm tạo danh sách loại sự cố cho Dropdown bằng vòng lặp for cơ bản
+  // Hàm tạo danh sách loại sự cố cho Dropdown bằng LINQ gọn gàng
   List<DropdownMenuItem<String>> _taoDanhSachMucSuCo() {
-    final List<DropdownMenuItem<String>> danhSachItem = [];
-    for (int i = 0; i < _danhMucSuCo.length; i++) {
-      final muc = _danhMucSuCo[i];
-      danhSachItem.add(
-        DropdownMenuItem(value: muc, child: Text(muc)),
-      );
-    }
-    return danhSachItem;
+    return _danhMucSuCo
+        .map((muc) => DropdownMenuItem(value: muc, child: Text(muc)))
+        .toList();
   }
+
 
   // Hàm mở form tạo yêu cầu sửa chữa mới
   Future<void> _moFormTaoMoi() async {

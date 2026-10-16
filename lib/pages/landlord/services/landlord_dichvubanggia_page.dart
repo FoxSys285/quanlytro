@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
-import 'models/landlord_service.dart';
+import '../landlord_demo_store.dart';
+import 'models/landlord_dichvu.dart';
 
 // Tên Class chính bằng tiếng Việt
 class LandlordDichVuBangGiaPage extends StatefulWidget {
@@ -13,7 +14,9 @@ class LandlordDichVuBangGiaPage extends StatefulWidget {
 }
 
 class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
-  // 1. DỮ KIỆN (Biến trạng thái đưa lên đầu)
+  // 1. DỮ KIỆN (Kho lưu trữ và biến trạng thái đưa lên đầu)
+  final _store = LandlordDemoStore.instance;
+
   static const _danhSachCachTinh = [
     'Theo chỉ số',
     'Theo phòng',
@@ -21,35 +24,28 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
     'Cố định',
   ];
 
-  final _danhSachDichVu = <LandlordService>[
-    LandlordService(
-      name: 'Điện',
-      unit: 'kWh',
-      basis: 'Theo chỉ số',
-      price: 3500,
-    ),
-    LandlordService(name: 'Nước', unit: 'm³', basis: 'Theo chỉ số', price: 15000),
-    LandlordService(
-      name: 'Internet',
-      unit: 'phòng',
-      basis: 'Theo phòng',
-      price: 100000,
-    ),
-    LandlordService(
-      name: 'Gửi xe máy',
-      unit: 'xe',
-      basis: 'Cố định',
-      price: 80000,
-    ),
-    LandlordService(
-      name: 'Vệ sinh',
-      unit: 'người',
-      basis: 'Theo người',
-      price: 20000,
-    ),
-  ];
+  List<LandlordService> get _danhSachDichVu => _store.services;
 
-  // 2. CÁC HÀM XỬ LÝ (Viết trước hàm build)
+  // 2. VÒNG ĐỜI VÀ LẮNG NGHE DỮ LIỆU
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_capNhat);
+  }
+
+  void _capNhat() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_capNhat);
+    super.dispose();
+  }
+
+  // 3. CÁC HÀM XỬ LÝ (Viết trước hàm build)
   // Hàm chọn icon tương ứng với tên dịch vụ
   IconData _layIconDichVu(String tenDichVu) {
     final tenVietThuong = tenDichVu.toLowerCase();
@@ -67,17 +63,13 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
     }
   }
 
-  // Hàm tạo danh sách lựa chọn cho Dropdown bằng vòng lặp for cơ bản
+  // Hàm tạo danh sách lựa chọn cho Dropdown bằng LINQ gọn gàng
   List<DropdownMenuItem<String>> _taoDanhSachLuaChonCachTinh() {
-    final List<DropdownMenuItem<String>> danhSachItem = [];
-    for (int i = 0; i < _danhSachCachTinh.length; i++) {
-      final cach = _danhSachCachTinh[i];
-      danhSachItem.add(
-        DropdownMenuItem(value: cach, child: Text(cach)),
-      );
-    }
-    return danhSachItem;
+    return _danhSachCachTinh
+        .map((cach) => DropdownMenuItem(value: cach, child: Text(cach)))
+        .toList();
   }
+
 
   // Hàm mở form thêm mới hoặc chỉnh sửa dịch vụ
   Future<void> _moFormDichVu({LandlordService? dichVuCanSua}) async {
@@ -146,7 +138,7 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
             if (dichVuCanSua != null)
               TextButton(
                 onPressed: () {
-                  setState(() => _danhSachDichVu.remove(dichVuCanSua));
+                  _store.deleteService(dichVuCanSua);
                   Navigator.pop(context, false);
                 },
                 child: const Text('Xóa', style: TextStyle(color: Colors.red)),
@@ -179,51 +171,49 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
       return;
     }
 
-    setState(() {
-      if (dichVuCanSua == null) {
-        _danhSachDichVu.add(
-          LandlordService(
-            name: tenDichVu,
-            unit: donVi,
-            basis: cachTinh,
-            price: donGia,
-          ),
-        );
-      } else {
-        dichVuCanSua.name = tenDichVu;
-        dichVuCanSua.unit = donVi;
-        dichVuCanSua.basis = cachTinh;
-        dichVuCanSua.price = donGia;
-      }
-    });
+    _store.saveService(
+      existing: dichVuCanSua,
+      name: tenDichVu,
+      unit: donVi,
+      basis: cachTinh,
+      price: donGia,
+    );
     showLandlordMessage(context, 'Đã lưu dịch vụ $tenDichVu.');
   }
 
-  // 3. HÀM BUILD ĐẶT Ở DƯỚI CÙNG
+  // 4. HÀM BUILD ĐẶT Ở DƯỚI CÙNG
   @override
   Widget build(BuildContext context) {
     // Danh sách widget hiển thị trên trang
     final List<Widget> danhSachWidget = [
-      LandlordPageTitle(
-        title: 'Dịch vụ và bảng giá',
-        subtitle: 'Đơn giá áp dụng khi lập hóa đơn hằng tháng.',
-        trailing: FilledButton.icon(
+      const LandlordPageTitle(
+        title: 'Dịch vụ & Bảng giá',
+        subtitle: 'Cấu hình đơn giá điện, nước và các dịch vụ khác.',
+      ),
+      SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
           onPressed: () {
             _moFormDichVu();
           },
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Thêm'),
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Thêm dịch vụ mới'),
         ),
       ),
+      const SizedBox(height: 12),
+      const Text(
+        'Bảng giá hiện tại',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      ),
+      const SizedBox(height: 8),
     ];
 
-    // Kiểm tra nếu chưa có dịch vụ nào
+    // Thêm các thẻ dịch vụ bằng vòng lặp for cơ bản
     if (_danhSachDichVu.isEmpty) {
       danhSachWidget.add(
         const LandlordEmptyState(message: 'Chưa có dịch vụ nào.'),
       );
     } else {
-      // Duyệt qua từng dịch vụ để tạo thẻ hiển thị
       for (int i = 0; i < _danhSachDichVu.length; i++) {
         final dichVu = _danhSachDichVu[i];
         danhSachWidget.add(
@@ -267,9 +257,7 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
                 Switch(
                   value: dichVu.active,
                   onChanged: (giaTriKichHoat) {
-                    setState(() {
-                      dichVu.active = giaTriKichHoat;
-                    });
+                    _store.setServiceActive(dichVu, giaTriKichHoat);
                   },
                 ),
               ],
@@ -284,4 +272,3 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
     );
   }
 }
-

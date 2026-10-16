@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
-import 'models/landlord_conversation.dart';
+import 'models/landlord_cuoctrochuyen.dart';
 
 // Tên Class chính bằng tiếng Việt
 class LandlordTinNhanPage extends StatefulWidget {

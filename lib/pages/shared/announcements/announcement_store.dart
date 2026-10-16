@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../landlord/announcements/models/landlord_announcement.dart';
 import '../../landlord/finance/landlord_finance_models.dart';
 import '../../landlord/landlord_demo_store.dart';
-import '../../landlord/incidents/models/landlord_incident.dart';
+import '../../landlord/incidents/models/landlord_suco.dart';
 import '../viewings/models/room_viewing.dart';
 import '../viewings/viewing_store.dart';
 

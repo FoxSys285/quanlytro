@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
-import 'models/landlord_incident.dart';
+import 'models/landlord_suco.dart';
 
 // Tên Class chính bằng tiếng Việt
 class LandlordYeuCauSuaChuaPage extends StatefulWidget {
@@ -58,38 +58,34 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
     );
   }
 
-  // Hàm tạo danh sách chip lọc trạng thái bằng vòng lặp for cơ bản
+  // Hàm tạo danh sách chip lọc trạng thái bằng LINQ gọn gàng
   List<Widget> _taoDanhSachChipLoc() {
-    final List<Widget> danhSachChip = [];
-    danhSachChip.add(_taoChipLoc('Tất cả', null));
-    for (int i = 0; i < IncidentStatus.values.length; i++) {
-      final trangThai = IncidentStatus.values[i];
-      danhSachChip.add(_taoChipLoc(trangThai.label, trangThai));
-    }
-    return danhSachChip;
+    return [
+      _taoChipLoc('Tất cả', null),
+      ...IncidentStatus.values.map(
+        (trangThai) => _taoChipLoc(trangThai.label, trangThai),
+      ),
+    ];
   }
 
   // Hàm mở bảng chi tiết sự cố và cho phép chủ trọ chuyển đổi trạng thái
   void _moChiTietSuCo(LandlordIncident suCo) {
-    // Tạo danh sách các chip chọn trạng thái bằng vòng lặp for cơ bản
-    final List<Widget> danhSachNutChonTrangThai = [];
-    for (int i = 0; i < IncidentStatus.values.length; i++) {
-      final trangThai = IncidentStatus.values[i];
-      danhSachNutChonTrangThai.add(
-        ChoiceChip(
-          label: Text(trangThai.label),
-          selected: suCo.status == trangThai,
-          onSelected: (_) {
-            _store.updateIncident(suCo, trangThai);
-            Navigator.pop(context);
-            showLandlordMessage(
-              context,
-              'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
-            );
-          },
-        ),
-      );
-    }
+    // Tạo danh sách các chip chọn trạng thái bằng LINQ map
+    final danhSachNutChonTrangThai = IncidentStatus.values.map(
+      (trangThai) => ChoiceChip(
+        label: Text(trangThai.label),
+        selected: suCo.status == trangThai,
+        onSelected: (_) {
+          _store.updateIncident(suCo, trangThai);
+          Navigator.pop(context);
+          showLandlordMessage(
+            context,
+            'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
+          );
+        },
+      ),
+    ).toList();
+
 
     showModalBottomSheet<void>(
       context: context,
@@ -128,17 +124,11 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
   // 4. HÀM BUILD ĐẶT Ở DƯỚI CÙNG
   @override
   Widget build(BuildContext context) {
-    // Lọc danh sách sự cố theo trạng thái được chọn bằng vòng lặp for đơn giản
-    final List<LandlordIncident> danhSachHienThi = [];
-    if (_boLocTrangThai == null) {
-      danhSachHienThi.addAll(_danhSachSuCo);
-    } else {
-      for (int i = 0; i < _danhSachSuCo.length; i++) {
-        if (_danhSachSuCo[i].status == _boLocTrangThai) {
-          danhSachHienThi.add(_danhSachSuCo[i]);
-        }
-      }
-    }
+    // Lọc danh sách sự cố theo trạng thái bằng LINQ gọn gàng
+    final danhSachHienThi = _boLocTrangThai == null
+        ? _danhSachSuCo
+        : _danhSachSuCo.where((s) => s.status == _boLocTrangThai).toList();
+
 
     // Danh sách widget hiển thị trên toàn trang
     final List<Widget> danhSachWidget = [

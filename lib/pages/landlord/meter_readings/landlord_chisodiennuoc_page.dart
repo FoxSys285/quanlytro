@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
 import '../landlord_demo_store.dart';
-import '../finance/landlord_finance_models.dart';
-import 'models/landlord_meter_reading.dart';
+import 'models/landlord_chisodiennuoc.dart';
+
 
 // Tên Class chính bằng tiếng Việt
 class LandlordChiSoDienNuocPage extends StatefulWidget {
@@ -171,15 +171,11 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
 
   // Hàm tạo thẻ hiển thị thông tin điện nước của 1 phòng
   Widget _taoTheChiSo(LandlordMeterReading chiSo) {
-    LandlordLease? hopDong;
-    for (int i = 0; i < _store.activeLeases.length; i++) {
-      final item = _store.activeLeases[i];
-      if (_store.canonicalRoom(item.room) ==
-          _store.canonicalRoom(chiSo.room)) {
-        hopDong = item;
-        break;
-      }
-    }
+    // Tìm hợp đồng của phòng bằng LINQ gọn gàng
+    final hopDong = _store.activeLeases.where(
+      (item) =>
+          _store.canonicalRoom(item.room) == _store.canonicalRoom(chiSo.room),
+    ).firstOrNull;
 
     Widget widgetTrangThai;
     if (chiSo.isDone) {
@@ -194,13 +190,19 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
       );
     }
 
-    int donGiaDien = 0;
-    if (hopDong != null) {
-      donGiaDien = hopDong.electricityPrice;
+    // Lấy đơn giá điện: ưu tiên cấu hình giá trong Bảng giá dịch vụ bằng LINQ
+    int donGiaDien = 3500;
+    final dichVuDien = _store.serviceById('electricity');
+    if (dichVuDien != null) {
+      donGiaDien = dichVuDien.price;
     } else {
-      final dichVuDien = _store.serviceById('electricity');
-      if (dichVuDien != null) {
-        donGiaDien = dichVuDien.price;
+      final dvDien = _store.services
+          .where((dv) => dv.active && dv.name.toLowerCase().contains('điện'))
+          .firstOrNull;
+      if (dvDien != null) {
+        donGiaDien = dvDien.price;
+      } else if (hopDong != null) {
+        donGiaDien = hopDong.electricityPrice;
       }
     }
 
@@ -210,15 +212,22 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
         'Nước theo tháng · ${formatLandlordMoney(hopDong.waterPrice)}',
       );
     } else {
-      int donGiaNuoc = 0;
-      if (hopDong != null) {
-        donGiaNuoc = hopDong.waterPrice;
+      // Lấy đơn giá nước: ưu tiên cấu hình giá trong Bảng giá dịch vụ bằng LINQ
+      int donGiaNuoc = 15000;
+      final dichVuNuoc = _store.serviceById('water');
+      if (dichVuNuoc != null) {
+        donGiaNuoc = dichVuNuoc.price;
       } else {
-        final dichVuNuoc = _store.serviceById('water');
-        if (dichVuNuoc != null) {
-          donGiaNuoc = dichVuNuoc.price;
+        final dvNuoc = _store.services
+            .where((dv) => dv.active && dv.name.toLowerCase().contains('nước'))
+            .firstOrNull;
+        if (dvNuoc != null) {
+          donGiaNuoc = dvNuoc.price;
+        } else if (hopDong != null) {
+          donGiaNuoc = hopDong.waterPrice;
         }
       }
+
 
       widgetNuoc = _taoDongChiSo(
         icon: Icons.water_drop_outlined,
@@ -272,12 +281,9 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
   // 4. HÀM BUILD ĐẶT Ở DƯỚI CÙNG
   @override
   Widget build(BuildContext context) {
-    int soLuongDaNhap = 0;
-    for (int i = 0; i < _danhSachChiSo.length; i++) {
-      if (_danhSachChiSo[i].isDone) {
-        soLuongDaNhap = soLuongDaNhap + 1;
-      }
-    }
+    // Đếm số lượng phòng đã ghi chỉ số bằng LINQ
+    final soLuongDaNhap = _danhSachChiSo.where((c) => c.isDone).length;
+
 
     Color mauTrangThai;
     if (soLuongDaNhap == _danhSachChiSo.length) {

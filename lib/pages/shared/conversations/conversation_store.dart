@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../../landlord/conversations/models/landlord_conversation.dart';
+import '../../landlord/conversations/models/landlord_cuoctrochuyen.dart';
 import '../rental/tenant_session.dart';
 import '../../landlord/landlord_demo_store.dart';
 

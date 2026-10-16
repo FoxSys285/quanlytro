@@ -6,9 +6,10 @@ import 'rooms/models/landlord_room.dart';
 import 'finance/landlord_finance_models.dart';
 import '../shared/rental/lease_member.dart';
 import '../shared/rental/tenant_session.dart';
-import 'incidents/models/landlord_incident.dart';
-import 'services/models/landlord_service.dart';
-import 'meter_readings/models/landlord_meter_reading.dart';
+import 'incidents/models/landlord_suco.dart';
+import 'services/models/landlord_dichvu.dart';
+import 'meter_readings/models/landlord_chisodiennuoc.dart';
+
 
 /// Shared rental data for both roles in the preview session.
 /// The historical name is retained for existing landlord screens.

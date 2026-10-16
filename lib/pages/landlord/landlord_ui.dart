@@ -200,3 +200,9 @@ String formatLandlordMoney(int amount) {
 // Truyền vào: 50000 
 // → Kết quả: '50.000 đ'.
 // Cách hoạt động: Dùng vòng lặp duyệt từng số, cứ cách 3 chữ số (tính từ đuôi về) thì chèn thêm dấu . và gắn đuôi đ.
+
+/// Tiện ích mở rộng tính tổng (sum) giống cú pháp LINQ trong C#
+extension LandlordIterableNumX on Iterable<int> {
+  int get sum => fold(0, (a, b) => a + b);
+}
+

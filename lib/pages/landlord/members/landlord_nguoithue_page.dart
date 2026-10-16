@@ -59,40 +59,27 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
     return ListenableBuilder(
       listenable: _store,
       builder: (context, _) {
-        // Phân loại thành viên đang ở và thành viên chờ duyệt bằng vòng for cơ bản
-        final List<LeaseMember> danhSachChoDuyet = [];
-        final List<LeaseMember> danhSachDangO = [];
-
-        for (int i = 0; i < _store.members.length; i++) {
-          final thanhVien = _store.members[i];
+        // Phân loại thành viên đang ở và thành viên chờ duyệt bằng LINQ gọn gàng
+        final currentMembers = _store.members.where((thanhVien) {
           final hopDong = _store.leaseById(thanhVien.leaseId);
+          return hopDong != null && hopDong.isCurrent;
+        });
+        final danhSachChoDuyet = currentMembers
+            .where((m) => m.status == LeaseMemberStatus.pending)
+            .toList();
+        final danhSachDangO = currentMembers
+            .where((m) => m.status == LeaseMemberStatus.active)
+            .toList();
 
-          if (hopDong != null && hopDong.isCurrent) {
-            if (thanhVien.status == LeaseMemberStatus.pending) {
-              danhSachChoDuyet.add(thanhVien);
-            } else if (thanhVien.status == LeaseMemberStatus.active) {
-              danhSachDangO.add(thanhVien);
-            }
-          }
-        }
-
-        // Lọc danh sách người đang ở theo từ khóa tìm kiếm
-        final List<LeaseMember> danhSachLoc = [];
+        // Lọc danh sách người đang ở theo từ khóa tìm kiếm bằng LINQ
         final tuKhoa = _tuKhoaTimKiem.trim().toLowerCase();
-
-        for (int i = 0; i < danhSachDangO.length; i++) {
-          final thanhVien = danhSachDangO[i];
+        final danhSachLoc = danhSachDangO.where((thanhVien) {
           final hopDong = _store.leaseById(thanhVien.leaseId);
-          String soPhong = '';
-          if (hopDong != null) {
-            soPhong = hopDong.room;
-          }
-
+          final soPhong = hopDong?.room ?? '';
           final chuoiGop = '${thanhVien.name} $soPhong'.toLowerCase();
-          if (chuoiGop.contains(tuKhoa)) {
-            danhSachLoc.add(thanhVien);
-          }
-        }
+          return chuoiGop.contains(tuKhoa);
+        }).toList();
+
 
         // Danh sách widget hiển thị trên màn hình
         final List<Widget> danhSachWidget = [

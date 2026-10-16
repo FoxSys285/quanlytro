@@ -1,12 +1,15 @@
 import 'dart:collection';
 
-import '../../../landlord/conversations/models/landlord_conversation.dart';
+import '../../../landlord/conversations/models/landlord_cuoctrochuyen.dart';
 import '../../../shared/conversations/conversation_store.dart';
 import '../../../shared/rental/tenant_session.dart';
-import 'tenant_conversation_message.dart';
+import 'tenant_tinnhan.dart';
 
-/// Tenant presentation adapter over the same messages used by the landlord.
+
+/// Model đại diện cho một cuộc trò chuyện phía người thuê trọ
+/// Lớp này đóng vai trò adapter (cầu nối) đồng bộ tin nhắn 2 chiều với phía chủ trọ
 class TenantConversation {
+  // Hàm khởi tạo độc lập (dành cho kiểm thử hoặc dữ liệu mẫu)
   TenantConversation({
     required this._landlordName,
     required this._initials,
@@ -14,35 +17,84 @@ class TenantConversation {
     required this._messages,
     this._unread = 0,
   }) : source = null;
+
+  // Hàm khởi tạo dùng chung dữ liệu với nguồn tin nhắn phía chủ trọ
   TenantConversation.shared(this.source)
     : _landlordName = '',
       _initials = '',
       _contextLabel = '',
       _messages = [],
       _unread = 0;
+
+  // Nguồn dữ liệu gốc từ phía chủ trọ (nếu có)
   final LandlordConversation? source;
+
+  // Tên chủ trọ
   final String _landlordName;
+
+  // Chữ viết tắt đại diện ảnh đại diện (avatar)
   final String _initials;
+
+  // Nhãn ngữ cảnh (ví dụ: Chủ trọ · Phòng 101)
   final String _contextLabel;
+
+  // Danh sách tin nhắn nội bộ
   final List<TenantConversationMessage> _messages;
+
+  // Số lượng tin nhắn chưa đọc
   int _unread;
-  String get landlordName => source?.landlordName ?? _landlordName;
-  String get initials => source == null
-      ? _initials
-      : landlordName
-            .split(' ')
-            .where((part) => part.isNotEmpty)
-            .map((part) => part[0])
-            .take(2)
-            .join();
-  String get contextLabel => source == null
-      ? _contextLabel
-      : source!.leaseId == null
-      ? 'Chủ trọ · ${source!.room}'
-      : 'Chủ trọ · Phòng ${source!.room}';
-  List<TenantConversationMessage> get messages =>
-      source == null ? _messages : _SharedMessages(source!);
-  int get unread => source?.tenantUnread ?? _unread;
+
+  // Lấy tên chủ trọ
+  String get landlordName {
+    if (source != null) {
+      return source!.landlordName;
+    } else {
+      return _landlordName;
+    }
+  }
+
+  // Lấy chữ cái đầu của tên chủ trọ để làm ảnh đại diện (sử dụng LINQ gọn gàng)
+  String get initials {
+    if (source == null) return _initials;
+    return landlordName
+        .split(' ')
+        .where((tu) => tu.trim().isNotEmpty)
+        .map((tu) => tu.trim()[0])
+        .take(2)
+        .join();
+  }
+
+  // Lấy nhãn mô tả phòng của cuộc trò chuyện
+  String get contextLabel {
+    if (source == null) {
+      return _contextLabel;
+    }
+    if (source!.leaseId == null) {
+      return 'Chủ trọ · ${source!.room}';
+    } else {
+      return 'Chủ trọ · Phòng ${source!.room}';
+    }
+  }
+
+  // Lấy danh sách tin nhắn của cuộc trò chuyện
+  List<TenantConversationMessage> get messages {
+    if (source == null) {
+      return _messages;
+    } else {
+      return _SharedMessages(source!);
+    }
+  }
+
+  // Lấy số lượng tin nhắn chưa đọc
+  int get unread {
+    if (source != null) {
+      return source!.tenantUnread;
+    } else {
+      return _unread;
+    }
+  }
+
+  // Cập nhật số lượng tin nhắn chưa đọc
   set unread(int value) {
     if (source == null) {
       _unread = value;
@@ -51,7 +103,10 @@ class TenantConversation {
     }
   }
 
+  // Bộ nhớ tạm lưu các adapter cuộc trò chuyện đã tạo
   static final _adapters = <String, TenantConversation>{};
+
+  // Danh sách cuộc trò chuyện mẫu lấy từ kho dữ liệu dùng chung (sử dụng LINQ map)
   static List<TenantConversation> get demoConversations => ConversationStore
       .instance
       .forTenant(TenantSession.tenantId)
@@ -62,10 +117,17 @@ class TenantConversation {
         ),
       )
       .toList();
+
+
+  // Hàm gửi tin nhắn mới
   void send(String text, String time) {
     if (source == null) {
       _messages.add(
-        TenantConversationMessage(text: text, time: time, fromTenant: true),
+        TenantConversationMessage(
+          text: text,
+          time: time,
+          fromTenant: true,
+        ),
       );
     } else {
       ConversationStore.instance.send(
@@ -79,14 +141,20 @@ class TenantConversation {
   }
 }
 
+/// Lớp trung gian ánh xạ danh sách tin nhắn giữa Landlord và Tenant
 class _SharedMessages extends ListBase<TenantConversationMessage> {
   _SharedMessages(this.conversation);
+
   final LandlordConversation conversation;
+
   @override
   int get length => conversation.messages.length;
+
   @override
   set length(int value) {
-    if (value > length) throw UnsupportedError('Use add to append a message.');
+    if (value > length) {
+      throw UnsupportedError('Dùng hàm add để thêm tin nhắn mới.');
+    }
     conversation.messages.removeRange(value, length);
   }
 
@@ -110,11 +178,17 @@ class _SharedMessages extends ListBase<TenantConversationMessage> {
   }
 
   @override
-  void add(TenantConversationMessage value) => conversation.messages.add(
-    LandlordMessage(
-      text: value.text,
-      time: value.time,
-      fromLandlord: !value.fromTenant,
-    ),
-  );
+  void add(TenantConversationMessage value) {
+    conversation.messages.add(
+      LandlordMessage(
+        text: value.text,
+        time: value.time,
+        fromLandlord: !value.fromTenant,
+      ),
+    );
+  }
 }
+
+// Biệt danh tiếng Việt dễ nhớ
+typedef TenantCuocTroChuyen = TenantConversation;
+

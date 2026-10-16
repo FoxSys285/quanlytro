@@ -4,7 +4,7 @@ import '../landlord_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
 import '../landlord_demo_store.dart';
 import 'landlord_tinnhan_page.dart';
-import 'models/landlord_conversation.dart';
+import 'models/landlord_cuoctrochuyen.dart';
 
 // Tên Class chính bằng tiếng Việt
 class LandlordDanhSachTinNhanPage extends StatefulWidget {

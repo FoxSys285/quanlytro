@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../models/tenant_conversation_message.dart';
+import '../models/tenant_tinnhan.dart';
 import '../../tenant_ui.dart';
 
+/// Component bong bóng tin nhắn hiển thị từng dòng chat phía người thuê
 class TenantMessageBubble extends StatelessWidget {
   const TenantMessageBubble({super.key, required this.message});
+
+  // Đối tượng tin nhắn cần hiển thị
   final TenantConversationMessage message;
+
 
   @override
   Widget build(BuildContext context) {
@@ -84,3 +88,7 @@ class TenantMessageBubble extends StatelessWidget {
     );
   }
 }
+
+// Biệt danh tiếng Việt dễ nhớ
+typedef TenantBongBongTinNhan = TenantMessageBubble;
+

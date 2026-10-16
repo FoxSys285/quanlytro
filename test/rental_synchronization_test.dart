@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/pages/landlord/announcements/models/landlord_announcement.dart';
-import 'package:quanlytro/pages/landlord/conversations/models/landlord_conversation.dart';
+import 'package:quanlytro/pages/landlord/conversations/models/landlord_cuoctrochuyen.dart';
 import 'package:quanlytro/pages/landlord/finance/landlord_finance_models.dart';
 import 'package:quanlytro/pages/landlord/incidents/landlord_yeucausuachua_page.dart';
-import 'package:quanlytro/pages/landlord/incidents/models/landlord_incident.dart';
+import 'package:quanlytro/pages/landlord/incidents/models/landlord_suco.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
 import 'package:quanlytro/pages/landlord/properties/models/landlord_property.dart';
 import 'package:quanlytro/pages/shared/announcements/announcement_store.dart';
@@ -13,7 +13,8 @@ import 'package:quanlytro/pages/shared/rental/lease_member.dart';
 import 'package:quanlytro/pages/shared/rental/tenant_session.dart';
 import 'package:quanlytro/pages/shared/viewings/viewing_store.dart';
 import 'package:quanlytro/pages/tenant/announcements/tenant_announcements_page.dart';
-import 'package:quanlytro/pages/tenant/conversations/models/tenant_conversation.dart';
+import 'package:quanlytro/pages/tenant/conversations/models/tenant_cuoctrochuyen.dart';
+
 import 'package:quanlytro/pages/tenant/discovery/models/tenant_room_listing.dart';
 import 'package:quanlytro/pages/tenant/incidents/tenant_baosuco_page.dart';
 import 'package:quanlytro/pages/tenant/invoices/tenant_invoice_detail_page.dart';

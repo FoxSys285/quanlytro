@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../tenant_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
-import 'components/tenant_message_bubble.dart';
-import 'models/tenant_conversation.dart';
+import 'components/tenant_bongbongtinnhan.dart';
+import 'models/tenant_cuoctrochuyen.dart';
+
 
 // Tên Class chính bằng tiếng Việt
 class TenantTinNhanPage extends StatefulWidget {

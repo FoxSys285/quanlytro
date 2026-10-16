@@ -1,6 +1,6 @@
 import '../../../shared/viewings/models/room_viewing.dart';
 import '../../../shared/conversations/conversation_store.dart';
-import '../../conversations/models/landlord_conversation.dart';
+import '../../conversations/models/landlord_cuoctrochuyen.dart';
 
 class ViewingConversationStore {
   ViewingConversationStore({ConversationStore? store})

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/layouts/tenant_layout.dart';
-import 'package:quanlytro/pages/tenant/conversations/models/tenant_conversation.dart';
+import 'package:quanlytro/pages/tenant/conversations/models/tenant_cuoctrochuyen.dart';
 import 'package:quanlytro/pages/tenant/conversations/tenant_tinnhan_page.dart';
 import 'package:quanlytro/pages/tenant/conversations/tenant_danhsachtinnhan_page.dart';
 

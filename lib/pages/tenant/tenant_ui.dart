@@ -400,3 +400,9 @@ class TenantSheetHandle extends StatelessWidget {
     ),
   );
 }
+
+/// Tiện ích mở rộng tính tổng (sum) giống cú pháp LINQ trong C#
+extension TenantIterableNumX on Iterable<int> {
+  int get sum => fold(0, (a, b) => a + b);
+}
+
