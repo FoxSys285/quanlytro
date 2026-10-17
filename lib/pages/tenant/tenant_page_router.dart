@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../layouts/role_layout.dart';
+import '../shared/help/help_page.dart';
 import '../shared/settings/account_settings_page.dart';
 import '../shared/profile/account_profile_page.dart';
 import '../shared/notifications/notification_settings_page.dart';
@@ -16,6 +17,7 @@ import 'viewings/tenant_viewings_page.dart';
 
 Widget buildTenantPage(BuildContext context, RoleDestination destination) {
   return switch (destination.id) {
+    'support' => const HelpPage(role: AppRole.tenant),
     'settings' => const AccountSettingsPage(role: AppRole.tenant),
     'profile' => const AccountProfilePage(role: AppRole.tenant),
     'notifications' => const NotificationSettingsPage(role: AppRole.tenant),
