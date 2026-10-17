@@ -161,7 +161,7 @@ void main() {
         await tester.tap(message);
         await tester.pumpAndSettle();
         expect(find.byType(LandlordTinNhanPage), findsOneWidget);
-        expect(conversations.conversations.single.tenantName, 'Minh Anh');
+        expect(conversations.conversations.single.tenantName, 'Trần Hoàng Nam');
         await tester.enterText(
           find.byType(TextField),
           'Bạn có thể chọn lịch khác nhé.',
