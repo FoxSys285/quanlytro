@@ -37,7 +37,7 @@ pages/
     billing/        landlord_billing_page.dart
     payments/       landlord_payments_page.dart
     payment_accounts/ landlord_payment_accounts_page.dart
-    (chưa làm)      reports, staff
+    staff/          landlord_staff_page.dart, landlord_staff_store.dart
   admin/         dashboard, users, property_verification, moderation,
                  support, audit_logs, settings
 ```
@@ -60,6 +60,8 @@ Vai trò chủ trọ hiện dùng dữ liệu mẫu của một nhà trọ Mây 
 Hai trang lịch dùng chung `shared/viewings/viewing_store.dart`. Chủ trọ chỉ thấy lịch của Mây House (`may`); Người thuê chỉ thấy lịch của ID phiên mình. Trạng thái đổi bên Chủ trọ hiển thị bên Người thuê. Hội thoại từ lịch xem dùng cùng danh sách tin ở hai vai trò. Thay ID phiên và các store bằng phiên đăng nhập/repository khi có backend.
 
 Thông tin, ảnh và giá đã chỉnh sửa được giữ khi chuyển trang trong phiên chạy hiện tại. Dữ liệu chưa lưu vào cơ sở dữ liệu và sẽ trở về mẫu khi khởi động lại ứng dụng.
+
+Hồ sơ và tùy chọn thông báo dùng chung các trang trong `shared/profile/` và `shared/notifications/`, với dữ liệu riêng cho từng vai trò ở `AccountStore`. Tắt thông báo thay đổi tùy chọn và biểu tượng chuông; lịch sử thông báo vẫn được giữ. Chưa kết nối dịch vụ push hoặc quyền thông báo hệ điều hành. Hồ sơ chỉnh được tên, số điện thoại, email, địa chỉ liên hệ; tên/số điện thoại đồng bộ với liên hệ chủ trọ hoặc người thuê trong dữ liệu mẫu. `landlord/staff/` hiển thị danh sách liên hệ nhân viên và thêm/sửa/xóa. Các thay đổi mới này cũng chỉ lưu trong phiên chạy.
 
 Danh mục phòng mẫu dùng chung giữa danh sách phòng và bộ chọn người nhận tại `LandlordDemoStore.roomCatalog`. Phòng 101 liên kết với mã A.101 của hợp đồng mẫu; A.302 và B.105 giữ mã như các hợp đồng hiện có. Giá và trạng thái trên danh sách phòng cập nhật theo loại phòng/hợp đồng trong phiên chạy.
 

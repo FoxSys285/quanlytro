@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../pages/tenant/tenant_page_router.dart';
 import '../pages/landlord/landlord_demo_store.dart';
-import '../pages/shared/rental/tenant_session.dart';
+import '../pages/shared/profile/account_store.dart';
 import 'role_layout.dart';
 
 class TenantLayout extends StatelessWidget {
@@ -23,13 +23,14 @@ class TenantLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = LandlordDemoStore.instance;
     return ListenableBuilder(
-      listenable: store,
+      listenable: Listenable.merge([store, AccountStore.instance]),
       builder: (context, _) => RoleLayoutShell(
         role: AppRole.tenant,
+        notificationsEnabled: AccountStore.instance.notificationsEnabled(
+          AppRole.tenant,
+        ),
         displayName:
-            displayName ??
-            store.currentLeaseForTenant(TenantSession.tenantId)?.tenantName ??
-            TenantSession.name,
+            displayName ?? AccountStore.instance.profile(AppRole.tenant).name,
         contextLabel: contextLabel,
         accentColor: const Color(0xFF16836F),
         initialDestinationId: 'discovery',

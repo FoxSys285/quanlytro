@@ -79,6 +79,7 @@ class RoleLayoutShell extends StatefulWidget {
     this.pageBuilder,
     this.onPreviewRoleSelected,
     this.onLogout,
+    this.notificationsEnabled = true,
   });
 
   final AppRole role;
@@ -93,6 +94,7 @@ class RoleLayoutShell extends StatefulWidget {
   final RolePageBuilder? pageBuilder;
   final ValueChanged<AppRole>? onPreviewRoleSelected;
   final VoidCallback? onLogout;
+  final bool notificationsEnabled;
 
   @override
   State<RoleLayoutShell> createState() => _RoleLayoutShellState();
@@ -259,20 +261,25 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
             icon: Stack(
               clipBehavior: Clip.none,
               children: [
-                const Icon(Icons.notifications_none_rounded),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE45A65),
-                      border: Border.all(color: Colors.white, width: 1.5),
-                      shape: BoxShape.circle,
+                Icon(
+                  widget.notificationsEnabled
+                      ? Icons.notifications_none_rounded
+                      : Icons.notifications_off_outlined,
+                ),
+                if (widget.notificationsEnabled)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE45A65),
+                        border: Border.all(color: Colors.white, width: 1.5),
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),

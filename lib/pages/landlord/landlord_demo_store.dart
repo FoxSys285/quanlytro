@@ -10,7 +10,6 @@ import 'incidents/models/landlord_suco.dart';
 import 'services/models/landlord_dichvu.dart';
 import 'meter_readings/models/landlord_chisodiennuoc.dart';
 
-
 /// Shared rental data for both roles in the preview session.
 /// The historical name is retained for existing landlord screens.
 class LandlordDemoStore extends ChangeNotifier {
@@ -856,6 +855,22 @@ class LandlordDemoStore extends ChangeNotifier {
       if (lease.isCurrent) return lease;
     }
     return null;
+  }
+
+  void updateTenantContact(
+    String tenantId, {
+    required String name,
+    required String phone,
+  }) {
+    for (final lease in _leases.where((item) => item.tenantId == tenantId)) {
+      lease.tenantName = name;
+      lease.phone = phone;
+    }
+    for (final member in _members.where((item) => item.tenantId == tenantId)) {
+      member.name = name;
+      member.phone = phone;
+    }
+    notifyListeners();
   }
 
   List<LandlordInvoice> invoicesForTenant(String tenantId) {

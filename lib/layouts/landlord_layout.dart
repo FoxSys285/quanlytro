@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../pages/landlord/landlord_demo_store.dart';
+import '../pages/shared/profile/account_store.dart';
 import '../pages/landlord/landlord_page_router.dart';
 import 'role_layout.dart';
 
@@ -21,9 +22,15 @@ class LandlordLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: LandlordDemoStore.instance,
+      listenable: Listenable.merge([
+        LandlordDemoStore.instance,
+        AccountStore.instance,
+      ]),
       builder: (context, _) => RoleLayoutShell(
         role: AppRole.landlord,
+        notificationsEnabled: AccountStore.instance.notificationsEnabled(
+          AppRole.landlord,
+        ),
         displayName:
             displayName ?? LandlordDemoStore.instance.property.ownerName,
         contextLabel: contextLabel ?? LandlordDemoStore.instance.property.name,
@@ -153,12 +160,6 @@ class LandlordLayout extends StatelessWidget {
             id: 'staff',
             label: 'Nhân viên quản lý',
             icon: Icons.badge_outlined,
-            group: 'Vận hành',
-          ),
-          RoleDestination(
-            id: 'reports',
-            label: 'Báo cáo',
-            icon: Icons.query_stats_rounded,
             group: 'Vận hành',
           ),
           RoleDestination(
