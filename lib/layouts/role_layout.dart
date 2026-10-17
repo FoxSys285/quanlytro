@@ -257,31 +257,38 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         actions: [
           IconButton(
             tooltip: 'Thông báo',
-            onPressed: () => _selectDestination('notifications'),
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(
-                  widget.notificationsEnabled
-                      ? Icons.notifications_none_rounded
-                      : Icons.notifications_off_outlined,
-                ),
-                if (widget.notificationsEnabled)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE45A65),
-                        border: Border.all(color: Colors.white, width: 1.5),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
+            onPressed: () => _selectDestination(
+              widget.role == AppRole.admin ? 'notifications' : 'announcements',
             ),
+            icon: widget.role != AppRole.admin
+                ? const Icon(Icons.notifications_none_rounded)
+                : Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        widget.notificationsEnabled
+                            ? Icons.notifications_none_rounded
+                            : Icons.notifications_off_outlined,
+                      ),
+                      if (widget.notificationsEnabled)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE45A65),
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 1.5,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.only(left: 4, right: 16),
@@ -294,16 +301,17 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                   _selectDestination(value);
                 }
               },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: 'profile',
-                  child: ListTile(
-                    dense: true,
-                    leading: Icon(Icons.person_outline_rounded),
-                    title: Text('Hồ sơ'),
+              itemBuilder: (context) => [
+                if (widget.role == AppRole.admin)
+                  const PopupMenuItem(
+                    value: 'profile',
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(Icons.person_outline_rounded),
+                      title: Text('Hồ sơ'),
+                    ),
                   ),
-                ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'settings',
                   child: ListTile(
                     dense: true,
@@ -311,8 +319,8 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                     title: Text('Cài đặt'),
                   ),
                 ),
-                PopupMenuDivider(),
-                PopupMenuItem(
+                const PopupMenuDivider(),
+                const PopupMenuItem(
                   value: 'logout',
                   child: ListTile(
                     dense: true,

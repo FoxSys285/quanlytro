@@ -15,7 +15,9 @@ void main() {
         final destinations = List.generate(
           30,
           (index) => RoleDestination(
-            id: index == 29 ? 'notifications' : 'page-$index',
+            id: index == 29
+                ? (role == AppRole.admin ? 'notifications' : 'announcements')
+                : 'page-$index',
             label: 'Chức năng $index',
             icon: Icons.home_outlined,
             group: 'Nhóm ${index ~/ 5}',

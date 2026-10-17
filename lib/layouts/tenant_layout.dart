@@ -113,18 +113,6 @@ class TenantLayout extends StatelessWidget {
             group: 'Trao đổi',
           ),
           RoleDestination(
-            id: 'notifications',
-            label: 'Thông báo ứng dụng',
-            icon: Icons.notifications_none_rounded,
-            group: 'Tài khoản',
-          ),
-          RoleDestination(
-            id: 'profile',
-            label: 'Hồ sơ cá nhân',
-            icon: Icons.person_outline_rounded,
-            group: 'Tài khoản',
-          ),
-          RoleDestination(
             id: 'support',
             label: 'Trợ giúp',
             icon: Icons.help_outline_rounded,
