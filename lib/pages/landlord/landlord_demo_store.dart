@@ -1122,8 +1122,9 @@ class LandlordDemoStore extends ChangeNotifier {
       name: 'Điện',
       unit: 'kWh',
       basis: 'Theo chỉ số',
-      price: 3500,
+      price: 4000,
     ),
+
     LandlordService(
       id: 'water',
       name: 'Nước',
@@ -1141,10 +1142,11 @@ class LandlordDemoStore extends ChangeNotifier {
     LandlordService(
       id: 'vehicle',
       name: 'Gửi xe máy',
-      unit: 'xe',
-      basis: 'Cố định',
+      unit: 'cái',
+      basis: 'Theo cái / xe',
       price: 80000,
     ),
+
     LandlordService(
       id: 'cleaning',
       name: 'Vệ sinh',

@@ -21,7 +21,17 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
     'Theo chỉ số',
     'Theo phòng',
     'Theo người',
+    'Theo cái / xe',
     'Cố định',
+  ];
+
+  // Danh mục mẫu dịch vụ chuẩn bị sẵn để chọn nhanh khi tạo mới
+  static const _mauDichVu = [
+    {'name': 'Điện', 'unit': 'kWh', 'price': '4000', 'basis': 'Theo chỉ số'},
+    {'name': 'Nước', 'unit': 'm³', 'price': '15000', 'basis': 'Theo chỉ số'},
+    {'name': 'Internet', 'unit': 'phòng', 'price': '100000', 'basis': 'Theo phòng'},
+    {'name': 'Gửi xe máy', 'unit': 'cái', 'price': '80000', 'basis': 'Theo cái / xe'},
+    {'name': 'Vệ sinh', 'unit': 'người', 'price': '20000', 'basis': 'Theo người'},
   ];
 
   List<LandlordService> get _danhSachDichVu => _store.services;
@@ -70,7 +80,6 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
         .toList();
   }
 
-
   // Hàm mở form thêm mới hoặc chỉnh sửa dịch vụ
   Future<void> _moFormDichVu({LandlordService? dichVuCanSua}) async {
     String tenBanDau = '';
@@ -102,7 +111,44 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Gợi ý chọn mẫu nhanh khi tạo dịch vụ mới
+                if (dichVuCanSua == null) ...[
+                  const Text(
+                    'Chọn mẫu nhanh:',
+                    style: TextStyle(
+                      color: landlordMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _mauDichVu.map((mau) {
+                        final daChon = oNhapTen.text == mau['name'];
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ChoiceChip(
+                            label: Text(mau['name']!),
+                            selected: daChon,
+                            onSelected: (_) {
+                              setDialogState(() {
+                                oNhapTen.text = mau['name']!;
+                                oNhapDonVi.text = mau['unit']!;
+                                oNhapDonGia.text = mau['price']!;
+                                cachTinh = mau['basis']!;
+                              });
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TextField(
                   controller: oNhapTen,
                   decoration: const InputDecoration(labelText: 'Tên dịch vụ'),
@@ -110,7 +156,7 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
                 TextField(
                   controller: oNhapDonVi,
                   decoration: const InputDecoration(
-                    labelText: 'Đơn vị (kWh, m³, phòng...)',
+                    labelText: 'Đơn vị (kWh, m³, cái, phòng...)',
                   ),
                 ),
                 TextField(
@@ -120,7 +166,11 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  initialValue: cachTinh,
+                  key: ValueKey(cachTinh),
+                  initialValue: _danhSachCachTinh.contains(cachTinh)
+                      ? cachTinh
+                      : _danhSachCachTinh.first,
+
                   decoration: const InputDecoration(labelText: 'Cách tính'),
                   items: _taoDanhSachLuaChonCachTinh(),
                   onChanged: (giaTri) {
@@ -134,6 +184,7 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
               ],
             ),
           ),
+
           actions: [
             if (dichVuCanSua != null)
               TextButton(
