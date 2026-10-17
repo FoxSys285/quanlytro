@@ -44,7 +44,7 @@ class RoleLayoutPreview extends StatefulWidget {
 }
 
 class _RoleLayoutPreviewState extends State<RoleLayoutPreview> {
-  AppRole _role = AppRole.landlord;
+  AppRole _role = AppRole.tenant;
 
   @override
   Widget build(BuildContext context) {
