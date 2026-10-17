@@ -768,6 +768,8 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   void _showRoomDetails(BuildContext context, TenantRoomListing room) {
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => TenantRoomDetailsSheet(
@@ -782,6 +784,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   Future<void> _openViewingRequest(TenantRoomListing room) async {
     final request = await showModalBottomSheet<TenantViewingRequest>(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       useSafeArea: true,

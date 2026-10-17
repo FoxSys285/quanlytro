@@ -153,6 +153,8 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
                     setState(() => TenantFavoritesStore.toggle(room.id)),
                 onTap: () => showModalBottomSheet<void>(
                   context: context,
+                  useRootNavigator: true,
+                  useSafeArea: true,
                   backgroundColor: Colors.transparent,
                   isScrollControlled: true,
                   builder: (_) => TenantRoomDetailsSheet(
@@ -174,6 +176,7 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
   Future<void> _openViewingRequest(TenantRoomListing room) async {
     final request = await showModalBottomSheet<TenantViewingRequest>(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       useSafeArea: true,

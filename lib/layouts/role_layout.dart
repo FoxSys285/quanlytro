@@ -100,8 +100,34 @@ class RoleLayoutShell extends StatefulWidget {
 
 class _RoleLayoutShellState extends State<RoleLayoutShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _drawerScrollController = ScrollController();
+  final _drawerViewportKey = GlobalKey();
+  final _selectedDrawerItemKey = GlobalKey();
   late String _selectedDestinationId = widget.initialDestinationId;
   late int _selectedTabIndex = _tabIndexFor(widget.initialDestinationId);
+
+  @override
+  void dispose() {
+    _drawerScrollController.dispose();
+    super.dispose();
+  }
+
+  void _onDrawerChanged(bool isOpen) {
+    if (!isOpen) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _scaffoldKey.currentState?.isDrawerOpen != true) return;
+      final itemContext = _selectedDrawerItemKey.currentContext;
+      final item = itemContext?.findRenderObject();
+      final viewport = _drawerViewportKey.currentContext?.findRenderObject();
+      if (itemContext == null || item is! RenderBox || viewport is! RenderBox) {
+        return;
+      }
+      final top = item.localToGlobal(Offset.zero, ancestor: viewport).dy;
+      // Preserve the current offset if the selected destination is already visible.
+      if (top >= 0 && top + item.size.height <= viewport.size.height) return;
+      Scrollable.ensureVisible(itemContext, alignment: 0.5);
+    });
+  }
 
   int _tabIndexFor(String id) {
     final index = widget.tabs.indexWhere((tab) => tab.destinationId == id);
@@ -170,7 +196,11 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFF5F7FA),
+      onDrawerChanged: _onDrawerChanged,
       drawer: _RoleDrawer(
+        scrollController: _drawerScrollController,
+        viewportKey: _drawerViewportKey,
+        selectedItemKey: _selectedDrawerItemKey,
         role: widget.role,
         appName: widget.appName,
         displayName: widget.displayName,
@@ -330,6 +360,9 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
 
 class _RoleDrawer extends StatelessWidget {
   const _RoleDrawer({
+    required this.scrollController,
+    required this.viewportKey,
+    required this.selectedItemKey,
     required this.role,
     required this.appName,
     required this.displayName,
@@ -344,6 +377,9 @@ class _RoleDrawer extends StatelessWidget {
   });
 
   final AppRole role;
+  final ScrollController scrollController;
+  final GlobalKey viewportKey;
+  final GlobalKey selectedItemKey;
   final String appName;
   final String displayName;
   final String contextLabel;
@@ -379,34 +415,45 @@ class _RoleDrawer extends StatelessWidget {
               accentColor: accentColor,
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                children: [
-                  for (final entry in groups.entries) ...[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 15, 12, 6),
-                      child: Text(
-                        entry.key.toUpperCase(),
-                        style: const TextStyle(
-                          color: Color(0xFF8B97A4),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.1,
+              child: SizedBox(
+                key: viewportKey,
+                child: SingleChildScrollView(
+                  key: PageStorageKey('role-drawer-${role.name}'),
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final entry in groups.entries) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 15, 12, 6),
+                          child: Text(
+                            entry.key.toUpperCase(),
+                            style: const TextStyle(
+                              color: Color(0xFF8B97A4),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    for (final destination in entry.value)
-                      _DrawerDestinationTile(
-                        destination: destination,
-                        selected: destination.id == selectedDestinationId,
-                        accentColor: accentColor,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onDestinationSelected(destination.id);
-                        },
-                      ),
-                  ],
-                ],
+                        for (final destination in entry.value)
+                          _DrawerDestinationTile(
+                            itemKey: destination.id == selectedDestinationId
+                                ? selectedItemKey
+                                : null,
+                            destination: destination,
+                            selected: destination.id == selectedDestinationId,
+                            accentColor: accentColor,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onDestinationSelected(destination.id);
+                            },
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
             const Divider(height: 1, color: Color(0xFFE9EDF2)),
@@ -514,15 +561,19 @@ class _DrawerHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(
-                appName,
-                style: const TextStyle(
-                  color: Color(0xFF17212B),
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
+              Expanded(
+                child: Text(
+                  appName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF17212B),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
@@ -592,6 +643,7 @@ class _DrawerHeader extends StatelessWidget {
 
 class _DrawerDestinationTile extends StatelessWidget {
   const _DrawerDestinationTile({
+    this.itemKey,
     required this.destination,
     required this.selected,
     required this.accentColor,
@@ -599,6 +651,7 @@ class _DrawerDestinationTile extends StatelessWidget {
   });
 
   final RoleDestination destination;
+  final Key? itemKey;
   final bool selected;
   final Color accentColor;
   final VoidCallback onTap;
@@ -608,6 +661,7 @@ class _DrawerDestinationTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: ListTile(
+        key: itemKey,
         selected: selected,
         selectedTileColor: accentColor.withValues(alpha: 0.1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),

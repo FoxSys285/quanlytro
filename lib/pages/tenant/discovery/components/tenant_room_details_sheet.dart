@@ -164,27 +164,37 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: !_available
-                      ? null
-                      : () {
-                          Navigator.of(context).pop();
-                          widget.onBook();
-                        },
-                  icon: const Icon(Icons.calendar_month_rounded, size: 18),
-                  label: Text(
-                    _available ? 'Đặt lịch xem phòng' : 'Phòng không còn trống',
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: tenantGreen,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
-                    ),
+              ],
+            ),
+          ),
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: tenantLine)),
+            ),
+            child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(18, 12, 18, 16),
+              child: FilledButton.icon(
+                onPressed: !_available
+                    ? null
+                    : () {
+                        Navigator.of(context).pop();
+                        widget.onBook();
+                      },
+                icon: const Icon(Icons.calendar_month_rounded, size: 18),
+                label: Text(
+                  _available ? 'Đặt lịch xem phòng' : 'Phòng không còn trống',
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: tenantGreen,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(13),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ],

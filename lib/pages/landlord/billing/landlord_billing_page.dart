@@ -293,11 +293,18 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
   Future<void> _showDetails(LandlordInvoice invoice) async {
     await showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+      ),
       showDragHandle: true,
       builder: (context) {
         final (status, color) = _invoiceStatus(invoice.status);
         return SafeArea(
-          child: Padding(
+          top: false,
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
