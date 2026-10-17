@@ -40,7 +40,7 @@ class ViewingStore extends ChangeNotifier {
         roomName: '$propertyName · Phòng ${rooms[index % rooms.length]}',
         address: address,
         startsAt: DateTime(date.year, date.month, date.day, hour, minute),
-        customerName: mine ? TenantSession.name : name,
+        customerName: name,
         phone: mine ? TenantSession.phone : phone,
         roomId: 'may:${rooms[index % rooms.length]}',
         createdAt: today.subtract(Duration(hours: index + 1)),
