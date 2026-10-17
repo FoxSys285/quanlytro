@@ -62,7 +62,7 @@ class LandlordLayout extends StatelessWidget {
             label: 'Thông báo',
             icon: Icons.notifications_none_rounded,
             selectedIcon: Icons.notifications_rounded,
-            destinationId: 'notifications',
+            destinationId: 'announcements',
           ),
         ],
         destinations: const [
@@ -161,18 +161,6 @@ class LandlordLayout extends StatelessWidget {
             label: 'Nhân viên quản lý',
             icon: Icons.badge_outlined,
             group: 'Vận hành',
-          ),
-          RoleDestination(
-            id: 'notifications',
-            label: 'Thông báo ứng dụng',
-            icon: Icons.notifications_none_rounded,
-            group: 'Tài khoản',
-          ),
-          RoleDestination(
-            id: 'profile',
-            label: 'Hồ sơ cá nhân',
-            icon: Icons.person_outline_rounded,
-            group: 'Tài khoản',
           ),
           RoleDestination(
             id: 'support',

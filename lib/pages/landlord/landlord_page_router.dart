@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../layouts/role_layout.dart';
+import '../shared/settings/account_settings_page.dart';
 import '../shared/profile/account_profile_page.dart';
 import '../shared/notifications/notification_settings_page.dart';
 import 'staff/landlord_staff_page.dart';
@@ -23,6 +24,7 @@ import 'viewings/landlord_viewings_page.dart';
 
 Widget buildLandlordPage(BuildContext context, RoleDestination destination) {
   return switch (destination.id) {
+    'settings' => const AccountSettingsPage(role: AppRole.landlord),
     'profile' => const AccountProfilePage(role: AppRole.landlord),
     'notifications' => const NotificationSettingsPage(role: AppRole.landlord),
     'staff' => const LandlordStaffPage(),

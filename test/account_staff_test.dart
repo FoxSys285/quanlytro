@@ -13,49 +13,88 @@ import 'package:quanlytro/pages/shared/profile/account_store.dart';
 import 'package:quanlytro/pages/shared/profile/contact_details.dart';
 import 'package:quanlytro/pages/shared/rental/tenant_session.dart';
 import 'package:quanlytro/pages/tenant/tenant_page_router.dart';
+import 'package:quanlytro/pages/shared/settings/account_settings_page.dart';
+import 'package:quanlytro/pages/tenant/announcements/tenant_announcements_page.dart';
+import 'package:quanlytro/pages/landlord/announcements/landlord_announcements_page.dart';
 
 void main() {
-  testWidgets('Notification toggle updates the bell of both role layouts', (
-    tester,
-  ) async {
-    for (final role in [AppRole.tenant, AppRole.landlord]) {
-      AccountStore.instance.setNotificationsEnabled(role, true);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: role == AppRole.tenant
-              ? const TenantLayout()
-              : const LandlordLayout(),
-        ),
-      );
-      await tester.tap(
-        find.descendant(
-          of: find.byType(AppBar),
-          matching: find.byTooltip('Thông báo'),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(NotificationSettingsPage), findsOneWidget);
-      await tester.tap(find.byType(Switch));
-      await tester.pumpAndSettle();
-      expect(
-        find.descendant(
-          of: find.byType(AppBar),
-          matching: find.byIcon(Icons.notifications_off_outlined),
-        ),
-        findsOneWidget,
-      );
-      await tester.tap(find.byType(Switch));
-      await tester.pumpAndSettle();
-      expect(
-        find.descendant(
-          of: find.byType(AppBar),
-          matching: find.byIcon(Icons.notifications_none_rounded),
-        ),
-        findsOneWidget,
-      );
-      expect(tester.takeException(), isNull);
-    }
-  });
+  testWidgets(
+    'Settings contain account options and bells open housing announcements',
+    (tester) async {
+      for (final role in [AppRole.tenant, AppRole.landlord]) {
+        AccountStore.instance.setNotificationsEnabled(role, true);
+        addTearDown(
+          () => AccountStore.instance.setNotificationsEnabled(role, true),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: role == AppRole.tenant
+                ? const TenantLayout()
+                : const LandlordLayout(),
+          ),
+        );
+        await tester.tap(find.byTooltip('Mở danh mục chức năng'));
+        await tester.pumpAndSettle();
+        expect(find.text('Hồ sơ cá nhân'), findsNothing);
+        expect(find.text('Thông báo ứng dụng'), findsNothing);
+        final settingsTile = find.widgetWithText(ListTile, 'Cài đặt');
+        await tester.ensureVisible(settingsTile);
+        await tester.tap(settingsTile);
+        await tester.pumpAndSettle();
+        expect(find.byType(AccountSettingsPage), findsOneWidget);
+        await tester.tap(find.text('Hồ sơ cá nhân'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AccountProfilePage), findsOneWidget);
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        expect(find.byType(AccountSettingsPage), findsOneWidget);
+        await tester.tap(find.text('Thông báo ứng dụng'));
+        await tester.pumpAndSettle();
+        expect(find.byType(NotificationSettingsPage), findsOneWidget);
+        await tester.tap(find.byType(Switch));
+        await tester.pumpAndSettle();
+        expect(AccountStore.instance.notificationsEnabled(role), isFalse);
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Tài khoản'));
+        await tester.pumpAndSettle();
+        expect(find.text('Hồ sơ'), findsNothing);
+        await tester.tap(find.widgetWithText(PopupMenuItem<String>, 'Cài đặt'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(AppBar),
+            matching: find.byTooltip('Thông báo'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byType(
+            role == AppRole.tenant
+                ? TenantAnnouncementsPage
+                : LandlordAnnouncementsPage,
+          ),
+          findsOneWidget,
+        );
+        expect(find.byType(NotificationSettingsPage), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(AppBar),
+            matching: find.byIcon(Icons.notifications_off_outlined),
+          ),
+          findsNothing,
+        );
+        if (role == AppRole.landlord) {
+          await tester.tap(find.text('Tổng quan').last);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Thông báo').last);
+          await tester.pumpAndSettle();
+          expect(find.byType(LandlordAnnouncementsPage), findsOneWidget);
+        }
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
   test('Profiles and notification preferences belong to the correct role', () {
     final rental = LandlordDemoStore.demo();
     final accounts = AccountStore(rental: rental);
