@@ -4,11 +4,10 @@ import '../landlord_ui.dart';
 import '../landlord_demo_store.dart';
 import '../finance/landlord_finance_models.dart';
 import '../../shared/rental/lease_member.dart';
+import 'member_rejection_dialog.dart';
 
-// Tên Class chính bằng tiếng Việt
 class LandlordNguoiThuePage extends StatefulWidget {
   const LandlordNguoiThuePage({super.key, this.store});
-
   final LandlordDemoStore? store;
 
   @override
@@ -16,254 +15,263 @@ class LandlordNguoiThuePage extends StatefulWidget {
 }
 
 class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
-  // 1. DỮ KIỆN (Biến trạng thái đưa lên đầu)
-  String _tuKhoaTimKiem = '';
-
+  String _query = '';
+  bool _requests = true;
+  LeaseMemberStatus? _requestStatus = LeaseMemberStatus.pending;
   LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
 
-  // 2. CÁC HÀM XỬ LÝ (Viết trước hàm build)
-  // Hàm xử lý duyệt hoặc từ chối thành viên
-  Future<void> _xuLyYeuCau(LeaseMember thanhVien, bool dongY) async {
-    String lyDo = '';
-    if (!dongY) {
-      final ketQua = await showDialog<String>(
+  Future<void> _review(LeaseMember member, bool approve) async {
+    String reason = '';
+    if (!approve) {
+      final result = await showDialog<String>(
         context: context,
-        builder: (_) => _HopThoaiTuChoi(),
+        builder: (_) => MemberRejectionDialog(),
       );
-      if (!mounted || ketQua == null) {
-        return;
-      }
-      lyDo = ketQua;
+      if (!mounted || result == null) return;
+      reason = result;
     }
-
     try {
-      _store.reviewMember(thanhVien, approve: dongY, reason: lyDo);
-      String tenHanhDong;
-      if (dongY) {
-        tenHanhDong = 'duyệt';
-      } else {
-        tenHanhDong = 'từ chối';
-      }
+      _store.reviewMember(member, approve: approve, reason: reason);
       showLandlordMessage(
         context,
-        'Đã $tenHanhDong ${thanhVien.name}.',
+        'Đã ${approve ? 'duyệt' : 'từ chối'} ${member.name}.',
       );
     } on ArgumentError catch (error) {
       showLandlordMessage(context, error.message.toString());
     }
   }
 
-  // 3. HÀM BUILD ĐẶT Ở DƯỚI CÙNG
+  bool _matches(LeaseMember member) {
+    final lease = _store.leaseById(member.leaseId);
+    return '${member.name} ${member.phone} ${lease?.room ?? ''} ${lease?.tenantName ?? ''}'
+        .toLowerCase()
+        .contains(_query.trim().toLowerCase());
+  }
+
+  String _statusLabel(LeaseMemberStatus status) => switch (status) {
+    LeaseMemberStatus.pending => 'Chờ duyệt',
+    LeaseMemberStatus.active => 'Đã duyệt',
+    LeaseMemberStatus.rejected => 'Đã từ chối',
+  };
+
   @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _store,
-      builder: (context, _) {
-        // Phân loại thành viên đang ở và thành viên chờ duyệt bằng LINQ gọn gàng
-        final currentMembers = _store.members.where((thanhVien) {
-          final hopDong = _store.leaseById(thanhVien.leaseId);
-          return hopDong != null && hopDong.isCurrent;
-        });
-        final danhSachChoDuyet = currentMembers
-            .where((m) => m.status == LeaseMemberStatus.pending)
-            .toList();
-        final danhSachDangO = currentMembers
-            .where((m) => m.status == LeaseMemberStatus.active)
-            .toList();
-
-        // Lọc danh sách người đang ở theo từ khóa tìm kiếm bằng LINQ
-        final tuKhoa = _tuKhoaTimKiem.trim().toLowerCase();
-        final danhSachLoc = danhSachDangO.where((thanhVien) {
-          final hopDong = _store.leaseById(thanhVien.leaseId);
-          final soPhong = hopDong?.room ?? '';
-          final chuoiGop = '${thanhVien.name} $soPhong'.toLowerCase();
-          return chuoiGop.contains(tuKhoa);
-        }).toList();
-
-
-        // Danh sách widget hiển thị trên màn hình
-        final List<Widget> danhSachWidget = [
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _store,
+    builder: (context, _) {
+      final current = _store.members
+          .where(
+            (member) => _store.leaseById(member.leaseId)?.isCurrent == true,
+          )
+          .toList();
+      final active = current
+          .where((member) => member.status == LeaseMemberStatus.active)
+          .toList();
+      final pending = current
+          .where((member) => member.status == LeaseMemberStatus.pending)
+          .length;
+      final requests =
+          current
+              .where(
+                (member) =>
+                    !member.isRepresentative &&
+                    (member.status != LeaseMemberStatus.active ||
+                        member.requestedAt != null),
+              )
+              .where(
+                (member) =>
+                    (_requestStatus == null ||
+                        member.status == _requestStatus) &&
+                    _matches(member),
+              )
+              .toList()
+            ..sort(
+              (a, b) => (b.requestedAt ?? b.joinedAt).compareTo(
+                a.requestedAt ?? a.joinedAt,
+              ),
+            );
+      final filtered = active.where(_matches).toList();
+      final leaseIds = filtered.map((member) => member.leaseId).toSet().toList()
+        ..sort(
+          (a, b) =>
+              _store.leaseById(a)!.room.compareTo(_store.leaseById(b)!.room),
+        );
+      return LandlordPageFrame(
+        children: [
           LandlordPageTitle(
             title: 'Người thuê',
             subtitle:
-                '${danhSachDangO.length} người đang ở · ${danhSachChoDuyet.length} chờ duyệt',
+                '${active.length} người đang ở · $pending yêu cầu chờ duyệt',
           ),
-        ];
-
-        // Nếu có yêu cầu chờ duyệt thì hiển thị phần duyệt ở trên đầu
-        if (danhSachChoDuyet.isNotEmpty) {
-          danhSachWidget.add(
-            const Text(
-              'Chờ duyệt thành viên',
-              style: TextStyle(fontWeight: FontWeight.w700),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChoiceChip(
+                label: Text('Yêu cầu thêm người ($pending)'),
+                selected: _requests,
+                onSelected: (_) => setState(() => _requests = true),
+              ),
+              ChoiceChip(
+                label: Text('Danh sách người thuê (${active.length})'),
+                selected: !_requests,
+                onSelected: (_) => setState(() => _requests = false),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            decoration: const InputDecoration(
+              hintText: 'Tìm theo tên, số điện thoại hoặc phòng',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+              filled: true,
+              fillColor: Colors.white,
             ),
-          );
-          danhSachWidget.add(const SizedBox(height: 8));
-
-          for (int i = 0; i < danhSachChoDuyet.length; i++) {
-            final thanhVien = danhSachChoDuyet[i];
-            final hopDong = _store.leaseById(thanhVien.leaseId);
-            String soPhong = '';
-            if (hopDong != null) {
-              soPhong = hopDong.room;
-            }
-
-            danhSachWidget.add(
+            onChanged: (value) => setState(() => _query = value),
+          ),
+          const SizedBox(height: 16),
+          if (_requests) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('Tất cả yêu cầu'),
+                  selected: _requestStatus == null,
+                  onSelected: (_) => setState(() => _requestStatus = null),
+                ),
+                for (final status in LeaseMemberStatus.values)
+                  ChoiceChip(
+                    label: Text(_statusLabel(status)),
+                    selected: _requestStatus == status,
+                    onSelected: (_) => setState(() => _requestStatus = status),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (requests.isEmpty)
+              const LandlordEmptyState(message: 'Không có yêu cầu phù hợp.'),
+            for (final member in requests) _requestCard(member),
+          ] else ...[
+            if (filtered.isEmpty)
+              const LandlordEmptyState(message: 'Không tìm thấy người thuê.'),
+            for (final leaseId in leaseIds)
               LandlordCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: EdgeInsets.zero,
+                child: ExpansionTile(
+                  key: PageStorageKey('members-$leaseId'),
+                  initiallyExpanded: true,
+                  leading: const Icon(
+                    Icons.meeting_room_outlined,
+                    color: landlordBlue,
+                  ),
+                  title: Text(
+                    'Phòng ${_store.leaseById(leaseId)!.room}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(
+                    '${_store.membersForLease(leaseId).length} / ${_store.roomByCode(_store.leaseById(leaseId)!.room)?.capacity ?? '—'} người',
+                  ),
                   children: [
-                    Text(
-                      thanhVien.name,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    Text(
-                      'Xin vào phòng $soPhong · dự kiến ${landlordDate(thanhVien.joinedAt)}',
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () {
-                            _xuLyYeuCau(thanhVien, false);
-                          },
-                          child: const Text('Từ chối'),
+                    for (final member in filtered.where(
+                      (item) => item.leaseId == leaseId,
+                    ))
+                      ListTile(
+                        leading: CircleAvatar(
+                          child: Text(member.name.characters.first),
                         ),
-                        const SizedBox(width: 8),
-                        FilledButton(
-                          onPressed: () {
-                            _xuLyYeuCau(thanhVien, true);
-                          },
-                          child: const Text('Duyệt'),
+                        title: Text(member.name),
+                        subtitle: Text(
+                          '${member.phone}\nVào ở: ${landlordDate(member.joinedAt)}',
                         ),
-                      ],
-                    ),
+                        isThreeLine: true,
+                        trailing: member.isRepresentative
+                            ? const LandlordStatusPill(
+                                'Đại diện',
+                                color: landlordBlue,
+                              )
+                            : null,
+                      ),
                   ],
                 ),
               ),
-            );
-          }
-          danhSachWidget.add(const SizedBox(height: 12));
-        }
+          ],
+        ],
+      );
+    },
+  );
 
-        // Ô tìm kiếm người thuê
-        danhSachWidget.add(
-          TextField(
-            decoration: const InputDecoration(
-              hintText: 'Tìm theo tên hoặc phòng',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            onChanged: (giaTri) {
-              setState(() {
-                _tuKhoaTimKiem = giaTri;
-              });
-            },
-          ),
-        );
-        danhSachWidget.add(const SizedBox(height: 12));
-
-        // Hiển thị danh sách kết quả tìm kiếm
-        if (danhSachLoc.isEmpty) {
-          danhSachWidget.add(
-            const LandlordEmptyState(message: 'Không tìm thấy người thuê.'),
-          );
-        } else {
-          for (int i = 0; i < danhSachLoc.length; i++) {
-            final thanhVien = danhSachLoc[i];
-            final hopDong = _store.leaseById(thanhVien.leaseId);
-            String soPhong = '';
-            if (hopDong != null) {
-              soPhong = hopDong.room;
-            }
-
-            Widget? huyHieuDaiDien;
-            if (thanhVien.isRepresentative) {
-              huyHieuDaiDien = const LandlordStatusPill(
-                'Đại diện',
-                color: landlordBlue,
-              );
-            }
-
-            danhSachWidget.add(
-              LandlordCard(
-                padding: EdgeInsets.zero,
-                child: ListTile(
-                  leading: CircleAvatar(
-                    child: Text(thanhVien.name[0]),
-                  ),
-                  title: Text(thanhVien.name),
-                  subtitle: Text(
-                    'Phòng $soPhong · ${thanhVien.phone}\nVào ở: ${landlordDate(thanhVien.joinedAt)}',
-                  ),
-                  isThreeLine: true,
-                  trailing: huyHieuDaiDien,
+  Widget _requestCard(LeaseMember member) {
+    final lease = _store.leaseById(member.leaseId)!;
+    final color = switch (member.status) {
+      LeaseMemberStatus.pending => const Color(0xFFAB7623),
+      LeaseMemberStatus.active => const Color(0xFF16836F),
+      LeaseMemberStatus.rejected => Colors.red,
+    };
+    final requester = _store.members
+        .where(
+          (item) =>
+              item.leaseId == lease.id && item.tenantId == member.requestedBy,
+        )
+        .firstOrNull;
+    return LandlordCard(
+      key: ValueKey(member.id),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Phòng ${lease.room}',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-            );
-          }
-        }
-
-        return LandlordPageFrame(
-          children: danhSachWidget,
-        );
-      },
-    );
-  }
-}
-
-// Hộp thoại nhập lý do khi từ chối thành viên
-class _HopThoaiTuChoi extends StatefulWidget {
-  @override
-  State<_HopThoaiTuChoi> createState() => _HopThoaiTuChoiState();
-}
-
-class _HopThoaiTuChoiState extends State<_HopThoaiTuChoi> {
-  final _controllerLyDo = TextEditingController();
-  final _khoaBieuMau = GlobalKey<FormState>();
-
-  @override
-  void dispose() {
-    _controllerLyDo.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Từ chối thành viên'),
-      content: Form(
-        key: _khoaBieuMau,
-        child: TextFormField(
-          controller: _controllerLyDo,
-          decoration: const InputDecoration(labelText: 'Lý do từ chối'),
-          validator: (giaTri) {
-            if (giaTri == null || giaTri.trim().isEmpty) {
-              return 'Nhập lý do từ chối.';
-            }
-            return null;
-          },
-        ),
+              LandlordStatusPill(_statusLabel(member.status), color: color),
+            ],
+          ),
+          const Divider(height: 24),
+          Text(
+            member.name,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          Text('Điện thoại: ${member.phone}'),
+          Text('Ngày dự kiến vào ở: ${landlordDate(member.joinedAt)}'),
+          Text('Người gửi: ${requester?.name ?? lease.tenantName}'),
+          if (member.requestedAt != null)
+            Text('Ngày gửi: ${landlordDate(member.requestedAt!)}'),
+          Text(
+            'Đang ở: ${_store.membersForLease(lease.id).length} / ${_store.roomByCode(lease.room)?.capacity ?? '—'} người',
+          ),
+          if (member.rejectionReason != null)
+            Text(
+              'Lý do: ${member.rejectionReason}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          if (member.status == LeaseMemberStatus.pending) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: () => _review(member, true),
+                  icon: const Icon(Icons.check, size: 18),
+                  label: const Text('Duyệt'),
+                ),
+                OutlinedButton(
+                  onPressed: () => _review(member, false),
+                  child: const Text('Từ chối'),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: const Text('Hủy'),
-        ),
-        FilledButton(
-          onPressed: () {
-            if (_khoaBieuMau.currentState!.validate()) {
-              Navigator.pop(context, _controllerLyDo.text.trim());
-            }
-          },
-          child: const Text('Từ chối'),
-        ),
-      ],
     );
   }
 }
-

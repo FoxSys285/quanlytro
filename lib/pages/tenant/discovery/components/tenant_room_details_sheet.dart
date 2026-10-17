@@ -5,6 +5,7 @@ import 'tenant_room_artwork.dart';
 import '../../tenant_ui.dart';
 import '../../../landlord/properties/components/landlord_property_image.dart';
 import '../../../landlord/landlord_demo_store.dart';
+import '../../../shared/rental/room_image_gallery.dart';
 
 class TenantRoomDetailsSheet extends StatefulWidget {
   const TenantRoomDetailsSheet({
@@ -71,7 +72,9 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(18),
-                  child: _room.imageBytes != null || _room.imageUrl.isNotEmpty
+                  child: _room.roomCode != null || _room.images.isNotEmpty
+                      ? RoomImageGallery(images: _room.images, height: 210)
+                      : _room.imageBytes != null || _room.imageUrl.isNotEmpty
                       ? LandlordPropertyImage(
                           bytes: _room.imageBytes,
                           url: _room.imageUrl,

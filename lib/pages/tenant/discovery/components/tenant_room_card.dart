@@ -4,6 +4,7 @@ import '../models/tenant_room_listing.dart';
 import 'tenant_room_artwork.dart';
 import '../../tenant_ui.dart';
 import '../../../landlord/properties/components/landlord_property_image.dart';
+import '../../../shared/rental/room_image_gallery.dart';
 
 class TenantRoomCard extends StatelessWidget {
   const TenantRoomCard({
@@ -39,10 +40,29 @@ class TenantRoomCard extends StatelessWidget {
                 Stack(
                   children: [
                     LandlordPropertyImage(
+                      semanticLabel: 'Ảnh loại phòng ${room.roomType}',
                       bytes: room.imageBytes,
                       url: room.imageUrl,
                       height: 157,
                     ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton.filledTonal(
+                        onPressed: onFavoriteToggle,
+                        icon: Icon(
+                          isFavorite
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else if (room.roomCode != null)
+                Stack(
+                  children: [
+                    RoomImageGallery(images: room.images, height: 157),
                     Positioned(
                       top: 8,
                       right: 8,

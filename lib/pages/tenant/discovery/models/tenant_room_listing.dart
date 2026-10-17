@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import '../../../landlord/room_types/models/landlord_room_type.dart';
+
 import '../../../landlord/landlord_demo_store.dart';
 import '../../../landlord/rooms/models/landlord_room.dart';
 
@@ -27,6 +29,7 @@ class TenantRoomListing {
     this.description = '',
     this.imageBytes,
     this.imageUrl = '',
+    this.images = const [],
   });
 
   final String name;
@@ -51,6 +54,7 @@ class TenantRoomListing {
   final String description;
   final Uint8List? imageBytes;
   final String imageUrl;
+  final List<RoomTypeImage> images;
   String get id => listingId ?? 'external-$name';
 
   String get propertyId {
@@ -300,8 +304,10 @@ class TenantRoomDemoData {
           size: '${details.room.area} m²',
           capacity: details.room.capacity,
           description: store.property.description,
-          imageBytes: store.property.imageBytes,
-          imageUrl: store.property.imageUrl,
+          images: details.type!.images,
+          imageBytes: details.type!.images.isEmpty
+              ? null
+              : details.type!.images.first.bytes,
           distance: '1,2 km',
           distanceMeters: 1200,
           roomType: details.typeName,

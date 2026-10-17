@@ -46,3 +46,8 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local AI credentials (never bundle these as Flutter assets).
+lib/ai.env
+server/ai.env
+**/.env

@@ -11,6 +11,8 @@ class LeaseMember {
     this.isRepresentative = false,
     this.status = LeaseMemberStatus.active,
     this.rejectionReason,
+    this.requestedBy,
+    this.requestedAt,
   });
 
   final String id;
@@ -22,4 +24,6 @@ class LeaseMember {
   final bool isRepresentative;
   LeaseMemberStatus status;
   String? rejectionReason;
+  final String? requestedBy;
+  final DateTime? requestedAt;
 }

@@ -10,6 +10,7 @@ import '../tenant_ui.dart';
 import 'components/tenant_lease_member_row.dart';
 import 'components/tenant_lease_overview_card.dart';
 import 'components/tenant_lease_metric.dart';
+import '../members/components/tenant_member_requests.dart';
 
 class TenantHomePage extends StatelessWidget {
   const TenantHomePage({
@@ -244,6 +245,7 @@ class TenantHomePage extends StatelessWidget {
                 ],
               ),
             ),
+            TenantMemberRequests(store: data, tenantId: tenantId),
             const SizedBox(height: 17),
             Wrap(
               spacing: 10,

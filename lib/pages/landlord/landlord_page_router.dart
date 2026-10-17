@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../layouts/role_layout.dart';
 import '../shared/help/help_page.dart';
+import '../shared/ai/ai_chat_page.dart';
 import '../shared/settings/account_settings_page.dart';
 import '../shared/profile/account_profile_page.dart';
 import '../shared/notifications/notification_settings_page.dart';
@@ -25,6 +26,7 @@ import 'viewings/landlord_viewings_page.dart';
 
 Widget buildLandlordPage(BuildContext context, RoleDestination destination) {
   return switch (destination.id) {
+    'ai_chat' => const AiChatPage(role: AppRole.landlord),
     'support' => const HelpPage(role: AppRole.landlord),
     'settings' => const AccountSettingsPage(role: AppRole.landlord),
     'profile' => const AccountProfilePage(role: AppRole.landlord),

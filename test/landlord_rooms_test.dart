@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/layouts/landlord_layout.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
-import 'package:quanlytro/pages/landlord/rooms/components/landlord_room_card.dart';
+import 'package:quanlytro/pages/landlord/rooms/components/landlord_room_button.dart';
 import 'package:quanlytro/pages/landlord/rooms/landlord_rooms_page.dart';
 import 'package:quanlytro/pages/landlord/rooms/models/landlord_room.dart';
 
@@ -48,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(LandlordRoomsPage), findsOneWidget);
     expect(
-      find.byType(LandlordRoomCard),
+      find.byType(LandlordRoomButton),
       findsNWidgets(LandlordDemoStore.rooms.length),
     );
     expect(find.text('Phòng A.302'), findsOneWidget);
@@ -71,23 +71,27 @@ void main() {
           home: Scaffold(body: LandlordRoomsPage(store: store)),
         ),
       );
-      expect(find.byType(LandlordRoomCard), findsNWidgets(6));
+      expect(find.byType(LandlordRoomButton), findsNWidgets(6));
       await tester.tap(find.widgetWithText(ChoiceChip, 'Phòng trống'));
       await tester.pumpAndSettle();
-      expect(find.byType(LandlordRoomCard), findsNWidgets(3));
+      expect(find.byType(LandlordRoomButton), findsNWidgets(3));
       await tester.enterText(find.byType(TextField), '102');
       await tester.pumpAndSettle();
-      expect(find.byType(LandlordRoomCard), findsOneWidget);
+      expect(find.byType(LandlordRoomButton), findsOneWidget);
       store.saveRoomType('Ban công mới', id: 'balcony', monthlyRent: 4400000);
       await tester.pumpAndSettle();
+      await tester.tap(find.byType(LandlordRoomButton));
+      await tester.pumpAndSettle();
       expect(find.text('4.400.000 đ / tháng'), findsOneWidget);
+      await tester.tap(find.byTooltip('Đóng chi tiết'));
+      await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), '');
       await tester.pumpAndSettle();
       await tester.tap(find.byType(DropdownButtonFormField<int>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Tầng 2').last);
       await tester.pumpAndSettle();
-      expect(find.byType(LandlordRoomCard), findsNWidgets(2));
+      expect(find.byType(LandlordRoomButton), findsNWidgets(2));
       await tester.tap(find.widgetWithText(ChoiceChip, 'Đang thuê'));
       await tester.pumpAndSettle();
       expect(find.text('Không có phòng phù hợp với bộ lọc.'), findsOneWidget);

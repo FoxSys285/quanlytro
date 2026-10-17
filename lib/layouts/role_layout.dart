@@ -255,6 +255,12 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           ],
         ),
         actions: [
+          if (widget.destinations.any((item) => item.id == 'ai_chat'))
+            IconButton(
+              tooltip: 'Mở trợ lý AI',
+              onPressed: () => _selectDestination('ai_chat'),
+              icon: const Icon(Icons.auto_awesome_outlined),
+            ),
           IconButton(
             tooltip: 'Thông báo',
             onPressed: () => _selectDestination(

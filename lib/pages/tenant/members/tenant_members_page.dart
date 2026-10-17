@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../landlord/finance/landlord_finance_models.dart';
 import '../../shared/rental/tenant_session.dart';
-import '../../shared/rental/lease_member.dart';
+import 'components/tenant_member_requests.dart';
 import '../tenant_ui.dart';
 import 'components/tenant_room_member_card.dart';
 import 'models/tenant_room_member.dart';
@@ -35,11 +35,6 @@ class TenantMembersPage extends StatelessWidget {
           );
         }
         final members = data.membersForLease(lease.id);
-        final requests = data.members.where(
-          (member) =>
-              member.leaseId == lease.id &&
-              member.status != LeaseMemberStatus.active,
-        );
         final room = data.roomByCode(lease.room)!;
         return TenantPageFrame(
           children: [
@@ -87,30 +82,7 @@ class TenantMembersPage extends StatelessWidget {
                   isCurrentUser: member.tenantId == tenantId,
                 ),
               ),
-            for (final member in requests) ...[
-              const SizedBox(height: 12),
-              TenantSurface(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      member.name,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    Text(
-                      member.status == LeaseMemberStatus.pending
-                          ? 'Chờ chủ trọ duyệt'
-                          : 'Đã từ chối',
-                    ),
-                    Text(
-                      'Ngày dự kiến: ${landlordDate(member.joinedAt)} · ${member.phone}',
-                    ),
-                    if (member.rejectionReason != null)
-                      Text('Lý do: ${member.rejectionReason}'),
-                  ],
-                ),
-              ),
-            ],
+            TenantMemberRequests(store: data, tenantId: tenantId),
           ],
         );
       },
