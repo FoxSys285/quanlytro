@@ -107,7 +107,7 @@ void main() {
       expect(album.first.bytes, upload.bytes);
       expect(
         restored.stores[1].roomTypes.first.photos.first.url,
-        RoomPhoto.studio.url,
+        RoomPhoto.demoForPropertyType('studio', 1).first.url,
       );
       final listings = TenantRoomDemoData.forStore(
         restoredStore,
@@ -143,7 +143,10 @@ void main() {
             (room) =>
                 room.roomCode == restoredStore.canonicalRoom(changed.code),
           );
-      expect(changedListing.gallery.first.url, RoomPhoto.balcony.url);
+      expect(
+        changedListing.gallery.first.url,
+        RoomPhoto.demoForPropertyType('balcony', 0).first.url,
+      );
       restoredStore.saveRoomType(
         'Studio mới',
         id: 'studio',
@@ -208,7 +211,7 @@ void main() {
     });
     expect(saved.name, 'Studio riêng');
     expect(saved.photos.first.url, RoomPhoto.balcony.url);
-    expect(saved.photos.first.assetPath, isEmpty);
+    expect(saved.photos.first.assetPath, RoomPhoto.balcony.assetPath);
     expect(saved.photos.first.isIllustration, isTrue);
     expect(saved.photos[1].bytes, [1, 2, 3]);
     expect(saved.photos[1].url, isEmpty);

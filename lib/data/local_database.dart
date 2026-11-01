@@ -19,11 +19,15 @@ class SqliteRentalRepository implements RentalRepository {
   static Future<SqliteRentalRepository> open({
     DatabaseFactory? factory,
     String? path,
+    String filename = 'quanlytro_v1.db',
   }) async {
     final selectedFactory = factory ?? _platformFactory();
     final databasePath =
         path ??
-        paths.join(await selectedFactory.getDatabasesPath(), 'quanlytro_v1.db');
+        paths.join(
+          await selectedFactory.getDatabasesPath(),
+          paths.basename(filename),
+        );
     final database = await selectedFactory.openDatabase(
       databasePath,
       options: OpenDatabaseOptions(

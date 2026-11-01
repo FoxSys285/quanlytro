@@ -5,10 +5,33 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
 import '../layouts/role_layout.dart';
+import 'firebase_account_gateway.dart';
 
-/// Offline accounts for this installation. Cloud authentication is a later step.
+/// Local demo accounts, or Firebase accounts when explicitly configured.
 class LocalAuth extends ChangeNotifier {
   static final instance = LocalAuth();
+  AccountGateway? _gateway;
+  Future<void> Function(FirebaseAccountSession)? _onSignedIn;
+  Future<void> Function()? _onSignedOut;
+  FirebaseAccountSession? _session;
+  FirebaseAccountSession? get session => _session;
+  bool get isCloudMode => _gateway != null;
+  Future<void> _closing = Future.value();
+
+  void configureFirebase({
+    required AccountGateway gateway,
+    required Future<void> Function(FirebaseAccountSession) onSignedIn,
+    required Future<void> Function() onSignedOut,
+  }) {
+    _gateway = gateway;
+    _onSignedIn = onSignedIn;
+    _onSignedOut = onSignedOut;
+    _role = null;
+    _session = null;
+    _credentials.clear();
+    _disabled.clear();
+  }
+
   final _credentials = <String, Map<String, dynamic>>{};
   final _disabled = <String>{};
   AppRole? _role;
@@ -16,6 +39,7 @@ class LocalAuth extends ChangeNotifier {
   static String emailFor(AppRole role) => '${role.name}@tro.local';
 
   Future<void> initialize([Map<String, dynamic>? saved]) async {
+    if (isCloudMode) return;
     _credentials.clear();
     _disabled.clear();
     _role = null;
@@ -41,7 +65,32 @@ class LocalAuth extends ChangeNotifier {
   }
 
   Future<void> signIn(String email, String password) async {
+    await _closing;
+    if (_role != null) await signOut();
     final key = email.trim().toLowerCase();
+    final gateway = _gateway;
+    if (gateway != null) {
+      try {
+        final session = await gateway.signIn(key, password);
+        await _onSignedIn!(session);
+        _session = session;
+        _role = session.role;
+        notifyListeners();
+        return;
+      } catch (error) {
+        try {
+          await _onSignedOut!();
+        } finally {
+          await gateway.signOut();
+          _session = null;
+          _role = null;
+        }
+        if (error is ArgumentError) rethrow;
+        throw ArgumentError(
+          'Không thể mở dữ liệu tài khoản. Vui lòng thử lại.',
+        );
+      }
+    }
     final account = _credentials[key];
     if (account == null || _disabled.contains(key)) {
       throw ArgumentError(
@@ -64,13 +113,26 @@ class LocalAuth extends ChangeNotifier {
     notifyListeners();
   }
 
-  void signOut() {
+  Future<void> signOut() {
     _role = null;
+    _session = null;
     notifyListeners();
+    if (!isCloudMode) return Future.value();
+    _closing = () async {
+      try {
+        await _onSignedOut!();
+      } finally {
+        await _gateway!.signOut();
+      }
+    }();
+    return _closing;
   }
 
   bool isDisabled(AppRole role) => _disabled.contains(emailFor(role));
   void setDisabled(AppRole role, bool disabled) {
+    if (isCloudMode) {
+      throw ArgumentError('Quản lý quyền tài khoản trong Firebase Console.');
+    }
     if (_role != AppRole.admin) {
       throw ArgumentError('Chỉ quản trị viên được khóa tài khoản.');
     }
@@ -93,6 +155,10 @@ class LocalAuth extends ChangeNotifier {
         !RegExp(r'\d').hasMatch(password)) {
       throw ArgumentError('Mật khẩu mới cần ít nhất 8 ký tự, gồm chữ và số.');
     }
+    if (_gateway != null) {
+      await _gateway!.changePassword(current, password);
+      return;
+    }
     final account = _credentials[emailFor(role)]!;
     final hash = await compute(_derivePassword, [
       current,
@@ -109,10 +175,9 @@ class LocalAuth extends ChangeNotifier {
     notifyListeners();
   }
 
-  Map<String, dynamic> toMap() => {
-    'credentials': _credentials,
-    'disabled': _disabled.toList(),
-  };
+  Map<String, dynamic> toMap() => isCloudMode
+      ? {}
+      : {'credentials': _credentials, 'disabled': _disabled.toList()};
 }
 
 // PBKDF2-HMAC-SHA256, one 256-bit block. Runs in an isolate to keep UI responsive.

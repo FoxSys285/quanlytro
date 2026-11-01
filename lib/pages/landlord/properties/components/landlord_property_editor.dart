@@ -35,6 +35,7 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
   late Uint8List? _imageBytes = widget.property.imageBytes;
   late String _imageUrl = widget.property.imageUrl;
   late String? _imageName = widget.property.imageName;
+  late final _amenities = {...widget.property.amenities};
   bool _picking = false;
   String? _imageError;
 
@@ -118,6 +119,7 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
         imageUrl: _imageUrl,
         imageBytes: _imageBytes,
         imageName: _imageName,
+        amenities: _amenities.toList(),
         city: _city.text.trim(),
         ward: _ward.text.trim(),
       ),
@@ -349,6 +351,38 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                         'Giới thiệu nhà trọ',
                         Icons.notes_rounded,
                       ),
+                    ),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        for (final amenity in {
+                          ..._amenities,
+                          'Wifi',
+                          'Máy lạnh',
+                          'Ban công',
+                          'Thang máy',
+                          'Bãi xe',
+                          'Camera',
+                          'Gác lửng',
+                          'Bếp riêng',
+                          'Nội thất',
+                          'Máy giặt chung',
+                          'Cửa sổ',
+                          'Giờ giấc tự do',
+                        })
+                          FilterChip(
+                            label: Text(amenity),
+                            selected: _amenities.contains(amenity),
+                            onSelected: (value) => setState(() {
+                              if (value) {
+                                _amenities.add(amenity);
+                              } else {
+                                _amenities.remove(amenity);
+                              }
+                            }),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 14),
                     TextFormField(

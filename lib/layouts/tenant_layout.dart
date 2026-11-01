@@ -122,12 +122,6 @@ class TenantLayout extends StatelessWidget {
             group: 'Tài khoản',
           ),
           RoleDestination(
-            id: 'ai_chat',
-            label: 'Trợ lý AI',
-            icon: Icons.auto_awesome_outlined,
-            group: 'Tài khoản',
-          ),
-          RoleDestination(
             id: 'settings',
             label: 'Cài đặt',
             icon: Icons.settings_outlined,

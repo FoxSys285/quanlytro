@@ -5,6 +5,7 @@ import 'components/landlord_property_editor.dart';
 import 'components/landlord_property_image.dart';
 import 'models/landlord_property.dart';
 import 'property_portfolio_page.dart';
+import '../../shared/widgets/google_maps_actions.dart';
 
 class LandlordPropertiesPage extends StatelessWidget {
   const LandlordPropertiesPage({super.key, this.store});
@@ -74,6 +75,12 @@ class LandlordPropertiesPage extends StatelessWidget {
                             icon: Icons.location_on_outlined,
                             label: 'Vị trí',
                             value: property.address,
+                          ),
+                          GoogleMapsActions(
+                            address:
+                                [property.address, property.ward, property.city]
+                                    .where((part) => part.trim().isNotEmpty)
+                                    .join(', '),
                           ),
                           const SizedBox(height: 16),
                           _Detail(

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+import 'firebase_options.dart';
 
 import 'layouts/admin_layout.dart';
 import 'layouts/landlord_layout.dart';
@@ -6,11 +9,24 @@ import 'layouts/role_layout.dart';
 import 'layouts/tenant_layout.dart';
 import 'data/app_persistence.dart';
 import 'data/local_database.dart';
+import 'data/firestore_repository.dart';
 import 'data/local_auth.dart';
+import 'data/firebase_account_gateway.dart';
+import 'data/scoped_firestore_repository.dart';
+import 'data/discovery_catalog.dart';
+import 'pages/tenant/discovery/tenant_discovery_page.dart';
+import 'pages/shared/rental/tenant_session.dart';
 import 'pages/shared/auth/login_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase init: $e');
+  }
   runApp(
     const MaterialApp(
       home: Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -18,7 +34,50 @@ Future<void> main() async {
   );
   AppPersistence? persistence;
   try {
-    persistence = AppPersistence(await SqliteRentalRepository.open());
+    TenantDiscoveryPage.activeCatalogSource = FirestoreTenantCatalogSource();
+    const cloudAuth = bool.fromEnvironment('USE_FIREBASE_AUTH');
+    if (cloudAuth) {
+      LocalAuth.instance.configureFirebase(
+        gateway: FirebaseAccountGateway(),
+        onSignedIn: (session) async {
+          await AppPersistence.current?.dispose();
+          persistence = null;
+          TenantSession.authenticatedTenantId = session.tenantId;
+          final local = await SqliteRentalRepository.open(
+            filename: 'quanlytro_${Uri.encodeComponent(session.uid)}.db',
+          );
+          final remote = ScopedFirestoreRentalRepository(session: session);
+          persistence = AppPersistence(
+            HybridRentalRepository(
+              local: local,
+              remote: remote,
+              strictRemote: true,
+            ),
+            cloudMode: true,
+          );
+          await persistence!.initialize();
+        },
+        onSignedOut: () async {
+          await persistence?.dispose();
+          persistence = null;
+          TenantSession.authenticatedTenantId = null;
+        },
+      );
+      runApp(const MyApp(requireLogin: true));
+      return;
+    }
+    final sqliteRepo = await SqliteRentalRepository.open();
+    RentalRepository repository;
+    try {
+      repository = HybridRentalRepository(
+        local: sqliteRepo,
+        remote: FirestoreRentalRepository(),
+      );
+    } catch (e) {
+      debugPrint('Firestore hybrid fallback: $e');
+      repository = sqliteRepo;
+    }
+    persistence = AppPersistence(repository);
     await persistence.initialize();
     runApp(const MyApp(requireLogin: true));
   } catch (error) {
@@ -114,37 +173,40 @@ class MyApp extends StatelessWidget {
           behavior: SnackBarBehavior.floating,
         ),
       ),
-      builder: (context, child) {
-        final persistence = AppPersistence.current;
-        if (persistence == null) return child!;
-        return ValueListenableBuilder<String?>(
-          valueListenable: persistence.error,
-          builder: (context, error, _) => Column(
-            children: [
-              if (error != null)
-                Material(
-                  color: const Color(0xFFFFE8D5),
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Row(
-                        children: [
-                          Expanded(child: Text(error)),
-                          TextButton(
-                            onPressed: persistence.save,
-                            child: const Text('Thử lưu lại'),
-                          ),
-                        ],
+      builder: (context, child) => ListenableBuilder(
+        listenable: LocalAuth.instance,
+        builder: (context, _) {
+          final persistence = AppPersistence.current;
+          if (persistence == null) return child!;
+          return ValueListenableBuilder<String?>(
+            valueListenable: persistence.error,
+            builder: (context, error, _) => Column(
+              children: [
+                if (error != null)
+                  Material(
+                    color: const Color(0xFFFFE8D5),
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(error)),
+                            TextButton(
+                              onPressed: persistence.save,
+                              child: const Text('Thử lưu lại'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              Expanded(child: child!),
-            ],
-          ),
-        );
-      },
+                Expanded(child: child!),
+              ],
+            ),
+          );
+        },
+      ),
       home: requireLogin
           ? const _AuthenticatedApp()
           : const RoleLayoutPreview(),
@@ -189,7 +251,7 @@ class _AuthenticatedAppState extends State<_AuthenticatedApp>
   );
 }
 
-/// Preview harness for widget tests; the installed app uses local authentication.
+/// Preview harness for widget tests; cloud login is enabled with USE_FIREBASE_AUTH.
 class RoleLayoutPreview extends StatefulWidget {
   const RoleLayoutPreview({super.key});
 

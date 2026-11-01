@@ -63,7 +63,6 @@ class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
         .toList();
   }
 
-
   // Hàm mở form tạo yêu cầu sửa chữa mới
   Future<void> _moFormTaoMoi() async {
     final oNhapTieuDe = TextEditingController();
@@ -162,9 +161,8 @@ class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
         description: moTa,
       );
     } on ArgumentError catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message.toString())),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message.toString())));
       return;
     }
 
@@ -189,10 +187,7 @@ class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
 
     // Danh sách widget hiển thị trên toàn màn hình
     final List<Widget> danhSachWidget = [
-      TenantPageTitle(
-        title: 'Báo sự cố',
-        subtitle: tieuDePhu,
-      ),
+      TenantPageTitle(title: 'Báo sự cố', subtitle: tieuDePhu),
       SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
@@ -239,9 +234,7 @@ class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
                   onPressed: () {
                     _capNhatTrangThai(suCo, IncidentStatus.closed);
                   },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: tenantGreen,
-                  ),
+                  style: FilledButton.styleFrom(backgroundColor: tenantGreen),
                   child: const Text('Xác nhận'),
                 ),
               ],
@@ -263,10 +256,7 @@ class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
                   ),
                 ),
               ),
-              TenantStatusPill(
-                suCo.status.label,
-                color: suCo.status.color,
-              ),
+              TenantStatusPill(suCo.status.label, color: suCo.status.color),
             ],
           ),
           const SizedBox(height: 4),
@@ -298,9 +288,6 @@ class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
       }
     }
 
-    return TenantPageFrame(
-      children: danhSachWidget,
-    );
+    return TenantPageFrame(children: danhSachWidget);
   }
 }
-

@@ -45,7 +45,7 @@ void main() {
       await tester.tap(find.text('Phòng'));
       await tester.pumpAndSettle();
       expect(find.byType(LandlordRoomsPage), findsOneWidget);
-      expect(find.byType(LandlordRoomButton), findsNWidgets(18));
+      expect(find.byType(LandlordRoomButton), findsNWidgets(12));
       final roomButton = find.byType(LandlordRoomButton).first;
       await tester.ensureVisible(roomButton);
       await tester.tap(roomButton);

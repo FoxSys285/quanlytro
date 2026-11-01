@@ -5,6 +5,7 @@ import '../landlord_demo_store.dart';
 import '../finance/landlord_finance_models.dart';
 import '../../shared/rental/lease_member.dart';
 import 'member_rejection_dialog.dart';
+import '../../shared/widgets/list_pagination.dart';
 
 class LandlordNguoiThuePage extends StatefulWidget {
   const LandlordNguoiThuePage({super.key, this.store});
@@ -16,6 +17,8 @@ class LandlordNguoiThuePage extends StatefulWidget {
 
 class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
   String _query = '';
+  int _page = 0;
+  static const _pageSize = 10;
   bool _requests = true;
   LeaseMemberStatus? _requestStatus = LeaseMemberStatus.pending;
   LandlordDemoStore get _store =>
@@ -96,6 +99,8 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
           (a, b) =>
               _store.leaseById(a)!.room.compareTo(_store.leaseById(b)!.room),
         );
+      final total = _requests ? requests.length : leaseIds.length;
+      final page = _page.clamp(0, ListPagination.lastPage(total, _pageSize));
       return LandlordPageFrame(
         children: [
           LandlordPageTitle(
@@ -110,12 +115,18 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
               ChoiceChip(
                 label: Text('Yêu cầu thêm người ($pending)'),
                 selected: _requests,
-                onSelected: (_) => setState(() => _requests = true),
+                onSelected: (_) => setState(() {
+                  _requests = true;
+                  _page = 0;
+                }),
               ),
               ChoiceChip(
                 label: Text('Danh sách người thuê (${active.length})'),
                 selected: !_requests,
-                onSelected: (_) => setState(() => _requests = false),
+                onSelected: (_) => setState(() {
+                  _requests = false;
+                  _page = 0;
+                }),
               ),
             ],
           ),
@@ -128,7 +139,10 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
               filled: true,
               fillColor: Colors.white,
             ),
-            onChanged: (value) => setState(() => _query = value),
+            onChanged: (value) => setState(() {
+              _query = value;
+              _page = 0;
+            }),
           ),
           const SizedBox(height: 16),
           if (_requests) ...[
@@ -139,24 +153,33 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
                 ChoiceChip(
                   label: const Text('Tất cả yêu cầu'),
                   selected: _requestStatus == null,
-                  onSelected: (_) => setState(() => _requestStatus = null),
+                  onSelected: (_) => setState(() {
+                    _requestStatus = null;
+                    _page = 0;
+                  }),
                 ),
                 for (final status in LeaseMemberStatus.values)
                   ChoiceChip(
                     label: Text(_statusLabel(status)),
                     selected: _requestStatus == status,
-                    onSelected: (_) => setState(() => _requestStatus = status),
+                    onSelected: (_) => setState(() {
+                      _requestStatus = status;
+                      _page = 0;
+                    }),
                   ),
               ],
             ),
             const SizedBox(height: 14),
             if (requests.isEmpty)
               const LandlordEmptyState(message: 'Không có yêu cầu phù hợp.'),
-            for (final member in requests) _requestCard(member),
+            for (final member
+                in requests.skip(page * _pageSize).take(_pageSize))
+              _requestCard(member),
           ] else ...[
             if (filtered.isEmpty)
               const LandlordEmptyState(message: 'Không tìm thấy người thuê.'),
-            for (final leaseId in leaseIds)
+            for (final leaseId
+                in leaseIds.skip(page * _pageSize).take(_pageSize))
               LandlordCard(
                 padding: EdgeInsets.zero,
                 child: ExpansionTile(
@@ -197,6 +220,12 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
                 ),
               ),
           ],
+          ListPagination(
+            total: total,
+            page: page,
+            pageSize: _pageSize,
+            onChanged: (value) => setState(() => _page = value),
+          ),
         ],
       );
     },

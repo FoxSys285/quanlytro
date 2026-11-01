@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "697572692789",
+    "project_id": "doantro-caf4b",
+    "storage_bucket": "doantro-caf4b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:697572692789:android:cc57a39a96f8f4d2ac727c",
+        "android_client_info": {
+          "package_name": "com.example.quanlytro"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRftbOlLWHE6egJTX1duxfbB-LIuV0EQI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

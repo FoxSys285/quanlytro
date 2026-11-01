@@ -188,12 +188,12 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
         room: room,
         initialName:
             LandlordDemoStore.instance
-                .currentLeaseForTenant(TenantSession.tenantId)
+                .currentLeaseForTenant(TenantSession.currentTenantId)
                 ?.tenantName ??
             TenantSession.name,
         initialPhone:
             LandlordDemoStore.instance
-                .currentLeaseForTenant(TenantSession.tenantId)
+                .currentLeaseForTenant(TenantSession.currentTenantId)
                 ?.phone ??
             TenantSession.phone,
       ),
@@ -203,7 +203,7 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
       final viewing = ViewingStore.instance.createRequest(
         propertyId: room.propertyId,
         roomId: room.id,
-        tenantId: ViewingStore.demoTenantId,
+        tenantId: TenantSession.currentTenantId,
         roomName: room.name,
         address: room.address,
         startsAt: request.startsAt,

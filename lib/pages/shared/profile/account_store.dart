@@ -59,7 +59,7 @@ class AccountStore extends ChangeNotifier {
       );
     }
     final members = rental.members
-        .where((member) => member.tenantId == TenantSession.tenantId)
+        .where((member) => member.tenantId == TenantSession.currentTenantId)
         .toList();
     return ContactDetails(
       name: members.isEmpty
@@ -89,13 +89,14 @@ class AccountStore extends ChangeNotifier {
           imageUrl: property.imageUrl,
           imageBytes: property.imageBytes,
           imageName: property.imageName,
+          amenities: property.amenities,
           city: property.city,
           ward: property.ward,
         ),
       );
     } else if (role == AppRole.tenant) {
       rental.updateTenantContact(
-        TenantSession.tenantId,
+        TenantSession.currentTenantId,
         name: contact.name,
         phone: contact.phone,
       );

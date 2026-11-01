@@ -152,7 +152,353 @@ class RentalPortfolio extends ChangeNotifier {
           i,
         ),
       ),
-    );
+    )..supplementDemoActivity();
+  }
+
+  /// Chỉ gọi khi tạo dữ liệu mẫu hoặc bổ sung mẫu theo yêu cầu, không khi mở app.
+  void supplementDemoActivity() {
+    const amenities = [
+      ['Wifi', 'Máy lạnh', 'Thang máy', 'Bãi xe', 'Camera'],
+      ['Wifi', 'Bếp riêng', 'Giờ giấc tự do', 'Bãi xe'],
+      ['Wifi', 'Ban công', 'Máy lạnh', 'Thang máy'],
+      ['Wifi', 'Gác lửng', 'Bãi xe', 'Camera'],
+      ['Wifi', 'Thang máy', 'Máy giặt chung', 'Camera'],
+      ['Wifi', 'Gác lửng', 'Bếp riêng', 'Giờ giấc tự do'],
+      ['Wifi', 'Máy lạnh', 'Nội thất', 'Bãi xe'],
+      ['Wifi', 'Cửa sổ', 'Bếp riêng', 'Camera'],
+      ['Wifi', 'Ban công', 'Nội thất', 'Thang máy'],
+      ['Wifi', 'Máy lạnh', 'Bãi xe', 'Máy giặt chung'],
+    ];
+    const descriptions = [
+      'Không gian sáng gần HUTECH, phù hợp sinh viên và người mới đi làm.',
+      'Ngõ yên tĩnh gần Phan Xích Long, có bếp riêng để tự nấu ăn.',
+      'Phòng đón nắng sáng, ban công thoáng và thang máy tiện di chuyển.',
+      'Phòng có gác tách khu ngủ, thuận tiện đi trung tâm bằng xe buýt.',
+      'Tòa nhà có thang máy, sân phơi và máy giặt dùng chung.',
+      'Nội thất tông gỗ, gác rộng và khu bếp gọn cho hai người.',
+      'Studio có sẵn máy lạnh, bàn làm việc và tủ quần áo.',
+      'Khu dân cư yên tĩnh, phòng có cửa sổ và bếp riêng.',
+      'Căn hộ gần Quốc Hương, nội thất đầy đủ và ban công nhiều ánh sáng.',
+      'Gần Cộng Hòa, thuận tiện đến sân bay và các văn phòng Tân Bình.',
+    ];
+    for (var index = 0; index < _stores.length; index++) {
+      final store = _stores[index];
+      final property = store.property;
+      const oldNames = {
+        'Trần Hoàng Nam',
+        'Lê Thu Hà',
+        'Phạm Gia Bảo',
+        'Võ Ngọc Linh',
+        'Nguyễn Minh Tâm',
+        'Đặng Thùy Dương',
+        'Hoàng Đức Huy',
+        'Bùi Thanh Trúc',
+        'Đỗ Tuấn Kiệt',
+        'Phan Ngọc Mai',
+        'Trương Anh Tú',
+        'Lý Khánh Vy',
+      };
+      const families = [
+        'Nguyễn',
+        'Trần',
+        'Lê',
+        'Phạm',
+        'Võ',
+        'Đặng',
+        'Bùi',
+        'Đỗ',
+        'Hoàng',
+        'Phan',
+      ];
+      const middle = [
+        'Minh',
+        'Ngọc',
+        'Thanh',
+        'Gia',
+        'Khánh',
+        'Hoài',
+        'Anh',
+        'Bảo',
+      ];
+      const given = [
+        'An',
+        'Bình',
+        'Châu',
+        'Dương',
+        'Giang',
+        'Hà',
+        'Hân',
+        'Hiếu',
+        'Huy',
+        'Khang',
+        'Khôi',
+        'Lâm',
+        'Linh',
+        'Long',
+        'Mai',
+        'Nam',
+        'Nhi',
+        'Phúc',
+        'Quân',
+        'Trang',
+      ];
+      final renamed = <String, String>{};
+      for (
+        var leaseIndex = 0;
+        leaseIndex < store._leases.length;
+        leaseIndex++
+      ) {
+        final lease = store._leases[leaseIndex];
+        if (!lease.id.startsWith('${property.id}-HD-') ||
+            !oldNames.contains(lease.tenantName)) {
+          continue;
+        }
+        final sequence = index * 100 + leaseIndex;
+        lease.tenantName =
+            '${families[(sequence ~/ 160) % families.length]} ${middle[(sequence ~/ 20) % middle.length]} ${given[sequence % given.length]}';
+        renamed[lease.id] = lease.tenantName;
+      }
+      if (renamed.isNotEmpty) {
+        for (var i = 0; i < store._invoices.length; i++) {
+          final invoice = store._invoices[i];
+          if (renamed.containsKey(invoice.leaseId)) {
+            store._invoices[i] = LandlordInvoice.fromMap({
+              ...invoice.toMap(),
+              'tenantName': renamed[invoice.leaseId],
+            });
+          }
+        }
+        final invoiceNames = {
+          for (final invoice in store._invoices) invoice.id: invoice.tenantName,
+        };
+        for (var i = 0; i < store._payments.length; i++) {
+          final payment = store._payments[i];
+          if (invoiceNames.containsKey(payment.invoiceId)) {
+            store._payments[i] = LandlordPayment.fromMap({
+              ...payment.toMap(),
+              'tenantName': invoiceNames[payment.invoiceId],
+            });
+          }
+        }
+        for (var i = 0; i < store._incidents.length; i++) {
+          final incident = store._incidents[i];
+          if (renamed.containsKey(incident.leaseId)) {
+            store._incidents[i] = LandlordIncident.fromMap({
+              ...incident.toMap(),
+              'reporter': renamed[incident.leaseId],
+            });
+          }
+        }
+      }
+      final sampleImage =
+          property.imageUrl.isEmpty ||
+          property.imageUrl.startsWith('assets/images/room_types/') ||
+          property.imageUrl.startsWith('assets/images/rental_api/');
+      if (property.amenities.isEmpty ||
+          (sampleImage && property.imageBytes == null)) {
+        store._property = LandlordProperty.fromMap({
+          ...property.toMap(),
+          if (property.amenities.isEmpty) 'amenities': amenities[index % 10],
+          if (sampleImage && property.imageBytes == null) ...{
+            'imageUrl': RoomPhoto.propertyAsset(index),
+            'imageName': 'Ảnh minh họa nội thất',
+          },
+          if (property.description.startsWith('${property.name} có '))
+            'description':
+                '${descriptions[index % 10]} '
+                'Điện 4.000 đ/kWh, nước 15.000 đ/m³; internet 100.000 đ/tháng. '
+                'Cọc một tháng. Ảnh minh họa, hãy đặt lịch để xem phòng thực tế.',
+        });
+      }
+      for (var i = 0; i < store._roomTypes.length; i++) {
+        final type = store._roomTypes[i];
+        final samples = RoomPhoto.demoForPropertyType(type.id, index);
+        // Album trống hoặc ảnh riêng là lựa chọn người dùng; chỉ mở rộng album mẫu.
+        if (samples.isNotEmpty &&
+            type.photos.isNotEmpty &&
+            type.photos.every(
+              (p) =>
+                  p.bytes == null &&
+                  p.isReference &&
+                  (p.assetPath.startsWith('assets/images/room_types/') ||
+                      p.assetPath.startsWith('assets/images/rental_api/')),
+            )) {
+          final basePrice = {
+            'studio': 3000000,
+            'balcony': 3500000,
+            'loft': 2800000,
+            'group': 5000000,
+          }[type.id]!;
+          store._roomTypes[i] = LandlordRoomType(
+            id: type.id,
+            name: type.name,
+            monthlyRent: type.monthlyRent == basePrice
+                ? basePrice + index * 150000
+                : type.monthlyRent,
+            photos: samples,
+          );
+        }
+      }
+      final now = DateTime.now();
+      final expiringId = 'demo-expiring-${property.id}';
+      final available = store.roomDetails.where(
+        (r) => r.status == LandlordRoomStatus.vacant && r.type != null,
+      );
+      if (!store._leases.any((l) => l.id == expiringId) &&
+          available.isNotEmpty &&
+          store.activeLeases.isNotEmpty) {
+        final details = available.last;
+        final source = store.activeLeases.last;
+        store._leases.add(
+          LandlordLease.fromMap({
+            ...source.toMap(),
+            'id': expiringId,
+            'tenantId': 'demo-expiring-tenant-${property.id}',
+            'propertyId': property.id,
+            'room': store.canonicalRoom(details.room.code),
+            'tenantName': 'Đào Ngọc Hân',
+            'phone': '0900000078',
+            'startDate': DateTime(now.year, now.month - 3, 1).toIso8601String(),
+            'endDate': now.add(const Duration(days: 21)).toIso8601String(),
+            'monthlyRent': details.type!.monthlyRent,
+            'deposit': details.type!.monthlyRent,
+            'occupantCount': 1,
+            'termMonths': 4,
+            'note': 'Hợp đồng mẫu sắp hết hạn; liên hệ để gia hạn.',
+          }),
+        );
+      }
+      final leases = store.activeLeases;
+      if (leases.isEmpty) continue;
+      // Thêm hóa đơn riêng, không sửa số tiền hay trạng thái hóa đơn có sẵn.
+      for (var i = 0; i < 3; i++) {
+        final lease = leases.last;
+        final invoiceId = 'demo-scenario-${property.id}-$i';
+        if (store._invoices.any((v) => v.id == invoiceId)) continue;
+        final total = lease.monthlyRent + 435000;
+        final partial = i == 0 ? total ~/ 2 : 0;
+        final invoice = LandlordInvoice(
+          id: invoiceId,
+          leaseId: lease.id,
+          room: lease.room,
+          tenantName: lease.tenantName,
+          period: DateTime(now.year, now.month - i),
+          dueDate: now.add(Duration(days: i == 1 ? -7 : 7)),
+          charges: [
+            LandlordInvoiceCharge(
+              name: 'Tiền thuê phòng',
+              amount: lease.monthlyRent,
+            ),
+            const LandlordInvoiceCharge(name: 'Điện · 70 kWh', amount: 280000),
+            const LandlordInvoiceCharge(name: 'Nước · 3 m³', amount: 45000),
+            const LandlordInvoiceCharge(
+              name: 'Internet và vệ sinh',
+              amount: 110000,
+            ),
+          ],
+          paidAmount: partial,
+        );
+        store._invoices.add(invoice);
+        store._payments.add(
+          LandlordPayment(
+            id: 'demo-scenario-payment-${property.id}-$i',
+            invoiceId: invoice.id,
+            tenantName: lease.tenantName,
+            room: lease.room,
+            reportedAmount: i == 0 ? partial : total,
+            paidAt: now.subtract(Duration(days: i + 1)),
+            method: 'Chuyển khoản',
+            reference: 'DEMO-${property.id}-$i',
+            status: LandlordPaymentStatus.values[[1, 2, 0][i]],
+            approvedAmount: i == 0 ? partial : null,
+            rejectionReason: i == 1
+                ? 'Sai nội dung chuyển khoản, vui lòng kiểm tra lại. (Mẫu)'
+                : null,
+          )..reviewedAt = i == 2 ? null : now,
+        );
+      }
+      const names = ['Nguyễn Khánh Vy', 'Lê Minh Quân', 'Phạm Thảo Nhi'];
+      for (var i = 0; i < 3 && i < leases.length; i++) {
+        final lease = leases[i];
+        final id = 'demo-member-${property.id}-$i';
+        final status = [
+          LeaseMemberStatus.active,
+          LeaseMemberStatus.pending,
+          LeaseMemberStatus.rejected,
+        ][i];
+        final room = store.roomByCode(lease.room);
+        if (!store._members.any((m) => m.id == id) &&
+            room != null &&
+            store.membersForLease(lease.id).length < room.capacity) {
+          store._members.add(
+            LeaseMember(
+              id: id,
+              leaseId: lease.id,
+              tenantId: id,
+              name: names[i],
+              phone: '090000002${i + 1}',
+              joinedAt: now,
+              requestedBy: lease.tenantId,
+              requestedAt: now.subtract(Duration(days: i + 1)),
+              status: status,
+              rejectionReason: i == 2 ? 'Cần bổ sung thông tin liên hệ.' : null,
+            ),
+          );
+          if (status == LeaseMemberStatus.active) {
+            lease.occupantCount = store.membersForLease(lease.id).length;
+          }
+        }
+      }
+      const titles = [
+        'Vòi nước rò rỉ',
+        'Máy lạnh cần vệ sinh',
+        'Bóng đèn không sáng',
+        'Wifi chập chờn',
+      ];
+      for (var i = 0; i < 4; i++) {
+        final lease = leases[i % leases.length];
+        final id = 'demo-incident-${property.id}-$i';
+        if (store._incidents.any((item) => item.id == id)) continue;
+        store._incidents.add(
+          LandlordIncident(
+            id: id,
+            leaseId: lease.id,
+            reporterId: lease.tenantId,
+            title: titles[i],
+            room: lease.room,
+            reporter: lease.tenantName,
+            category: ['Nước', 'Điện lạnh', 'Điện', 'Internet'][i],
+            description:
+                '${titles[i]}. Nhờ quản lý kiểm tra giúp vào giờ hành chính. (Dữ liệu mẫu)',
+            date: landlordDate(now.subtract(Duration(days: i + 1))),
+            status: IncidentStatus.values[i],
+            urgent: i == 0,
+          ),
+        );
+      }
+      // Không thay đổi số tiền đã thu; khoản đã duyệt khớp hóa đơn có sẵn.
+      final invoices = store.invoices.where((item) => !item.cancelled).take(8);
+      for (final invoice in invoices) {
+        if (store._payments.any((p) => p.invoiceId == invoice.id)) continue;
+        final paid = invoice.paidAmount > 0;
+        store._payments.add(
+          LandlordPayment(
+            id: 'demo-payment-${invoice.id}',
+            invoiceId: invoice.id,
+            tenantName: invoice.tenantName,
+            room: invoice.room,
+            reportedAmount: paid ? invoice.paidAmount : invoice.remaining,
+            paidAt: now.subtract(const Duration(days: 1)),
+            method: 'Chuyển khoản',
+            reference: 'DEMO-${invoice.id}',
+            status: paid
+                ? LandlordPaymentStatus.approved
+                : LandlordPaymentStatus.pending,
+            approvedAmount: paid ? invoice.paidAmount : null,
+          )..reviewedAt = paid ? now : null,
+        );
+      }
+    }
   }
 
   @override

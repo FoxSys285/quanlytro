@@ -14,8 +14,9 @@ import 'local_auth.dart';
 import 'admin_store.dart';
 
 class AppPersistence {
-  AppPersistence(this.repository);
+  AppPersistence(this.repository, {this.cloudMode = false});
   final RentalRepository repository;
+  final bool cloudMode;
   static AppPersistence? current;
   final error = ValueNotifier<String?>(null);
   Future<void> _pending = Future.value();
@@ -25,15 +26,30 @@ class AppPersistence {
 
   Future<void> initialize() async {
     final data = await repository.readAll();
+    if (cloudMode) {
+      // Không để trạng thái tài khoản trước tồn tại nếu tài khoản mới thiếu một mục.
+      AdminStore.instance.restore({
+        'verified': <String, bool>{},
+        'hidden': <String>[],
+        'tickets': <dynamic>[],
+        'logs': <dynamic>[],
+        'acceptingViewings': true,
+      });
+      LandlordStaffStore.instance.restore({'nextId': 1, 'staff': <dynamic>[]});
+      if (data['portfolio'] == null) {
+        throw StateError('Chưa có dữ liệu được cấp cho tài khoản.');
+      }
+    }
     await LocalAuth.instance.initialize(data['auth']);
     if (data['admin'] != null) AdminStore.instance.restore(data['admin']!);
     final saved = data['portfolio'];
     RentalPortfolio.instance = saved == null
         ? RentalPortfolio.seeded()
         : RentalPortfolio.fromMap(saved);
-    LandlordDemoStore.instance =
-        RentalPortfolio.instance.byId('may') ??
-        RentalPortfolio.instance.stores.first;
+    LandlordDemoStore.instance = cloudMode
+        ? RentalPortfolio.instance.active
+        : RentalPortfolio.instance.byId('may') ??
+              RentalPortfolio.instance.stores.first;
     ConversationStore.instance.dispose();
     AccountStore.instance.dispose();
     ViewingStore.instance.dispose();
@@ -64,7 +80,7 @@ class AppPersistence {
       final stored = data['announcements:${store.property.id}'];
       if (stored != null) announcements.restore(stored);
     }
-    await repository.saveAll(_snapshot());
+    if (!cloudMode) await repository.saveAll(_snapshot());
     for (final store in RentalPortfolio.instance.stores) {
       _listen(AnnouncementStore.forRental(store));
     }

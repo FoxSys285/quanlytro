@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function active() { return request.auth != null && profile().disabled == false; }
+    function admin() { return active() && profile().role == 'admin'; }
+    function owner(data) { return active() && profile().role == 'landlord' && data.ownerUid == request.auth.uid; }
+    function tenant(data) { return active() && profile().role == 'tenant' && profile().tenantId in data.tenantIds; }
+    function ownsProperty(id) { return owner(get(/databases/$(database)/documents/rental_properties/$(id)).data); }
+    function sameEnvelope() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['data']) &&
+        request.resource.data.archived == false;
+    }
+    match /users/{uid} {
+      allow read: if active() && (uid == request.auth.uid || admin());
+      // Role/disabled/tenantId provisioned through Admin SDK, never self-assigned.
+      allow write: if false;
+    }
+    match /app_documents/{id} { allow read, write: if false; }
+    match /user_state/{uid} {
+      allow read, write: if active() && uid == request.auth.uid &&
+        (request.method == 'get' || request.resource.data.keys().hasOnly(['accounts', 'favorites']));
+    }
+    match /management/{uid} {
+      allow read: if admin() || (active() && uid == request.auth.uid);
+      allow write: if admin() || (active() && profile().role == 'landlord' && uid == request.auth.uid &&
+        request.resource.data.keys().hasOnly(['staff']));
+    }
+    match /public_settings/{id} {
+      allow read: if true;
+      allow write: if admin() && request.resource.data.keys().hasOnly(['acceptingViewings']) && request.resource.data.acceptingViewings is bool;
+    }
+    match /support_tickets/{id} {
+      allow read: if admin() || (active() && resource.data.accountUid == request.auth.uid);
+      allow get: if active() && !exists(/databases/$(database)/documents/support_tickets/$(id));
+      allow create: if active() && request.resource.data.accountUid == request.auth.uid &&
+        request.resource.data.data.role == profile().role && request.resource.data.data.reply == '' && request.resource.data.data.closed == false;
+      allow update: if admin() && request.resource.data.accountUid == resource.data.accountUid &&
+        request.resource.data.data.diff(resource.data.data).affectedKeys().hasOnly(['reply', 'closed']);
+      allow delete: if false;
+    }
+    match /rental_properties/{id} {
+      allow read: if true;
+      allow create: if admin() || owner(request.resource.data);
+      allow update: if admin() || (owner(resource.data) && request.resource.data.ownerUid == resource.data.ownerUid);
+      allow delete: if false;
+    }
+    match /public_rooms/{id} {
+      allow read: if true;
+      allow create: if admin() || (ownsProperty(request.resource.data.propertyId) && owner(request.resource.data));
+      allow update: if admin() || (owner(resource.data) &&
+        request.resource.data.ownerUid == resource.data.ownerUid &&
+        request.resource.data.propertyId == resource.data.propertyId);
+      allow delete: if false;
+    }
+    match /rental_records/{id} {
+      allow read: if admin() || owner(resource.data) || tenant(resource.data);
+      allow get: if active() && !exists(/databases/$(database)/documents/rental_records/$(id));
+      allow create: if admin() || (owner(request.resource.data) && ownsProperty(request.resource.data.propertyId) &&
+        (request.resource.data.kind != 'messages' || request.resource.data.data.fromLandlord == true)) ||
+        (tenant(request.resource.data) && tenantCreate());
+      allow update: if admin() || (owner(resource.data) && resource.data.kind != 'messages' &&
+        request.resource.data.ownerUid == resource.data.ownerUid &&
+        request.resource.data.propertyId == resource.data.propertyId &&
+        request.resource.data.kind == resource.data.kind) ||
+        (tenant(resource.data) && sameEnvelope() && tenantUpdate());
+      allow delete: if false;
+      function validTarget() {
+        return request.resource.data.ownerUid ==
+          get(/databases/$(database)/documents/rental_properties/$(request.resource.data.propertyId)).data.ownerUid &&
+          request.resource.data.tenantIds == [profile().tenantId] && request.resource.data.archived == false;
+      }
+      function ownLease() {
+        let leaseId = request.resource.data.data.leaseId;
+        // Các mã hợp đồng sinh bởi ứng dụng không chứa dấu '/' hoặc ':'.
+        let doc = get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':leases:' + leaseId)).data;
+        return tenant(doc);
+      }
+      function tenantCreate() {
+        let d = request.resource.data.data;
+        return validTarget() && (
+          (request.resource.data.kind == 'viewings' && d.tenantId == profile().tenantId && d.status == 'pending') ||
+          (request.resource.data.kind == 'incidents' && d.reporterId == profile().tenantId && d.status == 'newly' && ownLease()) ||
+          (request.resource.data.kind == 'members' && d.requestedBy == profile().tenantId && d.status == 'pending' && d.isRepresentative == false && ownLease()) ||
+          (request.resource.data.kind == 'conversations' && d.tenantId == profile().tenantId && d.messages == []) ||
+          (request.resource.data.kind == 'messages' && messageCreate()) ||
+          (request.resource.data.kind == 'payments' && paymentCreate())
+        );
+      }
+      function messageCreate() {
+        let d = request.resource.data.data;
+        let conversation = getAfter(/databases/$(database)/documents/rental_records/$(d.conversationKey)).data;
+        return tenant(conversation) && conversation.propertyId == request.resource.data.propertyId &&
+          conversation.data.id == d.conversationId &&
+          d.fromLandlord == false && d.text is string && d.text.size() > 0 && d.text.size() <= 5000 &&
+          d.index is int && d.index >= 0;
+      }
+      function paymentCreate() {
+        let d = request.resource.data.data;
+        let invoice = get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':invoices:' + d.invoiceId)).data;
+        return tenant(invoice) && d.status == 'pending' && d.approvedAmount == null &&
+          d.reviewedAt == null && d.reportedAmount is int && d.reportedAmount > 0 &&
+          d.reportedAmount <= 1000000000;
+      }
+      function tenantUpdate() {
+        let d = request.resource.data.data;
+        let old = resource.data.data;
+        let changed = d.diff(old).affectedKeys();
+        return
+          (resource.data.kind == 'viewings' && changed.hasOnly(['status']) && old.status != 'cancelled' && d.status == 'cancelled') ||
+          (resource.data.kind == 'incidents' && changed.hasOnly(['status']) && old.status == 'resolved' && d.status == 'closed') ||
+          (resource.data.kind == 'conversations' && conversationUpdate()) ||
+          (resource.data.kind == 'tenantAnnouncements' && changed.hasOnly(['readByTenant']));
+      }
+      function conversationUpdate() {
+        let d = request.resource.data.data;
+        let old = resource.data.data;
+        let changed = d.diff(old).affectedKeys();
+        return (changed.hasOnly(['tenantUnread']) && d.tenantUnread == 0) ||
+          (changed.hasOnly(['unread']) && d.unread == old.unread + 1);
+      }
+    }
+  }
+}

@@ -11,6 +11,9 @@ class TenantDiscoveryFilterSelection {
     required this.electricityRange,
     required this.waterType,
     required this.area,
+    this.minArea,
+    this.maxArea,
+    this.amenities = const {},
   });
 
   final int maxRent;
@@ -19,6 +22,9 @@ class TenantDiscoveryFilterSelection {
   final RangeValues electricityRange;
   final String waterType;
   final String? area;
+  final double? minArea;
+  final double? maxArea;
+  final Set<String> amenities;
 }
 
 class TenantDiscoveryFilterSheet extends StatefulWidget {
@@ -30,6 +36,9 @@ class TenantDiscoveryFilterSheet extends StatefulWidget {
     required this.initialElectricityRange,
     required this.initialWaterType,
     required this.initialArea,
+    this.initialMinArea,
+    this.initialMaxArea,
+    this.initialAmenities = const {},
   });
 
   final int initialRent;
@@ -38,6 +47,9 @@ class TenantDiscoveryFilterSheet extends StatefulWidget {
   final RangeValues initialElectricityRange;
   final String initialWaterType;
   final String? initialArea;
+  final double? initialMinArea;
+  final double? initialMaxArea;
+  final Set<String> initialAmenities;
 
   @override
   State<TenantDiscoveryFilterSheet> createState() =>
@@ -68,6 +80,22 @@ class TenantDiscoveryFilterSheetState
   late RangeValues _electricityRange = widget.initialElectricityRange;
   late String _waterType = widget.initialWaterType;
   late String? _area = widget.initialArea;
+  late final _minAreaController = TextEditingController(
+    text: widget.initialMinArea?.toString() ?? '',
+  );
+  late final _maxAreaController = TextEditingController(
+    text: widget.initialMaxArea?.toString() ?? '',
+  );
+  late final Set<String> _amenities = {...widget.initialAmenities};
+  String? _areaError;
+  double? _parseArea(String value) =>
+      double.tryParse(value.trim().replaceAll(',', '.'));
+  List<String> get _amenityOptions => ({
+    ...TenantRoomDemoData.allListings
+        .expand((room) => room.tags)
+        .where((tag) => !tag.startsWith('Tầng ')),
+    ..._amenities,
+  }.toList()..sort());
   late final _rentController = TextEditingController(
     text: _formatRent(widget.initialRent),
   );
@@ -87,6 +115,8 @@ class TenantDiscoveryFilterSheetState
 
   @override
   void dispose() {
+    _minAreaController.dispose();
+    _maxAreaController.dispose();
     _rentController.dispose();
     super.dispose();
   }
@@ -210,6 +240,34 @@ class TenantDiscoveryFilterSheetState
           ],
           const SizedBox(height: 18),
           const TenantSectionHeading('Diện tích phòng'),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('min-area'),
+                  controller: _minAreaController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(labelText: 'Từ (m²)'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('max-area'),
+                  controller: _maxAreaController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(labelText: 'Đến (m²)'),
+                ),
+              ),
+            ],
+          ),
+          if (_areaError != null)
+            Text(_areaError!, style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 7,
             runSpacing: 7,
@@ -236,6 +294,24 @@ class TenantDiscoveryFilterSheetState
                     fontWeight: FontWeight.w600,
                   ),
                   showCheckmark: false,
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const TenantSectionHeading('Tiện ích'),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              for (final amenity in _amenityOptions)
+                FilterChip(
+                  label: Text(amenity),
+                  selected: _amenities.contains(amenity),
+                  onSelected: (selected) => setState(() {
+                    selected
+                        ? _amenities.add(amenity)
+                        : _amenities.remove(amenity);
+                  }),
                 ),
             ],
           ),
@@ -331,16 +407,7 @@ class TenantDiscoveryFilterSheetState
           ),
           const SizedBox(height: 21),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(
-              TenantDiscoveryFilterSelection(
-                maxRent: _maxRent,
-                city: _city,
-                ward: _ward,
-                electricityRange: _electricityRange,
-                waterType: _waterType,
-                area: _area,
-              ),
-            ),
+            onPressed: _apply,
             style: FilledButton.styleFrom(
               backgroundColor: tenantGreen,
               minimumSize: const Size.fromHeight(48),
@@ -352,6 +419,34 @@ class TenantDiscoveryFilterSheetState
           ),
           SizedBox(height: MediaQuery.viewInsetsOf(context).bottom),
         ],
+      ),
+    );
+  }
+
+  void _apply() {
+    final min = _parseArea(_minAreaController.text);
+    final max = _parseArea(_maxAreaController.text);
+    if ((_minAreaController.text.trim().isNotEmpty &&
+            (min == null || !min.isFinite || min < 0)) ||
+        (_maxAreaController.text.trim().isNotEmpty &&
+            (max == null || !max.isFinite || max < 0)) ||
+        (min != null && max != null && min > max)) {
+      setState(
+        () => _areaError = 'Nhập diện tích hợp lệ; từ không vượt quá đến.',
+      );
+      return;
+    }
+    Navigator.of(context).pop(
+      TenantDiscoveryFilterSelection(
+        maxRent: _maxRent,
+        city: _city,
+        ward: _ward,
+        electricityRange: _electricityRange,
+        waterType: _waterType,
+        area: _area,
+        minArea: min,
+        maxArea: max,
+        amenities: _amenities,
       ),
     );
   }
@@ -388,6 +483,10 @@ class TenantDiscoveryFilterSheetState
       _electricityRange = const RangeValues(0, 5);
       _waterType = 'Tất cả';
       _area = null;
+      _minAreaController.clear();
+      _maxAreaController.clear();
+      _amenities.clear();
+      _areaError = null;
       _rentController.text = _formatRent(20000000);
     });
   }

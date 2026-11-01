@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/tenant_room_listing.dart';
 import '../../tenant_ui.dart';
 import '../../../shared/media/room_photo_gallery.dart';
+import '../../../shared/widgets/google_maps_actions.dart';
 import '../../../landlord/landlord_demo_store.dart';
 
 class TenantRoomDetailsSheet extends StatefulWidget {
@@ -115,6 +116,13 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
                 Text(
                   _room.address,
                   style: const TextStyle(color: tenantMuted, fontSize: 12),
+                ),
+                GoogleMapsActions(
+                  address: [
+                    _room.address,
+                    _room.ward,
+                    _room.city,
+                  ].where((part) => part.trim().isNotEmpty).join(', '),
                 ),
                 const SizedBox(height: 15),
                 TenantSurface(

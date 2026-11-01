@@ -29,10 +29,14 @@ Lần mở đầu tạo **10 nhà trọ, 454 phòng**, mỗi nhà có 3–4 lo�
 - Người thuê mẫu Minh Anh: tìm/lọc phòng theo khu vực, giá, diện tích, điện nước; yêu thích và đặt lịch; xem hợp đồng/hóa đơn; gửi thanh toán; đề nghị thêm thành viên; báo và xác nhận sự cố; nhắn tin và gửi hỗ trợ.
 - Quản trị viên: thống kê, xem hồ sơ người thuê, khóa/mở tài khoản cục bộ, đánh dấu xác minh nhà trọ, ẩn/hiện tin đăng, phản hồi hỗ trợ, xem nhật ký quản trị và bật/tắt tiếp nhận lịch xem phòng.
 - Loại phòng có album tối đa 12 ảnh: chọn nhiều ảnh từ thư viện, đặt ảnh bìa hoặc xóa ảnh trong **Loại phòng → Chỉnh sửa**. Các phòng cùng loại tự dùng chung album ở danh sách phòng của chủ trọ, mục khám phá và chi tiết của người thuê. Đổi loại phòng sẽ đổi album tương ứng; giá hợp đồng vẫn giữ nguyên.
-- Ảnh nhà trọ, album loại phòng và minh chứng thanh toán chọn từ máy được lưu cục bộ. Không tải lên máy chủ. Ảnh tham khảo của các loại phòng được tải online từ URL ảnh gốc tìm trên web; cần có mạng để tải. Album mẫu cũ tự chuyển sang URL mới, album người dùng tự thêm và album đã xóa hết ảnh được giữ nguyên. [Nguồn ảnh](docs/ROOM_PHOTO_SOURCES.md).
+- Ảnh mẫu gồm 101 WebP đi kèm app (khoảng 2,21 MiB), trong đó 83 ảnh lấy từ 28 album qua endpoint JSON Nhà Tốt/Chợ Tốt. Loại phòng ở từng nhà dùng các album khác nhau, 2–3 ảnh/album. Ảnh tự chọn và album đã xóa hết được giữ nguyên. [Nguồn ảnh và cách cập nhật qua API](docs/ROOM_PHOTO_SOURCES.md).
+- Tìm trọ hỗ trợ sắp xếp giá/diện tích tăng giảm, lọc diện tích nhập số và tiện ích; giữ bộ lọc khi quay lại. Màn chi tiết phòng/nhà trọ có nút mở Google Maps và sao chép URL tìm địa chỉ, không cần API key.
+- Phân trang: Tìm trọ 8 phòng/trang, quản lý phòng 12 phòng/trang, hóa đơn và hợp đồng 10 mục/trang, người thuê 10 nhóm phòng hoặc yêu cầu/trang. Đổi tìm kiếm/bộ lọc sẽ về trang đầu. Chat AI đã gỡ; tin nhắn chủ trọ/người thuê vẫn giữ.
 - Thông tin, ảnh, tin nhắn, trạng thái đọc, yêu thích, thiết lập và nghiệp vụ được giữ khi khởi động lại. Dữ liệu mẫu chỉ tạo khi chưa có cơ sở dữ liệu.
 
 Chi tiết quy mô, kiến trúc lưu trữ và cách kiểm tra: [SQLite và dữ liệu mẫu](docs/SQLITE_VA_DU_LIEU_MAU.md).
+
+Đăng nhập Firebase và Rules theo vai trò: [các bước chuyển dữ liệu, cấp UID và bật chế độ thật](docs/FIREBASE_CLOUD.md). Chưa publish Rules khóa dữ liệu cũ khi tài khoản thật chưa được chuẩn bị.
 
 ## Kiểm tra và đóng gói
 
@@ -44,6 +48,13 @@ flutter build apk --debug
 
 APK: `build/app/outputs/flutter-apk/app-debug.apk`.
 
-Đặc tả nghiệp vụ mục tiêu: [Thiết kế nghiệp vụ](docs/THIET_KE_NGHIEP_VU.md). Tài liệu đồng bộ phiên bản trước: [Đồng bộ chủ trọ/người thuê](docs/DONG_BO_CHU_TRO_NGUOI_THUE.md).
+Bổ sung dữ liệu minh họa cho Firestore hiện có (thanh toán, sự cố, ở ghép, tin nhắn và yêu cầu hỗ trợ):
 
-Chatbot hỏi đáp về đồ án và nhà trọ có trong mục **Trợ lý AI** và nút ✨ ở thanh trên, cho cả Chủ trọ và Người thuê. Cách chạy proxy đọc `lib/ai.env` và kết nối ứng dụng nằm tại [docs/AI_CHATBOT.md](docs/AI_CHATBOT.md).
+```sh
+python tool/update_demo_firestore.py
+python tool/update_demo_firestore.py --apply
+```
+
+Lệnh đầu chỉ tạo bản xem trước. Lệnh `--apply` sao lưu vào `.dart_tool/demo_data/`, chỉ cập nhật ba document `portfolio`, `conversations`, `admin`, giữ nguyên tài khoản và dữ liệu cũ. Ghi nguyên tử kèm điều kiện phiên bản; nếu dữ liệu bị thay đổi trong lúc chuẩn bị, Firestore từ chối toàn bộ lần ghi. Nên đóng app trước khi chạy để tránh ứng dụng đang mở lưu lại bản dữ liệu cũ. Không commit các bản sao lưu chứa dữ liệu cá nhân.
+
+Đặc tả nghiệp vụ mục tiêu: [Thiết kế nghiệp vụ](docs/THIET_KE_NGHIEP_VU.md). Tài liệu đồng bộ phiên bản trước: [Đồng bộ chủ trọ/người thuê](docs/DONG_BO_CHU_TRO_NGUOI_THUE.md).

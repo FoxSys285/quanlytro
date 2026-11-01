@@ -5,7 +5,6 @@ import '../../../shared/conversations/conversation_store.dart';
 import '../../../shared/rental/tenant_session.dart';
 import 'tenant_tinnhan.dart';
 
-
 /// Model đại diện cho một cuộc trò chuyện phía người thuê trọ
 /// Lớp này đóng vai trò adapter (cầu nối) đồng bộ tin nhắn 2 chiều với phía chủ trọ
 class TenantConversation {
@@ -109,7 +108,7 @@ class TenantConversation {
   // Danh sách cuộc trò chuyện mẫu lấy từ kho dữ liệu dùng chung (sử dụng LINQ map)
   static List<TenantConversation> get demoConversations => ConversationStore
       .instance
-      .forTenant(TenantSession.tenantId)
+      .forTenant(TenantSession.currentTenantId)
       .map(
         (source) => _adapters.putIfAbsent(
           source.id,
@@ -118,16 +117,11 @@ class TenantConversation {
       )
       .toList();
 
-
   // Hàm gửi tin nhắn mới
   void send(String text, String time) {
     if (source == null) {
       _messages.add(
-        TenantConversationMessage(
-          text: text,
-          time: time,
-          fromTenant: true,
-        ),
+        TenantConversationMessage(text: text, time: time, fromTenant: true),
       );
     } else {
       ConversationStore.instance.send(
@@ -135,7 +129,7 @@ class TenantConversation {
         text: text,
         time: time,
         fromLandlord: false,
-        tenantId: TenantSession.tenantId,
+        tenantId: TenantSession.currentTenantId,
       );
     }
   }
@@ -191,4 +185,3 @@ class _SharedMessages extends ListBase<TenantConversationMessage> {
 
 // Biệt danh tiếng Việt dễ nhớ
 typedef TenantCuocTroChuyen = TenantConversation;
-

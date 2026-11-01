@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
+import '../../shared/widgets/list_pagination.dart';
 
 class LandlordBillingPage extends StatefulWidget {
   const LandlordBillingPage({super.key});
@@ -14,6 +15,8 @@ class LandlordBillingPage extends StatefulWidget {
 class _LandlordBillingPageState extends State<LandlordBillingPage> {
   final _store = LandlordDemoStore.activeInstance;
   String _filter = 'Tất cả';
+  int _page = 0;
+  static const _pageSize = 10;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -43,6 +46,11 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
           .where((invoice) => invoice.status == LandlordInvoiceStatus.overdue)
           .fold<int>(0, (sum, invoice) => sum + invoice.remaining);
 
+      final page = _page.clamp(
+        0,
+        ListPagination.lastPage(invoices.length, _pageSize),
+      );
+      final visible = invoices.skip(page * _pageSize).take(_pageSize);
       return LandlordPageFrame(
         children: [
           LandlordPageTitle(
@@ -103,7 +111,10 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                     child: ChoiceChip(
                       label: Text('$label · ${_invoiceCount(label)}'),
                       selected: _filter == label,
-                      onSelected: (_) => setState(() => _filter = label),
+                      onSelected: (_) => setState(() {
+                        _filter = label;
+                        _page = 0;
+                      }),
                     ),
                   ),
               ],
@@ -114,7 +125,13 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
             const LandlordEmptyState(
               message: 'Chưa có hóa đơn trong trạng thái này.',
             ),
-          for (final invoice in invoices) _invoiceCard(invoice),
+          for (final invoice in visible) _invoiceCard(invoice),
+          ListPagination(
+            total: invoices.length,
+            page: page,
+            pageSize: _pageSize,
+            onChanged: (value) => setState(() => _page = value),
+          ),
           const SizedBox(height: 4),
           const Text(
             'Số tiền đã thu chỉ thay đổi khi chủ trọ xác nhận khoản thanh toán.',

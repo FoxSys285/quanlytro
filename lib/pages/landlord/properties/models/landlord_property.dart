@@ -8,6 +8,7 @@ class LandlordProperty {
     required this.ownerName,
     required this.phone,
     required this.description,
+    this.amenities = const [],
     this.imageUrl = '',
     this.imageBytes,
     this.imageName,
@@ -21,6 +22,7 @@ class LandlordProperty {
   final String ownerName;
   final String phone;
   final String description;
+  final List<String> amenities;
   final String imageUrl;
   final Uint8List? imageBytes;
   final String? imageName;
@@ -34,6 +36,7 @@ class LandlordProperty {
     'ownerName': ownerName,
     'phone': phone,
     'description': description,
+    'amenities': amenities,
     'imageUrl': imageUrl,
     'imageBytes': imageBytes?.toList(),
     'imageName': imageName,
@@ -49,6 +52,7 @@ class LandlordProperty {
         ownerName: map['ownerName'] as String,
         phone: map['phone'] as String,
         description: map['description'] as String,
+        amenities: List<String>.from(map['amenities'] as List? ?? const []),
         imageUrl: map['imageUrl'] as String,
         imageBytes: map['imageBytes'] == null
             ? null

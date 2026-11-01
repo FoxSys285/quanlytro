@@ -35,7 +35,7 @@ class AccountProfilePage extends StatelessWidget {
           ? const Color(0xFF16836F)
           : landlordBlue;
       final lease = role == AppRole.tenant
-          ? _store.rental.currentLeaseForTenant(TenantSession.tenantId)
+          ? _store.rental.currentLeaseForTenant(TenantSession.currentTenantId)
           : null;
       return LandlordPageFrame(
         children: [

@@ -73,6 +73,16 @@ class TenantRoomListing {
     });
   }
 
+  double get areaSquareMeters =>
+      double.tryParse(
+        RegExp(r'\d+(?:[.,]\d+)?')
+                .firstMatch(size)
+                ?.group(0)
+                ?.replaceAll(',', '.') ??
+            '',
+      ) ??
+      0;
+
   String get id => listingId ?? 'external-$name';
 
   String get propertyId {
@@ -341,6 +351,7 @@ class TenantRoomDemoData {
           variant: 0,
           rating: '—',
           tags: [
+            ...store.property.amenities,
             'Tầng ${details.room.floor}',
             'Giờ tự do',
             if (details.room.floor > 3) 'Tầng cao',

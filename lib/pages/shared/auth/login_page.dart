@@ -143,39 +143,41 @@ class _LoginPageState extends State<LoginPage> {
                               : const Text('Đăng nhập'),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Tài khoản mẫu trên thiết bị',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final role in AppRole.values)
-                            ActionChip(
-                              avatar: Icon(role.icon, size: 18),
-                              label: Text(role.label),
-                              onPressed: _busy
-                                  ? null
-                                  : () => setState(() {
-                                      _email.text = LocalAuth.emailFor(role);
-                                      _password.text = 'Tro@2026';
-                                      _error = null;
-                                    }),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Mật khẩu ban đầu: Tro@2026. Dữ liệu được lưu riêng trên thiết bị này.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blueGrey,
-                          height: 1.5,
+                      if (!LocalAuth.instance.isCloudMode) ...[
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Tài khoản mẫu trên thiết bị',
+                          style: TextStyle(fontWeight: FontWeight.w700),
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final role in AppRole.values)
+                              ActionChip(
+                                avatar: Icon(role.icon, size: 18),
+                                label: Text(role.label),
+                                onPressed: _busy
+                                    ? null
+                                    : () => setState(() {
+                                        _email.text = LocalAuth.emailFor(role);
+                                        _password.text = 'Tro@2026';
+                                        _error = null;
+                                      }),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Mật khẩu ban đầu: Tro@2026. Dữ liệu được lưu riêng trên thiết bị này.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blueGrey,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

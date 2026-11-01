@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../landlord_ui.dart';
 import '../models/landlord_room.dart';
+import '../../../shared/media/room_photo_gallery.dart';
+import '../../room_types/models/landlord_room_type.dart';
 
 class LandlordRoomButton extends StatelessWidget {
   const LandlordRoomButton({
@@ -22,26 +24,73 @@ class LandlordRoomButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.all(14),
+        padding: EdgeInsets.zero,
         foregroundColor: color,
-        backgroundColor: color.withValues(alpha: 0.06),
+        backgroundColor: Colors.white,
         side: BorderSide(color: color.withValues(alpha: 0.3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       child: Column(
         children: [
-          const Icon(Icons.meeting_room_outlined, size: 28),
-          const SizedBox(height: 8),
-          Text(
-            'Phòng ${details.room.code}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+            child: SizedBox(
+              height: 104,
+              width: double.infinity,
+              child: details.type?.photos.firstOrNull == null
+                  ? const RoomPhotoPlaceholder()
+                  : RoomPhotoImage(
+                      photo: details.type!.photos.first,
+                      label: 'Ảnh ${details.typeName}',
+                    ),
+            ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            details.status.label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Phòng ${details.room.code}',
+                  style: const TextStyle(
+                    color: landlordInk,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${details.room.area} m² · ${details.room.capacity} người',
+                  style: const TextStyle(color: landlordMuted, fontSize: 11),
+                ),
+                const SizedBox(height: 6),
+                if (details.monthlyRent != null)
+                  Text(
+                    formatRoomTypePrice(details.monthlyRent!),
+                    style: const TextStyle(
+                      color: landlordInk,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.circle, size: 7, color: color),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        details.status.label,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

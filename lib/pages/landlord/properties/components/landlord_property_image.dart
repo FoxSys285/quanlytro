@@ -28,8 +28,42 @@ class LandlordPropertyImage extends StatelessWidget {
               semanticLabel: semanticLabel,
               errorBuilder: (_, _, _) => _placeholder(failed: true),
             )
+          : url.startsWith('assets/')
+          ? Image.asset(
+              url,
+              fit: BoxFit.cover,
+              semanticLabel: semanticLabel,
+              errorBuilder: (_, _, _) => _placeholder(failed: true),
+            )
           : url.isEmpty
-          ? _placeholder()
+          ? Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'assets/images/room_types/interior.webp',
+                  fit: BoxFit.cover,
+                  semanticLabel: 'Nội thất phòng · ảnh minh họa',
+                  errorBuilder: (_, _, _) => _placeholder(),
+                ),
+                const Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.all(Radius.circular(6)),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Text(
+                        'Ảnh minh họa',
+                        style: TextStyle(color: Colors.white, fontSize: 10),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
           : Image.network(
               url,
               semanticLabel: semanticLabel,

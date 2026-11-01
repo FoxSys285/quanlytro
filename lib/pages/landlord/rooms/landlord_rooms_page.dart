@@ -9,6 +9,8 @@ import '../../shared/widgets/rental_section_banner.dart';
 import 'components/landlord_room_button.dart';
 import '../../shared/rental/room_image_gallery.dart';
 import '../finance/landlord_finance_models.dart';
+import '../../shared/widgets/list_pagination.dart';
+import '../../shared/widgets/google_maps_actions.dart';
 
 class LandlordRoomsPage extends StatefulWidget {
   const LandlordRoomsPage({super.key, this.store});
@@ -21,6 +23,9 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
   LandlordDemoStore get _store =>
       widget.store ?? LandlordDemoStore.activeInstance;
   String _query = '';
+  static const _pageSize = 12;
+  int _page = 0;
+  String? _propertyId;
   int? _floor;
   LandlordRoomStatus? _status;
 
@@ -116,6 +121,7 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   Text(_store.property.address),
+                  GoogleMapsActions(address: _store.property.address),
                   const SizedBox(height: 12),
                   Text(_store.property.description),
                   const SizedBox(height: 16),
@@ -182,6 +188,11 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _store,
     builder: (context, _) {
+      if (_propertyId != _store.property.id) {
+        _propertyId = _store.property.id;
+        _page = 0;
+        _floor = null;
+      }
       final all = _store.roomDetails;
       final floors = all.map((item) => item.room.floor).toSet().toList()
         ..sort();
@@ -195,6 +206,14 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
                 (_floor == null || item.room.floor == _floor) &&
                 (_status == null || item.status == _status),
           )
+          .toList();
+      final page = _page.clamp(
+        0,
+        ListPagination.lastPage(rooms.length, _pageSize),
+      );
+      final visibleRooms = rooms
+          .skip(page * _pageSize)
+          .take(_pageSize)
           .toList();
       return LandlordPageFrame(
         children: [
@@ -254,7 +273,10 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
           ),
           const SizedBox(height: 8),
           TextField(
-            onChanged: (value) => setState(() => _query = value),
+            onChanged: (value) => setState(() {
+              _query = value;
+              _page = 0;
+            }),
             decoration: const InputDecoration(
               hintText: 'Tìm mã phòng, loại phòng hoặc người thuê',
               prefixIcon: Icon(Icons.search),
@@ -286,7 +308,10 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
                 for (final floor in floors)
                   DropdownMenuItem(value: floor, child: Text('Tầng $floor')),
               ],
-              onChanged: (value) => setState(() => _floor = value),
+              onChanged: (value) => setState(() {
+                _floor = value;
+                _page = 0;
+              }),
             ),
           ),
           const SizedBox(height: 12),
@@ -297,14 +322,19 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
               ChoiceChip(
                 label: const Text('Tất cả'),
                 selected: _status == null,
-                onSelected: (_) => setState(() => _status = null),
+                onSelected: (_) => setState(() {
+                  _status = null;
+                  _page = 0;
+                }),
               ),
               for (final status in LandlordRoomStatus.values)
                 ChoiceChip(
                   label: Text(status.label),
                   selected: _status == status,
-                  onSelected: (value) =>
-                      setState(() => _status = value ? status : null),
+                  onSelected: (value) => setState(() {
+                    _status = value ? status : null;
+                    _page = 0;
+                  }),
                 ),
             ],
           ),
@@ -322,7 +352,7 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
               message: 'Không có phòng phù hợp với bộ lọc.',
             ),
           for (final floor in floors)
-            if (rooms.any((item) => item.room.floor == floor))
+            if (visibleRooms.any((item) => item.room.floor == floor))
               LandlordCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,7 +389,7 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
                           spacing: 12,
                           runSpacing: 12,
                           children: [
-                            for (final room in rooms.where(
+                            for (final room in visibleRooms.where(
                               (item) => item.room.floor == floor,
                             ))
                               SizedBox(
@@ -377,6 +407,12 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
                   ],
                 ),
               ),
+          ListPagination(
+            total: rooms.length,
+            page: page,
+            pageSize: _pageSize,
+            onChanged: (value) => setState(() => _page = value),
+          ),
         ],
       );
     },

@@ -480,6 +480,7 @@ class LandlordDemoStore extends ChangeNotifier {
       _leases.add(
         LandlordLease(
           id: leaseId,
+          propertyId: property.id,
           tenantId: knownTenantId ?? 'tenant-$leaseId',
           room: canonicalRoom(room),
           landlordName: landlordName.trim(),

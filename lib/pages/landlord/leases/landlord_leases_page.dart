@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
+import '../../shared/widgets/list_pagination.dart';
 
 class LandlordLeasesPage extends StatefulWidget {
   const LandlordLeasesPage({super.key});
@@ -14,6 +15,8 @@ class LandlordLeasesPage extends StatefulWidget {
 class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
   final _store = LandlordDemoStore.activeInstance;
   String _filter = 'Tất cả';
+  int _page = 0;
+  static const _pageSize = 10;
   String _search = '';
 
   @override
@@ -44,6 +47,11 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
           .where((lease) => lease.status == LandlordLeaseStatus.draft)
           .length;
 
+      final page = _page.clamp(
+        0,
+        ListPagination.lastPage(leases.length, _pageSize),
+      );
+      final visible = leases.skip(page * _pageSize).take(_pageSize);
       return LandlordPageFrame(
         children: [
           LandlordPageTitle(
@@ -109,7 +117,10 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                 borderSide: BorderSide(color: landlordBlue, width: 1.4),
               ),
             ),
-            onChanged: (value) => setState(() => _search = value.trim()),
+            onChanged: (value) => setState(() {
+              _search = value.trim();
+              _page = 0;
+            }),
           ),
           const SizedBox(height: 11),
           SingleChildScrollView(
@@ -130,7 +141,10 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                     child: ChoiceChip(
                       label: Text('$label · ${_countForFilter(label)}'),
                       selected: _filter == label,
-                      onSelected: (_) => setState(() => _filter = label),
+                      onSelected: (_) => setState(() {
+                        _filter = label;
+                        _page = 0;
+                      }),
                     ),
                   ),
                 ],
@@ -140,7 +154,13 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
           const SizedBox(height: 8),
           if (leases.isEmpty)
             const LandlordEmptyState(message: 'Không có hợp đồng phù hợp.'),
-          for (final lease in leases) _leaseCard(lease),
+          for (final lease in visible) _leaseCard(lease),
+          ListPagination(
+            total: leases.length,
+            page: page,
+            pageSize: _pageSize,
+            onChanged: (value) => setState(() => _page = value),
+          ),
           const SizedBox(height: 4),
           const Text(
             'Dữ liệu được lưu trên thiết bị và giữ lại khi mở ứng dụng.',

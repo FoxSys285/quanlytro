@@ -74,12 +74,6 @@ class LandlordLayout extends StatelessWidget {
         ],
         destinations: const [
           RoleDestination(
-            id: 'ai_chat',
-            label: 'Trợ lý AI',
-            icon: Icons.auto_awesome_outlined,
-            group: 'Hỗ trợ',
-          ),
-          RoleDestination(
             id: 'dashboard',
             label: 'Tổng quan',
             icon: Icons.dashboard_outlined,

@@ -10,7 +10,6 @@ class TenantMessageBubble extends StatelessWidget {
   // Đối tượng tin nhắn cần hiển thị
   final TenantConversationMessage message;
 
-
   @override
   Widget build(BuildContext context) {
     // Kiểm tra xem tin nhắn có phải do người thuê gửi hay không
@@ -68,19 +67,12 @@ class TenantMessageBubble extends StatelessWidget {
           children: [
             Text(
               message.text,
-              style: TextStyle(
-                color: mauChu,
-                fontSize: 12,
-                height: 1.4,
-              ),
+              style: TextStyle(color: mauChu, fontSize: 12, height: 1.4),
             ),
             const SizedBox(height: 3),
             Text(
               message.time,
-              style: TextStyle(
-                color: mauThoiGian,
-                fontSize: 9,
-              ),
+              style: TextStyle(color: mauThoiGian, fontSize: 9),
             ),
           ],
         ),
@@ -91,4 +83,3 @@ class TenantMessageBubble extends StatelessWidget {
 
 // Biệt danh tiếng Việt dễ nhớ
 typedef TenantBongBongTinNhan = TenantMessageBubble;
-
