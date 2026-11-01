@@ -4,7 +4,7 @@ import '../tenant_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
 import 'components/tenant_bongbongtinnhan.dart';
 import 'models/tenant_cuoctrochuyen.dart';
-
+import '../../landlord/landlord_demo_store.dart';
 
 // Tên Class chính bằng tiếng Việt
 class TenantTinNhanPage extends StatefulWidget {
@@ -19,6 +19,7 @@ class TenantTinNhanPage extends StatefulWidget {
 class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
   // Controller để điều khiển ô nhập tin nhắn
   final _controller = TextEditingController();
+  final _scroll = ScrollController();
 
   // Cuộc trò chuyện đang mở
   late final TenantConversation _cuocTroChuyen;
@@ -32,15 +33,17 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
     } else {
       _cuocTroChuyen = TenantConversation.demoConversations.first;
     }
-    _cuocTroChuyen.unread = 0;
+    if (_cuocTroChuyen.source == null) _cuocTroChuyen.unread = 0;
 
     // Lắng nghe thay đổi từ kho dữ liệu tin nhắn chung
     ConversationStore.instance.addListener(_capNhat);
+    _scrollToLatest();
   }
 
   void _capNhat() {
     if (mounted) {
       setState(() {});
+      _scrollToLatest();
     }
   }
 
@@ -48,7 +51,85 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
   void dispose() {
     ConversationStore.instance.removeListener(_capNhat);
     _controller.dispose();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  void _scrollToLatest() => WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!mounted) return;
+    if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+    final source = _cuocTroChuyen.source;
+    if (source != null && source.tenantUnread > 0) {
+      ConversationStore.instance.markRead(source, landlord: false);
+    }
+  });
+
+  void _showInfo() {
+    final source = _cuocTroChuyen.source;
+    final property = source == null
+        ? null
+        : RentalPortfolio.instance.byId(source.propertyId)?.property;
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Thông tin cuộc trò chuyện'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _cuocTroChuyen.landlordName,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            Text(_cuocTroChuyen.contextLabel),
+            if (property != null) ...[
+              const SizedBox(height: 12),
+              SelectableText(
+                '${property.name}\n${property.address}\n${property.phone}',
+              ),
+            ],
+            if (source?.leaseId != null) ...[
+              const SizedBox(height: 12),
+              SelectableText('Hợp đồng: ${source!.leaseId}'),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _quickMessage() async {
+    final text = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final text in [
+              'Chào chủ trọ, tôi muốn hỏi thêm về hợp đồng thuê phòng.',
+              'Tôi đã thanh toán, nhờ chủ trọ kiểm tra giúp.',
+              'Phòng đang có sự cố, nhờ chủ trọ hỗ trợ kiểm tra.',
+            ])
+              ListTile(
+                leading: const Icon(Icons.chat_bubble_outline),
+                title: Text(text),
+                onTap: () => Navigator.pop(context, text),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || text == null) return;
+    _controller.text = text;
+    _controller.selection = TextSelection.collapsed(offset: text.length);
   }
 
   // Hàm gửi tin nhắn
@@ -118,9 +199,7 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
         actions: [
           IconButton(
             tooltip: 'Thông tin cuộc trò chuyện',
-            onPressed: () {
-              showTenantPreviewNotice(context);
-            },
+            onPressed: _showInfo,
             icon: const Icon(Icons.info_outline_rounded, color: tenantGreen),
           ),
         ],
@@ -155,6 +234,7 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
           // Danh sách các tin nhắn trao đổi
           Expanded(
             child: ListView.builder(
+              controller: _scroll,
               padding: const EdgeInsets.fromLTRB(15, 18, 15, 14),
               itemCount: danhSachTinNhan.length + 1,
               itemBuilder: (context, index) {
@@ -189,9 +269,8 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   IconButton(
-                    onPressed: () {
-                      showTenantPreviewNotice(context);
-                    },
+                    tooltip: 'Tin nhắn gợi ý',
+                    onPressed: _quickMessage,
                     icon: const Icon(
                       Icons.add_circle_outline_rounded,
                       color: tenantMuted,

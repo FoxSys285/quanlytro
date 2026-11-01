@@ -14,7 +14,7 @@ class LandlordPaymentsPage extends StatefulWidget {
 }
 
 class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
-  final _store = LandlordDemoStore.instance;
+  final _store = LandlordDemoStore.activeInstance;
   String _filter = 'Chờ duyệt';
 
   @override
@@ -143,7 +143,7 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
           for (final payment in payments) _paymentCard(payment),
           const SizedBox(height: 4),
           const Text(
-            'Bản xem trước chưa kết nối ngân hàng. Thao tác xác nhận chỉ cập nhật dữ liệu mẫu.',
+            'Đối chiếu giao dịch ngân hàng thực tế trước khi xác nhận khoản thanh toán.',
             style: TextStyle(color: landlordMuted, fontSize: 11),
           ),
         ],

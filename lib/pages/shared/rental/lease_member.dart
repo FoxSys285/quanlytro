@@ -22,4 +22,28 @@ class LeaseMember {
   final bool isRepresentative;
   LeaseMemberStatus status;
   String? rejectionReason;
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'leaseId': leaseId,
+    'tenantId': tenantId,
+    'name': name,
+    'phone': phone,
+    'joinedAt': joinedAt.toIso8601String(),
+    'isRepresentative': isRepresentative,
+    'status': status.name,
+    'rejectionReason': rejectionReason,
+  };
+
+  factory LeaseMember.fromMap(Map<String, dynamic> map) => LeaseMember(
+    id: map['id'] as String,
+    leaseId: map['leaseId'] as String,
+    tenantId: map['tenantId'] as String,
+    name: map['name'] as String,
+    phone: map['phone'] as String,
+    joinedAt: DateTime.parse(map['joinedAt'] as String),
+    isRepresentative: map['isRepresentative'] as bool,
+    status: LeaseMemberStatus.values.byName(map['status'] as String),
+    rejectionReason: map['rejectionReason'] as String?,
+  );
 }

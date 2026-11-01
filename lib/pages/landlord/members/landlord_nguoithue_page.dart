@@ -19,7 +19,8 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
   // 1. DỮ KIỆN (Biến trạng thái đưa lên đầu)
   String _tuKhoaTimKiem = '';
 
-  LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
+  LandlordDemoStore get _store =>
+      widget.store ?? LandlordDemoStore.activeInstance;
 
   // 2. CÁC HÀM XỬ LÝ (Viết trước hàm build)
   // Hàm xử lý duyệt hoặc từ chối thành viên
@@ -44,10 +45,7 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
       } else {
         tenHanhDong = 'từ chối';
       }
-      showLandlordMessage(
-        context,
-        'Đã $tenHanhDong ${thanhVien.name}.',
-      );
+      showLandlordMessage(context, 'Đã $tenHanhDong ${thanhVien.name}.');
     } on ArgumentError catch (error) {
       showLandlordMessage(context, error.message.toString());
     }
@@ -79,7 +77,6 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
           final chuoiGop = '${thanhVien.name} $soPhong'.toLowerCase();
           return chuoiGop.contains(tuKhoa);
         }).toList();
-
 
         // Danh sách widget hiển thị trên màn hình
         final List<Widget> danhSachWidget = [
@@ -191,9 +188,7 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
               LandlordCard(
                 padding: EdgeInsets.zero,
                 child: ListTile(
-                  leading: CircleAvatar(
-                    child: Text(thanhVien.name[0]),
-                  ),
+                  leading: CircleAvatar(child: Text(thanhVien.name[0])),
                   title: Text(thanhVien.name),
                   subtitle: Text(
                     'Phòng $soPhong · ${thanhVien.phone}\nVào ở: ${landlordDate(thanhVien.joinedAt)}',
@@ -206,9 +201,7 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
           }
         }
 
-        return LandlordPageFrame(
-          children: danhSachWidget,
-        );
+        return LandlordPageFrame(children: danhSachWidget);
       },
     );
   }
@@ -266,4 +259,3 @@ class _HopThoaiTuChoiState extends State<_HopThoaiTuChoi> {
     );
   }
 }
-

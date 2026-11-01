@@ -19,7 +19,8 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
   // 1. DỮ KIỆN (Biến trạng thái đưa lên đầu)
   IncidentStatus? _boLocTrangThai;
 
-  LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
+  LandlordDemoStore get _store =>
+      widget.store ?? LandlordDemoStore.activeInstance;
   List<LandlordIncident> get _danhSachSuCo => _store.incidents;
 
   // 2. VÒNG ĐỜI VÀ LẮNG NGHE
@@ -71,21 +72,22 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
   // Hàm mở bảng chi tiết sự cố và cho phép chủ trọ chuyển đổi trạng thái
   void _moChiTietSuCo(LandlordIncident suCo) {
     // Tạo danh sách các chip chọn trạng thái bằng LINQ map
-    final danhSachNutChonTrangThai = IncidentStatus.values.map(
-      (trangThai) => ChoiceChip(
-        label: Text(trangThai.label),
-        selected: suCo.status == trangThai,
-        onSelected: (_) {
-          _store.updateIncident(suCo, trangThai);
-          Navigator.pop(context);
-          showLandlordMessage(
-            context,
-            'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
-          );
-        },
-      ),
-    ).toList();
-
+    final danhSachNutChonTrangThai = IncidentStatus.values
+        .map(
+          (trangThai) => ChoiceChip(
+            label: Text(trangThai.label),
+            selected: suCo.status == trangThai,
+            onSelected: (_) {
+              _store.updateIncident(suCo, trangThai);
+              Navigator.pop(context);
+              showLandlordMessage(
+                context,
+                'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
+              );
+            },
+          ),
+        )
+        .toList();
 
     showModalBottomSheet<void>(
       context: context,
@@ -111,10 +113,7 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: danhSachNutChonTrangThai,
-            ),
+            Wrap(spacing: 8, children: danhSachNutChonTrangThai),
           ],
         ),
       ),
@@ -129,7 +128,6 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
         ? _danhSachSuCo
         : _danhSachSuCo.where((s) => s.status == _boLocTrangThai).toList();
 
-
     // Danh sách widget hiển thị trên toàn trang
     final List<Widget> danhSachWidget = [
       const LandlordPageTitle(
@@ -139,9 +137,7 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
       // Thanh chip lọc trạng thái sự cố nằm ngang
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Row(
-          children: _taoDanhSachChipLoc(),
-        ),
+        child: Row(children: _taoDanhSachChipLoc()),
       ),
       const SizedBox(height: 12),
     ];
@@ -178,10 +174,7 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
                   ),
                 ),
               ),
-              LandlordStatusPill(
-                suCo.status.label,
-                color: suCo.status.color,
-              ),
+              LandlordStatusPill(suCo.status.label, color: suCo.status.color),
             ],
           ),
           const SizedBox(height: 4),
@@ -210,9 +203,6 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
       }
     }
 
-    return LandlordPageFrame(
-      children: danhSachWidget,
-    );
+    return LandlordPageFrame(children: danhSachWidget);
   }
 }
-

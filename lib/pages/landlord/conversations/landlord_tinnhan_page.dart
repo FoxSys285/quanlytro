@@ -17,17 +17,20 @@ class LandlordTinNhanPage extends StatefulWidget {
 class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
   // Controller để điều khiển ô nhập tin nhắn
   final _controller = TextEditingController();
+  final _scroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
     // Đăng ký lắng nghe tin nhắn mới từ kho lưu trữ chung
     ConversationStore.instance.addListener(_capNhat);
+    _scrollToLatest();
   }
 
   void _capNhat() {
     if (mounted) {
       setState(() {});
+      _scrollToLatest();
     }
   }
 
@@ -36,8 +39,17 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
     // Hủy đăng ký lắng nghe khi thoát màn hình để giải phóng RAM
     ConversationStore.instance.removeListener(_capNhat);
     _controller.dispose();
+    _scroll.dispose();
     super.dispose();
   }
+
+  void _scrollToLatest() => WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!mounted) return;
+    if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+    if (widget.conversation.unread > 0) {
+      ConversationStore.instance.markRead(widget.conversation, landlord: true);
+    }
+  });
 
   // Hàm gửi tin nhắn từ phía chủ trọ
   void _guiTinNhan() {
@@ -77,6 +89,7 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
           // Danh sách các tin nhắn cuộn lên xuống
           Expanded(
             child: ListView.builder(
+              controller: _scroll,
               padding: const EdgeInsets.all(14),
               itemCount: danhSachTinNhan.length,
               itemBuilder: (context, index) {
@@ -176,20 +189,11 @@ class _BongBongTinNhan extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              message.text,
-              style: TextStyle(
-                color: mauChu,
-                fontSize: 13,
-              ),
-            ),
+            Text(message.text, style: TextStyle(color: mauChu, fontSize: 13)),
             const SizedBox(height: 3),
             Text(
               message.time,
-              style: TextStyle(
-                color: mauThoiGian,
-                fontSize: 10,
-              ),
+              style: TextStyle(color: mauThoiGian, fontSize: 10),
             ),
           ],
         ),
@@ -197,4 +201,3 @@ class _BongBongTinNhan extends StatelessWidget {
     );
   }
 }
-

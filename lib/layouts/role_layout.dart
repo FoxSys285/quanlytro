@@ -80,6 +80,7 @@ class RoleLayoutShell extends StatefulWidget {
     this.onPreviewRoleSelected,
     this.onLogout,
     this.notificationsEnabled = true,
+    this.topBar,
   });
 
   final AppRole role;
@@ -95,6 +96,7 @@ class RoleLayoutShell extends StatefulWidget {
   final ValueChanged<AppRole>? onPreviewRoleSelected;
   final VoidCallback? onLogout;
   final bool notificationsEnabled;
+  final Widget? topBar;
 
   @override
   State<RoleLayoutShell> createState() => _RoleLayoutShellState();
@@ -345,7 +347,15 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           ),
         ],
       ),
-      body: SafeArea(top: false, child: page),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            ?widget.topBar,
+            Expanded(child: page),
+          ],
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         height: 70,
         backgroundColor: Colors.white,

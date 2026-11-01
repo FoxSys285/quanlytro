@@ -12,12 +12,14 @@ class TenantLayout extends StatelessWidget {
     this.contextLabel = 'Người thuê',
     this.onPreviewRoleSelected,
     this.pageBuilder,
+    this.onLogout,
   });
 
   final String? displayName;
   final String contextLabel;
   final ValueChanged<AppRole>? onPreviewRoleSelected;
   final RolePageBuilder? pageBuilder;
+  final VoidCallback? onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +38,7 @@ class TenantLayout extends StatelessWidget {
         initialDestinationId: 'discovery',
         showMoreTab: false,
         onPreviewRoleSelected: onPreviewRoleSelected,
+        onLogout: onLogout,
         tabs: const [
           RoleTab(
             label: 'Khám phá',

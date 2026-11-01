@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../layouts/role_layout.dart';
 import '../../landlord/landlord_ui.dart';
 import 'help_content.dart';
+import 'support_tickets_page.dart';
 
 class HelpPage extends StatefulWidget {
   const HelpPage({super.key, required this.role});
@@ -354,6 +355,22 @@ class _HelpPageState extends State<HelpPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const _SectionTitle('Cần hỗ trợ thêm?'),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: FilledButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => Scaffold(
+                        appBar: AppBar(title: const Text('Yêu cầu hỗ trợ')),
+                        body: SupportTicketsPage(role: widget.role),
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.support_agent_outlined),
+                  label: const Text('Yêu cầu và phản hồi hỗ trợ'),
+                ),
+              ),
               Text(
                 _isTenant
                     ? 'Với vấn đề về phòng, hóa đơn hoặc hợp đồng, hãy trao đổi với chủ trọ qua Tin nhắn. Với hư hỏng trong phòng, hãy gửi yêu cầu ở Báo sự cố.'

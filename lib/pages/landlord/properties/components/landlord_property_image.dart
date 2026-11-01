@@ -51,9 +51,9 @@ class LandlordPropertyImage extends StatelessWidget {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(
+        Icon(
           Icons.apartment_rounded,
-          size: 100,
+          size: height < 180 ? 48 : 100,
           color: Color(0xFF3769D6),
         ),
         const SizedBox(height: 12),
@@ -61,12 +61,13 @@ class LandlordPropertyImage extends StatelessWidget {
           failed ? 'Không tải được ảnh nhà trọ' : 'Ảnh minh họa nhà trọ',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'Thêm hoặc đổi ảnh trong phần chỉnh sửa.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12),
-        ),
+        if (height >= 180) const SizedBox(height: 6),
+        if (height >= 180)
+          const Text(
+            'Thêm hoặc đổi ảnh trong phần chỉnh sửa.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12),
+          ),
       ],
     ),
   );

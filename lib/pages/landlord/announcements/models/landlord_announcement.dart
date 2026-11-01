@@ -55,6 +55,33 @@ class LandlordAnnouncement {
     recipients: recipients,
     audienceLabel: audienceLabel,
   );
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'title': title,
+    'content': content,
+    'category': category.name,
+    'createdAt': createdAt.toIso8601String(),
+    'propertyId': propertyId,
+    'isRead': isRead,
+    'priority': priority.name,
+    'recipients': recipients,
+    'audienceLabel': audienceLabel,
+  };
+
+  factory LandlordAnnouncement.fromMap(Map<String, dynamic> map) =>
+      LandlordAnnouncement(
+        id: map['id'] as String,
+        title: map['title'] as String,
+        content: map['content'] as String,
+        category: AnnouncementCategory.values.byName(map['category'] as String),
+        createdAt: DateTime.parse(map['createdAt'] as String),
+        propertyId: map['propertyId'] as String?,
+        isRead: map['isRead'] as bool,
+        priority: AnnouncementPriority.values.byName(map['priority'] as String),
+        recipients: List<String>.from(map['recipients'] as List),
+        audienceLabel: map['audienceLabel'] as String?,
+      );
 }
 
 class AnnouncementProperty {

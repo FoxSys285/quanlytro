@@ -253,7 +253,7 @@ class _LandlordAnnouncementComposerState
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'Thông báo sẽ xuất hiện ở phía người thuê thuộc các phòng đã chọn trong phiên hiện tại.',
+                  'Thông báo được gửi đến người thuê thuộc các phòng đã chọn.',
                   style: TextStyle(color: Colors.blueGrey, fontSize: 12),
                 ),
               ],

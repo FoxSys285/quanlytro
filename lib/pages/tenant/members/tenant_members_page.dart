@@ -6,6 +6,7 @@ import '../../shared/rental/tenant_session.dart';
 import '../../shared/rental/lease_member.dart';
 import '../tenant_ui.dart';
 import 'components/tenant_room_member_card.dart';
+import 'components/tenant_member_request_dialog.dart';
 import 'models/tenant_room_member.dart';
 
 class TenantMembersPage extends StatelessWidget {
@@ -70,6 +71,20 @@ class TenantMembersPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 22),
+            if (lease.tenantId == tenantId) ...[
+              OutlinedButton.icon(
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => TenantMemberRequestDialog(
+                    store: data,
+                    tenantId: tenantId,
+                  ),
+                ),
+                icon: const Icon(Icons.person_add_alt_outlined),
+                label: const Text('Đề nghị thêm thành viên'),
+              ),
+              const SizedBox(height: 16),
+            ],
             const TenantSectionHeading('Danh sách thành viên'),
             for (final member in members)
               TenantRoomMemberCard(

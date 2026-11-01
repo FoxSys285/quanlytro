@@ -11,10 +11,28 @@ class AccountStore extends ChangeNotifier {
   AccountStore({required this.rental}) {
     rental.addListener(notifyListeners);
   }
-  static final instance = AccountStore(rental: LandlordDemoStore.instance);
+  static AccountStore instance = AccountStore(
+    rental: LandlordDemoStore.instance,
+  );
   final LandlordDemoStore rental;
   final _contacts = <AppRole, ContactDetails>{};
   final _notifications = <AppRole, bool>{};
+  Map<String, dynamic> toMap() => {
+    'contacts': _contacts.map((k, v) => MapEntry(k.name, v.toMap())),
+    'notifications': _notifications.map((k, v) => MapEntry(k.name, v)),
+  };
+  void restore(Map<String, dynamic> map) {
+    _contacts.clear();
+    _notifications.clear();
+    (map['contacts'] as Map).forEach(
+      (k, v) => _contacts[AppRole.values.byName(k as String)] =
+          ContactDetails.fromMap(Map<String, dynamic>.from(v as Map)),
+    );
+    (map['notifications'] as Map).forEach(
+      (k, v) => _notifications[AppRole.values.byName(k as String)] = v as bool,
+    );
+  }
+
   bool notificationsEnabled(AppRole role) => _notifications[role] ?? true;
   void setNotificationsEnabled(AppRole role, bool enabled) {
     _notifications[role] = enabled;
@@ -23,6 +41,14 @@ class AccountStore extends ChangeNotifier {
 
   ContactDetails profile(AppRole role) {
     final saved = _contacts[role];
+    if (role == AppRole.admin) {
+      return saved ??
+          const ContactDetails(
+            name: 'Quản trị viên',
+            phone: '0900000099',
+            email: 'admin@tro.local',
+          );
+    }
     if (role == AppRole.landlord) {
       final property = rental.property;
       return ContactDetails(
@@ -67,13 +93,14 @@ class AccountStore extends ChangeNotifier {
           ward: property.ward,
         ),
       );
-    } else {
+    } else if (role == AppRole.tenant) {
       rental.updateTenantContact(
         TenantSession.tenantId,
         name: contact.name,
         phone: contact.phone,
       );
     }
+    notifyListeners();
   }
 
   @override

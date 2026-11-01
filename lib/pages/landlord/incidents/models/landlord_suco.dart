@@ -87,9 +87,37 @@ class LandlordIncident {
 
   // Trạng thái xử lý hiện tại của sự cố
   IncidentStatus status;
+
+  Map<String, dynamic> toMap() => {
+    'title': title,
+    'id': id,
+    'leaseId': leaseId,
+    'reporterId': reporterId,
+    'room': room,
+    'reporter': reporter,
+    'category': category,
+    'description': description,
+    'date': date,
+    'urgent': urgent,
+    'status': status.name,
+  };
+
+  factory LandlordIncident.fromMap(Map<String, dynamic> map) =>
+      LandlordIncident(
+        title: map['title'] as String,
+        id: map['id'] as String,
+        leaseId: map['leaseId'] as String,
+        reporterId: map['reporterId'] as String,
+        room: map['room'] as String,
+        reporter: map['reporter'] as String,
+        category: map['category'] as String,
+        description: map['description'] as String,
+        date: map['date'] as String,
+        urgent: map['urgent'] as bool,
+        status: IncidentStatus.values.byName(map['status'] as String),
+      );
 }
 
 // Biệt danh tiếng Việt dễ nhớ
 typedef TrangThaiSuCo = IncidentStatus;
 typedef LandlordSuCo = LandlordIncident;
-

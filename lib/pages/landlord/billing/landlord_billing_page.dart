@@ -12,7 +12,7 @@ class LandlordBillingPage extends StatefulWidget {
 }
 
 class _LandlordBillingPageState extends State<LandlordBillingPage> {
-  final _store = LandlordDemoStore.instance;
+  final _store = LandlordDemoStore.activeInstance;
   String _filter = 'Tất cả';
 
   @override
@@ -552,7 +552,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
   }
 
   void _loadReading() {
-    final reading = LandlordDemoStore.instance.readingForRoom(
+    final reading = LandlordDemoStore.activeInstance.readingForRoom(
       _lease.room,
       _period,
     );

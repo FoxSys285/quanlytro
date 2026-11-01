@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'properties/models/landlord_property.dart';
 import 'room_types/models/landlord_room_type.dart';
+import '../shared/media/room_photo.dart';
 import 'rooms/models/landlord_room.dart';
 import 'finance/landlord_finance_models.dart';
 import '../shared/rental/lease_member.dart';
@@ -10,11 +11,20 @@ import 'incidents/models/landlord_suco.dart';
 import 'services/models/landlord_dichvu.dart';
 import 'meter_readings/models/landlord_chisodiennuoc.dart';
 
+part 'rental_portfolio.dart';
+
 /// Shared rental data for both roles in the preview session.
 /// The historical name is retained for existing landlord screens.
 class LandlordDemoStore extends ChangeNotifier {
   LandlordDemoStore.demo();
-  static final instance = LandlordDemoStore.demo();
+  void _changed() => notifyListeners();
+  static LandlordDemoStore instance = LandlordDemoStore.demo();
+  static LandlordDemoStore get activeInstance =>
+      RentalPortfolio.instance.active;
+  final _rooms = <LandlordRoom>[...roomCatalog];
+  List<LandlordRoom> get catalog => List.unmodifiable(_rooms);
+  Map<String, int> get roomFloors =>
+      Map.unmodifiable({for (final room in _rooms) room.code: room.floor});
 
   LandlordProperty _property = const LandlordProperty(
     id: 'may',
@@ -78,7 +88,7 @@ class LandlordDemoStore extends ChangeNotifier {
   });
 
   List<LandlordRoomDetails> get roomDetails => List.unmodifiable(
-    roomCatalog.map((room) {
+    _rooms.map((room) {
       LandlordRoomType? type;
       for (final item in _roomTypes) {
         if (item.id == room.roomTypeId) {
@@ -757,21 +767,29 @@ class LandlordDemoStore extends ChangeNotifier {
   }
 
   final _roomTypes = [
-    const LandlordRoomType(id: 'studio', name: 'Studio', monthlyRent: 3000000),
+    const LandlordRoomType(
+      id: 'studio',
+      name: 'Studio',
+      monthlyRent: 3000000,
+      photos: [RoomPhoto.studio],
+    ),
     const LandlordRoomType(
       id: 'balcony',
       name: 'Phòng có ban công',
       monthlyRent: 3500000,
+      photos: [RoomPhoto.balcony],
     ),
     const LandlordRoomType(
       id: 'loft',
       name: 'Phòng có gác',
       monthlyRent: 2800000,
+      photos: [RoomPhoto.loft],
     ),
     const LandlordRoomType(
       id: 'group',
       name: 'Phòng lớn cho 5 người',
       monthlyRent: 5000000,
+      photos: [RoomPhoto.group],
     ),
   ];
   int _nextType = 1;
@@ -791,18 +809,28 @@ class LandlordDemoStore extends ChangeNotifier {
         type.name.toLowerCase() == name.trim().toLowerCase(),
   );
 
-  void saveRoomType(String name, {required int monthlyRent, String? id}) {
+  void saveRoomType(
+    String name, {
+    required int monthlyRent,
+    String? id,
+    List<RoomPhoto>? photos,
+  }) {
     final trimmed = name.trim();
     if (trimmed.isEmpty || nameExists(trimmed, excludingId: id)) {
       throw ArgumentError('Tên loại phòng trống hoặc trùng.');
     }
     if (monthlyRent <= 0) throw ArgumentError('Giá thuê phải lớn hơn 0.');
+    if (photos != null &&
+        (photos.length > 12 || photos.any((photo) => !photo.hasSource))) {
+      throw ArgumentError('Chọn tối đa 12 ảnh hợp lệ cho mỗi loại phòng.');
+    }
     if (id == null) {
       _roomTypes.add(
         LandlordRoomType(
           id: 'custom-${_nextType++}',
           name: trimmed,
           monthlyRent: monthlyRent,
+          photos: List.unmodifiable(photos ?? const <RoomPhoto>[]),
         ),
       );
     } else {
@@ -812,19 +840,25 @@ class LandlordDemoStore extends ChangeNotifier {
         id: id,
         name: trimmed,
         monthlyRent: monthlyRent,
+        photos: List.unmodifiable(photos ?? _roomTypes[index].photos),
       );
     }
     notifyListeners();
   }
 
   void deleteRoomType(String id) {
+    if (_rooms.any((room) => room.roomTypeId == id)) {
+      throw ArgumentError(
+        'Loại phòng đang được sử dụng. Hãy chuyển các phòng sang loại khác trước khi xóa.',
+      );
+    }
     _roomTypes.removeWhere((type) => type.id == id);
     notifyListeners();
   }
 
   String canonicalRoom(String code) {
     final clean = code.trim().toUpperCase();
-    for (final room in roomCatalog) {
+    for (final room in _rooms) {
       if (room.code.toUpperCase() == clean ||
           room.leaseRoomCode?.toUpperCase() == clean) {
         return room.leaseRoomCode ?? room.code;
@@ -834,7 +868,7 @@ class LandlordDemoStore extends ChangeNotifier {
   }
 
   LandlordRoom? roomByCode(String code) {
-    for (final room in roomCatalog) {
+    for (final room in _rooms) {
       if (canonicalRoom(room.code) == canonicalRoom(code)) return room;
     }
     return null;
@@ -992,6 +1026,49 @@ class LandlordDemoStore extends ChangeNotifier {
             member.status == LeaseMemberStatus.active,
       )
       .toList();
+
+  void requestMember({
+    required String tenantId,
+    required String name,
+    required String phone,
+  }) {
+    final lease = currentLeaseForTenant(tenantId);
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (lease == null || lease.tenantId != tenantId) {
+      throw ArgumentError(
+        'Chỉ người đại diện phòng đang thuê được đề nghị thêm thành viên.',
+      );
+    }
+    if (name.trim().isEmpty || !RegExp(r'^\d{9,12}$').hasMatch(digits)) {
+      throw ArgumentError('Nhập tên và số điện thoại hợp lệ.');
+    }
+    final related = members.where(
+      (m) => m.leaseId == lease.id && m.status != LeaseMemberStatus.rejected,
+    );
+    if (related.any(
+      (m) => m.phone.replaceAll(RegExp(r'[^0-9]'), '') == digits,
+    )) {
+      throw ArgumentError(
+        'Thành viên này đã có trong phòng hoặc đang chờ duyệt.',
+      );
+    }
+    if (related.length >= (roomByCode(lease.room)?.capacity ?? 0)) {
+      throw ArgumentError('Phòng đã đủ người, bao gồm các yêu cầu chờ duyệt.');
+    }
+    final id = DateTime.now().microsecondsSinceEpoch;
+    _members.add(
+      LeaseMember(
+        id: 'member-$id',
+        leaseId: lease.id,
+        tenantId: 'member-tenant-$id',
+        name: name.trim(),
+        phone: digits,
+        joinedAt: DateTime.now(),
+        status: LeaseMemberStatus.pending,
+      ),
+    );
+    notifyListeners();
+  }
 
   void reviewMember(
     LeaseMember member, {

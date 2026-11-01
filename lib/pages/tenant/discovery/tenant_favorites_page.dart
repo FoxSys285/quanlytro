@@ -1,3 +1,5 @@
+import '../../../data/admin_store.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../landlord/landlord_demo_store.dart';
@@ -26,7 +28,8 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
   @override
   void initState() {
     super.initState();
-    LandlordDemoStore.instance.addListener(_refreshListings);
+    RentalPortfolio.instance.addListener(_refreshListings);
+    AdminStore.instance.addListener(_refreshListings);
   }
 
   void _refreshListings() {
@@ -45,7 +48,8 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
 
   @override
   void dispose() {
-    LandlordDemoStore.instance.removeListener(_refreshListings);
+    RentalPortfolio.instance.removeListener(_refreshListings);
+    AdminStore.instance.removeListener(_refreshListings);
     super.dispose();
   }
 

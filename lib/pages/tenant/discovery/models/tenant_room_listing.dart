@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 
+import '../../../../data/admin_store.dart';
+
 import '../../../landlord/landlord_demo_store.dart';
 import '../../../landlord/rooms/models/landlord_room.dart';
+import '../../../shared/media/room_photo.dart';
 
 class TenantRoomListing {
   const TenantRoomListing({
@@ -27,6 +30,7 @@ class TenantRoomListing {
     this.description = '',
     this.imageBytes,
     this.imageUrl = '',
+    this.photos = const [],
   });
 
   final String name;
@@ -51,6 +55,21 @@ class TenantRoomListing {
   final String description;
   final Uint8List? imageBytes;
   final String imageUrl;
+  final List<RoomPhoto> photos;
+  List<RoomPhoto> get gallery {
+    if (photos.isNotEmpty) return photos;
+    if (imageBytes != null || imageUrl.isNotEmpty) {
+      return [RoomPhoto(name: name, bytes: imageBytes, url: imageUrl)];
+    }
+    if (roomCode != null) return const [];
+    return RoomPhoto.demoForType(switch (roomType) {
+      'Studio' => 'studio',
+      'Phòng có gác' => 'loft',
+      'Căn hộ mini' => 'group',
+      _ => 'balcony',
+    });
+  }
+
   String get id => listingId ?? 'external-$name';
 
   String get propertyId {
@@ -286,7 +305,10 @@ class TenantRoomDemoData {
     );
   });
 
-  static List<TenantRoomListing> forStore(LandlordDemoStore store) => [
+  static List<TenantRoomListing> forStore(
+    LandlordDemoStore store, {
+    bool includeExternal = true,
+  }) => [
     for (final details in store.roomDetails)
       if (details.status == LandlordRoomStatus.vacant && details.type != null)
         TenantRoomListing(
@@ -300,10 +322,9 @@ class TenantRoomDemoData {
           size: '${details.room.area} m²',
           capacity: details.room.capacity,
           description: store.property.description,
-          imageBytes: store.property.imageBytes,
-          imageUrl: store.property.imageUrl,
-          distance: '1,2 km',
-          distanceMeters: 1200,
+          photos: details.type!.photos,
+          distance: '',
+          distanceMeters: 0,
           roomType: details.typeName,
           city: store.property.city,
           ward: store.property.ward,
@@ -314,12 +335,23 @@ class TenantRoomDemoData {
           waterPrice: store.serviceById('water')?.price ?? 0,
           variant: 0,
           rating: '—',
-          tags: const [],
+          tags: [
+            'Tầng ${details.room.floor}',
+            'Giờ tự do',
+            if (details.room.floor > 3) 'Tầng cao',
+          ],
         ),
-    ...listings.where((room) => room.propertyId != store.property.id),
-    ..._moreListings,
+    if (includeExternal)
+      ...listings.where((room) => room.propertyId != store.property.id),
+    if (includeExternal) ..._moreListings,
   ];
 
   static List<TenantRoomListing> get allListings =>
-      forStore(LandlordDemoStore.instance);
+      RentalPortfolio.instance.stores.length > 1
+      ? [
+          for (final store in RentalPortfolio.instance.stores)
+            if (!AdminStore.instance.isHidden(store.property.id))
+              ...forStore(store, includeExternal: false),
+        ]
+      : forStore(LandlordDemoStore.instance);
 }

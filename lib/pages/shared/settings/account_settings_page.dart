@@ -4,6 +4,8 @@ import '../../../layouts/role_layout.dart';
 import '../../landlord/landlord_ui.dart';
 import '../notifications/notification_settings_page.dart';
 import '../profile/account_profile_page.dart';
+import '../auth/change_password_page.dart';
+import '../../../data/local_auth.dart';
 
 class AccountSettingsPage extends StatelessWidget {
   const AccountSettingsPage({super.key, required this.role});
@@ -36,6 +38,22 @@ class AccountSettingsPage extends StatelessWidget {
           padding: EdgeInsets.zero,
           child: Column(
             children: [
+              if (LocalAuth.instance.role != null) ...[
+                ListTile(
+                  leading: Icon(Icons.lock_outline, color: color),
+                  title: const Text('Đổi mật khẩu'),
+                  subtitle: const Text(
+                    'Cập nhật mật khẩu đăng nhập trên thiết bị',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _open(
+                    context,
+                    'Đổi mật khẩu',
+                    const ChangePasswordPage(),
+                  ),
+                ),
+                const Divider(height: 1),
+              ],
               ListTile(
                 leading: Icon(Icons.person_outline_rounded, color: color),
                 title: const Text('Hồ sơ cá nhân'),

@@ -6,6 +6,7 @@ import '../../landlord/landlord_demo_store.dart';
 import '../../landlord/incidents/models/landlord_suco.dart';
 import '../viewings/models/room_viewing.dart';
 import '../viewings/viewing_store.dart';
+import '../rental/tenant_session.dart';
 
 /// Delivery snapshots and read state survive navigation and role switching.
 class AnnouncementStore extends ChangeNotifier {
@@ -16,7 +17,24 @@ class AnnouncementStore extends ChangeNotifier {
     this.viewings.addListener(_refresh);
     _seed();
   }
-  static final instance = AnnouncementStore();
+  static AnnouncementStore instance = AnnouncementStore();
+  static final _propertyStores = <String, AnnouncementStore>{};
+  static void reset() {
+    instance.dispose();
+    for (final store in _propertyStores.values) {
+      store.dispose();
+    }
+    _propertyStores.clear();
+    instance = AnnouncementStore();
+  }
+
+  static AnnouncementStore forRental(LandlordDemoStore rental) =>
+      rental == LandlordDemoStore.instance
+      ? instance
+      : _propertyStores.putIfAbsent(
+          rental.property.id,
+          () => AnnouncementStore(rental: rental),
+        );
   final LandlordDemoStore rental;
   final ViewingStore viewings;
   final _sent = <LandlordAnnouncement>[];
@@ -24,6 +42,37 @@ class AnnouncementStore extends ChangeNotifier {
   final _readByTenant = <String, Set<String>>{};
   final _landlordRead = <String>{};
   int _nextId = 1;
+  Map<String, dynamic> toMap() => {
+    'sent': _sent.map((r) => r.toMap()).toList(),
+    'recipients': _recipients.map((k, v) => MapEntry(k, v.toList())),
+    'readByTenant': _readByTenant.map((k, v) => MapEntry(k, v.toList())),
+    'landlordRead': _landlordRead.toList(),
+    'nextId': _nextId,
+  };
+  void restore(Map<String, dynamic> map) {
+    _sent
+      ..clear()
+      ..addAll(
+        (map['sent'] as List).map(
+          (r) =>
+              LandlordAnnouncement.fromMap(Map<String, dynamic>.from(r as Map)),
+        ),
+      );
+    void restoreSets(String key, Map<String, Set<String>> target) {
+      target.clear();
+      (map[key] as Map).forEach(
+        (k, v) => target[k as String] = Set<String>.from(v as List),
+      );
+    }
+
+    restoreSets('recipients', _recipients);
+    restoreSets('readByTenant', _readByTenant);
+    _landlordRead
+      ..clear()
+      ..addAll(List<String>.from(map['landlordRead'] as List));
+    _nextId = map['nextId'] as int;
+  }
+
   void _refresh() => notifyListeners();
   @override
   void dispose() {
@@ -33,7 +82,11 @@ class AnnouncementStore extends ChangeNotifier {
   }
 
   void _seed() {
-    final rooms = LandlordDemoStore.rooms.keys.toList();
+    if (rental.activeLeases.isEmpty) return;
+    final rooms = rental.roomFloors.keys.toList();
+    final target =
+        rental.currentLeaseForTenant(TenantSession.tenantId)?.room ??
+        rental.activeLeases.first.room;
     for (final seed in [
       (
         'power',
@@ -46,14 +99,14 @@ class AnnouncementStore extends ChangeNotifier {
         'rent',
         'Nhắc thanh toán tiền phòng tháng 10',
         'Vui lòng kiểm tra các khoản trong mục Hóa đơn và thanh toán theo hạn trên hóa đơn. Khi chuyển khoản, ghi rõ mã hóa đơn.',
-        <String>['A.302'],
+        <String>[target],
         AnnouncementPriority.normal,
       ),
       (
         'meters',
         'Kiểm tra chỉ số điện nước tháng này',
         'Chủ trọ sẽ kiểm tra chỉ số điện nước lúc 18:00 ngày 07/10/2026. Vui lòng sắp xếp một người có mặt tại phòng.',
-        <String>['A.302'],
+        <String>[target],
         AnnouncementPriority.normal,
       ),
       (
@@ -77,7 +130,7 @@ class AnnouncementStore extends ChangeNotifier {
           createdAt: DateTime(2026, 10, 5 - _sent.length, 8, 30),
           recipients: seed.$4,
           audienceLabel: seed.$4.length == 1
-              ? 'Phòng A.302'
+              ? 'Phòng ${seed.$4.single}'
               : 'Tất cả các phòng',
         ),
       );

@@ -15,6 +15,18 @@ class LandlordMessage {
 
   // Đánh dấu người gửi: true là chủ trọ gửi, false là khách thuê gửi
   final bool fromLandlord;
+
+  Map<String, dynamic> toMap() => {
+    'text': text,
+    'time': time,
+    'fromLandlord': fromLandlord,
+  };
+
+  factory LandlordMessage.fromMap(Map<String, dynamic> map) => LandlordMessage(
+    text: map['text'] as String,
+    time: map['time'] as String,
+    fromLandlord: map['fromLandlord'] as bool,
+  );
 }
 
 /// Model đại diện cho cuộc trò chuyện giữa chủ trọ và khách thuê
@@ -69,9 +81,43 @@ class LandlordConversation {
 
   // Lấy tin nhắn mới nhất trong cuộc trò chuyện
   LandlordMessage get lastMessage => messages.last;
+
+  Map<String, dynamic> toMap() => {
+    'tenantName': tenantName,
+    'room': room,
+    'id': id,
+    'propertyId': propertyId,
+    'tenantId': tenantId,
+    'landlordName': landlordName,
+    'propertyName': propertyName,
+    'leaseId': leaseId,
+    'messages': messages.map((item) => item.toMap()).toList(),
+    'unread': unread,
+    'tenantUnread': tenantUnread,
+  };
+
+  factory LandlordConversation.fromMap(Map<String, dynamic> map) =>
+      LandlordConversation(
+        tenantName: map['tenantName'] as String,
+        room: map['room'] as String,
+        id: map['id'] as String,
+        propertyId: map['propertyId'] as String,
+        tenantId: map['tenantId'] as String,
+        landlordName: map['landlordName'] as String,
+        propertyName: map['propertyName'] as String,
+        leaseId: map['leaseId'] as String?,
+        messages: (map['messages'] as List)
+            .map(
+              (item) => LandlordMessage.fromMap(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList(),
+        unread: map['unread'] as int,
+        tenantUnread: map['tenantUnread'] as int,
+      );
 }
 
 // Biệt danh tiếng Việt dễ nhớ
 typedef LandlordTinNhanModel = LandlordMessage;
 typedef LandlordCuocTroChuyen = LandlordConversation;
-

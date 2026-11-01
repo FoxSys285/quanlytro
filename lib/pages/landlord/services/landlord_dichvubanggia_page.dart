@@ -15,7 +15,7 @@ class LandlordDichVuBangGiaPage extends StatefulWidget {
 
 class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
   // 1. DỮ KIỆN (Kho lưu trữ và biến trạng thái đưa lên đầu)
-  final _store = LandlordDemoStore.instance;
+  final _store = LandlordDemoStore.activeInstance;
 
   static const _danhSachCachTinh = [
     'Theo chỉ số',
@@ -29,9 +29,24 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
   static const _mauDichVu = [
     {'name': 'Điện', 'unit': 'kWh', 'price': '4000', 'basis': 'Theo chỉ số'},
     {'name': 'Nước', 'unit': 'm³', 'price': '15000', 'basis': 'Theo chỉ số'},
-    {'name': 'Internet', 'unit': 'phòng', 'price': '100000', 'basis': 'Theo phòng'},
-    {'name': 'Gửi xe máy', 'unit': 'cái', 'price': '80000', 'basis': 'Theo cái / xe'},
-    {'name': 'Vệ sinh', 'unit': 'người', 'price': '20000', 'basis': 'Theo người'},
+    {
+      'name': 'Internet',
+      'unit': 'phòng',
+      'price': '100000',
+      'basis': 'Theo phòng',
+    },
+    {
+      'name': 'Gửi xe máy',
+      'unit': 'cái',
+      'price': '80000',
+      'basis': 'Theo cái / xe',
+    },
+    {
+      'name': 'Vệ sinh',
+      'unit': 'người',
+      'price': '20000',
+      'basis': 'Theo người',
+    },
   ];
 
   List<LandlordService> get _danhSachDichVu => _store.services;
@@ -276,10 +291,7 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
               children: [
                 CircleAvatar(
                   backgroundColor: landlordBlue.withValues(alpha: 0.1),
-                  child: Icon(
-                    _layIconDichVu(dichVu.name),
-                    color: landlordBlue,
-                  ),
+                  child: Icon(_layIconDichVu(dichVu.name), color: landlordBlue),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -318,8 +330,6 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
       }
     }
 
-    return LandlordPageFrame(
-      children: danhSachWidget,
-    );
+    return LandlordPageFrame(children: danhSachWidget);
   }
 }

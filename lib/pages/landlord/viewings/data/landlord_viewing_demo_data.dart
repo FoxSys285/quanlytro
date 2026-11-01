@@ -4,7 +4,7 @@ import '../models/landlord_viewing.dart';
 
 class LandlordViewingDemoData {
   static List<LandlordViewing> create({DateTime? referenceDate}) {
-    final property = LandlordDemoStore.instance.property;
+    final property = LandlordDemoStore.activeInstance.property;
     final store = ViewingStore.demo(
       referenceDate: referenceDate,
       propertyName: property.name,

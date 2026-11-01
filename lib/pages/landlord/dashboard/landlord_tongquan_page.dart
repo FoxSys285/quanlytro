@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
 
-
 import '../landlord_demo_store.dart';
 import '../finance/landlord_finance_models.dart';
 import '../incidents/models/landlord_suco.dart';
@@ -169,11 +168,15 @@ class LandlordTongQuanPage extends StatelessWidget {
   // Hàm build đặt ở cuối lớp, chạy liền mạch một đường từ trên xuống dưới
   @override
   Widget build(BuildContext context) {
-    final khoDuLieu = LandlordDemoStore.instance;
+    final khoDuLieu = LandlordDemoStore.activeInstance;
     final khoTroChuyen = ConversationStore.instance;
 
     return ListenableBuilder(
-      listenable: Listenable.merge([khoDuLieu, khoTroChuyen]),
+      listenable: Listenable.merge([
+        khoDuLieu,
+        khoTroChuyen,
+        ViewingStore.instance,
+      ]),
       builder: (context, _) {
         // 1. Thống kê số phòng trống và phòng đang thuê bằng LINQ
         final danhSachPhong = khoDuLieu.roomDetails;
@@ -209,7 +212,6 @@ class LandlordTongQuanPage extends StatelessWidget {
             .map((h) => h.unread)
             .sum;
 
-
         // 4. Lấy danh sách sự cố mới cần xử lý bằng LINQ
         final danhSachSuCoMoi = khoDuLieu.incidents
             .where((suCo) => suCo.status == IncidentStatus.newly)
@@ -240,18 +242,19 @@ class LandlordTongQuanPage extends StatelessWidget {
         final soLichXemPhong = khoXemPhong.records
             .where(
               (lich) =>
-                  lich.status == ViewingStatus.pending ||
-                  lich.status == ViewingStatus.confirmed,
+                  lich.propertyId == khoDuLieu.property.id &&
+                  (lich.status == ViewingStatus.pending ||
+                      lich.status == ViewingStatus.confirmed),
             )
             .length;
 
         // 9. Đếm số hợp đồng sắp hết hạn trong vòng 30 ngày bằng LINQ
         final soHopDongSapHetHan = khoDuLieu.activeLeases.where((hopDong) {
-          final soNgayConLai =
-              hopDong.endDate.difference(thoiGianHienTai).inDays;
+          final soNgayConLai = hopDong.endDate
+              .difference(thoiGianHienTai)
+              .inDays;
           return soNgayConLai >= 0 && soNgayConLai <= 30;
         }).length;
-
 
         // 10. Tính tỉ lệ phần trăm thu tiền bằng if-else (tránh chia cho 0)
         double tyLeTienDo = 0.0;
@@ -319,10 +322,7 @@ class LandlordTongQuanPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                LinearProgressIndicator(
-                  value: tyLeTienDo,
-                  color: landlordBlue,
-                ),
+                LinearProgressIndicator(value: tyLeTienDo, color: landlordBlue),
                 const SizedBox(height: 6),
                 Text(
                   'Đã thu $phanTramDaThu% · còn $soKhoanChoDuyet thanh toán chờ duyệt',
@@ -548,9 +548,7 @@ class LandlordTongQuanPage extends StatelessWidget {
           ),
         );
 
-        return LandlordPageFrame(
-          children: danhSachWidget,
-        );
+        return LandlordPageFrame(children: danhSachWidget);
       },
     );
   }

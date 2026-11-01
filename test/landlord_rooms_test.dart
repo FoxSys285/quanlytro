@@ -37,8 +37,8 @@ void main() {
     expect(room('A.302').monthlyRent, 3500000);
     store.endLease(room('101').lease!);
     expect(room('101').status, LandlordRoomStatus.vacant);
-    store.deleteRoomType('balcony');
-    expect(room('102').monthlyRent, isNull);
+    expect(() => store.deleteRoomType('balcony'), throwsArgumentError);
+    expect(room('102').monthlyRent, 4200000);
     expect(room('A.302').monthlyRent, 3500000);
   });
 

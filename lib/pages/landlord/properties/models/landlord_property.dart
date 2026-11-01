@@ -26,4 +26,35 @@ class LandlordProperty {
   final String? imageName;
   final String city;
   final String ward;
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'address': address,
+    'ownerName': ownerName,
+    'phone': phone,
+    'description': description,
+    'imageUrl': imageUrl,
+    'imageBytes': imageBytes?.toList(),
+    'imageName': imageName,
+    'city': city,
+    'ward': ward,
+  };
+
+  factory LandlordProperty.fromMap(Map<String, dynamic> map) =>
+      LandlordProperty(
+        id: map['id'] as String,
+        name: map['name'] as String,
+        address: map['address'] as String,
+        ownerName: map['ownerName'] as String,
+        phone: map['phone'] as String,
+        description: map['description'] as String,
+        imageUrl: map['imageUrl'] as String,
+        imageBytes: map['imageBytes'] == null
+            ? null
+            : Uint8List.fromList(List<int>.from(map['imageBytes'] as List)),
+        imageName: map['imageName'] as String?,
+        city: map['city'] as String,
+        ward: map['ward'] as String,
+      );
 }

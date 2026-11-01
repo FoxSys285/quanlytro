@@ -27,8 +27,25 @@ class LandlordService {
 
   // Trạng thái kích hoạt (true: đang áp dụng, false: tạm dừng)
   bool active;
+
+  Map<String, dynamic> toMap() => {
+    'name': name,
+    'id': id,
+    'unit': unit,
+    'basis': basis,
+    'price': price,
+    'active': active,
+  };
+
+  factory LandlordService.fromMap(Map<String, dynamic> map) => LandlordService(
+    name: map['name'] as String,
+    id: map['id'] as String,
+    unit: map['unit'] as String,
+    basis: map['basis'] as String,
+    price: map['price'] as int,
+    active: map['active'] as bool,
+  );
 }
 
 // Biệt danh tiếng Việt dễ nhớ
 typedef LandlordDichVu = LandlordService;
-

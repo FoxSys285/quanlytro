@@ -12,10 +12,15 @@ class ConversationStore extends ChangeNotifier {
   }) : _records = List.of(records),
        rental = rental ?? LandlordDemoStore.instance {
     this.rental.addListener(_syncRental);
+    if (identical(this.rental, LandlordDemoStore.instance)) {
+      _portfolio = RentalPortfolio.instance;
+      _portfolio!.addListener(_syncRental);
+    }
     _syncRental();
   }
   final LandlordDemoStore rental;
-  static final instance = ConversationStore.demo();
+  RentalPortfolio? _portfolio;
+  static ConversationStore instance = ConversationStore.demo();
   factory ConversationStore.demo() => ConversationStore(
     records: [
       LandlordConversation(
@@ -124,14 +129,32 @@ class ConversationStore extends ChangeNotifier {
     ],
   );
   final List<LandlordConversation> _records;
+  Map<String, dynamic> toMap() => {
+    'records': _records.map((r) => r.toMap()).toList(),
+  };
+  void restore(Map<String, dynamic> map) {
+    _records
+      ..clear()
+      ..addAll(
+        (map['records'] as List).map(
+          (r) =>
+              LandlordConversation.fromMap(Map<String, dynamic>.from(r as Map)),
+        ),
+      );
+    _syncRental();
+  }
+
   void _syncRental() {
     for (final conversation in _records) {
-      if (conversation.propertyId != rental.property.id) continue;
-      conversation.landlordName = rental.property.ownerName;
-      conversation.propertyName = rental.property.name;
+      final target = conversation.propertyId == rental.property.id
+          ? rental
+          : RentalPortfolio.instance.byId(conversation.propertyId);
+      if (target == null) continue;
+      conversation.landlordName = target.property.ownerName;
+      conversation.propertyName = target.property.name;
       final lease = conversation.leaseId == null
           ? null
-          : rental.leaseById(conversation.leaseId!);
+          : target.leaseById(conversation.leaseId!);
       if (lease != null) {
         conversation.tenantName = lease.tenantName;
         conversation.room = lease.room;
@@ -143,6 +166,7 @@ class ConversationStore extends ChangeNotifier {
   @override
   void dispose() {
     rental.removeListener(_syncRental);
+    _portfolio?.removeListener(_syncRental);
     super.dispose();
   }
 
@@ -156,7 +180,7 @@ class ConversationStore extends ChangeNotifier {
       if (item.id == conversation.id) return item;
     }
     _records.insert(0, conversation);
-    notifyListeners();
+    _syncRental();
     return conversation;
   }
 

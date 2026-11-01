@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
 import 'components/landlord_room_card.dart';
+import 'components/landlord_room_editor.dart';
 import 'models/landlord_room.dart';
+import '../../shared/widgets/rental_section_banner.dart';
 
 class LandlordRoomsPage extends StatefulWidget {
   const LandlordRoomsPage({super.key, this.store});
@@ -13,10 +15,43 @@ class LandlordRoomsPage extends StatefulWidget {
 }
 
 class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
-  LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
+  LandlordDemoStore get _store =>
+      widget.store ?? LandlordDemoStore.activeInstance;
   String _query = '';
   int? _floor;
   LandlordRoomStatus? _status;
+  int _visibleCount = 24;
+
+  Future<void> _edit([LandlordRoom? room]) => showDialog<void>(
+    context: context,
+    builder: (_) => LandlordRoomEditor(store: _store, room: room),
+  );
+
+  Future<void> _delete(LandlordRoom room) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Xóa phòng ${room.code}?'),
+        content: const Text('Chỉ có thể xóa phòng chưa có lịch sử hợp đồng.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa phòng'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    try {
+      _store.deleteRoom(room.code);
+    } on ArgumentError catch (e) {
+      showLandlordMessage(context, e.message.toString());
+    }
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -38,10 +73,21 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
           .toList();
       return LandlordPageFrame(
         children: [
-          LandlordPageTitle(
+          RentalSectionBanner(
+            eyebrow: 'QUẢN LÝ KHÔNG GIAN',
             title: 'Danh sách phòng trọ',
             subtitle: '${_store.property.name} · ${_store.property.address}',
+            action: FilledButton.icon(
+              onPressed: () => _edit(),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF244C87),
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text('Thêm phòng trọ'),
+            ),
           ),
+          const SizedBox(height: 18),
           LandlordCard(
             child: Wrap(
               spacing: 20,
@@ -89,7 +135,14 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
               prefixIcon: Icon(Icons.search),
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+                borderSide: BorderSide(color: landlordLine),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+                borderSide: BorderSide(color: landlordLine),
+              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -143,8 +196,43 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
             const LandlordEmptyState(
               message: 'Không có phòng phù hợp với bộ lọc.',
             ),
-          for (final room in rooms)
-            LandlordRoomCard(key: ValueKey(room.room.code), details: room),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 680 ? 2 : 1;
+              final width =
+                  (constraints.maxWidth - (columns - 1) * 16) / columns;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: [
+                  for (final room in rooms.take(_visibleCount))
+                    SizedBox(
+                      width: width,
+                      child: LandlordRoomCard(
+                        key: ValueKey(room.room.code),
+                        details: room,
+                        onEdit: () => _edit(room.room),
+                        onDelete:
+                            _store.leases.any(
+                              (l) =>
+                                  _store.canonicalRoom(l.room) ==
+                                  _store.canonicalRoom(room.room.code),
+                            )
+                            ? null
+                            : () => _delete(room.room),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          if (rooms.length > _visibleCount)
+            Center(
+              child: OutlinedButton(
+                onPressed: () => setState(() => _visibleCount += 24),
+                child: Text('Xem thêm ${rooms.length - _visibleCount} phòng'),
+              ),
+            ),
         ],
       );
     },

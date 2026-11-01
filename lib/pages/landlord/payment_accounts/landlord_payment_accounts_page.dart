@@ -7,7 +7,7 @@ import '../landlord_ui.dart';
 class LandlordPaymentAccountsPage extends StatelessWidget {
   const LandlordPaymentAccountsPage({super.key});
 
-  static final _store = LandlordDemoStore.instance;
+  LandlordDemoStore get _store => LandlordDemoStore.activeInstance;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -272,7 +272,7 @@ class _PaymentAccountEditorState extends State<_PaymentAccountEditor> {
   );
   late bool _makeDefault =
       widget.account?.isDefault ??
-      (LandlordDemoStore.instance.defaultPaymentAccount == null);
+      (LandlordDemoStore.activeInstance.defaultPaymentAccount == null);
 
   @override
   void dispose() {

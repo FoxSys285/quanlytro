@@ -54,8 +54,26 @@ class LandlordMeterReading {
       return 0;
     }
   }
+
+  Map<String, dynamic> toMap() => {
+    'room': room,
+    'period': period.toIso8601String(),
+    'oldElectric': oldElectric,
+    'oldWater': oldWater,
+    'newElectric': newElectric,
+    'newWater': newWater,
+  };
+
+  factory LandlordMeterReading.fromMap(Map<String, dynamic> map) =>
+      LandlordMeterReading(
+        room: map['room'] as String,
+        period: DateTime.parse(map['period'] as String),
+        oldElectric: map['oldElectric'] as int,
+        oldWater: map['oldWater'] as int,
+        newElectric: map['newElectric'] as int?,
+        newWater: map['newWater'] as int?,
+      );
 }
 
 // Biệt danh tiếng Việt dễ nhớ
 typedef LandlordChiSoDienNuocModel = LandlordMeterReading;
-

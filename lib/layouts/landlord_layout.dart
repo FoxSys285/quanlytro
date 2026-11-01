@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../pages/landlord/landlord_demo_store.dart';
+import '../pages/landlord/properties/components/property_switcher.dart';
 import '../pages/shared/profile/account_store.dart';
 import '../pages/landlord/landlord_page_router.dart';
 import 'role_layout.dart';
@@ -12,32 +13,38 @@ class LandlordLayout extends StatelessWidget {
     this.contextLabel,
     this.onPreviewRoleSelected,
     this.pageBuilder,
+    this.onLogout,
   });
 
   final String? displayName;
   final String? contextLabel;
   final ValueChanged<AppRole>? onPreviewRoleSelected;
   final RolePageBuilder? pageBuilder;
+  final VoidCallback? onLogout;
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: Listenable.merge([
-        LandlordDemoStore.instance,
+        RentalPortfolio.instance,
         AccountStore.instance,
       ]),
       builder: (context, _) => RoleLayoutShell(
+        key: ValueKey(LandlordDemoStore.activeInstance.property.id),
         role: AppRole.landlord,
+        topBar: const PropertySwitcher(),
         notificationsEnabled: AccountStore.instance.notificationsEnabled(
           AppRole.landlord,
         ),
         displayName:
-            displayName ?? LandlordDemoStore.instance.property.ownerName,
-        contextLabel: contextLabel ?? LandlordDemoStore.instance.property.name,
+            displayName ?? LandlordDemoStore.activeInstance.property.ownerName,
+        contextLabel:
+            contextLabel ?? LandlordDemoStore.activeInstance.property.name,
         accentColor: const Color(0xFF3769D6),
         initialDestinationId: 'dashboard',
         showMoreTab: false,
         onPreviewRoleSelected: onPreviewRoleSelected,
+        onLogout: onLogout,
         pageBuilder: pageBuilder ?? buildLandlordPage,
         tabs: const [
           RoleTab(

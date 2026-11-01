@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'role_layout.dart';
+import '../pages/admin/admin_page_router.dart';
 
 class AdminLayout extends StatelessWidget {
   const AdminLayout({
@@ -9,12 +10,14 @@ class AdminLayout extends StatelessWidget {
     this.contextLabel = 'Quản trị hệ thống',
     this.onPreviewRoleSelected,
     this.pageBuilder,
+    this.onLogout,
   });
 
   final String displayName;
   final String contextLabel;
   final ValueChanged<AppRole>? onPreviewRoleSelected;
   final RolePageBuilder? pageBuilder;
+  final VoidCallback? onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +28,8 @@ class AdminLayout extends StatelessWidget {
       accentColor: const Color(0xFF7153C8),
       initialDestinationId: 'dashboard',
       onPreviewRoleSelected: onPreviewRoleSelected,
-      pageBuilder: pageBuilder,
+      onLogout: onLogout,
+      pageBuilder: pageBuilder ?? buildAdminPage,
       tabs: const [
         RoleTab(
           label: 'Tổng quan',

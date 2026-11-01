@@ -11,8 +11,10 @@ class LandlordPropertyEditor extends StatefulWidget {
     super.key,
     required this.property,
     this.pickImage,
+    this.creating = false,
   });
   final LandlordProperty property;
+  final bool creating;
   final Future<SelectedPropertyImage?> Function()? pickImage;
 
   @override
@@ -153,12 +155,12 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Chỉnh sửa nhà trọ',
+                        widget.creating ? 'Thêm nhà trọ' : 'Chỉnh sửa nhà trọ',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,

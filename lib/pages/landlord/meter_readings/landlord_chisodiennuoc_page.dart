@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../landlord_ui.dart';
 import '../landlord_demo_store.dart';
+import '../finance/landlord_finance_models.dart';
 import 'models/landlord_chisodiennuoc.dart';
-
 
 // Tên Class chính bằng tiếng Việt
 class LandlordChiSoDienNuocPage extends StatefulWidget {
@@ -16,17 +16,13 @@ class LandlordChiSoDienNuocPage extends StatefulWidget {
 
 class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
   // 1. DỮ KIỆN (Kho lưu trữ và biến trạng thái đưa lên đầu)
-  final _store = LandlordDemoStore.instance;
+  final _store = LandlordDemoStore.activeInstance;
 
-  String _kyGhi = 'Tháng 10/2026';
-
-  DateTime get _ngayKyGhi {
-    if (_kyGhi == 'Tháng 10/2026') {
-      return DateTime(2026, 10);
-    } else {
-      return DateTime(2026, 9);
-    }
-  }
+  DateTime _ngayKyGhi = DateTime(DateTime.now().year, DateTime.now().month);
+  List<DateTime> get _cacKy => List.generate(
+    25,
+    (i) => DateTime(DateTime.now().year, DateTime.now().month + 1 - i),
+  );
 
   List<LandlordMeterReading> get _danhSachChiSo =>
       _store.readingsForPeriod(_ngayKyGhi);
@@ -35,6 +31,7 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
   @override
   void initState() {
     super.initState();
+    _store.prepareReadings(_ngayKyGhi);
     _store.addListener(_capNhat);
   }
 
@@ -71,7 +68,8 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
       chuoiThanhTien = '--';
     } else {
       final thanhTien = soTieuThu * donGia;
-      chuoiThanhTien = '$soTieuThu $donViTinh · ${formatLandlordMoney(thanhTien)}';
+      chuoiThanhTien =
+          '$soTieuThu $donViTinh · ${formatLandlordMoney(thanhTien)}';
     }
 
     return Row(
@@ -172,10 +170,13 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
   // Hàm tạo thẻ hiển thị thông tin điện nước của 1 phòng
   Widget _taoTheChiSo(LandlordMeterReading chiSo) {
     // Tìm hợp đồng của phòng bằng LINQ gọn gàng
-    final hopDong = _store.activeLeases.where(
-      (item) =>
-          _store.canonicalRoom(item.room) == _store.canonicalRoom(chiSo.room),
-    ).firstOrNull;
+    final hopDong = _store.activeLeases
+        .where(
+          (item) =>
+              _store.canonicalRoom(item.room) ==
+              _store.canonicalRoom(chiSo.room),
+        )
+        .firstOrNull;
 
     Widget widgetTrangThai;
     if (chiSo.isDone) {
@@ -227,7 +228,6 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
           donGiaNuoc = hopDong.waterPrice;
         }
       }
-
 
       widgetNuoc = _taoDongChiSo(
         icon: Icons.water_drop_outlined,
@@ -284,7 +284,6 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
     // Đếm số lượng phòng đã ghi chỉ số bằng LINQ
     final soLuongDaNhap = _danhSachChiSo.where((c) => c.isDone).length;
 
-
     Color mauTrangThai;
     if (soLuongDaNhap == _danhSachChiSo.length) {
       mauTrangThai = const Color(0xFF16836F);
@@ -300,28 +299,26 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
       Row(
         children: [
           Expanded(
-            child: DropdownButtonFormField<String>(
-              initialValue: _kyGhi,
+            child: DropdownButtonFormField<DateTime>(
+              initialValue: _ngayKyGhi,
               decoration: const InputDecoration(
                 labelText: 'Kỳ ghi chỉ số',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: const [
-                DropdownMenuItem(
-                  value: 'Tháng 10/2026',
-                  child: Text('Tháng 10/2026'),
-                ),
-                DropdownMenuItem(
-                  value: 'Tháng 9/2026',
-                  child: Text('Tháng 9/2026'),
-                ),
+              items: [
+                for (final period in _cacKy)
+                  DropdownMenuItem(
+                    value: period,
+                    child: Text(landlordMonth(period)),
+                  ),
               ],
               onChanged: (giaTriMoi) {
                 if (giaTriMoi != null) {
                   setState(() {
-                    _kyGhi = giaTriMoi;
+                    _ngayKyGhi = giaTriMoi;
                   });
+                  _store.prepareReadings(giaTriMoi);
                 }
               },
             ),
@@ -346,9 +343,6 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
       }
     }
 
-    return LandlordPageFrame(
-      children: danhSachWidget,
-    );
+    return LandlordPageFrame(children: danhSachWidget);
   }
 }
-

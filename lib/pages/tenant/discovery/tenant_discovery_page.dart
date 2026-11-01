@@ -1,3 +1,5 @@
+import '../../../data/admin_store.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,6 +9,7 @@ import '../../shared/rental/tenant_session.dart';
 
 import 'components/tenant_discovery_filter_sheet.dart';
 import 'components/tenant_room_card.dart';
+import 'components/tenant_area_picker_card.dart';
 import 'components/tenant_room_details_sheet.dart';
 import 'models/tenant_room_listing.dart';
 import '../../shared/viewings/viewing_store.dart';
@@ -40,8 +43,6 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   String? _selectedWard;
   String? _selectedArea;
   String _waterType = 'Tất cả';
-  bool _locationEnabled = false;
-  bool _nearbyOnly = false;
   int _visibleCount = 10;
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
@@ -57,7 +58,8 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
 
   @override
   void dispose() {
-    LandlordDemoStore.instance.removeListener(_refreshListings);
+    RentalPortfolio.instance.removeListener(_refreshListings);
+    AdminStore.instance.removeListener(_refreshListings);
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -66,7 +68,8 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   @override
   void initState() {
     super.initState();
-    LandlordDemoStore.instance.addListener(_refreshListings);
+    RentalPortfolio.instance.addListener(_refreshListings);
+    AdminStore.instance.addListener(_refreshListings);
   }
 
   void _refreshListings() {
@@ -84,16 +87,9 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
               .toLowerCase();
       final matchesQuery =
           normalizedQuery.isEmpty || searchableText.contains(normalizedQuery);
-      final ignoreAutoFilledWard =
-          _nearbyOnly &&
-          _locationEnabled &&
-          _selectedWard == TenantRoomDemoData.currentWard;
       final matchesLocation =
           (_selectedCity == null || room.city == _selectedCity) &&
-          (_selectedWard == null ||
-              ignoreAutoFilledWard ||
-              room.ward == _selectedWard);
-      final matchesNearby = !_nearbyOnly || room.distanceMeters <= 5000;
+          (_selectedWard == null || room.ward == _selectedWard);
       final matchesElectricity =
           room.electricityPrice >= minimumElectricity &&
           room.electricityPrice <= maximumElectricity;
@@ -104,17 +100,10 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       return matchesQuery &&
           room.price <= _maxRent &&
           matchesLocation &&
-          matchesNearby &&
           matchesElectricity &&
           matchesWater &&
           matchesArea;
     }).toList();
-    if (_nearbyOnly) {
-      rooms.sort(
-        (first, second) =>
-            first.distanceMeters.compareTo(second.distanceMeters),
-      );
-    }
     final visibleRooms = rooms.take(_visibleCount).toList();
 
     return TenantPageFrame(
@@ -387,7 +376,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         ),
         const SizedBox(height: 20),
         TenantSectionHeading(
-          _nearbyOnly ? 'Phòng gần bạn' : 'Chỗ ở phù hợp với bạn',
+          'Chỗ ở phù hợp với bạn',
           trailing: Text(
             '${rooms.length} phòng',
             style: const TextStyle(color: tenantMuted, fontSize: 12),
@@ -400,15 +389,30 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
             subtitle: 'Thử đổi từ khóa hoặc bộ lọc nhé.',
           )
         else
-          for (final room in visibleRooms) ...[
-            TenantRoomCard(
-              room: room,
-              isFavorite: TenantFavoritesStore.contains(room.id),
-              onFavoriteToggle: () => _toggleFavorite(room),
-              onTap: () => _showRoomDetails(context, room),
-            ),
-            const SizedBox(height: 14),
-          ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 680 ? 2 : 1;
+              final width =
+                  (constraints.maxWidth - (columns - 1) * 18) / columns;
+              return Wrap(
+                spacing: 18,
+                runSpacing: 18,
+                children: [
+                  for (final room in visibleRooms)
+                    SizedBox(
+                      width: width,
+                      child: TenantRoomCard(
+                        room: room,
+                        isFavorite: TenantFavoritesStore.contains(room.id),
+                        onFavoriteToggle: () => _toggleFavorite(room),
+                        onTap: () => _showRoomDetails(context, room),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        const SizedBox(height: 14),
         if (rooms.length > visibleRooms.length) ...[
           const SizedBox(height: 2),
           SizedBox(
@@ -447,7 +451,6 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     if (_electricityRange.start > 0 || _electricityRange.end < 5) count++;
     if (_waterType != 'Tất cả') count++;
     if (_selectedArea != null) count++;
-    if (_nearbyOnly) count++;
     return count;
   }
 
@@ -477,9 +480,6 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     }
     if (_selectedArea != null) {
       filters.add(MapEntry('area', 'Diện tích: $_selectedArea'));
-    }
-    if (_nearbyOnly) {
-      filters.add(MapEntry('nearby', 'Phòng gần bạn · 5 km'));
     }
 
     return Column(
@@ -561,9 +561,6 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         case 'area':
           _selectedArea = null;
           break;
-        case 'nearby':
-          _nearbyOnly = false;
-          break;
       }
       _visibleCount = 10;
     });
@@ -577,7 +574,6 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       _electricityRange = const RangeValues(0, 5);
       _waterType = 'Tất cả';
       _selectedArea = null;
-      _nearbyOnly = false;
       _visibleCount = 10;
     });
   }
@@ -593,147 +589,11 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     });
   }
 
-  Widget _locationCard(BuildContext context) {
-    return TenantSurface(
-      padding: const EdgeInsets.fromLTRB(12, 12, 10, 10),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: tenantGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _locationEnabled
-                      ? Icons.my_location_rounded
-                      : Icons.location_searching_rounded,
-                  size: 19,
-                  color: tenantGreen,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Vị trí hiện tại của bạn',
-                      style: TextStyle(
-                        color: tenantInk,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      _locationEnabled
-                          ? '${TenantRoomDemoData.currentWard}, Bình Thạnh · TP. Hồ Chí Minh'
-                          : 'Bật vị trí để tìm phòng ở gần bạn',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: tenantMuted, fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-              TextButton(
-                onPressed: () => _requestLocationAccess(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: tenantGreenDark,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                ),
-                child: Text(
-                  _locationEnabled ? 'Cập nhật' : 'Bật vị trí',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (_locationEnabled) ...[
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Divider(height: 1, color: tenantLine),
-            ),
-            Row(
-              children: [
-                const Icon(
-                  Icons.near_me_outlined,
-                  size: 16,
-                  color: tenantGreen,
-                ),
-                const SizedBox(width: 7),
-                const Expanded(
-                  child: Text(
-                    'Ưu tiên phòng trong bán kính 5 km',
-                    style: TextStyle(color: tenantInk, fontSize: 10),
-                  ),
-                ),
-                Switch.adaptive(
-                  value: _nearbyOnly,
-                  activeTrackColor: tenantGreen,
-                  onChanged: (value) {
-                    setState(() {
-                      _nearbyOnly = value;
-                      if (!value &&
-                          _locationEnabled &&
-                          _selectedCity == TenantRoomDemoData.currentCity &&
-                          _selectedWard == TenantRoomDemoData.currentWard) {
-                        _selectedCity = null;
-                        _selectedWard = null;
-                      }
-                      _visibleCount = 10;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Future<void> _requestLocationAccess(BuildContext context) async {
-    final allowed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.location_on_rounded, color: tenantGreen),
-        title: const Text('Cho phép truy cập vị trí?'),
-        content: const Text(
-          'Ứng dụng thuê trọ sẽ dùng vị trí để điền sẵn khu vực lọc và ưu tiên phòng gần bạn. Bản xem trước sẽ dùng vị trí mẫu tại Phường 25, Bình Thạnh.',
-          textAlign: TextAlign.center,
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Để sau'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: tenantGreen),
-            child: const Text('Cho phép'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || allowed != true) return;
-    setState(() {
-      _locationEnabled = true;
-      _nearbyOnly = true;
-      _selectedCity = TenantRoomDemoData.currentCity;
-      _selectedWard = TenantRoomDemoData.currentWard;
-      _visibleCount = 10;
-    });
-  }
+  Widget _locationCard(BuildContext context) => TenantAreaPickerCard(
+    city: _selectedCity,
+    ward: _selectedWard,
+    onPressed: () => _showFilterSheet(context),
+  );
 
   Future<void> _showFilterSheet(BuildContext context) async {
     final filters = await showModalBottomSheet<TenantDiscoveryFilterSelection>(
@@ -742,12 +602,8 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       isScrollControlled: true,
       builder: (_) => TenantDiscoveryFilterSheet(
         initialRent: _maxRent,
-        initialCity:
-            _selectedCity ??
-            (_locationEnabled ? TenantRoomDemoData.currentCity : null),
-        initialWard:
-            _selectedWard ??
-            (_locationEnabled ? TenantRoomDemoData.currentWard : null),
+        initialCity: _selectedCity,
+        initialWard: _selectedWard,
         initialElectricityRange: _electricityRange,
         initialWaterType: _waterType,
         initialArea: _selectedArea,

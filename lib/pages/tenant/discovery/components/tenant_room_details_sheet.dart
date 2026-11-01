@@ -1,9 +1,10 @@
+import '../../../../data/admin_store.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/tenant_room_listing.dart';
-import 'tenant_room_artwork.dart';
 import '../../tenant_ui.dart';
-import '../../../landlord/properties/components/landlord_property_image.dart';
+import '../../../shared/media/room_photo_gallery.dart';
 import '../../../landlord/landlord_demo_store.dart';
 
 class TenantRoomDetailsSheet extends StatefulWidget {
@@ -39,7 +40,8 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
   @override
   void initState() {
     super.initState();
-    LandlordDemoStore.instance.addListener(_refresh);
+    RentalPortfolio.instance.addListener(_refresh);
+    AdminStore.instance.addListener(_refresh);
   }
 
   void _refresh() {
@@ -48,7 +50,8 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
 
   @override
   void dispose() {
-    LandlordDemoStore.instance.removeListener(_refresh);
+    RentalPortfolio.instance.removeListener(_refresh);
+    AdminStore.instance.removeListener(_refresh);
     super.dispose();
   }
 
@@ -71,21 +74,33 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(18),
-                  child: _room.imageBytes != null || _room.imageUrl.isNotEmpty
-                      ? LandlordPropertyImage(
-                          bytes: _room.imageBytes,
-                          url: _room.imageUrl,
-                          height: 175,
-                        )
-                      : TenantRoomArtwork(
-                          variant: _room.variant,
-                          height: 175,
-                          isFavorite: _isFavorite,
-                          onFavoriteTap: () {
-                            widget.onFavoriteToggle();
-                            setState(() => _isFavorite = !_isFavorite);
-                          },
-                        ),
+                  child: RoomPhotoGallery(
+                    photos: _room.gallery,
+                    label: _room.name,
+                    height: 225,
+                    interactive: true,
+                    topRight: IconButton.filledTonal(
+                      tooltip: _isFavorite ? 'Bỏ yêu thích' : 'Lưu tin',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white,
+                      ),
+                      icon: Icon(
+                        _isFavorite
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: tenantGreen,
+                      ),
+                      onPressed: () {
+                        widget.onFavoriteToggle();
+                        setState(() => _isFavorite = !_isFavorite);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Ảnh theo loại phòng · ${_room.roomType}',
+                  style: const TextStyle(color: tenantMuted, fontSize: 11),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -118,10 +133,11 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
                           value: '${_room.capacity} người',
                         ),
                       const TenantThinDivider(),
-                      TenantDataRow(
-                        label: 'Khoảng cách',
-                        value: _room.distance,
-                      ),
+                      if (_room.distance.isNotEmpty)
+                        TenantDataRow(
+                          label: 'Khoảng cách',
+                          value: _room.distance,
+                        ),
                       const TenantThinDivider(),
                       TenantDataRow(
                         label: 'Tiền điện',
@@ -135,11 +151,12 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
                             ? '${formatTenantMoney(_room.waterPrice)}/tháng'
                             : '${formatTenantMoney(_room.waterPrice)}/m³',
                       ),
-                      const TenantThinDivider(),
-                      TenantDataRow(
-                        label: 'Đánh giá',
-                        value: '★ ${_room.rating} / 5',
-                      ),
+                      if (_room.rating != '—') const TenantThinDivider(),
+                      if (_room.rating != '—')
+                        TenantDataRow(
+                          label: 'Đánh giá',
+                          value: '★ ${_room.rating} / 5',
+                        ),
                     ],
                   ),
                 ),

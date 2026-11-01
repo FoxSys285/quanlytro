@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../landlord_demo_store.dart';
+
 import 'components/landlord_announcement_card.dart';
 import 'components/landlord_announcement_composer.dart';
 import 'data/landlord_announcement_demo_data.dart';
@@ -18,7 +20,9 @@ class LandlordAnnouncementsPage extends StatefulWidget {
 }
 
 class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
-  AnnouncementStore get _store => widget.store ?? AnnouncementStore.instance;
+  AnnouncementStore get _store =>
+      widget.store ??
+      AnnouncementStore.forRental(LandlordDemoStore.activeInstance);
   List<LandlordAnnouncement> get _inbox => _store.inbox;
   List<LandlordAnnouncement> get _sent => _store.sent;
   Timer? _timer;
@@ -69,9 +73,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
       _category = null;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Đã gửi thông báo đến người thuê trong phiên hiện tại.'),
-      ),
+      const SnackBar(content: Text('Đã gửi thông báo đến người thuê.')),
     );
   }
 
@@ -275,7 +277,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
                 ),
               const SizedBox(height: 12),
               const Text(
-                'Thông báo và trạng thái đọc được lưu trong phiên hiện tại.',
+                'Thông báo và trạng thái đọc được lưu trên thiết bị.',
                 style: TextStyle(color: Colors.blueGrey, fontSize: 12),
               ),
             ],

@@ -40,13 +40,18 @@ class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
   // 3. CÁC HÀM XỬ LÝ (Viết trước hàm build)
   // Hàm chuyển sang màn hình chat chi tiết với chủ trọ
   Future<void> _moManHinhTroChuyen(TenantConversation cuocTroChuyen) async {
+    if (cuocTroChuyen.source != null) {
+      ConversationStore.instance.markRead(
+        cuocTroChuyen.source!,
+        landlord: false,
+      );
+    }
     setState(() {
       cuocTroChuyen.unread = 0;
     });
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            TenantTinNhanPage(conversation: cuocTroChuyen),
+        builder: (_) => TenantTinNhanPage(conversation: cuocTroChuyen),
       ),
     );
     if (mounted) {
@@ -58,13 +63,14 @@ class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
   @override
   Widget build(BuildContext context) {
     // Lọc danh sách cuộc trò chuyện theo từ khóa tìm kiếm bằng LINQ gọn gàng
-    final danhSachHoiThoai = TenantConversation.demoConversations.where((cuocTroChuyen) {
+    final danhSachHoiThoai = TenantConversation.demoConversations.where((
+      cuocTroChuyen,
+    ) {
       final chuoiTimKiem =
           '${cuocTroChuyen.landlordName} ${cuocTroChuyen.contextLabel}'
               .toLowerCase();
       return chuoiTimKiem.contains(_tuKhoaTimKiem);
     }).toList();
-
 
     // Danh sách widget hiển thị trên toàn màn hình
     final List<Widget> danhSachWidget = [
@@ -150,10 +156,7 @@ class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
                 backgroundColor: tenantGreen,
                 child: Text(
                   '${cuocTroChuyen.unread}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
                 ),
               ),
             ),
@@ -164,10 +167,7 @@ class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
         final List<Widget> danhSachWidgetBenPhai = [
           Text(
             thoiGianTinNhan,
-            style: const TextStyle(
-              color: tenantMuted,
-              fontSize: 10,
-            ),
+            style: const TextStyle(color: tenantMuted, fontSize: 10),
           ),
         ];
         if (huyHieuChuaDoc != null) {
@@ -244,8 +244,6 @@ class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
       }
     }
 
-    return TenantPageFrame(
-      children: danhSachWidget,
-    );
+    return TenantPageFrame(children: danhSachWidget);
   }
 }

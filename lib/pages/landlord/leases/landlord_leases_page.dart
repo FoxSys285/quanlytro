@@ -12,7 +12,7 @@ class LandlordLeasesPage extends StatefulWidget {
 }
 
 class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
-  final _store = LandlordDemoStore.instance;
+  final _store = LandlordDemoStore.activeInstance;
   String _filter = 'Tất cả';
   String _search = '';
 
@@ -143,7 +143,7 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
           for (final lease in leases) _leaseCard(lease),
           const SizedBox(height: 4),
           const Text(
-            'Dữ liệu hiện được lưu tạm trong phiên chạy ứng dụng.',
+            'Dữ liệu được lưu trên thiết bị và giữ lại khi mở ứng dụng.',
             style: TextStyle(color: landlordMuted, fontSize: 11),
           ),
         ],
@@ -642,19 +642,19 @@ class _LeaseEditor extends StatefulWidget {
 }
 
 class _LeaseEditorState extends State<_LeaseEditor> {
-  List<String> get _allRooms => LandlordDemoStore.roomCatalog
+  List<String> get _allRooms => LandlordDemoStore.activeInstance.catalog
       .map((room) => room.leaseRoomCode ?? room.code)
       .toList();
   final _formKey = GlobalKey<FormState>();
   late final _landlordName = TextEditingController(
     text:
         widget.lease?.landlordName ??
-        LandlordDemoStore.instance.property.ownerName,
+        LandlordDemoStore.activeInstance.property.ownerName,
   );
   late final _landlordAddress = TextEditingController(
     text:
         widget.lease?.landlordPermanentAddress ??
-        LandlordDemoStore.instance.property.address,
+        LandlordDemoStore.activeInstance.property.address,
   );
   late final _landlordId = TextEditingController(
     text: widget.lease?.landlordCitizenId ?? '',
@@ -662,7 +662,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
   late final _landlordContact = TextEditingController(
     text:
         widget.lease?.landlordContact ??
-        LandlordDemoStore.instance.property.phone,
+        LandlordDemoStore.activeInstance.property.phone,
   );
   late final _name = TextEditingController(
     text: widget.lease?.tenantName ?? '',
@@ -689,25 +689,26 @@ class _LeaseEditorState extends State<_LeaseEditor> {
   late final _electricity = TextEditingController(
     text:
         widget.lease?.electricityPrice.toString() ??
-        (LandlordDemoStore.instance.serviceById('electricity')?.price ?? 0)
+        (LandlordDemoStore.activeInstance.serviceById('electricity')?.price ??
+                0)
             .toString(),
   );
   late final _water = TextEditingController(
     text:
         widget.lease?.waterPrice.toString() ??
-        (LandlordDemoStore.instance.serviceById('water')?.price ?? 0)
+        (LandlordDemoStore.activeInstance.serviceById('water')?.price ?? 0)
             .toString(),
   );
   late final _vehicle = TextEditingController(
     text:
         widget.lease?.vehicleFee.toString() ??
-        (LandlordDemoStore.instance.serviceById('vehicle')?.price ?? 0)
+        (LandlordDemoStore.activeInstance.serviceById('vehicle')?.price ?? 0)
             .toString(),
   );
   late final _service = TextEditingController(
     text:
         widget.lease?.serviceFee.toString() ??
-        (LandlordDemoStore.instance.serviceById('internet')?.price ?? 0)
+        (LandlordDemoStore.activeInstance.serviceById('internet')?.price ?? 0)
             .toString(),
   );
   late final _dueDay = TextEditingController(
@@ -716,18 +717,18 @@ class _LeaseEditorState extends State<_LeaseEditor> {
   late final _cashLocation = TextEditingController(
     text:
         widget.lease?.cashPaymentLocation ??
-        LandlordDemoStore.instance.property.address,
+        LandlordDemoStore.activeInstance.property.address,
   );
   late final _bankName = TextEditingController(
     text:
         widget.lease?.bankName ??
-        LandlordDemoStore.instance.defaultPaymentAccount?.bankName ??
+        LandlordDemoStore.activeInstance.defaultPaymentAccount?.bankName ??
         '',
   );
   late final _bankAccount = TextEditingController(
     text:
         widget.lease?.bankAccountNumber ??
-        LandlordDemoStore.instance.defaultPaymentAccount?.accountNumber ??
+        LandlordDemoStore.activeInstance.defaultPaymentAccount?.accountNumber ??
         '',
   );
   late final _occupants = TextEditingController(

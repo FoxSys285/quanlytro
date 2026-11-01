@@ -29,7 +29,7 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
   ViewingStore? _localStore;
   ViewingStore get _store =>
       widget.store ?? _localStore ?? ViewingStore.instance;
-  String get _propertyId => LandlordDemoStore.instance.property.id;
+  String get _propertyId => LandlordDemoStore.activeInstance.property.id;
   String _query = '';
   ViewingStatus? _status;
 

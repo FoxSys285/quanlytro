@@ -98,6 +98,80 @@ class LandlordLease {
     final lastDay = DateTime(endDate.year, endDate.month, endDate.day);
     return lastDay.difference(_today).inDays <= 45;
   }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'tenantId': tenantId,
+    'propertyId': propertyId,
+    'room': room,
+    'tenantName': tenantName,
+    'phone': phone,
+    'startDate': startDate.toIso8601String(),
+    'endDate': endDate.toIso8601String(),
+    'monthlyRent': monthlyRent,
+    'deposit': deposit,
+    'termMonths': termMonths,
+    'dueDay': dueDay,
+    'landlordName': landlordName,
+    'landlordPermanentAddress': landlordPermanentAddress,
+    'landlordCitizenId': landlordCitizenId,
+    'landlordContact': landlordContact,
+    'tenantBirthYear': tenantBirthYear,
+    'tenantCitizenId': tenantCitizenId,
+    'tenantCitizenIssueDate': tenantCitizenIssueDate?.toIso8601String(),
+    'tenantPermanentAddress': tenantPermanentAddress,
+    'electricityPrice': electricityPrice,
+    'waterPrice': waterPrice,
+    'waterType': waterType,
+    'vehicleFee': vehicleFee,
+    'serviceFee': serviceFee,
+    'cashPaymentEnabled': cashPaymentEnabled,
+    'cashPaymentLocation': cashPaymentLocation,
+    'bankTransferEnabled': bankTransferEnabled,
+    'bankName': bankName,
+    'bankAccountNumber': bankAccountNumber,
+    'occupantCount': occupantCount,
+    'status': status.name,
+    'note': note,
+  };
+
+  factory LandlordLease.fromMap(Map<String, dynamic> map) => LandlordLease(
+    id: map['id'] as String,
+    tenantId: map['tenantId'] as String,
+    propertyId: map['propertyId'] as String,
+    room: map['room'] as String,
+    tenantName: map['tenantName'] as String,
+    phone: map['phone'] as String,
+    startDate: DateTime.parse(map['startDate'] as String),
+    endDate: DateTime.parse(map['endDate'] as String),
+    monthlyRent: map['monthlyRent'] as int,
+    deposit: map['deposit'] as int,
+    termMonths: map['termMonths'] as int,
+    dueDay: map['dueDay'] as int,
+    landlordName: map['landlordName'] as String,
+    landlordPermanentAddress: map['landlordPermanentAddress'] as String,
+    landlordCitizenId: map['landlordCitizenId'] as String,
+    landlordContact: map['landlordContact'] as String,
+    tenantBirthYear: map['tenantBirthYear'] as String,
+    tenantCitizenId: map['tenantCitizenId'] as String,
+    tenantCitizenIssueDate: map['tenantCitizenIssueDate'] == null
+        ? null
+        : DateTime.parse(map['tenantCitizenIssueDate'] as String),
+    tenantPermanentAddress: map['tenantPermanentAddress'] as String,
+    electricityPrice: map['electricityPrice'] as int,
+    waterPrice: map['waterPrice'] as int,
+    waterType: map['waterType'] as String,
+    vehicleFee: map['vehicleFee'] as int,
+    serviceFee: map['serviceFee'] as int,
+    cashPaymentEnabled: map['cashPaymentEnabled'] as bool,
+    cashPaymentLocation: map['cashPaymentLocation'] as String,
+    bankTransferEnabled: map['bankTransferEnabled'] as bool,
+    bankName: map['bankName'] as String,
+    bankAccountNumber: map['bankAccountNumber'] as String,
+    occupantCount: map['occupantCount'] as int,
+    status: LandlordLeaseStatus.values.byName(map['status'] as String),
+    note: map['note'] as String,
+  );
 }
 
 class LandlordInvoiceCharge {
@@ -105,6 +179,14 @@ class LandlordInvoiceCharge {
 
   final String name;
   final int amount;
+
+  Map<String, dynamic> toMap() => {'name': name, 'amount': amount};
+
+  factory LandlordInvoiceCharge.fromMap(Map<String, dynamic> map) =>
+      LandlordInvoiceCharge(
+        name: map['name'] as String,
+        amount: map['amount'] as int,
+      );
 }
 
 enum LandlordInvoiceStatus { unpaid, partial, paid, overdue, cancelled }
@@ -166,6 +248,36 @@ class LandlordInvoice {
     }
     return LandlordInvoiceStatus.unpaid;
   }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'leaseId': leaseId,
+    'room': room,
+    'tenantName': tenantName,
+    'period': period.toIso8601String(),
+    'dueDate': dueDate.toIso8601String(),
+    'charges': charges.map((item) => item.toMap()).toList(),
+    'paidAmount': paidAmount,
+    'cancelled': cancelled,
+  };
+
+  factory LandlordInvoice.fromMap(Map<String, dynamic> map) => LandlordInvoice(
+    id: map['id'] as String,
+    leaseId: map['leaseId'] as String,
+    room: map['room'] as String,
+    tenantName: map['tenantName'] as String,
+    period: DateTime.parse(map['period'] as String),
+    dueDate: DateTime.parse(map['dueDate'] as String),
+    charges: (map['charges'] as List)
+        .map(
+          (item) => LandlordInvoiceCharge.fromMap(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
+        .toList(),
+    paidAmount: map['paidAmount'] as int,
+    cancelled: map['cancelled'] as bool,
+  );
 }
 
 enum LandlordPaymentStatus { pending, approved, rejected }
@@ -203,6 +315,47 @@ class LandlordPayment {
   final String? proofName;
   final String? paymentAccountId;
   DateTime? reviewedAt;
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'invoiceId': invoiceId,
+    'tenantName': tenantName,
+    'room': room,
+    'reportedAmount': reportedAmount,
+    'paidAt': paidAt.toIso8601String(),
+    'method': method,
+    'reference': reference,
+    'status': status.name,
+    'approvedAmount': approvedAmount,
+    'rejectionReason': rejectionReason,
+    'proofBytes': proofBytes,
+    'proofName': proofName,
+    'paymentAccountId': paymentAccountId,
+    'reviewedAt': reviewedAt?.toIso8601String(),
+  };
+
+  factory LandlordPayment.fromMap(Map<String, dynamic> map) =>
+      LandlordPayment(
+          id: map['id'] as String,
+          invoiceId: map['invoiceId'] as String,
+          tenantName: map['tenantName'] as String,
+          room: map['room'] as String,
+          reportedAmount: map['reportedAmount'] as int,
+          paidAt: DateTime.parse(map['paidAt'] as String),
+          method: map['method'] as String,
+          reference: map['reference'] as String,
+          status: LandlordPaymentStatus.values.byName(map['status'] as String),
+          approvedAmount: map['approvedAmount'] as int?,
+          rejectionReason: map['rejectionReason'] as String?,
+          proofBytes: map['proofBytes'] == null
+              ? null
+              : List<int>.from(map['proofBytes'] as List),
+          proofName: map['proofName'] as String?,
+          paymentAccountId: map['paymentAccountId'] as String?,
+        )
+        ..reviewedAt = map['reviewedAt'] == null
+            ? null
+            : DateTime.parse(map['reviewedAt'] as String);
 }
 
 class LandlordPaymentAccount {
@@ -231,6 +384,29 @@ class LandlordPaymentAccount {
     if (digits.length <= 4) return digits;
     return '${List.filled(digits.length - 4, '•').join()}${digits.substring(digits.length - 4)}';
   }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'bankName': bankName,
+    'accountName': accountName,
+    'accountNumber': accountNumber,
+    'branch': branch,
+    'isDefault': isDefault,
+    'isActive': isActive,
+    'isVerified': isVerified,
+  };
+
+  factory LandlordPaymentAccount.fromMap(Map<String, dynamic> map) =>
+      LandlordPaymentAccount(
+        id: map['id'] as String,
+        bankName: map['bankName'] as String,
+        accountName: map['accountName'] as String,
+        accountNumber: map['accountNumber'] as String,
+        branch: map['branch'] as String,
+        isDefault: map['isDefault'] as bool,
+        isActive: map['isActive'] as bool,
+        isVerified: map['isVerified'] as bool,
+      );
 }
 
 String landlordDate(DateTime date) =>

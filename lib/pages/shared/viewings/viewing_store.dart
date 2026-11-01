@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../data/admin_store.dart';
+
 import 'models/room_viewing.dart';
 import '../rental/tenant_session.dart';
 import '../../landlord/landlord_demo_store.dart';
@@ -11,7 +13,9 @@ class ViewingStore extends ChangeNotifier {
     : _records = List.of(records);
   final LandlordDemoStore? rental;
   static const demoTenantId = TenantSession.tenantId;
-  static final instance = ViewingStore.demo(rental: LandlordDemoStore.instance);
+  static ViewingStore instance = ViewingStore.demo(
+    rental: LandlordDemoStore.instance,
+  );
 
   factory ViewingStore.demo({
     DateTime? referenceDate,
@@ -118,6 +122,55 @@ class ViewingStore extends ChangeNotifier {
 
   final List<RoomViewing> _records;
   int _nextRequestId = 1;
+  void seedPortfolio(RentalPortfolio portfolio) {
+    _records.clear();
+    final now = DateTime.now();
+    for (var i = 0; i < portfolio.stores.length; i++) {
+      final store = portfolio.stores[i];
+      final rooms = store.roomDetails
+          .where((r) => r.status == LandlordRoomStatus.vacant)
+          .take(2)
+          .toList();
+      for (var j = 0; j < rooms.length; j++) {
+        final mine = j == 0 && i.isEven;
+        _records.add(
+          RoomViewing(
+            id: 'viewing-${store.property.id}-$j',
+            propertyId: store.property.id,
+            tenantId: mine ? demoTenantId : 'visitor-$i-$j',
+            roomId: '${store.property.id}:${rooms[j].room.code}',
+            roomName: '${store.property.name} · Phòng ${rooms[j].room.code}',
+            address: store.property.address,
+            startsAt: DateTime(now.year, now.month, now.day + j + 1, 9 + i % 8),
+            customerName: mine
+                ? TenantSession.name
+                : ['Trần Hoàng Nam', 'Lê Thu Hà'][j],
+            phone: mine ? TenantSession.phone : '090000000${j + 2}',
+            personalNeeds: 'Muốn xem phòng thực tế, hỏi thêm về nội thất và chi phí dịch vụ.',
+            status: j == 0 ? ViewingStatus.pending : ViewingStatus.confirmed,
+            attendeeCount: 2,
+            createdAt: now,
+          ),
+        );
+      }
+    }
+  }
+
+  Map<String, dynamic> toMap() => {
+    'records': _records.map((r) => r.toMap()).toList(),
+    'nextId': _nextRequestId,
+  };
+  void restore(Map<String, dynamic> map) {
+    _records
+      ..clear()
+      ..addAll(
+        (map['records'] as List).map(
+          (r) => RoomViewing.fromMap(Map<String, dynamic>.from(r as Map)),
+        ),
+      );
+    _nextRequestId = map['nextId'] as int;
+  }
+
   List<RoomViewing> get records => List.unmodifiable(_records);
   List<RoomViewing> forProperty(String id) =>
       _ordered(_records.where((item) => item.propertyId == id));
@@ -142,13 +195,22 @@ class ViewingStore extends ChangeNotifier {
     String? roomId,
   }) {
     final cleanName = customerName.trim();
+    if (!AdminStore.instance.acceptingViewings ||
+        AdminStore.instance.isHidden(propertyId)) {
+      throw ArgumentError(
+        'Hiện chưa tiếp nhận lịch xem phòng này. Vui lòng thử lại sau.',
+      );
+    }
     if (propertyId.trim().isEmpty ||
         tenantId.trim().isEmpty ||
         roomName.trim().isEmpty) {
       throw ArgumentError('Thiếu mã người thuê, nhà trọ hoặc phòng.');
     }
-    if (rental != null && propertyId == rental!.property.id && roomId != null) {
-      final available = rental!.roomDetails.any(
+    final target = rental?.property.id == propertyId
+        ? rental
+        : RentalPortfolio.instance.byId(propertyId);
+    if (target != null && roomId != null) {
+      final available = target.roomDetails.any(
         (details) =>
             '$propertyId:${details.room.code}' == roomId &&
             details.type != null &&

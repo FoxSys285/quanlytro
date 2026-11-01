@@ -60,7 +60,7 @@ class _LandlordDanhSachTinNhanPageState
   Widget build(BuildContext context) {
     // Lấy danh sách các cuộc trò chuyện của khu trọ hiện tại từ kho
     final danhSachHoiThoai = _store.forProperty(
-      LandlordDemoStore.instance.property.id,
+      LandlordDemoStore.activeInstance.property.id,
     );
 
     // Danh sách widget hiển thị trên toàn màn hình
@@ -105,10 +105,7 @@ class _LandlordDanhSachTinNhanPageState
               backgroundColor: landlordBlue,
               child: Text(
                 '${hoiThoai.unread}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 10),
               ),
             ),
           );
@@ -134,9 +131,7 @@ class _LandlordDanhSachTinNhanPageState
               ),
               title: Text(
                 '${hoiThoai.tenantName} · ${hoiThoai.room}',
-                style: TextStyle(
-                  fontWeight: doDamTieuDe,
-                ),
+                style: TextStyle(fontWeight: doDamTieuDe),
               ),
               subtitle: Text(
                 hoiThoai.lastMessage.text,
@@ -154,8 +149,6 @@ class _LandlordDanhSachTinNhanPageState
       }
     }
 
-    return LandlordPageFrame(
-      children: danhSachWidget,
-    );
+    return LandlordPageFrame(children: danhSachWidget);
   }
 }

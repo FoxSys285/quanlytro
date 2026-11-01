@@ -52,4 +52,38 @@ class RoomViewing {
     roomId: roomId,
     createdAt: createdAt,
   );
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'propertyId': propertyId,
+    'tenantId': tenantId,
+    'roomName': roomName,
+    'address': address,
+    'startsAt': startsAt.toIso8601String(),
+    'customerName': customerName,
+    'phone': phone,
+    'personalNeeds': personalNeeds,
+    'status': status.name,
+    'attendeeCount': attendeeCount,
+    'roomId': roomId,
+    'createdAt': createdAt?.toIso8601String(),
+  };
+
+  factory RoomViewing.fromMap(Map<String, dynamic> map) => RoomViewing(
+    id: map['id'] as String,
+    propertyId: map['propertyId'] as String,
+    tenantId: map['tenantId'] as String,
+    roomName: map['roomName'] as String,
+    address: map['address'] as String,
+    startsAt: DateTime.parse(map['startsAt'] as String),
+    customerName: map['customerName'] as String,
+    phone: map['phone'] as String,
+    personalNeeds: map['personalNeeds'] as String,
+    status: ViewingStatus.values.byName(map['status'] as String),
+    attendeeCount: map['attendeeCount'] as int?,
+    roomId: map['roomId'] as String?,
+    createdAt: map['createdAt'] == null
+        ? null
+        : DateTime.parse(map['createdAt'] as String),
+  );
 }

@@ -26,6 +26,24 @@ class LandlordRoom {
   final int capacity;
   // Some existing contracts include the building prefix in their room code.
   final String? leaseRoomCode;
+
+  Map<String, dynamic> toMap() => {
+    'code': code,
+    'floor': floor,
+    'roomTypeId': roomTypeId,
+    'area': area,
+    'capacity': capacity,
+    'leaseRoomCode': leaseRoomCode,
+  };
+
+  factory LandlordRoom.fromMap(Map<String, dynamic> map) => LandlordRoom(
+    code: map['code'] as String,
+    floor: map['floor'] as int,
+    roomTypeId: map['roomTypeId'] as String,
+    area: map['area'] as int,
+    capacity: map['capacity'] as int,
+    leaseRoomCode: map['leaseRoomCode'] as String?,
+  );
 }
 
 class LandlordRoomDetails {

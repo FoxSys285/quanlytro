@@ -11,6 +11,22 @@ class ContactDetails {
   final String email;
   final String address;
   final String jobTitle;
+
+  Map<String, dynamic> toMap() => {
+    'name': name,
+    'phone': phone,
+    'email': email,
+    'address': address,
+    'jobTitle': jobTitle,
+  };
+
+  factory ContactDetails.fromMap(Map<String, dynamic> map) => ContactDetails(
+    name: map['name'] as String,
+    phone: map['phone'] as String,
+    email: map['email'] as String,
+    address: map['address'] as String,
+    jobTitle: map['jobTitle'] as String,
+  );
 }
 
 String? validateContactName(String? value) =>

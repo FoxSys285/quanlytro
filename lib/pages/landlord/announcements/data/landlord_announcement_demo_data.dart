@@ -5,11 +5,11 @@ import '../../../shared/announcements/announcement_store.dart';
 class LandlordAnnouncementDemoData {
   static List<AnnouncementProperty> get properties => [
     AnnouncementProperty(
-      id: LandlordDemoStore.instance.property.id,
-      name: LandlordDemoStore.instance.property.name,
-      rooms: LandlordDemoStore.rooms,
+      id: LandlordDemoStore.activeInstance.property.id,
+      name: LandlordDemoStore.activeInstance.property.name,
+      rooms: LandlordDemoStore.activeInstance.roomFloors,
     ),
   ];
   static List<LandlordAnnouncement> inbox(DateTime now) =>
-      AnnouncementStore.instance.inbox;
+      AnnouncementStore.forRental(LandlordDemoStore.activeInstance).inbox;
 }

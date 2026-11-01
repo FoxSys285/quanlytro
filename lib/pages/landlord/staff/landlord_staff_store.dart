@@ -12,6 +12,28 @@ class LandlordStaffStore extends ChangeNotifier {
   LandlordStaffStore.demo();
   static final instance = LandlordStaffStore.demo();
   int _nextId = 1;
+  Map<String, dynamic> toMap() => {
+    'nextId': _nextId,
+    'staff': _staff
+        .map((s) => {'id': s.id, 'contact': s.contact.toMap()})
+        .toList(),
+  };
+  void restore(Map<String, dynamic> map) {
+    _nextId = map['nextId'] as int;
+    _staff
+      ..clear()
+      ..addAll(
+        (map['staff'] as List).map(
+          (s) => LandlordStaff(
+            id: s['id'] as String,
+            contact: ContactDetails.fromMap(
+              Map<String, dynamic>.from(s['contact'] as Map),
+            ),
+          ),
+        ),
+      );
+  }
+
   final _staff = <LandlordStaff>[
     const LandlordStaff(
       id: 'manager',
