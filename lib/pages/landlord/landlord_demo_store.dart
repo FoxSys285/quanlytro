@@ -814,6 +814,7 @@ class LandlordDemoStore extends ChangeNotifier {
     required int monthlyRent,
     String? id,
     List<RoomPhoto>? photos,
+    List<RoomTypeImage>? images,
   }) {
     final trimmed = name.trim();
     if (trimmed.isEmpty || nameExists(trimmed, excludingId: id)) {
@@ -830,7 +831,7 @@ class LandlordDemoStore extends ChangeNotifier {
           id: 'custom-${_nextType++}',
           name: trimmed,
           monthlyRent: monthlyRent,
-          photos: List.unmodifiable(photos ?? const <RoomPhoto>[]),
+          photos: List.unmodifiable(photos ?? images ?? const <RoomPhoto>[]),
         ),
       );
     } else {
@@ -840,7 +841,7 @@ class LandlordDemoStore extends ChangeNotifier {
         id: id,
         name: trimmed,
         monthlyRent: monthlyRent,
-        photos: List.unmodifiable(photos ?? _roomTypes[index].photos),
+        photos: List.unmodifiable(photos ?? images ?? _roomTypes[index].photos),
       );
     }
     notifyListeners();
@@ -1001,6 +1002,8 @@ class LandlordDemoStore extends ChangeNotifier {
       name: 'Võ Ngọc Lan',
       phone: '0977 111 999',
       joinedAt: DateTime(2026, 10, 15),
+      requestedBy: 'tenant-bao',
+      requestedAt: DateTime(2026, 10, 14),
       status: LeaseMemberStatus.pending,
     ),
   ];
@@ -1027,47 +1030,79 @@ class LandlordDemoStore extends ChangeNotifier {
       )
       .toList();
 
-  void requestMember({
+  LeaseMember requestMember({
     required String tenantId,
     required String name,
     required String phone,
+    DateTime? joinedAt,
   }) {
     final lease = currentLeaseForTenant(tenantId);
-    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
     if (lease == null || lease.tenantId != tenantId) {
       throw ArgumentError(
         'Chỉ người đại diện phòng đang thuê được đề nghị thêm thành viên.',
       );
     }
-    if (name.trim().isEmpty || !RegExp(r'^\d{9,12}$').hasMatch(digits)) {
-      throw ArgumentError('Nhập tên và số điện thoại hợp lệ.');
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (name.trim().isEmpty || !RegExp(r'^0\d{9}$').hasMatch(digits)) {
+      throw ArgumentError('Nhập họ tên và số điện thoại hợp lệ (10 chữ số).');
     }
-    final related = members.where(
-      (m) => m.leaseId == lease.id && m.status != LeaseMemberStatus.rejected,
+    final now = DateTime.now();
+    final requestedDate = joinedAt ?? now;
+    final date = DateTime(
+      requestedDate.year,
+      requestedDate.month,
+      requestedDate.day,
     );
-    if (related.any(
-      (m) => m.phone.replaceAll(RegExp(r'[^0-9]'), '') == digits,
-    )) {
+    final today = DateTime(now.year, now.month, now.day);
+    if (date.isBefore(today) ||
+        date.isBefore(
+          DateTime(
+            lease.startDate.year,
+            lease.startDate.month,
+            lease.startDate.day,
+          ),
+        ) ||
+        date.isAfter(
+          DateTime(lease.endDate.year, lease.endDate.month, lease.endDate.day),
+        )) {
       throw ArgumentError(
-        'Thành viên này đã có trong phòng hoặc đang chờ duyệt.',
+        'Ngày vào ở phải từ hôm nay và trong thời hạn hợp đồng.',
       );
     }
-    if (related.length >= (roomByCode(lease.room)?.capacity ?? 0)) {
-      throw ArgumentError('Phòng đã đủ người, bao gồm các yêu cầu chờ duyệt.');
+    final reserved = members
+        .where(
+          (member) =>
+              member.leaseId == lease.id &&
+              member.status != LeaseMemberStatus.rejected,
+        )
+        .toList();
+    if (reserved.any(
+      (member) => member.phone.replaceAll(RegExp(r'[^0-9]'), '') == digits,
+    )) {
+      throw ArgumentError(
+        'Số điện thoại đã có trong phòng hoặc đang chờ duyệt.',
+      );
     }
-    final id = DateTime.now().microsecondsSinceEpoch;
-    _members.add(
-      LeaseMember(
-        id: 'member-$id',
-        leaseId: lease.id,
-        tenantId: 'member-tenant-$id',
-        name: name.trim(),
-        phone: digits,
-        joinedAt: DateTime.now(),
-        status: LeaseMemberStatus.pending,
-      ),
+    if (reserved.length >= (roomByCode(lease.room)?.capacity ?? 0)) {
+      throw ArgumentError(
+        'Phòng đã đủ sức chứa, bao gồm yêu cầu đang chờ duyệt.',
+      );
+    }
+    final id = 'member-request-${DateTime.now().microsecondsSinceEpoch}';
+    final member = LeaseMember(
+      id: id,
+      leaseId: lease.id,
+      tenantId: 'tenant-$id',
+      name: name.trim(),
+      phone: digits,
+      joinedAt: date,
+      requestedBy: tenantId,
+      requestedAt: DateTime.now(),
+      status: LeaseMemberStatus.pending,
     );
+    _members.insert(0, member);
     notifyListeners();
+    return member;
   }
 
   void reviewMember(

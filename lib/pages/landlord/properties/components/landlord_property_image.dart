@@ -8,10 +8,12 @@ class LandlordPropertyImage extends StatelessWidget {
     this.url = '',
     this.bytes,
     this.height = 240,
+    this.semanticLabel = 'Ảnh nhà trọ',
   });
   final String url;
   final Uint8List? bytes;
   final double height;
+  final String semanticLabel;
 
   @override
   Widget build(BuildContext context) => ClipRRect(
@@ -23,15 +25,15 @@ class LandlordPropertyImage extends StatelessWidget {
           ? Image.memory(
               bytes!,
               fit: BoxFit.cover,
-              semanticLabel: 'Ảnh nhà trọ',
+              semanticLabel: semanticLabel,
               errorBuilder: (_, _, _) => _placeholder(failed: true),
             )
           : url.isEmpty
           ? _placeholder()
           : Image.network(
               url,
+              semanticLabel: semanticLabel,
               fit: BoxFit.cover,
-              semanticLabel: 'Ảnh nhà trọ',
               loadingBuilder: (context, child, progress) => progress == null
                   ? child
                   : const Center(child: CircularProgressIndicator()),

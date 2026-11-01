@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../../data/admin_store.dart';
+import '../../../landlord/room_types/models/landlord_room_type.dart';
 
 import '../../../landlord/landlord_demo_store.dart';
 import '../../../landlord/rooms/models/landlord_room.dart';
@@ -30,8 +31,9 @@ class TenantRoomListing {
     this.description = '',
     this.imageBytes,
     this.imageUrl = '',
-    this.photos = const [],
-  });
+    List<RoomPhoto> photos = const [],
+    List<RoomTypeImage>? images,
+  }) : photos = images ?? photos;
 
   final String name;
   final String address;
@@ -56,6 +58,7 @@ class TenantRoomListing {
   final Uint8List? imageBytes;
   final String imageUrl;
   final List<RoomPhoto> photos;
+  List<RoomTypeImage> get images => photos;
   List<RoomPhoto> get gallery {
     if (photos.isNotEmpty) return photos;
     if (imageBytes != null || imageUrl.isNotEmpty) {
@@ -323,6 +326,8 @@ class TenantRoomDemoData {
           capacity: details.room.capacity,
           description: store.property.description,
           photos: details.type!.photos,
+          imageBytes: details.type!.photos.firstOrNull?.bytes,
+          imageUrl: details.type!.photos.firstOrNull?.url ?? '',
           distance: '',
           distanceMeters: 0,
           roomType: details.typeName,

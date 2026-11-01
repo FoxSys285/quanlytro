@@ -7,16 +7,31 @@ import '../../shared/widgets/rental_section_banner.dart';
 
 import '../landlord_demo_store.dart';
 import 'models/landlord_room_type.dart';
+import '../properties/services/property_image_picker.dart';
+import '../../shared/media/room_photo.dart';
+import 'services/room_type_photo_picker.dart';
 
 class LandlordRoomTypesPage extends StatelessWidget {
-  const LandlordRoomTypesPage({super.key, this.store});
+  const LandlordRoomTypesPage({super.key, this.store, this.imagePicker});
+  final Future<SelectedPropertyImage?> Function()? imagePicker;
   final LandlordDemoStore? store;
   LandlordDemoStore get _store => store ?? LandlordDemoStore.activeInstance;
 
   Future<void> _edit(BuildContext context, [LandlordRoomType? type]) async {
     await showDialog<void>(
       context: context,
-      builder: (_) => RoomTypeEditor(store: _store, type: type),
+      builder: (_) => RoomTypeEditor(
+        store: _store,
+        type: type,
+        pickPhotos: imagePicker == null
+            ? pickRoomTypePhotos
+            : (_) async {
+                final selected = await imagePicker!();
+                return selected == null
+                    ? []
+                    : [RoomPhoto(name: selected.name, bytes: selected.bytes)];
+              },
+      ),
     );
   }
 

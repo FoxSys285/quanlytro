@@ -414,9 +414,12 @@ class _RoomPhotoViewerState extends State<_RoomPhotoViewer> {
                       ),
                 icon: const Icon(Icons.chevron_left),
               ),
-              const Text(
-                'Vuốt để xem · Chụm để phóng to',
-                style: TextStyle(color: Colors.white70, fontSize: 12),
+              const Expanded(
+                child: Text(
+                  'Vuốt để xem · Chụm để phóng to',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
               ),
               IconButton(
                 tooltip: 'Ảnh tiếp theo',

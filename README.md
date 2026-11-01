@@ -45,3 +45,5 @@ flutter build apk --debug
 APK: `build/app/outputs/flutter-apk/app-debug.apk`.
 
 Đặc tả nghiệp vụ mục tiêu: [Thiết kế nghiệp vụ](docs/THIET_KE_NGHIEP_VU.md). Tài liệu đồng bộ phiên bản trước: [Đồng bộ chủ trọ/người thuê](docs/DONG_BO_CHU_TRO_NGUOI_THUE.md).
+
+Chatbot hỏi đáp về đồ án và nhà trọ có trong mục **Trợ lý AI** và nút ✨ ở thanh trên, cho cả Chủ trọ và Người thuê. Cách chạy proxy đọc `lib/ai.env` và kết nối ứng dụng nằm tại [docs/AI_CHATBOT.md](docs/AI_CHATBOT.md).

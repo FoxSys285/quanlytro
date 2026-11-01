@@ -135,6 +135,11 @@ void main() {
       Uint8List.fromList([10, 20, 30, 40]),
     );
     expect(restored.active.payments.first.reviewedAt, isNotNull);
+    final restoredMember = restored.active.members.firstWhere(
+      (m) => m.name == 'Nguyễn Hà My',
+    );
+    expect(restoredMember.requestedBy, 'tenant-demo');
+    expect(restoredMember.requestedAt, member.requestedAt);
     expect(
       restored.active.members
           .firstWhere((m) => m.name == 'Nguyễn Hà My')

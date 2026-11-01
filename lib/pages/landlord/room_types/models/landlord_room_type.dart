@@ -1,16 +1,20 @@
 import '../../../shared/media/room_photo.dart';
 
+typedef RoomTypeImage = RoomPhoto;
+
 class LandlordRoomType {
   const LandlordRoomType({
     required this.id,
     required this.name,
     required this.monthlyRent,
-    this.photos = const [],
-  });
+    List<RoomPhoto> photos = const [],
+    List<RoomTypeImage>? images,
+  }) : photos = images ?? photos;
   final String id;
   final String name;
   final int monthlyRent;
   final List<RoomPhoto> photos;
+  List<RoomTypeImage> get images => photos;
 
   Map<String, dynamic> toMap() => {
     'id': id,

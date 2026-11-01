@@ -11,6 +11,8 @@ class LeaseMember {
     this.isRepresentative = false,
     this.status = LeaseMemberStatus.active,
     this.rejectionReason,
+    this.requestedBy,
+    this.requestedAt,
   });
 
   final String id;
@@ -33,6 +35,8 @@ class LeaseMember {
     'isRepresentative': isRepresentative,
     'status': status.name,
     'rejectionReason': rejectionReason,
+    'requestedBy': requestedBy,
+    'requestedAt': requestedAt?.toIso8601String(),
   };
 
   factory LeaseMember.fromMap(Map<String, dynamic> map) => LeaseMember(
@@ -45,5 +49,11 @@ class LeaseMember {
     isRepresentative: map['isRepresentative'] as bool,
     status: LeaseMemberStatus.values.byName(map['status'] as String),
     rejectionReason: map['rejectionReason'] as String?,
+    requestedBy: map['requestedBy'] as String?,
+    requestedAt: map['requestedAt'] == null
+        ? null
+        : DateTime.parse(map['requestedAt'] as String),
   );
+  final String? requestedBy;
+  final DateTime? requestedAt;
 }
