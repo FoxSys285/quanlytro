@@ -18,6 +18,7 @@ class TenantDiscoveryHome extends StatelessWidget {
     required this.loading,
     required this.hasError,
     required this.offline,
+    required this.profileName,
     required this.query,
     required this.sort,
     required this.selectedCity,
@@ -54,6 +55,7 @@ class TenantDiscoveryHome extends StatelessWidget {
   final bool loading;
   final bool hasError;
   final bool offline;
+  final String profileName;
   final String query;
   final String sort;
   final String? selectedCity;
@@ -457,6 +459,8 @@ class TenantDiscoveryHome extends StatelessWidget {
             right: 18,
             child: Row(
               children: [
+                TenantProfileAvatar(name: profileName, radius: 19),
+                const SizedBox(width: 7),
                 Expanded(
                   child: Material(
                     color: Colors.white.withValues(alpha: 0.87),

@@ -26,7 +26,7 @@ class AccountSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = role == AppRole.tenant
-        ? const Color(0xFF16836F)
+        ? const Color(0xFF08A94F)
         : landlordBlue;
     return LandlordPageFrame(
       children: [

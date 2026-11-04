@@ -66,10 +66,10 @@ class TenantLayout extends StatelessWidget {
         displayName:
             displayName ?? AccountStore.instance.profile(AppRole.tenant).name,
         contextLabel: contextLabel,
-        accentColor: const Color(0xFF16836F),
+        accentColor: const Color(0xFF08A94F),
         initialDestinationId: 'discovery',
         showMoreTab: false,
-        hideAppBarOnDestination: 'discovery',
+        hideAppBarOnDestinations: const {'discovery', 'my_lease'},
         bottomNavigationBuilder: (context, selectedIndex, onSelected) =>
             _TenantBottomNavigation(
               tabs: tenantTabs,

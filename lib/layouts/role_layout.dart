@@ -88,6 +88,7 @@ class RoleLayoutShell extends StatefulWidget {
     this.notificationsEnabled = true,
     this.topBar,
     this.hideAppBarOnDestination,
+    this.hideAppBarOnDestinations,
     this.bottomNavigationBuilder,
   });
 
@@ -106,6 +107,7 @@ class RoleLayoutShell extends StatefulWidget {
   final bool notificationsEnabled;
   final Widget? topBar;
   final String? hideAppBarOnDestination;
+  final Set<String>? hideAppBarOnDestinations;
   final RoleBottomNavigationBuilder? bottomNavigationBuilder;
 
   @override
@@ -209,7 +211,9 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: widget.role == AppRole.tenant
+          ? const Color(0xFFFCFCFC)
+          : const Color(0xFFF5F7FA),
       onDrawerChanged: _onDrawerChanged,
       drawer: _RoleDrawer(
         scrollController: _drawerScrollController,
@@ -227,10 +231,17 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         onPreviewRoleSelected: widget.onPreviewRoleSelected,
         onLogout: _showLogoutMessage,
       ),
-      appBar: _selectedDestinationId == widget.hideAppBarOnDestination
+      appBar:
+          _selectedDestinationId == widget.hideAppBarOnDestination ||
+              (widget.hideAppBarOnDestinations?.contains(
+                    _selectedDestinationId,
+                  ) ??
+                  false)
           ? null
           : AppBar(
-              backgroundColor: Colors.white,
+              backgroundColor: widget.role == AppRole.tenant
+                  ? const Color(0xFFFCFCFC)
+                  : Colors.white,
               surfaceTintColor: Colors.transparent,
               elevation: 0,
               scrolledUnderElevation: 0,

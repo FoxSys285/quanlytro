@@ -343,6 +343,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       loading: _catalogLoading,
       hasError: _catalogError,
       offline: _offlineFallback,
+      profileName: TenantSession.name,
       query: _query,
       sort: _sort,
       selectedCity: _selectedCity,
