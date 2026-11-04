@@ -6,7 +6,7 @@ import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
 
 import 'components/tenant_room_card.dart';
-import 'components/tenant_room_details_sheet.dart';
+import 'components/tenant_room_details_page.dart';
 import 'models/tenant_room_listing.dart';
 import 'tenant_favorites_store.dart';
 import '../tenant_ui.dart';
@@ -25,6 +25,14 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
   String _roomType = 'Tất cả';
   String _query = '';
 
+  List<TenantRoomListing> get _knownRooms {
+    final roomsById = {
+      for (final room in TenantRoomDemoData.allListings) room.id: room,
+      for (final room in TenantFavoritesStore.savedListings) room.id: room,
+    };
+    return roomsById.values.toList(growable: false);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -36,7 +44,7 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
     if (!mounted) return;
     setState(() {
       if (_roomType != 'Tất cả' &&
-          !TenantRoomDemoData.allListings.any(
+          !_knownRooms.any(
             (room) =>
                 TenantFavoritesStore.contains(room.id) &&
                 room.roomType == _roomType,
@@ -55,7 +63,8 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final favoriteRooms = TenantRoomDemoData.allListings.where((room) {
+    final knownRooms = _knownRooms;
+    final favoriteRooms = knownRooms.where((room) {
       final isFavorite = TenantFavoritesStore.contains(room.id);
       final matchesType = _roomType == 'Tất cả' || room.roomType == _roomType;
       final matchesQuery =
@@ -65,7 +74,7 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
           );
       return isFavorite && matchesType && matchesQuery;
     }).toList();
-    final roomTypes = TenantRoomDemoData.allListings
+    final roomTypes = knownRooms
         .where((room) => TenantFavoritesStore.contains(room.id))
         .map((room) => room.roomType)
         .toSet()
@@ -155,18 +164,17 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
                 isFavorite: true,
                 onFavoriteToggle: () =>
                     setState(() => TenantFavoritesStore.toggle(room.id)),
-                onTap: () => showModalBottomSheet<void>(
-                  context: context,
-                  useRootNavigator: true,
-                  useSafeArea: true,
-                  backgroundColor: Colors.transparent,
-                  isScrollControlled: true,
-                  builder: (_) => TenantRoomDetailsSheet(
-                    room: room,
-                    onBook: () => _openViewingRequest(room),
-                    isFavorite: TenantFavoritesStore.contains(room.id),
-                    onFavoriteToggle: () =>
-                        setState(() => TenantFavoritesStore.toggle(room.id)),
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => TenantRoomDetailsPage(
+                      room: room,
+                      onBook: () => _openViewingRequest(room),
+                      isFavorite: TenantFavoritesStore.contains(room.id),
+                      onFavoriteToggle: () => setState(() {
+                        TenantFavoritesStore.remember(room);
+                        TenantFavoritesStore.toggle(room.id);
+                      }),
+                    ),
                   ),
                 ),
               ),

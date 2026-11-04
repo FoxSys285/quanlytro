@@ -17,9 +17,11 @@ class TenantHomePage extends StatelessWidget {
     super.key,
     this.store,
     this.tenantId = TenantSession.tenantId,
+    this.title = 'Chỗ ở của tôi',
   });
   final LandlordDemoStore? store;
   final String tenantId;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -29,13 +31,13 @@ class TenantHomePage extends StatelessWidget {
       builder: (context, _) {
         final lease = data.currentLeaseForTenant(tenantId);
         if (lease == null) {
-          return const TenantPageFrame(
+          return TenantPageFrame(
             children: [
               TenantPageTitle(
-                title: 'Chỗ ở của tôi',
+                title: title,
                 subtitle: 'Thông tin thuê nhà và sinh hoạt.',
               ),
-              TenantEmptyState(
+              const TenantEmptyState(
                 icon: Icons.home_outlined,
                 title: 'Chưa có hợp đồng đang hiệu lực',
                 subtitle:
@@ -54,8 +56,8 @@ class TenantHomePage extends StatelessWidget {
               ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
         return TenantPageFrame(
           children: [
-            const TenantPageTitle(
-              title: 'Chỗ ở của tôi',
+            TenantPageTitle(
+              title: title,
               subtitle: 'Thông tin thuê nhà và sinh hoạt trong một nơi.',
             ),
             Container(

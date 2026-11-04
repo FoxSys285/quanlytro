@@ -11,10 +11,9 @@ import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
 
 import 'components/tenant_discovery_filter_sheet.dart';
-import 'components/tenant_room_card.dart';
-import 'components/tenant_area_picker_card.dart';
-import 'components/tenant_room_details_sheet.dart';
+import 'components/tenant_room_details_page.dart';
 import 'models/tenant_room_listing.dart';
+import 'tenant_discovery_home.dart';
 import '../../shared/viewings/viewing_store.dart';
 import 'tenant_favorites_page.dart';
 import 'tenant_favorites_store.dart';
@@ -220,15 +219,6 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
 
-  static const _popularSearches = [
-    'Studio',
-    'Có gác',
-    'Bình Thạnh',
-    'Ban công',
-    'Máy lạnh',
-    'Thang máy',
-  ];
-
   @override
   void dispose() {
     RentalPortfolio.instance.removeListener(_refreshListings);
@@ -305,433 +295,75 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
               : _catalogPages[_catalogIndex].items)
         : rooms.skip(page * _pageSize).take(_pageSize).toList();
 
-    return TenantPageFrame(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF145E52), Color(0xFF218C74)],
-            ),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x2016836F),
-                blurRadius: 20,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                right: 42,
-                top: -47,
-                child: Container(
-                  width: 115,
-                  height: 115,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.06),
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'KHÁM PHÁ CHỖ Ở',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        SizedBox(height: 7),
-                        Text(
-                          'Tìm nơi ở\nvừa ý bạn',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 23,
-                            height: 1.13,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.45,
-                          ),
-                        ),
-                        SizedBox(height: 7),
-                        Text(
-                          'Lọc nhanh theo giá, khu vực và tiện ích.',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 11,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: _openFavorites,
-                    icon: const Icon(Icons.favorite_rounded, size: 15),
-                    label: const Text('Yêu thích'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                      backgroundColor: Colors.white.withValues(alpha: 0.12),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 10,
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                onChanged: _onSearchChanged,
-                decoration: InputDecoration(
-                  hintText: 'Tên nhà, khu vực, loại phòng...',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFF98A3AC),
-                    fontSize: 13,
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    color: tenantGreen,
-                    size: 21,
-                  ),
-                  suffixIcon: _query.isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: 'Xóa tìm kiếm',
-                          onPressed: () {
-                            _searchDebounce?.cancel();
-                            _searchController.clear();
-                            setState(() {
-                              _query = '';
-                              _page = 0;
-                            });
-                          },
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            size: 18,
-                            color: tenantMuted,
-                          ),
-                        ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(color: tenantLine),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(color: tenantLine),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(
-                      color: tenantGreen,
-                      width: 1.4,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 9),
-            Material(
-              color: tenantGreen,
-              borderRadius: BorderRadius.circular(15),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(15),
-                onTap: () => _showFilterSheet(context),
-                child: SizedBox(
-                  width: 50,
-                  height: 50,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: [
-                      const Icon(Icons.tune_rounded, color: Colors.white),
-                      if (_activeFilterCount > 0)
-                        Positioned(
-                          top: -5,
-                          right: -5,
-                          child: Container(
-                            width: 17,
-                            height: 17,
-                            alignment: Alignment.center,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFFCE69),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              '$_activeFilterCount',
-                              style: const TextStyle(
-                                color: tenantInk,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (_activeFilterCount > 0) ...[
-          const SizedBox(height: 10),
-          _activeFiltersBar(),
-        ],
-        const SizedBox(height: 12),
-        _locationCard(context),
-        const SizedBox(height: 16),
-        const Row(
-          children: [
-            Icon(Icons.trending_up_rounded, size: 17, color: tenantGreen),
-            SizedBox(width: 6),
-            Text(
-              'Từ khóa hay tìm',
-              style: TextStyle(
-                color: tenantInk,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 36,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              for (final keyword in _popularSearches)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ActionChip(
-                    onPressed: () {
-                      _searchDebounce?.cancel();
-                      _searchController.value = TextEditingValue(
-                        text: keyword,
-                        selection: TextSelection.collapsed(
-                          offset: keyword.length,
-                        ),
-                      );
-                      setState(() {
-                        _query = keyword;
-                        _page = 0;
-                      });
-                    },
-                    avatar: const Icon(
-                      Icons.search_rounded,
-                      size: 14,
-                      color: tenantGreenDark,
-                    ),
-                    label: Text(keyword),
-                    labelStyle: const TextStyle(
-                      color: tenantGreenDark,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    backgroundColor: const Color(0xFFEBF5F1),
-                    side: BorderSide.none,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        DropdownButtonFormField<String>(
-          initialValue: _sort,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Sắp xếp',
-            prefixIcon: Icon(Icons.sort),
-          ),
-          items: const [
-            DropdownMenuItem(value: 'default', child: Text('Mặc định')),
-            DropdownMenuItem(
-              value: 'rentAsc',
-              child: Text('Giá thuê tăng dần'),
-            ),
-            DropdownMenuItem(
-              value: 'rentDesc',
-              child: Text('Giá thuê giảm dần'),
-            ),
-            DropdownMenuItem(
-              value: 'areaAsc',
-              child: Text('Diện tích tăng dần'),
-            ),
-            DropdownMenuItem(
-              value: 'areaDesc',
-              child: Text('Diện tích giảm dần'),
-            ),
-          ],
-          onChanged: (value) => setState(() {
-            _sort = value ?? 'default';
-            _page = 0;
-          }),
-        ),
-        const SizedBox(height: 16),
-        TenantSectionHeading(
-          'Chỗ ở phù hợp với bạn',
-          trailing: Text(
-            remote ? 'Trang ${_catalogIndex + 1}' : '${rooms.length} phòng',
-            style: const TextStyle(color: tenantMuted, fontSize: 12),
-          ),
-        ),
-        if (remote && _catalogLoading)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (remote && _catalogError)
-          Column(
-            children: [
-              const Text(
-                'Không tải được danh sách phòng. Kiểm tra kết nối và thử lại.',
-              ),
-              Wrap(
-                spacing: 8,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      setState(() => _catalogLoading = true);
-                      _fetchCatalog(
-                        _catalogQuery,
-                        _catalogGeneration,
-                        index: _catalogPages.isEmpty ? 0 : _catalogIndex + 1,
-                        after: _catalogPages.isEmpty
-                            ? null
-                            : _catalogPages[_catalogIndex].nextCursor,
-                      );
-                    },
-                    child: const Text('Thử lại'),
-                  ),
-                  TextButton(
-                    onPressed: () => setState(() => _offlineFallback = true),
-                    child: const Text('Dùng dữ liệu đã lưu'),
-                  ),
-                ],
-              ),
-            ],
-          )
-        else if (visibleRooms.isEmpty)
-          const TenantEmptyState(
-            icon: Icons.search_off_rounded,
-            title: 'Chưa tìm thấy phòng phù hợp',
-            subtitle: 'Thử đổi từ khóa hoặc bộ lọc nhé.',
-          )
-        else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 680 ? 2 : 1;
-              final width =
-                  (constraints.maxWidth - (columns - 1) * 18) / columns;
-              return Wrap(
-                spacing: 18,
-                runSpacing: 18,
-                children: [
-                  for (final room in visibleRooms)
-                    SizedBox(
-                      width: width,
-                      child: TenantRoomCard(
-                        room: room,
-                        isFavorite: TenantFavoritesStore.contains(room.id),
-                        onFavoriteToggle: () => _toggleFavorite(room),
-                        onTap: () => _showRoomDetails(context, room),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-        const SizedBox(height: 14),
-        if (remote &&
-            !_catalogLoading &&
-            !_catalogError &&
-            _catalogPages.isNotEmpty)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton.outlined(
-                tooltip: 'Trang trước',
-                onPressed: _catalogIndex == 0
-                    ? null
-                    : () => setState(() => _catalogIndex--),
-                icon: const Icon(Icons.chevron_left),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text('Trang ${_catalogIndex + 1}'),
-              ),
-              IconButton.outlined(
-                tooltip: 'Trang tiếp theo',
-                onPressed: _catalogPages[_catalogIndex].nextCursor == null
-                    ? null
-                    : _nextCatalogPage,
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
-          )
-        else if (!remote)
-          ListPagination(
-            total: rooms.length,
-            page: page,
-            pageSize: _pageSize,
-            onChanged: (value) => setState(() => _page = value),
-          ),
-        const SizedBox(height: 4),
-        if (_offlineFallback) ...[
-          const Text(
-            'Đang xem dữ liệu đã lưu trên thiết bị; tình trạng phòng có thể thay đổi.',
-          ),
-          TextButton(
-            onPressed: () => setState(() {
-              _offlineFallback = false;
-              _catalogKey = null;
-            }),
-            child: const Text('Tải lại trực tuyến'),
-          ),
-        ],
-        const Text(
-          'Ảnh minh họa · Liên hệ chủ trọ để xem phòng thực tế',
-          style: TextStyle(color: Color(0xFFA2ACB4), fontSize: 10),
-        ),
-      ],
+    return TenantDiscoveryHome(
+      localRooms: rooms,
+      visibleRooms: visibleRooms,
+      remote: remote,
+      loading: _catalogLoading,
+      hasError: _catalogError,
+      offline: _offlineFallback,
+      query: _query,
+      sort: _sort,
+      selectedCity: _selectedCity,
+      searchController: _searchController,
+      activeFilterCount: _activeFilterCount,
+      currentPage: _catalogIndex,
+      localPage: page,
+      pageSize: _pageSize,
+      remoteHasNext:
+          _catalogPages.isNotEmpty &&
+          _catalogIndex < _catalogPages.length &&
+          _catalogPages[_catalogIndex].nextCursor != null,
+      activeFilters: _activeFilterCount > 0 ? _activeFiltersBar() : null,
+      onSearchChanged: _onSearchChanged,
+      onSearchClear: () {
+        _searchDebounce?.cancel();
+        _searchController.clear();
+        setState(() {
+          _query = '';
+          _page = 0;
+        });
+      },
+      onFilter: () => _showFilterSheet(context),
+      onFavorites: _openFavorites,
+      onFavoriteToggle: _toggleFavorite,
+      onRoomTap: (room) => _showRoomDetails(context, room),
+      onSelectArea: (room) => setState(() {
+        _selectedCity = room.city;
+        _selectedWard = room.ward.isEmpty ? null : room.ward;
+        _page = 0;
+      }),
+      onSortChanged: (value) => setState(() {
+        _sort = value ?? 'default';
+        _page = 0;
+      }),
+      onLocalPageChanged: (value) => setState(() => _page = value),
+      onRemotePrevious: () => setState(() => _catalogIndex--),
+      onRemoteNext: _nextCatalogPage,
+      onRetry: () {
+        setState(() => _catalogLoading = true);
+        _fetchCatalog(
+          _catalogQuery,
+          _catalogGeneration,
+          index: _catalogPages.isEmpty ? 0 : _catalogIndex + 1,
+          after: _catalogPages.isEmpty
+              ? null
+              : _catalogPages[_catalogIndex].nextCursor,
+        );
+      },
+      onUseOffline: () => setState(() => _offlineFallback = true),
+      onReloadOnline: () => setState(() {
+        _offlineFallback = false;
+        _catalogKey = null;
+      }),
+      onNearby: () => setState(() {
+        _sort = 'areaAsc';
+        _page = 0;
+      }),
+      onDeals: () => setState(() {
+        _sort = 'rentAsc';
+        _page = 0;
+      }),
     );
   }
 
@@ -902,12 +534,6 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     });
   }
 
-  Widget _locationCard(BuildContext context) => TenantAreaPickerCard(
-    city: _selectedCity,
-    ward: _selectedWard,
-    onPressed: () => _showFilterSheet(context),
-  );
-
   Future<void> _showFilterSheet(BuildContext context) async {
     final filters = await showModalBottomSheet<TenantDiscoveryFilterSelection>(
       context: context,
@@ -941,17 +567,14 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   }
 
   void _showRoomDetails(BuildContext context, TenantRoomListing room) {
-    showModalBottomSheet<void>(
-      context: context,
-      useRootNavigator: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => TenantRoomDetailsSheet(
-        room: room,
-        onBook: () => _openViewingRequest(room),
-        isFavorite: TenantFavoritesStore.contains(room.id),
-        onFavoriteToggle: () => _toggleFavorite(room),
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TenantRoomDetailsPage(
+          room: room,
+          onBook: () => _openViewingRequest(room),
+          isFavorite: TenantFavoritesStore.contains(room.id),
+          onFavoriteToggle: () => _toggleFavorite(room),
+        ),
       ),
     );
   }
@@ -1014,6 +637,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   }
 
   void _toggleFavorite(TenantRoomListing room) {
+    TenantFavoritesStore.remember(room);
     setState(() => TenantFavoritesStore.toggle(room.id));
   }
 

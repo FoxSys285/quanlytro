@@ -64,6 +64,12 @@ typedef RolePageBuilder = Widget Function(
   RoleDestination destination,
 );
 
+typedef RoleBottomNavigationBuilder = Widget Function(
+  BuildContext context,
+  int selectedIndex,
+  ValueChanged<int> onDestinationSelected,
+);
+
 class RoleLayoutShell extends StatefulWidget {
   const RoleLayoutShell({
     super.key,
@@ -81,6 +87,8 @@ class RoleLayoutShell extends StatefulWidget {
     this.onLogout,
     this.notificationsEnabled = true,
     this.topBar,
+    this.hideAppBarOnDestination,
+    this.bottomNavigationBuilder,
   });
 
   final AppRole role;
@@ -97,6 +105,8 @@ class RoleLayoutShell extends StatefulWidget {
   final VoidCallback? onLogout;
   final bool notificationsEnabled;
   final Widget? topBar;
+  final String? hideAppBarOnDestination;
+  final RoleBottomNavigationBuilder? bottomNavigationBuilder;
 
   @override
   State<RoleLayoutShell> createState() => _RoleLayoutShellState();
@@ -217,136 +227,142 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         onPreviewRoleSelected: widget.onPreviewRoleSelected,
         onLogout: _showLogoutMessage,
       ),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        toolbarHeight: 68,
-        leading: IconButton(
-          tooltip: 'Mở danh mục chức năng',
-          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-          icon: const Icon(Icons.menu_rounded),
-        ),
-        titleSpacing: 4,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              destination.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF17212B),
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
+      appBar: _selectedDestinationId == widget.hideAppBarOnDestination
+          ? null
+          : AppBar(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              toolbarHeight: 68,
+              leading: IconButton(
+                tooltip: 'Mở danh mục chức năng',
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                icon: const Icon(Icons.menu_rounded),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              widget.contextLabel,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF788492),
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Thông báo',
-            onPressed: () => _selectDestination(
-              widget.role == AppRole.admin ? 'notifications' : 'announcements',
-            ),
-            icon: widget.role != AppRole.admin
-                ? const Icon(Icons.notifications_none_rounded)
-                : Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Icon(
-                        widget.notificationsEnabled
-                            ? Icons.notifications_none_rounded
-                            : Icons.notifications_off_outlined,
-                      ),
-                      if (widget.notificationsEnabled)
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE45A65),
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 1.5,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 4, right: 16),
-            child: PopupMenuButton<String>(
-              tooltip: 'Tài khoản',
-              onSelected: (value) {
-                if (value == 'logout') {
-                  _showLogoutMessage();
-                } else {
-                  _selectDestination(value);
-                }
-              },
-              itemBuilder: (context) => [
-                if (widget.role == AppRole.admin)
-                  const PopupMenuItem(
-                    value: 'profile',
-                    child: ListTile(
-                      dense: true,
-                      leading: Icon(Icons.person_outline_rounded),
-                      title: Text('Hồ sơ'),
+              titleSpacing: 4,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    destination.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF17212B),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                const PopupMenuItem(
-                  value: 'settings',
-                  child: ListTile(
-                    dense: true,
-                    leading: Icon(Icons.settings_outlined),
-                    title: Text('Cài đặt'),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.contextLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF788492),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
+                ],
+              ),
+              actions: [
+                IconButton(
+                  tooltip: 'Thông báo',
+                  onPressed: () => _selectDestination(
+                    widget.role == AppRole.admin
+                        ? 'notifications'
+                        : 'announcements',
+                  ),
+                  icon: widget.role != AppRole.admin
+                      ? const Icon(Icons.notifications_none_rounded)
+                      : Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(
+                              widget.notificationsEnabled
+                                  ? Icons.notifications_none_rounded
+                                  : Icons.notifications_off_outlined,
+                            ),
+                            if (widget.notificationsEnabled)
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE45A65),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1.5,
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                 ),
-                const PopupMenuDivider(),
-                const PopupMenuItem(
-                  value: 'logout',
-                  child: ListTile(
-                    dense: true,
-                    leading: Icon(Icons.logout_rounded),
-                    title: Text('Đăng xuất'),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, right: 16),
+                  child: PopupMenuButton<String>(
+                    tooltip: 'Tài khoản',
+                    onSelected: (value) {
+                      if (value == 'logout') {
+                        _showLogoutMessage();
+                      } else {
+                        _selectDestination(value);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      if (widget.role == AppRole.admin)
+                        const PopupMenuItem(
+                          value: 'profile',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.person_outline_rounded),
+                            title: Text('Hồ sơ'),
+                          ),
+                        ),
+                      const PopupMenuItem(
+                        value: 'settings',
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(Icons.settings_outlined),
+                          title: Text('Cài đặt'),
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'logout',
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(Icons.logout_rounded),
+                          title: Text('Đăng xuất'),
+                        ),
+                      ),
+                    ],
+                    child: CircleAvatar(
+                      radius: 17,
+                      backgroundColor: widget.accentColor.withValues(
+                        alpha: 0.12,
+                      ),
+                      child: Text(
+                        _avatarInitials,
+                        style: TextStyle(
+                          color: widget.accentColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
-              child: CircleAvatar(
-                radius: 17,
-                backgroundColor: widget.accentColor.withValues(alpha: 0.12),
-                child: Text(
-                  _avatarInitials,
-                  style: TextStyle(
-                    color: widget.accentColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
             ),
-          ),
-        ],
-      ),
       body: SafeArea(
         top: false,
         child: Column(
@@ -356,29 +372,35 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        height: 70,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: widget.accentColor.withValues(alpha: 0.12),
-        selectedIndex: _selectedTabIndex,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        onDestinationSelected: _onTabSelected,
-        destinations: [
-          for (final tab in widget.tabs)
-            NavigationDestination(
-              icon: Icon(tab.icon),
-              selectedIcon: Icon(tab.selectedIcon),
-              label: tab.label,
-            ),
-          if (widget.showMoreTab)
-            const NavigationDestination(
-              icon: Icon(Icons.grid_view_outlined),
-              selectedIcon: Icon(Icons.grid_view_rounded),
-              label: 'Thêm',
-            ),
-        ],
-      ),
+      bottomNavigationBar:
+          widget.bottomNavigationBuilder?.call(
+            context,
+            _selectedTabIndex,
+            _onTabSelected,
+          ) ??
+          NavigationBar(
+            height: 70,
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            indicatorColor: widget.accentColor.withValues(alpha: 0.12),
+            selectedIndex: _selectedTabIndex,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            onDestinationSelected: _onTabSelected,
+            destinations: [
+              for (final tab in widget.tabs)
+                NavigationDestination(
+                  icon: Icon(tab.icon),
+                  selectedIcon: Icon(tab.selectedIcon),
+                  label: tab.label,
+                ),
+              if (widget.showMoreTab)
+                const NavigationDestination(
+                  icon: Icon(Icons.grid_view_outlined),
+                  selectedIcon: Icon(Icons.grid_view_rounded),
+                  label: 'Thêm',
+                ),
+            ],
+          ),
     );
   }
 }

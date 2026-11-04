@@ -25,6 +25,10 @@ Widget buildTenantPage(BuildContext context, RoleDestination destination) {
     'discovery' => TenantDiscoveryPage(tenantId: TenantSession.currentTenantId),
     'viewings' => TenantViewingsPage(tenantId: TenantSession.currentTenantId),
     'my_lease' => TenantHomePage(tenantId: TenantSession.currentTenantId),
+    'lease_contract' => TenantHomePage(
+      tenantId: TenantSession.currentTenantId,
+      title: 'Hợp đồng thuê',
+    ),
     'members' => TenantMembersPage(tenantId: TenantSession.currentTenantId),
     'announcements' => TenantAnnouncementsPage(
       tenantId: TenantSession.currentTenantId,
