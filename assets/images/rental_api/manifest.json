@@ -1,6 +1,13 @@
 {
   "provider": "Nha Tot / Cho Tot",
-  "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=4&o=0&st=u%2Ch&w=1&q=ktx",
+  "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+  "endpoints": [
+    "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+    "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+    "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+    "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=24&o=0&st=u%2Ch&w=1",
+    "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=4&o=0&st=u%2Ch&w=1&q=ktx"
+  ],
   "sourcePage": "https://www.nhatot.com/thue-phong-tro",
   "note": "Illustrations only; no real listing addresses or contacts are imported into managed properties.",
   "albums": [
@@ -697,10 +704,750 @@
           "bytes": 14736
         }
       ]
+    },
+    {
+      "listingId": 135095686,
+      "type": "balcony",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135095686_1.webp",
+          "url": "https://cdn.chotot.com/iLe2H7ejFjbiy82pX5TwwASEjyvhTruNuBhmiRryMFg/preset:view/plain/50068d60e72047fa1f37e6b420989d57-3005283531813068312.jpg",
+          "sha256": "7334f8967c0c7768a96a1e93875f0ff32254b67f931f3dc5edbff29240f315b8",
+          "bytes": 33468
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135095686_2.webp",
+          "url": "https://cdn.chotot.com/RZX6QEgjNq_L-sO-YjK-fb_Sl80-Pkl5-DhXHVEfK1k/preset:view/plain/ba394dc9c53d43f8218ebbab0b0317b2-3005283531855542630.jpg",
+          "sha256": "5a4470d153473bee3c964abb89e611ef89c3463f67a64c1ea54f09e975229d92",
+          "bytes": 24578
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135095686_3.webp",
+          "url": "https://cdn.chotot.com/wdSsRSPzLHz9pMzXjMLCBaTa0LIv9W-qAN_onqhQXIA/preset:view/plain/58f71c08f45547c0e8da1233f9f64d75-3005283531902794429.jpg",
+          "sha256": "d8bd89bae1106f658d5ace95420658be977d7018988066881f0f6370afec1020",
+          "bytes": 33694
+        }
+      ]
+    },
+    {
+      "listingId": 135098521,
+      "type": "balcony",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135098521_1.webp",
+          "url": "https://cdn.chotot.com/CwnDB6dxm7KJ4oDuzWISw7YBhWwOOTngxI0W1lr1EbQ/preset:view/plain/5722929c047d84317dcf7fcc43933b90-3005304376094992982.jpg",
+          "sha256": "abfbafcedb341f0fefb5cd52fa1686deaad36d5bd9e6e58e0e50ccb31684e4af",
+          "bytes": 26472
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135098521_2.webp",
+          "url": "https://cdn.chotot.com/3PxrY361QlA2OIsIUM-svUuKiZdOW_B8u1voDVTj_hU/preset:view/plain/34d45ad3d179ff57797b926097f02348-3005304376244224959.jpg",
+          "sha256": "d5f8acdd282a70dbf1597893e8e5731e71c106f2abfe8d4c1c283c54956cc577",
+          "bytes": 25046
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135098521_3.webp",
+          "url": "https://cdn.chotot.com/Ha8X2PGwG36MtJiwp5RhBRzxkVF4GhqUyXWldzcMTRE/preset:view/plain/685dfb7ae5afa40565da692dd2729ec4-3005304376278254450.jpg",
+          "sha256": "045fef8567d0c935dd5442835354c5c326e23bcc62040503baffac70c3140167",
+          "bytes": 24252
+        }
+      ]
+    },
+    {
+      "listingId": 135098277,
+      "type": "balcony",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135098277_1.webp",
+          "url": "https://cdn.chotot.com/YmlfG9YcDrYLT0Whcws3dzuph3_oV1PlYpDivuDculw/preset:view/plain/e11fb46cbbb2a119b45d635ae33051ca-3005301523361357295.jpg",
+          "sha256": "ac5827d372981d4f93cd1d07d36eb60eeb70b840451d8f64c76251b21198ce33",
+          "bytes": 34482
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135098277_2.webp",
+          "url": "https://cdn.chotot.com/K7CTveqwf7iaRRok88hv_H2G6sEA1FtOZYh99W6BGbQ/preset:view/plain/1efe9ca4c7fbecd36755222524a68ff5-3005301522587164184.jpg",
+          "sha256": "35d55dc275166cb385634c663aee78c3251c095f95c8a14f87d305a3725017c3",
+          "bytes": 37064
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135098277_3.webp",
+          "url": "https://cdn.chotot.com/ix8gCTA41tLd1qKaRLU-LkWjnhLMV-VynhGK8u48WUg/preset:view/plain/a593ac82d3041698472a3c5f03d4feb8-3005301522364433266.jpg",
+          "sha256": "2d9b4f6154d265425765959313de70ff524f8e97d9d99932a0edf0604672ec4d",
+          "bytes": 35448
+        }
+      ]
+    },
+    {
+      "listingId": 135096522,
+      "type": "balcony",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135096522_1.webp",
+          "url": "https://cdn.chotot.com/vr1fy8ORyGXRPng8SEreot_9C3LvPjxDMKw5tC-7cw4/preset:view/plain/542d3bf6735c841e95176cd9bec2ed9c-3005289449053845449.jpg",
+          "sha256": "824ed3b38498760474c8dc70f76ec9bb636a2569bf5e55b0e250635b13c8371b",
+          "bytes": 20398
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135096522_2.webp",
+          "url": "https://cdn.chotot.com/kFWtzDXBshpjYhrle6UcN5kaTXGUk8sVfVDYdEy9-0w/preset:view/plain/5a6820753b1cdfed081314869e7d15cd-3005289447968775704.jpg",
+          "sha256": "e006bce21e20f0539443c34e54b0157b2eed4c9e43dc70421d9f52ee736f8826",
+          "bytes": 19382
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135096522_3.webp",
+          "url": "https://cdn.chotot.com/lt6VS9UxQUjnRT70w1sZ9SGKnmsY0kvI2yHE65qWovQ/preset:view/plain/74ed724b97140e402e0bace28c8e72c6-3005289448008978405.jpg",
+          "sha256": "af7ce46f77e5ae5009efab2909f98c4b2df685a6149edef40a1ef4fb756dd2fb",
+          "bytes": 14012
+        }
+      ]
+    },
+    {
+      "listingId": 135095382,
+      "type": "balcony",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135095382_1.webp",
+          "url": "https://cdn.chotot.com/i3B4ClTF0AjLJkLpyp4-d3Z8RMmpEOVnVWNdbw6yqI4/preset:view/plain/91f571c0ea4df6f3af4cf65ecb24b926-3005280570332388888.jpg",
+          "sha256": "34c42b31ed5bc09833942abf7d440d8480d1984056f661afbc1b3850ce765bbc",
+          "bytes": 14184
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135095382_2.webp",
+          "url": "https://cdn.chotot.com/c_X-e07vgkOyEXmk29cNj89WwytlQovyKZgfIbL9XaY/preset:view/plain/cf67499a896845b2a4f1548169f7ae7e-3005280573620788760.jpg",
+          "sha256": "1ec06211ed802436b4a66bccef84bb1505306a1da227022bda92f3ede912f269",
+          "bytes": 30970
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135095382_3.webp",
+          "url": "https://cdn.chotot.com/YK_UPP7J-Xtde9BYnXUD6RCbmncSxPe0tcFa-965_O8/preset:view/plain/48b1a8c9d7c91ad6a10e6d237a8bae63-3005280575276038845.jpg",
+          "sha256": "8ee05c6cbbc8ba082ab528487fad0c6a6cb1c3b6c2d98d1167ab9d5f14ad216b",
+          "bytes": 33356
+        }
+      ]
+    },
+    {
+      "listingId": 135118603,
+      "type": "balcony",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135118603_1.webp",
+          "url": "https://cdn.chotot.com/y-zWZcoQCAUYMxLvfC20i8YewyRoZRCkV9u0DqnAU5w/preset:view/plain/d8da85604e1e39133839dc4c26bc378a-3005456305485676136.jpg",
+          "sha256": "059be22129d44cc55e9d2e87fc93b112093f1ad6c166124177f43dff70fa28a6",
+          "bytes": 14494
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135118603_2.webp",
+          "url": "https://cdn.chotot.com/yqJ5Q22fNtDHhgUjjL77NwDeMct0zYYOaNtOiXI-mcI/preset:view/plain/b79bc960ebeb11687ddb2fe4773cdb6d-3005456324074962536.jpg",
+          "sha256": "66a6431afeb89915333814939d85d4bdc54fa6248066a1d7a53c2aeb3ca38602",
+          "bytes": 13766
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135118603_3.webp",
+          "url": "https://cdn.chotot.com/rnHsPeqQjnRWiEKat-CYqrZTPDYdVPsE4RFyOHxrtyg/preset:view/plain/c28371b4b0a9888be816ac59fce958e7-3005456330287675914.jpg",
+          "sha256": "cbfad0022489e20db9dcaedab2517fcdeac7412a56e3a3857fd1336d88223f4e",
+          "bytes": 13068
+        }
+      ]
+    },
+    {
+      "listingId": 135138694,
+      "type": "balcony",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135138694_1.webp",
+          "url": "https://cdn.chotot.com/IR2WTIntA1tJJ9GtJRvGxaBr5M-r5Ecx1zW7MQmMah4/preset:view/plain/e885819b7e95eeb6b0e0e01ea57dcd3e-3005605097073114728.jpg",
+          "sha256": "5eee496afe9420058c8f67e1deecdfad5eeeefc9684a41a7f7f7f0ab57b5bb87",
+          "bytes": 24348
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135138694_2.webp",
+          "url": "https://cdn.chotot.com/5GCuapml9XRFchh_yRc2n68yM8PGlSjT7j9VwOpY2vw/preset:view/plain/8bf8ef70a186407033caff4a93549c0a-3005605101259458458.jpg",
+          "sha256": "e600dc3f7bae2f9bb2a527abae138dd5058821892d893ea163dff7bd85c765a9",
+          "bytes": 24438
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135138694_3.webp",
+          "url": "https://cdn.chotot.com/SVp_BOuv0vE5Y3sFVbXxk_ZPp0dKIzJJVSj7i5s575c/preset:view/plain/367e96bb4564bd9bc2e18f83262bb44f-3005605105361124968.jpg",
+          "sha256": "5c533a0c41f406e4bf23bd7e75efd93f581766e31556a60613f7ccf485b89aba",
+          "bytes": 26798
+        }
+      ]
+    },
+    {
+      "listingId": 135163902,
+      "type": "balcony",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135163902_1.webp",
+          "url": "https://cdn.chotot.com/8h72ANzqZ2AbM5B7VDeNuurLQm6_2Lwe4547DnO_Idc/preset:view/plain/21c256b2744d49eebe371be64afc5831-3005810039445831924.jpg",
+          "sha256": "46411cce6ca416944440169a570d147b74cae333a36e5c956afd98b2dd48ebd2",
+          "bytes": 48082
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135163902_2.webp",
+          "url": "https://cdn.chotot.com/F-5GokBe8BekrBWEd0smYahgZgThMhST-E6GBPfapFE/preset:view/plain/f55af2c68c73ab80e03f1d87970b2bee-3005810039326213882.jpg",
+          "sha256": "e3f4188edbcdb9e58a675aa1d3287f24911fec20d3df8ee1c6822adc0ee71a05",
+          "bytes": 33378
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135163902_3.webp",
+          "url": "https://cdn.chotot.com/AsLuNezJNW3_t523A7dKiwknEDtdD70rkVaSe3uMbes/preset:view/plain/6bd214dbf0cecfb72c0761216dc2a3ab-3005810039260162741.jpg",
+          "sha256": "2789f634685756a62eeb8285190e24f84b103e334b8ab0803978c738eb3ab710",
+          "bytes": 32434
+        }
+      ]
+    },
+    {
+      "listingId": 135137478,
+      "type": "balcony",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135137478_1.webp",
+          "url": "https://cdn.chotot.com/8rnzR3kwzF7mgEpllpazjlVMkg17RAUco1hFlEbs24A/preset:view/plain/fffd09ad0606d3ce7ce26970deffe22b-3005590115643391592.jpg",
+          "sha256": "a731e61d2a7f606818159537505df37f263a9138cddef7057b5c737cf1bd2dd1",
+          "bytes": 22206
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135137478_2.webp",
+          "url": "https://cdn.chotot.com/t3FDdKNCpU3BCOo1amSWxAmbnJxbcRl8J-cW6V8P8GU/preset:view/plain/f493677476b186e5aaaff98d231c3e8f-3005590116571875226.jpg",
+          "sha256": "670f0f6e5194993c3a7c355dea745f82ec612b411de14d8eac6a65ce2e28bb47",
+          "bytes": 25144
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135137478_3.webp",
+          "url": "https://cdn.chotot.com/xbgDdjPlGG27Rb4F4Cy4lbw6ouL04zONeugC3ZWeL6g/preset:view/plain/e12cefb5228211faa32e785b0e383104-3005590116077433935.jpg",
+          "sha256": "bffb92f59b7fed906569d8b75d696783e1424990b092aa293387c22f720bcb18",
+          "bytes": 16224
+        }
+      ]
+    },
+    {
+      "listingId": 131796089,
+      "type": "balcony",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ban+cong",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_131796089_1.webp",
+          "url": "https://cdn.chotot.com/OLs0hORWei4YtCHkyv-B76UMu3sfqqAZsRklTb59YVE/preset:view/plain/e1ead9919938026a804f00e60557d3d8-2979730121155516404.jpg",
+          "sha256": "2351f8f6b28b898115055906a4f3a3283266b815a0940c720e165818e30217ce",
+          "bytes": 27196
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_131796089_2.webp",
+          "url": "https://cdn.chotot.com/pSaACS_pvo_I3gV5C3yPPxO4ZaQ5lzILiLlmbNfz534/preset:view/plain/21339dabed40b3d738baa58fd83337b1-2979730120588034640.jpg",
+          "sha256": "758f4f5b4ccdab08892372802b09e5c3991eae2c6184e7374802a9142ce4bf75",
+          "bytes": 22024
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_131796089_3.webp",
+          "url": "https://cdn.chotot.com/w-GYSpzrAPvJzjSnyQQi_gbo9TNT4gCextDIgjyimaY/preset:view/plain/b13493a60355f7ec8aabdd703ab8324a-2979730121124987068.jpg",
+          "sha256": "6cb2a41eec40ec54a0fb065b71f6dd4f0b3c91832b990bf8e0a7ad0490b6ff62",
+          "bytes": 23528
+        }
+      ]
+    },
+    {
+      "listingId": 135351241,
+      "type": "loft",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135351241_1.webp",
+          "url": "https://cdn.chotot.com/WazjnZu8DYbWKkkXsReHLesEXY_3JF_88_BwH4-yE5A/preset:view/plain/826bf6bc15921afbc5f9c22bbad6d35c-3007201131115154815.jpg",
+          "sha256": "fda22cb1e85098e59bf34a5181cf2e1dc3d895ed1b2539beb3316f89f9d411c7",
+          "bytes": 8392
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135351241_2.webp",
+          "url": "https://cdn.chotot.com/SszIPdBr1SrThcGxbXOyGI4F9IqNotx1wglEr6PqH0A/preset:view/plain/48df75d4178999fdedef5b425c283c86-3007201131332347926.jpg",
+          "sha256": "b9470dad0dfe0bbb9a4d68b95314d2f5f563d73b9f714282bf3c3330044fe0f2",
+          "bytes": 7600
+        }
+      ]
+    },
+    {
+      "listingId": 135641520,
+      "type": "loft",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135641520_1.webp",
+          "url": "https://cdn.chotot.com/1XM6rzUnLOkvv2pvAts626CSG6RoOQP4xi0OrrIYUzs/preset:view/plain/befd52874b7be6e861cae80ca6c4f579-3009443476138399008.jpg",
+          "sha256": "9c6f37c2c6f5c42fd06303799061d864560754462649454f65b74e00ba37db07",
+          "bytes": 21224
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135641520_2.webp",
+          "url": "https://cdn.chotot.com/2_RHIi16oLKSbgjnXVMn3n8RrXOO2lEfn8WamLl94CE/preset:view/plain/3c8569e0d63c3f5f43047367f4e015d3-3009443476255657666.jpg",
+          "sha256": "ea7909bdd668ec7d077bcd66090454e9dd3151caeea1aa8d7f59a609b9a5feec",
+          "bytes": 21842
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135641520_3.webp",
+          "url": "https://cdn.chotot.com/aMqOG-E5LZmygubl6YDwIkgJ3Tg_5_vFMKwQJnkfsl0/preset:view/plain/50a52677dc3dc56063ba1152ec9fceff-3009443476337514869.jpg",
+          "sha256": "fdb7227f515ca5ffe94ff1986d502d828cf075362d4359b2d5b2f5eb9a940455",
+          "bytes": 26546
+        }
+      ]
+    },
+    {
+      "listingId": 135580087,
+      "type": "loft",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135580087_1.webp",
+          "url": "https://cdn.chotot.com/J-AiBIRFRYPp1yzRF7rwIG8J44UXnpol1S8gRgP0HEU/preset:view/plain/239f94c8824249f641289b86bd2946d7-3008945000820988598.jpg",
+          "sha256": "a76e9590ad7a99318fbf39884180543c51860e7262d16e5f21d1594c3cdb8ed7",
+          "bytes": 27964
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135580087_2.webp",
+          "url": "https://cdn.chotot.com/d-oG6z-LDqYHmqbvsGxucoMJPEWnN3RbVoprwuc7maw/preset:view/plain/ab9681ccc7fb9a9285aa5eae8cc25671-3008945000862812436.jpg",
+          "sha256": "ef5a9c0c8b71291b706dcd6858f7ce01250aad4725242c18a3a2a05f624a1085",
+          "bytes": 24464
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135580087_3.webp",
+          "url": "https://cdn.chotot.com/Syr9xReI_Kxajb7YMH_NADQaxg69BQmBuFKvHNzmd5Y/preset:view/plain/a670281f5d89560f935cadcc00012ea1-3008945000962758639.jpg",
+          "sha256": "597fbaddd6e9bd8ec1ff95247d5b5f159f25c6acfd66d95f330332d0d46412e6",
+          "bytes": 26752
+        }
+      ]
+    },
+    {
+      "listingId": 135650700,
+      "type": "loft",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135650700_1.webp",
+          "url": "https://cdn.chotot.com/WlV8MqPbGs9pKW-fws8w1f4kjLa5echzERY_V0drZX0/preset:view/plain/3691d15197a9507b3b4a1b0fe46499bb-3009487848120238574.jpg",
+          "sha256": "d78794da3dc417657a0e6c9317bd862ddbf1d1eb8290e7220e83e2dca3126103",
+          "bytes": 23278
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135650700_2.webp",
+          "url": "https://cdn.chotot.com/GH0FOM3hD4gUqeqnZCCpYzPV-4vc5qT9JKP6vSrlLKs/preset:view/plain/48bc6eeb126a57291900efeacab896a5-3009487848668000722.jpg",
+          "sha256": "5588bf40d539ff5cd232aa95aa092d2c2c68a0d79e2dff739aba229379132a6a",
+          "bytes": 20066
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135650700_3.webp",
+          "url": "https://cdn.chotot.com/caMeUvQLTv22G9VdplXkowyvZUpHXGWnEtSRtgXYgT0/preset:view/plain/75907bf8b14a20dd34cf99528b77991c-3009487848322733344.jpg",
+          "sha256": "c597784ec48606f13ede6496871831cee95ae594fa9b91ec0edfda38862a4eda",
+          "bytes": 15524
+        }
+      ]
+    },
+    {
+      "listingId": 135629016,
+      "type": "loft",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135629016_1.webp",
+          "url": "https://cdn.chotot.com/_kD07NGz0chUGQB2Y17t2I6RvIpwbDz1qKh0wNJVb5Y/preset:view/plain/7e73f16481deb07358e9ac66ac39d1c7-3009329239842557210.jpg",
+          "sha256": "8898a5c68f1d088d5e4ede1000ebbaf9d3733a8638c3f5b01efce1651e593dea",
+          "bytes": 18640
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135629016_2.webp",
+          "url": "https://cdn.chotot.com/YgAdBuBmMm4N4vfD785zNePJ7lmEPnsY1D7GYLUqBcI/preset:view/plain/1bfbfc100e4afa8febb83b264e1e8a85-3009329239874376992.jpg",
+          "sha256": "35ee92dab9957242ab977f20ab17f7c279c235e487aea1a4de1ad6aa0bf594d1",
+          "bytes": 8042
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135629016_3.webp",
+          "url": "https://cdn.chotot.com/dmIJiykJUQHS0JepcDYDMdd8Qb6UcIjRGCz5EM4RVl4/preset:view/plain/2a3d0b73bec63efeeb22888f014ec194-3009329241490643317.jpg",
+          "sha256": "dfe8ba9be1a1ba65b0d26a142a1ce93467533cef2b18f11377f88ed21adff32f",
+          "bytes": 19572
+        }
+      ]
+    },
+    {
+      "listingId": 135634647,
+      "type": "loft",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135634647_1.webp",
+          "url": "https://cdn.chotot.com/36ByfO-_REsk7JYdrPoHyM75MaMKnpjh9y9nrhVClB0/preset:view/plain/81801b6b5f2f978b6e5e93c6d98da073-3009413793884745374.jpg",
+          "sha256": "b2ddd542ae9ce49941d0b245642f80b34245c6e4583f3f0457c0e50d407cad16",
+          "bytes": 19720
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135634647_2.webp",
+          "url": "https://cdn.chotot.com/LUxpdoGYyuqxEil8okPZH3i1SBsQ6fisoyI_dZsqhxs/preset:view/plain/3a2bdf7f8ac7d849275ffce25345de9d-3009413794087754101.jpg",
+          "sha256": "138e565fa7d41d2374cc6fed69936b8bb48b92a7a5d051bd9c5628a3f3347c8b",
+          "bytes": 25152
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135634647_3.webp",
+          "url": "https://cdn.chotot.com/ij-bPke_aVSQ38jcyg6IbX5jQjctWoLE8nedXTQDzzI/preset:view/plain/9526269361456b90d6f100617c62e28f-3009413795396442485.jpg",
+          "sha256": "341cab649c840265561bfa9921e7161412a089d2a43bdee3fa63db7345a6259c",
+          "bytes": 22556
+        }
+      ]
+    },
+    {
+      "listingId": 135601204,
+      "type": "loft",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135601204_1.webp",
+          "url": "https://cdn.chotot.com/-ql8YLTiJ4XsYOyp1pz-e-iMgq1USYN8uqsyFenr1u0/preset:view/plain/af8697c565ce81f9234fc1cb31285259-3009147003402392526.jpg",
+          "sha256": "30917df00f570350c36ce62f4b21c19d21e85b3764c7a5c3183d1d7b0d76f154",
+          "bytes": 20528
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135601204_2.webp",
+          "url": "https://cdn.chotot.com/-Oiq8DUzYcAZ_Kc18rZ7ZEG-rZ941WR9P8ZtuI92Iqw/preset:view/plain/c165fdfb717426583092bffad863b227-3009147003376822321.jpg",
+          "sha256": "2c34d57bb25ba274b4e9a0f469e075a4da27943097bf03e7ac93f836ef66b3de",
+          "bytes": 20910
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135601204_3.webp",
+          "url": "https://cdn.chotot.com/MLNe4hHCkDZntw8Vh2eypux3xfubI9ykARE4dvlp3PQ/preset:view/plain/6088bd2c66b6c0dbbf571d6420735dbf-3009147003474893494.jpg",
+          "sha256": "da911a9e8e238e279cf44b4c4d05832e7af5098bdd6b541b54dcf26ac7726b2a",
+          "bytes": 28400
+        }
+      ]
+    },
+    {
+      "listingId": 135515902,
+      "type": "loft",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135515902_1.webp",
+          "url": "https://cdn.chotot.com/-L_qONRyEk41Ghb6Ixfrkso8zrNa4U8Z0ByT7MtMAx0/preset:view/plain/84ad367c01009c991a6c3ef1b0bf7e9c-3008446960549928142.jpg",
+          "sha256": "982d6bfd056ea9bd6e70f5142abb721634cbdc1bc1351a3c5b780db86793b5bf",
+          "bytes": 13450
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135515902_2.webp",
+          "url": "https://cdn.chotot.com/DTJXz0bbeAcCCzhwT_LCmdfCkXYGuhrwgvJLJJ7WYRw/preset:view/plain/245b69192a1c69ce2a1a7c321e0b7fc1-3008446960117603461.jpg",
+          "sha256": "65cf5a6bab88e3a59c0048973e91bb14d8a262d323f11e36e8aa488db326de5f",
+          "bytes": 14292
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135515902_3.webp",
+          "url": "https://cdn.chotot.com/wAwl8jzYOgnZhRi9k3O2A6HSjMT5aVhUvyJSZ4j9kio/preset:view/plain/79fcc6ba55d83a562b3bb2e71305100e-3008446960614394769.jpg",
+          "sha256": "984ef043e4c7fff8ec862fa34d6f54292e48b8cf8659884e76518055e9731d6c",
+          "bytes": 25222
+        }
+      ]
+    },
+    {
+      "listingId": 135492759,
+      "type": "loft",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135492759_1.webp",
+          "url": "https://cdn.chotot.com/m54emHRLjv4AC16VaD0v-n7LSMmQegBy9CG-BYmn9qk/preset:view/plain/4c89f4ba5408f75b39ac165fad10c885-3008289978585815744.jpg",
+          "sha256": "922b46e8f80f9b6b35cdd63f889826e86dd675905e492424ccd59fd2f61a1758",
+          "bytes": 25760
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135492759_2.webp",
+          "url": "https://cdn.chotot.com/d6tQuk2w6ShbsG7e6zuWPbw4Wgz8guHZFWBXTez9eU8/preset:view/plain/d6c70b22af3012ef9c1d43435135a8da-3008289978572500546.jpg",
+          "sha256": "ead6460f10b8f336311bdc13c62e35f3c9034408c1304809d3dc3bf04fcf0780",
+          "bytes": 19966
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135492759_3.webp",
+          "url": "https://cdn.chotot.com/eFpOvuH1sIOvBARbdf8fdIlhUPGS5s2ptPo2FH_p8zs/preset:view/plain/49169b3ef00172563e9a8800457513e4-3008289978485871027.jpg",
+          "sha256": "67cc018d205d1b6f0add02e0521a99310744b26f0da9fac6daaeaeab2f2b1916",
+          "bytes": 23708
+        }
+      ]
+    },
+    {
+      "listingId": 112442088,
+      "type": "loft",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=gac+lung",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_112442088_1.webp",
+          "url": "https://cdn.chotot.com/3jmzEgtI3KUMbsAFU5DYaExvxNwviFXUxUcHw6A1bto/preset:view/plain/1012dd5e96063223dee1661744c69816-3009471107243825525.jpg",
+          "sha256": "58df04d40fb562ac76e72a932dd6fabe5e5fa7d41e9dbb4521ed60acbf9878e8",
+          "bytes": 20038
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_112442088_2.webp",
+          "url": "https://cdn.chotot.com/KtG7e05TxKcY8BHubcMP9rDb-ddVT6ixv35senF4yVE/preset:view/plain/2b0427a15d2731ad4622c90b50babadc-3009471107602297729.jpg",
+          "sha256": "e7e864faa1e2e1879ea4ec4eec039d2a249a58e8c4a3f802b3061def94e85e55",
+          "bytes": 16216
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_112442088_3.webp",
+          "url": "https://cdn.chotot.com/IkasWKYFWQfLmtOTPR7ruu-rHP7i8LFCxUM_g5XhIL8/preset:view/plain/6da811716cc21b94c26fce781f89dc31-3009471107967823518.jpg",
+          "sha256": "86a4684b13ad6fa73ba3e82e86ea9b83bbdd9e9b097bb72c919164d028bbb6f0",
+          "bytes": 13348
+        }
+      ]
+    },
+    {
+      "listingId": 118766372,
+      "type": "group",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_118766372_1.webp",
+          "url": "https://cdn.chotot.com/kuQd--Nubyr078aHapYOyPUJ3gvsVzDcqVks8RUGpyE/preset:view/plain/4fe2148760d71535ea12003d86b1d46b-2957292786224342335.jpg",
+          "sha256": "6e6a67b45971bd7477bf59834a5feb234b58517b01fefbc25f60e87bef998a08",
+          "bytes": 40034
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_118766372_2.webp",
+          "url": "https://cdn.chotot.com/vaoGPl7zMt7s7ypWjBlut1WMt_y8Pr0mKz6DaaRCe6M/preset:view/plain/d05e8f996cc2707fff7e49d4a437edac-2957292784496223551.jpg",
+          "sha256": "dc1706ae92155b4c13bf2f9db0eaaf39e60926003e2e1f18c0a414b7817e6854",
+          "bytes": 16690
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_118766372_3.webp",
+          "url": "https://cdn.chotot.com/VYLiQQjo-W6qX6W5217mLWiGcNsDShukFIgDAX7Ue70/preset:view/plain/612de0bdaea8aca9f8a5847391342b01-2892332404896757838.jpg",
+          "sha256": "0ca49a68bb4f6044ebee42706a695238ce8cf492317203c22deafca503bf6a64",
+          "bytes": 26452
+        }
+      ]
+    },
+    {
+      "listingId": 130296291,
+      "type": "group",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_130296291_1.webp",
+          "url": "https://cdn.chotot.com/sqp586RZJPHIqO6aVoqYAMcbj17hbzGDMdRsm5lTy44/preset:view/plain/7dd5efab56991ff1ad9a97d9245c9ae3-2966996235501499634.jpg",
+          "sha256": "d4709e7e04fa893b6f9de4feef113cf10e4dd73339792dc85c0bfe993b5d104e",
+          "bytes": 17672
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_130296291_2.webp",
+          "url": "https://cdn.chotot.com/oeIPfyjJXdlWtnyLi4IIGPsaBQ1jili3UuV4klhM1PA/preset:view/plain/7be6e4b226624f60a3b415994f61c24f-2966996235469007768.jpg",
+          "sha256": "4786e37d0e8beeba4bcaeb7a18a4c551d8a08855e4278b7c5f1beaf12318d6a3",
+          "bytes": 23462
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_130296291_3.webp",
+          "url": "https://cdn.chotot.com/wMHOrBNkVhvF-zNGVA48VnpDbdJuhkLR5nGrrFZ8ji4/preset:view/plain/7e88e4f5f9fed38c118eb1d76b077d63-2966996235164143837.jpg",
+          "sha256": "bc63b1cb4d5db6e605a27474bf99bdb993d1c653af030bed1b341d44ed8c8c75",
+          "bytes": 24082
+        }
+      ]
+    },
+    {
+      "listingId": 135402221,
+      "type": "group",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135402221_1.webp",
+          "url": "https://cdn.chotot.com/FIJ2Z4Ei8xEe6TmN8s44KOiZLf3YIpH3Ar33ZntlckA/preset:view/plain/5e16875558f17d5bf0e1ae682260e2cc-3007582245715808659.jpg",
+          "sha256": "4a9a9bab982f1a7272ffdbf13f2ff9bd3c378e944b7aeb6888f888f451a01fd5",
+          "bytes": 17398
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135402221_2.webp",
+          "url": "https://cdn.chotot.com/9zo4f2tMJlWWuqtboWHTkm0kYyYiC9mkS3HPISe1Moo/preset:view/plain/2060c0abb9197ba40d8c84db09336faf-3007582245767788530.jpg",
+          "sha256": "691459b3472428a0b883bbab63660578730139c079cfd1125cc7e8c7fbb27492",
+          "bytes": 27278
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135402221_3.webp",
+          "url": "https://cdn.chotot.com/JNOY4ekm7oVe17GmE1zZe-MIgG_W2V_gDjsYOHegbik/preset:view/plain/6e7a4c5fcdcb751e04c41b69c8e3fbb3-3007582245757089366.jpg",
+          "sha256": "e9d407fafdef647c6d00995012be10c70e4e122bf8eeb5fc6df8eae4ec31ae39",
+          "bytes": 15104
+        }
+      ]
+    },
+    {
+      "listingId": 132061981,
+      "type": "group",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_132061981_1.webp",
+          "url": "https://cdn.chotot.com/UXT95vW9oj8_OJmtESdoAehVXPhbc279AmNskZDFrYU/preset:view/plain/394e38ee2b388b448df6f25b2daabfcc-2981725987863387371.jpg",
+          "sha256": "90401d722ccaeba9006cbae5d8384903ddea200ad315b7fa6a3e1c171b1ba8ac",
+          "bytes": 49452
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_132061981_2.webp",
+          "url": "https://cdn.chotot.com/vCIeFGQYe3k87lM-x7Xv48yXFPJx-1z-dpjmIlj9s84/preset:view/plain/e9e3bb06a1e47b303df1c086e910e4b2-2981725987293466499.jpg",
+          "sha256": "d7d378cab2b62030a96c18a253dfae42f18005651ba18d2ed22474a97ae8f92e",
+          "bytes": 10140
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_132061981_3.webp",
+          "url": "https://cdn.chotot.com/zeTSvrY9CMEZfakw4SC6q8JNnz4dCx0YSLVetk3Ys5o/preset:view/plain/2b01fc882a97abfa1be97f5427236e45-2981725987192233195.jpg",
+          "sha256": "3b9a6f60d1019231cd1c3927d4bc03199912e77d0611b5545e3199eb8c834834",
+          "bytes": 13334
+        }
+      ]
+    },
+    {
+      "listingId": 135405890,
+      "type": "group",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135405890_1.webp",
+          "url": "https://cdn.chotot.com/hA3t7ToRAgd-mRBzIiYHWkcimSxqZd3-i6x01w5NoOU/preset:view/plain/fd83f57e63d31270740c54dbb69c51b5-3007601532364470987.jpg",
+          "sha256": "6c715b13c42b2a6a6c14952c7b1a834997f3b54cfd7e0ab9a0ea97b839c774cc",
+          "bytes": 15118
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135405890_2.webp",
+          "url": "https://cdn.chotot.com/mBV96LVCZuMCrMMs8TnBWtmeV_6mXtgyLeqKNEDJg_8/preset:view/plain/88acf1c8df5323c0a21fd4540ccdd85d-3007601533853468071.jpg",
+          "sha256": "30e1ab6fc326cd9fcb74926f1a2049c209a1c67c1237c49c543019ed57652c95",
+          "bytes": 22536
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135405890_3.webp",
+          "url": "https://cdn.chotot.com/CqUQz0TYMdfA1FqAHEiXQXV-e2g8b4AZMbLNm3X903k/preset:view/plain/20d52b16509e018731369d5eb582d423-3007601532452180371.jpg",
+          "sha256": "ab530cedd08de33c885d7509483d45a2a86e4c05673bdd117a8cd15f387d44ac",
+          "bytes": 9498
+        }
+      ]
+    },
+    {
+      "listingId": 133816858,
+      "type": "group",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_133816858_1.webp",
+          "url": "https://cdn.chotot.com/86TLTFB___U_h5Aqfo9SR0Tynk3_entWmadx0aipoFc/preset:view/plain/cb2efe9b1b39c428b5e409f5ef41efba-2995206830919248129.jpg",
+          "sha256": "faa1414e3bc63fa31d8179b605bf106eed5e667b3ec98528728e48f632ba5bfc",
+          "bytes": 12168
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_133816858_2.webp",
+          "url": "https://cdn.chotot.com/kaiZWvx3nZPQMLcCbnXDKhe62-dZBR_arV79inRaQns/preset:view/plain/edbadfbb0c47c162fa3cb00e5034ec91-2995206846918556191.jpg",
+          "sha256": "e1e85a096ccf54efd34335f664ded026cfc55b7ddd8813c589566d73a65045ca",
+          "bytes": 14482
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_133816858_3.webp",
+          "url": "https://cdn.chotot.com/jmr9OQP3AiPCC0tOIGvyRJWoBBidLNAI0KkmC7DW9fg/preset:view/plain/66b0a2607a7021c634e4edaecb5d5ceb-2995206847168452871.jpg",
+          "sha256": "d0c785e767e38eaaa656bc0a1784a98e135c8b82071726ea3c931e09a0e2102b",
+          "bytes": 13726
+        }
+      ]
+    },
+    {
+      "listingId": 130442919,
+      "type": "group",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_130442919_1.webp",
+          "url": "https://cdn.chotot.com/sPh8Y7Atl_43IP71mT61CFkFXBc7I4l3EJWtLpulL7I/preset:view/plain/14a4572f02f3363e4ee1e72b8116a685-3001650214888862318.jpg",
+          "sha256": "ae80168a96aaf0dd9d8fe127b9a3fb078e49d46231e6d0572649eedbf0ab6ffe",
+          "bytes": 30380
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_130442919_2.webp",
+          "url": "https://cdn.chotot.com/0VwJdInqdpbtOkMbgSRATZUT0V1gFQL8WkdLLZIS0z8/preset:view/plain/869c8e20dae174821658682351759a5b-3001650214963040744.jpg",
+          "sha256": "d83b026f4fc8b15c59f1e5acfff05973f7f84a27b2786885bf8553af6e49f2a2",
+          "bytes": 13892
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_130442919_3.webp",
+          "url": "https://cdn.chotot.com/9b4GBTHSpUsc3d1K91QFbM1KoiAE15fh-OzbomE2850/preset:view/plain/424c0c77cf5a13e1993827442e76312f-3001650215716457260.jpg",
+          "sha256": "4ed5d4ca054d06f30763996bf90797a2eaeeeb1f5f22c82453deb37b79396c25",
+          "bytes": 37802
+        }
+      ]
+    },
+    {
+      "listingId": 135448926,
+      "type": "group",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_135448926_1.webp",
+          "url": "https://cdn.chotot.com/7SXPDWcfc6N0-RRNZ0eSNUYP507bKXrHtrklDM7AATc/preset:view/plain/b419cac1e2c08305d81ad5d134df750e-3007975128682827760.jpg",
+          "sha256": "b4bb5de7a920ac795691d37c265eeeb8d26ea2d0e8b773e2e42b8433e3ad6e98",
+          "bytes": 11200
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135448926_2.webp",
+          "url": "https://cdn.chotot.com/iViFLOpX6m24wxfTfKyXjSYrzlRhv298yIpnG_f0mBs/preset:view/plain/04592949146396562e977c28e60f5c8a-3007975127905459251.jpg",
+          "sha256": "a0eefe11da1a867ef39e50c5bba0c6ee50df9a6db111c45c829228465fd470f2",
+          "bytes": 11042
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_135448926_3.webp",
+          "url": "https://cdn.chotot.com/AZWFj3P30oyP6ozJE49EFgCjt52mGXpIEes56OyYdVM/preset:view/plain/a054853baaac6151b14bc44fe17a38d8-3007975130421876113.jpg",
+          "sha256": "34e5a0d92785fc280e1f498e2c803a8c2912202a4346049f357d3594e1f94bc8",
+          "bytes": 11358
+        }
+      ]
+    },
+    {
+      "listingId": 131848458,
+      "type": "group",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_131848458_1.webp",
+          "url": "https://cdn.chotot.com/eHNwYn3oTe6Vq5giyfXlZ6a7bWBY-t14WcgBRiE3UtA/preset:view/plain/65dc94e948a1466f7b481126e4adc25b-2980066796552946453.jpg",
+          "sha256": "9e9dff705e3bfb17a735546571d895ed4ab276be8b994bfc7b0cf46baf049714",
+          "bytes": 24596
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_131848458_2.webp",
+          "url": "https://cdn.chotot.com/9mjc8Msiwt8U79wvUiOHmx1QeeagpAi47cKSucsZJEU/preset:view/plain/dca3154ba1555699f529c4487e6fae85-2980066796502528383.jpg",
+          "sha256": "122487b117f8ecb2932aa313bbcc0778b7edd80fa30c336de87a2dd1b3c4152a",
+          "bytes": 16812
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_131848458_3.webp",
+          "url": "https://cdn.chotot.com/-_Aoon_xMgwEzMIC0nXpNCVbdUYEKHD8omuJTTXMTbI/preset:view/plain/aeb46cb67916be597a3fab0f413ca512-2980066797693776255.jpg",
+          "sha256": "8888e5bd8adf973135971c6a403cc729e81bafb252abf33a80b384f4b2efa807",
+          "bytes": 20112
+        }
+      ]
+    },
+    {
+      "listingId": 131341308,
+      "type": "group",
+      "endpoint": "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=10&o=0&st=u%2Ch&w=1&q=ky+tuc+xa",
+      "photos": [
+        {
+          "asset": "assets/images/rental_api/nhatot_131341308_1.webp",
+          "url": "https://cdn.chotot.com/GSe_OiBZzBtDrEG4bGH80MfVbhhLL34JTlbi2hurG4I/preset:view/plain/4a91505277b87b1b9c1695e8c85e804f-2976430744759944736.jpg",
+          "sha256": "c3c52328eedacb81173cd77ae832a55f1ca573d14d75a1979db37905f294f42b",
+          "bytes": 14152
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_131341308_2.webp",
+          "url": "https://cdn.chotot.com/yRTXOYEfi_lmWlH_bs2BP3rbnNRIpn487JliAn0WVh4/preset:view/plain/7e6635d32b16aa849312f8fbdde64db8-2976430744978114080.jpg",
+          "sha256": "e0a6d01cb11fa7038cead45ae27dde6d23f7cc1d56a098f0f72c8f8e38f7604c",
+          "bytes": 11124
+        },
+        {
+          "asset": "assets/images/rental_api/nhatot_131341308_3.webp",
+          "url": "https://cdn.chotot.com/iRMpzc3LmNTUOxP3gAYNfBhy3x65tfrE01ayYrip1os/preset:view/plain/cfa3ca0a6d2d19eae5221ea14ee84793-2976430746035209760.jpg",
+          "sha256": "7d683ddfefcf7f419814d27cc0a8b91bc14664d7b4ec6c527a92305c15c6742e",
+          "bytes": 7534
+        }
+      ]
     }
-  ],
-  "endpoints": [
-    "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=24&o=0&st=u%2Ch&w=1",
-    "https://gateway.chotot.com/v1/public/ad-listing?cg=1050&limit=4&o=0&st=u%2Ch&w=1&q=ktx"
   ]
 }

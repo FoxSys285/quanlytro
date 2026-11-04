@@ -61,6 +61,8 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) TextInput.finishAutofillContext();
     } on ArgumentError catch (e) {
       if (mounted) setState(() => _error = e.message.toString());
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Đăng nhập không thành công: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -378,54 +380,85 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ],
           ),
-          if (!LocalAuth.instance.isCloudMode) ...[
-            const SizedBox(height: 20),
-            const Text(
-              'Tài khoản mẫu trên thiết bị',
-              style: TextStyle(
-                color: _ink,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              const Text(
+                'Điền nhanh tài khoản',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final chips = [
-                  for (final role in AppRole.values)
+              const Spacer(),
+              Text(
+                LocalAuth.instance.isCloudMode ? 'Firebase Cloud' : 'Bản nội bộ',
+                style: const TextStyle(color: _muted, fontSize: 11),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCloud = LocalAuth.instance.isCloudMode;
+              final accounts = isCloud
+                  ? [
+                      (
+                        role: AppRole.admin,
+                        email: 'admin@ex.com',
+                        label: 'Quản trị viên',
+                      ),
+                      (
+                        role: AppRole.landlord,
+                        email: 'landlord@ex.com',
+                        label: 'Chủ trọ',
+                      ),
+                      (
+                        role: AppRole.tenant,
+                        email: 'tentant@ex.com',
+                        label: 'Người thuê',
+                      ),
+                    ]
+                  : [
+                      for (final role in AppRole.values)
+                        (
+                          role: role,
+                          email: LocalAuth.emailFor(role),
+                          label: role.label,
+                        ),
+                    ];
+              return Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  for (final acc in accounts)
                     ActionChip(
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      avatar: Icon(role.icon, size: 18, color: _green),
-                      label: Text(role.label),
-                      labelStyle: const TextStyle(color: _ink, fontSize: 11.5),
+                      avatar: Icon(acc.role.icon, size: 16, color: _green),
+                      label: Text(acc.label),
+                      labelStyle: const TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w600),
                       backgroundColor: const Color(0xFFEAF9F0),
                       side: const BorderSide(color: Color(0xFFBFEDD4)),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 3,
+                        horizontal: 4,
                         vertical: 6,
                       ),
-                      labelPadding: const EdgeInsets.only(left: 2, right: 3),
                       onPressed: _busy
                           ? null
                           : () => setState(() {
-                              _email.text = LocalAuth.emailFor(role);
-                              _password.text = 'Tro@2026';
+                              _email.text = acc.email;
+                              if (!isCloud) _password.text = 'Tro@2026';
                               _error = null;
                             }),
                     ),
-                ];
-                return Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  alignment: WrapAlignment.spaceBetween,
-                  children: chips,
-                );
-              },
-            ),
-          ],
+                ],
+              );
+            },
+          ),
         ],
       ),
     ),
@@ -494,20 +527,62 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         suffixIcon: password
-            ? IconButton(
-                tooltip: _obscure ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Dán mật khẩu',
+                    onPressed: _busy
+                        ? null
+                        : () async {
+                            final data = await Clipboard.getData(Clipboard.kTextPlain);
+                            if (data?.text != null && data!.text!.isNotEmpty) {
+                              setState(() {
+                                controller.text = data.text!;
+                                _error = null;
+                              });
+                            }
+                          },
+                    icon: const Icon(
+                      Icons.content_paste_rounded,
+                      color: Color(0xFF73788E),
+                      size: 20,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: _obscure ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _obscure = !_obscure),
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: const Color(0xFF73788E),
+                      size: 21,
+                    ),
+                  ),
+                ],
+              )
+            : IconButton(
+                tooltip: 'Dán email từ clipboard',
                 onPressed: _busy
                     ? null
-                    : () => setState(() => _obscure = !_obscure),
-                icon: Icon(
-                  _obscure
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: const Color(0xFF73788E),
-                  size: 21,
+                    : () async {
+                        final data = await Clipboard.getData(Clipboard.kTextPlain);
+                        if (data?.text != null && data!.text!.trim().isNotEmpty) {
+                          setState(() {
+                            controller.text = data.text!.trim();
+                            _error = null;
+                          });
+                        }
+                      },
+                icon: const Icon(
+                  Icons.content_paste_rounded,
+                  color: Color(0xFF73788E),
+                  size: 20,
                 ),
-              )
-            : null,
+              ),
       ),
     ),
   );

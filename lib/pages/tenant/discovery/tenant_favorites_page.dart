@@ -1,3 +1,5 @@
+import '../../shared/profile/account_store.dart';
+import '../../../layouts/role_layout.dart';
 import '../../../data/admin_store.dart';
 
 import 'package:flutter/material.dart';
@@ -203,12 +205,12 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
             LandlordDemoStore.instance
                 .currentLeaseForTenant(TenantSession.currentTenantId)
                 ?.tenantName ??
-            TenantSession.name,
+            AccountStore.instance.profile(AppRole.tenant).name,
         initialPhone:
             LandlordDemoStore.instance
                 .currentLeaseForTenant(TenantSession.currentTenantId)
                 ?.phone ??
-            TenantSession.phone,
+            AccountStore.instance.profile(AppRole.tenant).phone,
       ),
     );
     if (!mounted || request == null) return;

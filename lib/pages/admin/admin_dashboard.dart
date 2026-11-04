@@ -30,6 +30,7 @@ class AdminDashboard extends StatelessWidget {
     final occupied = stores.fold<int>(0, (n, s) => n + s.activeLeases.length);
     final debt = admin.statements.fold<int>(0, (n, s) => n + s.remaining);
     final tickets = admin.tickets.where((t) => !t.closed).length;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -44,114 +45,88 @@ class AdminDashboard extends StatelessWidget {
                   Color(0xFF1E293B),
                   Color(0xFF1E1B4B),
                 ],
+                stops: [0.0, 0.5, 1.0],
               ),
             ),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1120),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: ExcludeSemantics(
-                        child: Image.asset(
-                          'assets/images/room_types/interior.webp',
-                          fit: BoxFit.cover,
-                          alignment: Alignment.centerRight,
-                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Toàn cảnh nền tảng',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
                         ),
                       ),
-                    ),
-                    const Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Color(0xFF0F172A),
-                              Color(0xF20F172A),
-                              Color(0xB31E293B),
-                            ],
-                            stops: [0, 0.45, 1],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 7),
+                      Row(
                         children: [
-                          const Text(
-                            'Toàn cảnh nền tảng',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 14,
+                            color: Color(0xFFD1DCF2),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              landlordDate(DateTime.now()),
+                              style: const TextStyle(
+                                color: Color(0xFFD1DCF2),
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 7),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_today_outlined,
-                                size: 14,
-                                color: Color(0xFFD1DCF2),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Text(
+                              auth.isCloudMode ? '● Trực tuyến' : '● Sẵn sàng',
+                              textAlign: TextAlign.end,
+                              style: const TextStyle(
+                                color: Color(0xFF34D399),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  landlordDate(DateTime.now()),
-                                  style: const TextStyle(
-                                    color: Color(0xFFD1DCF2),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Flexible(
-                                child: Text(
-                                  'Ảnh minh họa',
-                                  textAlign: TextAlign.end,
-                                  style: TextStyle(
-                                    color: Color(0xFFD1DCF2),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 22),
-                          IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _stat(
-                                  auth.isCloudMode
-                                      ? (userCount?.toString() ?? '—')
-                                      : '${auth.localAccounts.length}',
-                                  'Tài khoản',
-                                  Icons.people_alt_outlined,
-                                  const Color(0xFF34D399),
-                                ),
-                                _stat(
-                                  '${stores.length}',
-                                  'Nhà trọ',
-                                  Icons.apartment_rounded,
-                                  const Color(0xFFFBBF24),
-                                ),
-                                _stat(
-                                  '$occupied / $rooms',
-                                  'Phòng đang thuê',
-                                  Icons.door_front_door_outlined,
-                                  const Color(0xFF818CF8),
-                                ),
-                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _stat(
+                              auth.isCloudMode
+                                  ? (userCount?.toString() ?? '—')
+                                  : '${auth.localAccounts.length}',
+                              'Tài khoản',
+                              Icons.people_alt_outlined,
+                              const Color(0xFF34D399),
+                            ),
+                            _stat(
+                              '${stores.length}',
+                              'Nhà trọ',
+                              Icons.apartment_rounded,
+                              const Color(0xFFFBBF24),
+                            ),
+                            _stat(
+                              '$occupied / $rooms',
+                              'Phòng thuê',
+                              Icons.door_front_door_outlined,
+                              const Color(0xFF818CF8),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -173,6 +148,9 @@ class AdminDashboard extends StatelessWidget {
                               backgroundColor: adminBlue.withValues(alpha: 0.1),
                               foregroundColor: adminBlue,
                               padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: BorderSide(
+                                color: adminBlue.withValues(alpha: 0.2),
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -185,13 +163,22 @@ class AdminDashboard extends StatelessWidget {
                               Icons.verified_user_outlined,
                               size: 20,
                             ),
-                            label: const Text('Xác minh'),
+                            label: Text(
+                              pending.isNotEmpty
+                                  ? 'Xác minh (${pending.length})'
+                                  : 'Xác minh',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: adminInk,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               side: const BorderSide(color: adminLine),
                               shape: RoundedRectangleBorder(
@@ -203,8 +190,14 @@ class AdminDashboard extends StatelessWidget {
                             icon: const Icon(
                               Icons.support_agent_outlined,
                               size: 20,
+                              color: adminMuted,
                             ),
-                            label: Text('Hỗ trợ ($tickets)'),
+                            label: Text(
+                              'Hỗ trợ ($tickets)',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -236,6 +229,7 @@ class AdminDashboard extends StatelessWidget {
                           leading: Icon(
                             Icons.task_alt_rounded,
                             color: adminGreen,
+                            size: 28,
                           ),
                           title: Text('Đã kiểm tra toàn bộ nhà trọ'),
                           subtitle: Text(
@@ -315,13 +309,17 @@ class AdminDashboard extends StatelessWidget {
                                 ),
                               ),
                               Flexible(
-                                child: Text(
-                                  formatLandlordMoney(debt),
-                                  textAlign: TextAlign.end,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: adminBlue,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    formatLandlordMoney(debt),
+                                    textAlign: TextAlign.end,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: adminBlue,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -395,17 +393,21 @@ class AdminDashboard extends StatelessWidget {
                                                 TextSpan(
                                                   text:
                                                       admin.isVerified(
-                                                        stores[i].property.id,
-                                                      )
-                                                      ? 'Đã xác minh'
-                                                      : 'Chưa xác minh',
+                                                            stores[i]
+                                                                .property
+                                                                .id,
+                                                          )
+                                                          ? 'Đã xác minh'
+                                                          : 'Chưa xác minh',
                                                   style: TextStyle(
                                                     color:
                                                         admin.isVerified(
-                                                          stores[i].property.id,
-                                                        )
-                                                        ? adminGreen
-                                                        : adminGold,
+                                                              stores[i]
+                                                                  .property
+                                                                  .id,
+                                                            )
+                                                            ? adminGreen
+                                                            : adminGold,
                                                     fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
@@ -471,19 +473,30 @@ class AdminDashboard extends StatelessWidget {
                 child: Icon(icon, color: accent, size: 18),
               ),
               const SizedBox(height: 10),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                label,
-                style: const TextStyle(color: Color(0xFFD1DCF2), fontSize: 12),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFFD1DCF2),
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ],
           ),

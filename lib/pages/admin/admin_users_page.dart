@@ -38,7 +38,7 @@ Future<List<AdminAccount>> loadAdminAccounts() async {
   }
   final snapshot = await FirebaseFirestore.instance
       .collection('users')
-      .get(const GetOptions(source: Source.server));
+      .get();
   return [
     for (final doc in snapshot.docs)
       (

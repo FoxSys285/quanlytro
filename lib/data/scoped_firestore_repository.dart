@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -45,8 +46,18 @@ class ScopedFirestoreRentalRepository
     void watch(Stream<dynamic> stream) {
       subscriptions.add(
         stream.listen(
-          (_) => controller.add(null),
-          onError: controller.addError,
+          (_) {
+            if (!controller.isClosed) controller.add(null);
+          },
+          onError: (Object error) {
+            debugPrint('Firestore stream warning: $error');
+            if (error is FirebaseException &&
+                error.code == 'permission-denied' &&
+                session.role == AppRole.admin) {
+              return;
+            }
+            if (!controller.isClosed) controller.addError(error);
+          },
         ),
       );
     }
@@ -98,8 +109,8 @@ class ScopedFirestoreRentalRepository
       records = records.where('tenantIds', arrayContains: session.tenantId);
     }
     final results = await Future.wait([
-      properties.get(const GetOptions(source: Source.server)),
-      records.get(const GetOptions(source: Source.server)),
+      properties.get(),
+      records.get(),
     ]);
     final stores = <String, Map<String, dynamic>>{};
     _baseline.clear();
@@ -133,7 +144,7 @@ class ScopedFirestoreRentalRepository
       if (session.role == AppRole.landlord) {
         rooms = rooms.where('ownerUid', isEqualTo: session.uid);
       }
-      final public = await rooms.get(const GetOptions(source: Source.server));
+      final public = await rooms.get();
       for (final doc in public.docs) {
         _baseline[doc.reference.path] = doc.data();
       }
@@ -217,7 +228,7 @@ class ScopedFirestoreRentalRepository
     final own = await _firestore
         .collection('user_state')
         .doc(session.uid)
-        .get(const GetOptions(source: Source.server));
+        .get();
     if (own.exists) {
       _baseline[own.reference.path] = own.data()!;
       final data = own.data()!;
@@ -250,9 +261,7 @@ class ScopedFirestoreRentalRepository
     if (session.role != AppRole.admin) {
       tickets = tickets.where('accountUid', isEqualTo: session.uid);
     }
-    final savedTickets = await tickets.get(
-      const GetOptions(source: Source.server),
-    );
+    final savedTickets = await tickets.get();
     final viewingSettings = await _firestore
         .doc('public_settings/viewings')
         .get();

@@ -38,6 +38,7 @@ class AppPersistence {
   final refreshing = ValueNotifier<bool>(false);
   String? _remoteFingerprint;
   final _subscriptions = <Listenable>{};
+  bool get isDisposed => _disposed;
   Future<void> initialize() async {
     final data = await repository.readAll();
     _remoteFingerprint = cloudFingerprint(data);
@@ -253,6 +254,7 @@ class AppPersistence {
   void _closeRevokedSession(Object failure) {
     if (cloudMode &&
         LocalAuth.instance.isCloudMode &&
+        LocalAuth.instance.role != AppRole.admin &&
         failure is FirebaseException &&
         (failure.code == 'permission-denied' ||
             failure.code == 'unauthenticated')) {
@@ -287,10 +289,12 @@ class AppPersistence {
       source.removeListener(save);
     }
     _subscriptions.clear();
-    await repository.close();
-    error.dispose();
-    saveStatus.dispose();
-    refreshing.dispose();
     if (current == this) current = null;
+    await repository.close();
+    scheduleMicrotask(() {
+      error.dispose();
+      saveStatus.dispose();
+      refreshing.dispose();
+    });
   }
 }

@@ -24,6 +24,14 @@ final _appNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter error: ${details.exception}');
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Top-level unhandled error caught safely: $error\n$stack');
+    return true;
+  };
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -190,7 +198,7 @@ class MyApp extends StatelessWidget {
         listenable: LocalAuth.instance,
         builder: (context, _) {
           final persistence = AppPersistence.current;
-          if (persistence == null) return child!;
+          if (persistence == null || persistence.isDisposed) return child!;
           return ValueListenableBuilder<String?>(
             valueListenable: persistence.error,
             builder: (context, error, _) => Column(
@@ -250,9 +258,11 @@ class MyApp extends StatelessWidget {
                     ),
                   ),
                 Expanded(
-                  child: ValueListenableBuilder<bool>(
-                    valueListenable: persistence.refreshing,
-                    builder: (context, busy, _) => Stack(
+                  child: persistence.isDisposed
+                      ? child!
+                      : ValueListenableBuilder<bool>(
+                          valueListenable: persistence.refreshing,
+                          builder: (context, busy, _) => Stack(
                       children: [
                         AbsorbPointer(absorbing: busy, child: child!),
                         if (busy)

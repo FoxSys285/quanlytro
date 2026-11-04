@@ -106,13 +106,18 @@ class RoomPhoto {
     isReference: true,
   );
 
-  static String propertyAsset(int index) => _rentalApiAlbums.isNotEmpty
-      ? _rentalApiAlbums[index % _rentalApiAlbums.length].photos.first.assetPath
-      : 'assets/images/room_types/${index == 0
-            ? 'interior'
-            : index == 1
-            ? 'cozy'
-            : 'property_${index % 10 + 1}'}.webp';
+  static String propertyAsset(int index) {
+    if (index >= 0 && index < 10) {
+      return 'assets/images/room_types/${index == 0
+          ? 'interior'
+          : index == 1
+          ? 'cozy'
+          : 'property_${index + 1}'}.webp';
+    }
+    return _rentalApiAlbums.isNotEmpty
+        ? _rentalApiAlbums[index % _rentalApiAlbums.length].photos.first.assetPath
+        : 'assets/images/room_types/interior.webp';
+  }
 
   static List<RoomPhoto> demoForPropertyType(String id, int propertyIndex) {
     final albums = _rentalApiAlbums.where((album) => album.type == id).toList();
