@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
@@ -59,8 +61,8 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                 '${_store.invoices.length} hóa đơn · ${formatLandlordMoney(debt)} chưa thu',
             trailing: FilledButton.icon(
               onPressed: _store.activeLeases.isEmpty ? null : _createInvoice,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Lập hóa đơn'),
+              icon: Icon(Icons.add, size: 18),
+              label: Text('Lập hóa đơn'),
             ),
           ),
           LayoutBuilder(
@@ -133,9 +135,12 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
             onChanged: (value) => setState(() => _page = value),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Số tiền đã thu chỉ thay đổi khi chủ trọ xác nhận khoản thanh toán.',
-            style: TextStyle(color: landlordMuted, fontSize: 11),
+            style: TextStyle(
+              color: LandlordPalette.of(context).muted,
+              fontSize: 11,
+            ),
           ),
         ],
       );
@@ -166,9 +171,9 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
     width: width,
     padding: const EdgeInsets.all(13),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: LandlordPalette.of(context).surface,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: landlordLine),
+      border: Border.all(color: LandlordPalette.of(context).line),
     ),
     child: Row(
       children: [
@@ -184,15 +189,18 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
             children: [
               Text(
                 label,
-                style: const TextStyle(color: landlordMuted, fontSize: 10),
+                style: TextStyle(
+                  color: LandlordPalette.of(context).muted,
+                  fontSize: 10,
+                ),
               ),
               const SizedBox(height: 3),
               Text(
                 value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: landlordInk,
+                style: TextStyle(
+                  color: LandlordPalette.of(context).ink,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
@@ -215,10 +223,7 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
             children: [
               CircleAvatar(
                 backgroundColor: landlordBlue.withValues(alpha: 0.1),
-                child: const Icon(
-                  Icons.receipt_long_outlined,
-                  color: landlordBlue,
-                ),
+                child: Icon(Icons.receipt_long_outlined, color: landlordBlue),
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -227,8 +232,8 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                   children: [
                     Text(
                       'Phòng ${invoice.room} · ${landlordMonth(invoice.period)}',
-                      style: const TextStyle(
-                        color: landlordInk,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).ink,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -236,8 +241,8 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                     const SizedBox(height: 3),
                     Text(
                       '${invoice.id} · ${invoice.tenantName}',
-                      style: const TextStyle(
-                        color: landlordMuted,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).muted,
                         fontSize: 11,
                       ),
                     ),
@@ -247,19 +252,22 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
               LandlordStatusPill(label, color: color),
             ],
           ),
-          const Divider(height: 22),
+          Divider(height: 22),
           Row(
             children: [
               Expanded(
                 child: Text(
                   'Tổng cộng',
-                  style: const TextStyle(color: landlordMuted, fontSize: 12),
+                  style: TextStyle(
+                    color: LandlordPalette.of(context).muted,
+                    fontSize: 12,
+                  ),
                 ),
               ),
               Text(
                 formatLandlordMoney(invoice.total),
-                style: const TextStyle(
-                  color: landlordInk,
+                style: TextStyle(
+                  color: LandlordPalette.of(context).ink,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
                 ),
@@ -272,7 +280,10 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
               Expanded(
                 child: Text(
                   'Còn lại · hạn ${landlordDate(invoice.dueDate)}',
-                  style: const TextStyle(color: landlordMuted, fontSize: 11),
+                  style: TextStyle(
+                    color: LandlordPalette.of(context).muted,
+                    fontSize: 11,
+                  ),
                 ),
               ),
               Text(
@@ -304,7 +315,10 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
           const Color(0xFF16836F),
         ),
         LandlordInvoiceStatus.overdue => ('Quá hạn', const Color(0xFFD64545)),
-        LandlordInvoiceStatus.cancelled => ('Đã hủy', landlordMuted),
+        LandlordInvoiceStatus.cancelled => (
+          'Đã hủy',
+          LandlordPalette.of(context).muted,
+        ),
       };
 
   Future<void> _showDetails(LandlordInvoice invoice) async {
@@ -332,10 +346,10 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                     Expanded(
                       child: Text(
                         invoice.id,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: landlordInk,
+                          color: LandlordPalette.of(context).ink,
                         ),
                       ),
                     ),
@@ -345,9 +359,12 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                 const SizedBox(height: 4),
                 Text(
                   'Phòng ${invoice.room} · ${invoice.tenantName} · ${landlordMonth(invoice.period)}',
-                  style: const TextStyle(color: landlordMuted, fontSize: 12),
+                  style: TextStyle(
+                    color: LandlordPalette.of(context).muted,
+                    fontSize: 12,
+                  ),
                 ),
-                const Divider(height: 24),
+                Divider(height: 24),
                 for (final charge in invoice.charges)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 9),
@@ -356,16 +373,16 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                         Expanded(
                           child: Text(
                             charge.name,
-                            style: const TextStyle(
-                              color: landlordInk,
+                            style: TextStyle(
+                              color: LandlordPalette.of(context).ink,
                               fontSize: 13,
                             ),
                           ),
                         ),
                         Text(
                           formatLandlordMoney(charge.amount),
-                          style: const TextStyle(
-                            color: landlordInk,
+                          style: TextStyle(
+                            color: LandlordPalette.of(context).ink,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -373,7 +390,7 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                       ],
                     ),
                   ),
-                const Divider(height: 20),
+                Divider(height: 20),
                 _summaryRow('Tổng cộng', invoice.total, bold: true),
                 const SizedBox(height: 8),
                 _summaryRow('Đã xác nhận', invoice.paidAmount),
@@ -389,18 +406,18 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                         final confirmed = await showDialog<bool>(
                           context: context,
                           builder: (context) => AlertDialog(
-                            title: const Text('Hủy hóa đơn?'),
-                            content: const Text(
+                            title: Text('Hủy hóa đơn?'),
+                            content: Text(
                               'Hóa đơn sẽ được giữ trong lịch sử với trạng thái đã hủy.',
                             ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context, false),
-                                child: const Text('Quay lại'),
+                                child: Text('Quay lại'),
                               ),
                               FilledButton(
                                 onPressed: () => Navigator.pop(context, true),
-                                child: const Text('Hủy hóa đơn'),
+                                child: Text('Hủy hóa đơn'),
                               ),
                             ],
                           ),
@@ -419,8 +436,8 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                           }
                         }
                       },
-                      icon: const Icon(Icons.cancel_outlined),
-                      label: const Text('Hủy hóa đơn'),
+                      icon: Icon(Icons.cancel_outlined),
+                      label: Text('Hủy hóa đơn'),
                     ),
                   ),
               ],
@@ -437,7 +454,9 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
         child: Text(
           label,
           style: TextStyle(
-            color: bold ? landlordInk : landlordMuted,
+            color: bold
+                ? LandlordPalette.of(context).ink
+                : LandlordPalette.of(context).muted,
             fontSize: 12,
             fontWeight: bold ? FontWeight.w800 : FontWeight.normal,
           ),
@@ -446,7 +465,7 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
       Text(
         formatLandlordMoney(amount),
         style: TextStyle(
-          color: landlordInk,
+          color: LandlordPalette.of(context).ink,
           fontSize: bold ? 14 : 12,
           fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
         ),
@@ -605,7 +624,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
         _lease.serviceFee +
         extraFee;
     return AlertDialog(
-      title: const Text('Lập hóa đơn'),
+      title: Text('Lập hóa đơn'),
       content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
@@ -613,10 +632,10 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Chọn hợp đồng, nhập chỉ số tiêu thụ và kiểm tra tổng tiền trước khi phát hành.',
                 style: TextStyle(
-                  color: landlordMuted,
+                  color: LandlordPalette.of(context).muted,
                   fontSize: 12,
                   height: 1.4,
                 ),
@@ -625,9 +644,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
               _sectionLabel('HỢP ĐỒNG VÀ KỲ THU'),
               DropdownButtonFormField<String>(
                 initialValue: _leaseId,
-                decoration: const InputDecoration(
-                  labelText: 'Hợp đồng / phòng',
-                ),
+                decoration: InputDecoration(labelText: 'Hợp đồng / phòng'),
                 items: [
                   for (final lease in widget.leases)
                     DropdownMenuItem(
@@ -643,7 +660,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
               ),
               DropdownButtonFormField<String>(
                 initialValue: _key(_period),
-                decoration: const InputDecoration(labelText: 'Kỳ hóa đơn'),
+                decoration: InputDecoration(labelText: 'Kỳ hóa đơn'),
                 items: [
                   for (final period in _periods)
                     DropdownMenuItem(
@@ -714,7 +731,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
               TextField(
                 controller: _extraName,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Tên khoản thu',
                   hintText: 'Ví dụ: Vệ sinh thêm',
                 ),
@@ -723,7 +740,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
                 controller: _extra,
                 keyboardType: TextInputType.number,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(labelText: 'Số tiền (đ)'),
+                decoration: InputDecoration(labelText: 'Số tiền (đ)'),
               ),
               _sectionLabel('THỜI HẠN'),
               InkWell(
@@ -737,7 +754,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
                   if (picked != null) setState(() => _dueDate = picked);
                 },
                 child: InputDecorator(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Ngày đến hạn',
                     suffixIcon: Icon(Icons.calendar_month_outlined),
                   ),
@@ -755,7 +772,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
                 ),
                 child: Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -784,7 +801,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
                       child: Text(
                         formatLandlordMoney(estimatedTotal),
                         textAlign: TextAlign.right,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
@@ -795,20 +812,20 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'Đơn giá, tiền xe và dịch vụ lấy từ hợp đồng đang chọn.',
-                style: TextStyle(color: landlordMuted, fontSize: 10),
+                style: TextStyle(
+                  color: LandlordPalette.of(context).muted,
+                  fontSize: 10,
+                ),
               ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        FilledButton(onPressed: _save, child: const Text('Phát hành hóa đơn')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy')),
+        FilledButton(onPressed: _save, child: Text('Phát hành hóa đơn')),
       ],
     );
   }
@@ -822,7 +839,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
       alignment: Alignment.centerLeft,
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           color: landlordBlue,
           fontSize: 10,
           fontWeight: FontWeight.w800,
@@ -837,12 +854,15 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
     child: Row(
       children: [
         Expanded(
-          child: Text(label, style: const TextStyle(color: landlordMuted)),
+          child: Text(
+            label,
+            style: TextStyle(color: LandlordPalette.of(context).muted),
+          ),
         ),
         Text(
           value,
-          style: const TextStyle(
-            color: landlordInk,
+          style: TextStyle(
+            color: LandlordPalette.of(context).ink,
             fontWeight: FontWeight.w700,
           ),
         ),

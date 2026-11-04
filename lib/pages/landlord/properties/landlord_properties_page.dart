@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/admin_store.dart';
+import '../landlord_theme.dart';
 
 import '../landlord_demo_store.dart';
 import 'components/landlord_property_editor.dart';
@@ -65,7 +66,7 @@ class LandlordPropertiesPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   Card(
-                    color: Colors.white,
+                    color: LandlordPalette.of(context).surface,
                     elevation: 0,
                     margin: EdgeInsets.zero,
                     child: Padding(

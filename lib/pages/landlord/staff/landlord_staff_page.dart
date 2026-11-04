@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import '../../shared/profile/contact_details.dart';
 import '../../shared/profile/contact_editor.dart';
 import '../landlord_ui.dart';
@@ -62,13 +64,13 @@ class LandlordStaffPage extends StatelessWidget {
         ),
         FilledButton.icon(
           onPressed: () => _edit(context),
-          icon: const Icon(Icons.person_add_outlined),
+          icon: Icon(Icons.person_add_outlined),
           label: const Text('Thêm nhân viên'),
         ),
         const SizedBox(height: 20),
         Text(
           '${_store.staff.length} nhân viên',
-          style: const TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         if (_store.staff.isEmpty)
@@ -88,7 +90,7 @@ class LandlordStaffPage extends StatelessWidget {
                     Expanded(
                       child: Text(
                         member.contact.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                         ),
@@ -101,13 +103,23 @@ class LandlordStaffPage extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(
                       member.contact.jobTitle,
-                      style: const TextStyle(color: landlordMuted),
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).muted,
+                      ),
                     ),
                   ),
-                const Divider(height: 24),
-                _contactLine(Icons.phone_outlined, member.contact.phone),
+                Divider(height: 24),
+                _contactLine(
+                  context,
+                  Icons.phone_outlined,
+                  member.contact.phone,
+                ),
                 const SizedBox(height: 12),
-                _contactLine(Icons.email_outlined, member.contact.email),
+                _contactLine(
+                  context,
+                  Icons.email_outlined,
+                  member.contact.email,
+                ),
                 const SizedBox(height: 14),
                 Wrap(
                   spacing: 10,
@@ -115,7 +127,7 @@ class LandlordStaffPage extends StatelessWidget {
                   children: [
                     OutlinedButton.icon(
                       onPressed: () => _edit(context, member),
-                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      icon: Icon(Icons.edit_outlined, size: 18),
                       label: const Text('Sửa'),
                     ),
                     TextButton.icon(
@@ -123,7 +135,7 @@ class LandlordStaffPage extends StatelessWidget {
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.red.shade700,
                       ),
-                      icon: const Icon(Icons.delete_outline, size: 18),
+                      icon: Icon(Icons.delete_outline, size: 18),
                       label: const Text('Xóa'),
                     ),
                   ],
@@ -135,15 +147,18 @@ class LandlordStaffPage extends StatelessWidget {
     ),
   );
 
-  Widget _contactLine(IconData icon, String value) => Row(
+  Widget _contactLine(BuildContext context, IconData icon, String value) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Icon(icon, color: landlordMuted, size: 20),
+      Icon(icon, color: LandlordPalette.of(context).muted, size: 20),
       const SizedBox(width: 10),
       Expanded(
         child: SelectableText(
           value,
-          style: const TextStyle(color: landlordInk, fontSize: 14),
+          style: TextStyle(
+            color: LandlordPalette.of(context).ink,
+            fontSize: 14,
+          ),
         ),
       ),
     ],

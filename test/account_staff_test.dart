@@ -33,13 +33,12 @@ void main() {
                 : const LandlordLayout(),
           ),
         );
-        await tester.tap(find.byTooltip('Mở danh mục chức năng'));
-        await tester.pumpAndSettle();
         expect(find.text('Hồ sơ cá nhân'), findsNothing);
         expect(find.text('Thông báo ứng dụng'), findsNothing);
-        final settingsTile = find.widgetWithText(ListTile, 'Cài đặt');
-        await tester.ensureVisible(settingsTile);
-        await tester.tap(settingsTile);
+        RoleLayoutShell.navigateTo(
+          tester.element(find.byType(Scaffold).first),
+          'settings',
+        );
         await tester.pumpAndSettle();
         expect(find.byType(AccountSettingsPage), findsOneWidget);
         await tester.tap(find.text('Hồ sơ cá nhân'));

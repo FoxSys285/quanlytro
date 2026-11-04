@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import '../landlord_ui.dart';
 import '../landlord_demo_store.dart';
 import '../finance/landlord_finance_models.dart';
@@ -132,12 +134,12 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
           ),
           const SizedBox(height: 16),
           TextField(
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Tìm theo tên, số điện thoại hoặc phòng',
               prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: LandlordPalette.of(context).surface,
             ),
             onChanged: (value) => setState(() {
               _query = value;

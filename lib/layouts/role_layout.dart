@@ -73,9 +73,14 @@ typedef RoleBottomNavigationBuilder = Widget Function(
 
 class RoleLayoutShell extends StatefulWidget {
   static void navigateTo(BuildContext context, String destinationId) {
-    context
-        .findAncestorStateOfType<_RoleLayoutShellState>()
-        ?._selectDestination(destinationId);
+    tryNavigateTo(context, destinationId);
+  }
+
+  static bool tryNavigateTo(BuildContext context, String destinationId) {
+    final shell = context.findAncestorStateOfType<_RoleLayoutShellState>();
+    if (shell == null) return false;
+    shell._selectDestination(destinationId);
+    return true;
   }
 
   const RoleLayoutShell({
@@ -94,9 +99,11 @@ class RoleLayoutShell extends StatefulWidget {
     this.onLogout,
     this.notificationsEnabled = true,
     this.topBar,
+    this.themeAction,
     this.useSidebar = false,
     this.hideAppBarOnDestination,
     this.hideAppBarOnDestinations,
+    this.hideTopBarOnDestinations,
     this.bottomNavigationBuilder,
   });
 
@@ -114,9 +121,11 @@ class RoleLayoutShell extends StatefulWidget {
   final VoidCallback? onLogout;
   final bool notificationsEnabled;
   final Widget? topBar;
+  final Widget? themeAction;
   final bool useSidebar;
   final String? hideAppBarOnDestination;
   final Set<String>? hideAppBarOnDestinations;
+  final Set<String>? hideTopBarOnDestinations;
   final RoleBottomNavigationBuilder? bottomNavigationBuilder;
 
   @override
@@ -156,7 +165,24 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
 
   int _tabIndexFor(String id) {
     final index = widget.tabs.indexWhere((tab) => tab.destinationId == id);
-    return index == -1 ? (widget.showMoreTab ? widget.tabs.length : 0) : index;
+    if (index != -1) return index;
+    if (widget.role == AppRole.landlord && !widget.showMoreTab) {
+      const roomPages = {
+        'properties',
+        'room_types',
+        'services',
+        'meter_readings',
+        'viewings',
+        'leases',
+        'members',
+      };
+      const financePages = {'payments', 'payment_accounts'};
+      const noticePages = {'incidents', 'staff'};
+      if (roomPages.contains(id)) return 1;
+      if (financePages.contains(id)) return 2;
+      if (noticePages.contains(id)) return 4;
+    }
+    return widget.showMoreTab ? widget.tabs.length : 0;
   }
 
   RoleDestination get _selectedDestination => widget.destinations.firstWhere(
@@ -215,6 +241,8 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
   @override
   Widget build(BuildContext context) {
     final destination = _selectedDestination;
+    final landlordTheme = widget.role == AppRole.landlord;
+    final scheme = Theme.of(context).colorScheme;
     final console = widget.role == AppRole.admin && widget.useSidebar;
     const consoleInk = Colors.white;
     final adminWide =
@@ -243,7 +271,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           ? const Color(0xFFF5F6FB)
           : widget.role == AppRole.tenant
           ? const Color(0xFFFCFCFC)
-          : const Color(0xFFF5F7FA),
+          : Theme.of(context).scaffoldBackgroundColor,
       onDrawerChanged: _onDrawerChanged,
       drawer: _RoleDrawer(
         scrollController: _drawerScrollController,
@@ -273,6 +301,8 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                   ? const Color(0xFF1D2E50)
                   : widget.role == AppRole.tenant
                   ? const Color(0xFFFCFCFC)
+                  : landlordTheme
+                  ? scheme.surface
                   : Colors.white,
               foregroundColor: console ? consoleInk : null,
               iconTheme: console ? IconThemeData(color: consoleInk) : null,
@@ -297,7 +327,11 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: console ? consoleInk : const Color(0xFF17212B),
+                      color: console
+                          ? consoleInk
+                          : landlordTheme
+                          ? scheme.onSurface
+                          : const Color(0xFF17212B),
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
@@ -308,8 +342,10 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                       widget.contextLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF788492),
+                      style: TextStyle(
+                        color: landlordTheme
+                            ? scheme.onSurface.withValues(alpha: 0.7)
+                            : const Color(0xFF788492),
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
@@ -317,6 +353,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                 ],
               ),
               actions: [
+                ?widget.themeAction,
                 IconButton(
                   tooltip: 'Thông báo',
                   onPressed: () => _selectDestination(
@@ -415,7 +452,11 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         top: false,
         child: Column(
           children: [
-            ?widget.topBar,
+            if (!(widget.hideTopBarOnDestinations?.contains(
+                  _selectedDestinationId,
+                ) ??
+                false))
+              ?widget.topBar,
             Expanded(
               child: adminWide
                   ? Row(
@@ -491,7 +532,9 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                 ) ??
                 NavigationBar(
                   height: 70,
-                  backgroundColor: Colors.white,
+                  backgroundColor: landlordTheme
+                      ? scheme.surface
+                      : Colors.white,
                   surfaceTintColor: Colors.transparent,
                   indicatorColor: widget.accentColor.withValues(alpha: 0.12),
                   selectedIndex: _selectedTabIndex,
@@ -551,6 +594,8 @@ class _RoleDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final landlordTheme = role == AppRole.landlord;
+    final scheme = Theme.of(context).colorScheme;
     final groups = <String, List<RoleDestination>>{};
     for (final destination in destinations) {
       groups.putIfAbsent(destination.group, () => []).add(destination);
@@ -560,7 +605,7 @@ class _RoleDrawer extends StatelessWidget {
 
     return Drawer(
       width: drawerWidth,
-      backgroundColor: const Color(0xFFFCFDFE),
+      backgroundColor: landlordTheme ? scheme.surface : const Color(0xFFFCFDFE),
       child: SafeArea(
         child: Column(
           children: [
@@ -587,8 +632,10 @@ class _RoleDrawer extends StatelessWidget {
                           padding: const EdgeInsets.fromLTRB(12, 15, 12, 6),
                           child: Text(
                             entry.key.toUpperCase(),
-                            style: const TextStyle(
-                              color: Color(0xFF8B97A4),
+                            style: TextStyle(
+                              color: landlordTheme
+                                  ? scheme.onSurface.withValues(alpha: 0.58)
+                                  : const Color(0xFF8B97A4),
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.1,
@@ -614,7 +661,10 @@ class _RoleDrawer extends StatelessWidget {
                 ),
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFE9EDF2)),
+            Divider(
+              height: 1,
+              color: landlordTheme ? scheme.outline : const Color(0xFFE9EDF2),
+            ),
             if (onPreviewRoleSelected != null)
               PopupMenuButton<AppRole>(
                 tooltip: 'Chuyển vai trò xem thử',
@@ -689,6 +739,7 @@ class _DrawerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final landlordTheme = role == AppRole.landlord;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 22, 18, 20),
@@ -696,9 +747,20 @@ class _DrawerHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [accentColor.withValues(alpha: 0.13), Colors.white],
+          colors: landlordTheme
+              ? [
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
+                  Theme.of(context).colorScheme.surface,
+                ]
+              : [accentColor.withValues(alpha: 0.13), Colors.white],
         ),
-        border: const Border(bottom: BorderSide(color: Color(0xFFE9EDF2))),
+        border: Border(
+          bottom: BorderSide(
+            color: landlordTheme
+                ? Theme.of(context).colorScheme.outline
+                : const Color(0xFFE9EDF2),
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -712,9 +774,11 @@ class _DrawerHeader extends StatelessWidget {
                   color: accentColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.home_work_rounded,
-                  color: Colors.white,
+                  color: landlordTheme
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Colors.white,
                   size: 20,
                 ),
               ),
@@ -724,8 +788,10 @@ class _DrawerHeader extends StatelessWidget {
                   appName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF17212B),
+                  style: TextStyle(
+                    color: landlordTheme
+                        ? Theme.of(context).colorScheme.onSurface
+                        : const Color(0xFF17212B),
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
@@ -735,7 +801,9 @@ class _DrawerHeader extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.1),
+                  color: landlordTheme
+                      ? accentColor.withValues(alpha: 0.12)
+                      : accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -754,7 +822,9 @@ class _DrawerHeader extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 23,
-                backgroundColor: accentColor.withValues(alpha: 0.16),
+                backgroundColor: landlordTheme
+                    ? accentColor.withValues(alpha: 0.14)
+                    : accentColor.withValues(alpha: 0.16),
                 child: Text(
                   initials,
                   style: TextStyle(
@@ -772,8 +842,10 @@ class _DrawerHeader extends StatelessWidget {
                       displayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF17212B),
+                      style: TextStyle(
+                        color: landlordTheme
+                            ? Theme.of(context).colorScheme.onSurface
+                            : const Color(0xFF17212B),
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -783,8 +855,11 @@ class _DrawerHeader extends StatelessWidget {
                       contextLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF788492),
+                      style: TextStyle(
+                        color: landlordTheme
+                            ? Theme.of(context).colorScheme.onSurface
+                                  .withValues(alpha: 0.68)
+                            : const Color(0xFF788492),
                         fontSize: 11,
                       ),
                     ),
@@ -816,6 +891,8 @@ class _DrawerDestinationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: ListTile(
@@ -825,13 +902,21 @@ class _DrawerDestinationTile extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
         leading: Icon(
           destination.icon,
-          color: selected ? accentColor : const Color(0xFF6D7986),
+          color: selected
+              ? accentColor
+              : dark
+              ? scheme.onSurface.withValues(alpha: 0.7)
+              : const Color(0xFF6D7986),
           size: 21,
         ),
         title: Text(
           destination.drawerLabel ?? destination.label,
           style: TextStyle(
-            color: selected ? accentColor : const Color(0xFF344252),
+            color: selected
+                ? accentColor
+                : dark
+                ? scheme.onSurface
+                : const Color(0xFF344252),
             fontSize: 13,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../landlord_theme.dart';
 
 import '../../../shared/viewings/components/viewing_status_badge.dart';
 import '../models/landlord_viewing.dart';
@@ -25,7 +26,7 @@ class LandlordViewingCard extends StatelessWidget {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 14),
-      color: Colors.white,
+      color: LandlordPalette.of(context).surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
         side: const BorderSide(color: Color(0xFFE7ECEF)),

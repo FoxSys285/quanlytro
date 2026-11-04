@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
 import 'models/landlord_suco.dart';
@@ -100,7 +102,7 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
           children: [
             Text(
               suCo.title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
             Text('Phòng ${suCo.room} · ${suCo.category}'),
@@ -167,8 +169,8 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
               Expanded(
                 child: Text(
                   suCo.title,
-                  style: const TextStyle(
-                    color: landlordInk,
+                  style: TextStyle(
+                    color: LandlordPalette.of(context).ink,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -180,7 +182,10 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
           const SizedBox(height: 4),
           Text(
             'Phòng ${suCo.room} · ${suCo.reporter} · ${suCo.date}',
-            style: const TextStyle(color: landlordMuted, fontSize: 12),
+            style: TextStyle(
+              color: LandlordPalette.of(context).muted,
+              fontSize: 12,
+            ),
           ),
         ];
 

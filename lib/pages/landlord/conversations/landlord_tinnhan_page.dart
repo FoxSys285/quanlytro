@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import '../landlord_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
 import 'models/landlord_cuoctrochuyen.dart';
@@ -75,13 +77,13 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
     final danhSachTinNhan = widget.conversation.messages;
 
     return Scaffold(
-      backgroundColor: landlordCanvas,
+      backgroundColor: LandlordPalette.of(context).canvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: LandlordPalette.of(context).surface,
         surfaceTintColor: Colors.transparent,
         title: Text(
           '${widget.conversation.tenantName} · ${widget.conversation.room}',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
       body: Column(
@@ -103,7 +105,7 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
             top: false,
             child: Container(
               padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-              color: Colors.white,
+              color: LandlordPalette.of(context).surface,
               child: Row(
                 children: [
                   Expanded(
@@ -114,7 +116,7 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
                       decoration: InputDecoration(
                         hintText: 'Nhập tin nhắn...',
                         filled: true,
-                        fillColor: landlordCanvas,
+                        fillColor: LandlordPalette.of(context).canvas,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 10,
@@ -131,7 +133,7 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
                     tooltip: 'Gửi tin nhắn',
                     onPressed: _guiTinNhan,
                     style: IconButton.styleFrom(backgroundColor: landlordBlue),
-                    icon: const Icon(Icons.send_rounded, size: 18),
+                    icon: Icon(Icons.send_rounded, size: 18),
                   ),
                 ],
               ),
@@ -169,10 +171,10 @@ class _BongBongTinNhan extends StatelessWidget {
       mauThoiGian = Colors.white70;
     } else {
       canLe = Alignment.centerLeft;
-      mauNen = Colors.white;
-      vien = Border.all(color: landlordLine);
-      mauChu = landlordInk;
-      mauThoiGian = landlordMuted;
+      mauNen = LandlordPalette.of(context).surface;
+      vien = Border.all(color: LandlordPalette.of(context).line);
+      mauChu = LandlordPalette.of(context).ink;
+      mauThoiGian = LandlordPalette.of(context).muted;
     }
 
     return Align(

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../landlord_theme.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../landlord_demo_store.dart';
@@ -85,7 +88,7 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    backgroundColor: Colors.white,
+    backgroundColor: LandlordPalette.of(context).surface,
     surfaceTintColor: Colors.transparent,
     title: Text(widget.type == null ? 'Thêm loại phòng' : 'Sửa loại phòng'),
     content: SizedBox(
@@ -101,7 +104,7 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
                 controller: _name,
                 maxLength: 80,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Tên loại phòng',
                   prefixIcon: Icon(Icons.meeting_room_outlined),
                   border: OutlineInputBorder(),
@@ -125,7 +128,7 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
                 maxLength: 12,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Giá thuê',
                   prefixIcon: Icon(Icons.payments_outlined),
                   suffixText: 'đ/tháng',
@@ -140,13 +143,13 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
               const SizedBox(height: 24),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.collections_outlined,
                     color: landlordBlue,
                     size: 19,
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Album loại phòng',
                       style: TextStyle(
@@ -157,15 +160,18 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
                   ),
                   Text(
                     '${_photos.length}/12',
-                    style: const TextStyle(color: landlordMuted, fontSize: 12),
+                    style: TextStyle(
+                      color: LandlordPalette.of(context).muted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 7),
-              const Text(
+              Text(
                 'Các phòng thuộc loại này dùng chung album. Ảnh đầu tiên là ảnh bìa trên danh sách phòng.',
                 style: TextStyle(
-                  color: landlordMuted,
+                  color: LandlordPalette.of(context).muted,
                   fontSize: 12,
                   height: 1.5,
                 ),
@@ -203,27 +209,24 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
                           height: 17,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(
-                          Icons.add_photo_alternate_outlined,
-                          size: 20,
-                        ),
+                      : Icon(Icons.add_photo_alternate_outlined, size: 20),
                   label: Text(_picking ? 'Đang đọc ảnh...' : 'Chọn nhiều ảnh'),
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Tối đa 12 ảnh · 10 MB/ảnh',
-                style: TextStyle(color: landlordMuted, fontSize: 11),
+                style: TextStyle(
+                  color: LandlordPalette.of(context).muted,
+                  fontSize: 11,
+                ),
               ),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     _error!,
-                    style: const TextStyle(
-                      color: Color(0xFFB94A50),
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Color(0xFFB94A50), fontSize: 12),
                   ),
                 ),
             ],
@@ -232,14 +235,8 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
       ),
     ),
     actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Hủy'),
-      ),
-      FilledButton(
-        onPressed: _picking ? null : _save,
-        child: const Text('Lưu'),
-      ),
+      TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy')),
+      FilledButton(onPressed: _picking ? null : _save, child: Text('Lưu')),
     ],
   );
 
@@ -253,7 +250,9 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: index == 0 ? landlordBlue : landlordLine,
+              color: index == 0
+                  ? landlordBlue
+                  : LandlordPalette.of(context).line,
               width: index == 0 ? 2 : 1,
             ),
           ),
@@ -275,7 +274,7 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
                     padding: EdgeInsets.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  icon: const Icon(Icons.close, size: 16),
+                  icon: Icon(Icons.close, size: 16),
                 ),
               ),
             ],
@@ -291,7 +290,7 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
           style: TextButton.styleFrom(
             padding: EdgeInsets.zero,
             minimumSize: const Size(44, 36),
-            textStyle: const TextStyle(fontSize: 10),
+            textStyle: TextStyle(fontSize: 10),
           ),
           child: Text(index == 0 ? 'Ảnh bìa' : 'Đặt làm bìa'),
         ),

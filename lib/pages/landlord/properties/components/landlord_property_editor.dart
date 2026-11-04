@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../landlord_theme.dart';
+
 import '../models/landlord_property.dart';
 import '../services/property_image_picker.dart';
 import 'landlord_property_image.dart';
@@ -128,7 +130,7 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
 
   @override
   Widget build(BuildContext context) => Dialog(
-    backgroundColor: Colors.white,
+    backgroundColor: LandlordPalette.of(context).surface,
     surfaceTintColor: Colors.transparent,
     insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),

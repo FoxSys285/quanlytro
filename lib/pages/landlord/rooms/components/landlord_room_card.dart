@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../landlord_ui.dart';
+import '../../landlord_theme.dart';
 import '../models/landlord_room.dart';
 import '../../../shared/media/room_photo_gallery.dart';
 
@@ -17,6 +18,7 @@ class LandlordRoomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = LandlordPalette.of(context);
     final room = details.room;
     final statusColor = switch (details.status) {
       LandlordRoomStatus.vacant => const Color(0xFF16836F),
@@ -27,9 +29,9 @@ class LandlordRoomCard extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: landlordLine),
+        border: Border.all(color: palette.line),
         boxShadow: const [
           BoxShadow(
             color: Color(0x07172B42),
@@ -98,8 +100,8 @@ class LandlordRoomCard extends StatelessWidget {
                         children: [
                           Text(
                             'Phòng ${room.code}',
-                            style: const TextStyle(
-                              color: landlordInk,
+                            style: TextStyle(
+                              color: palette.ink,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                             ),
@@ -107,8 +109,8 @@ class LandlordRoomCard extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             'Tầng ${room.floor}',
-                            style: const TextStyle(
-                              color: landlordMuted,
+                            style: TextStyle(
+                              color: palette.muted,
                               fontSize: 12,
                             ),
                           ),
@@ -120,7 +122,7 @@ class LandlordRoomCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   '${details.typeName} · ${room.area} m² · Tối đa ${room.capacity} người',
-                  style: const TextStyle(color: landlordMuted, height: 1.5),
+                  style: TextStyle(color: palette.muted, height: 1.5),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -138,25 +140,21 @@ class LandlordRoomCard extends StatelessWidget {
                   details.lease == null
                       ? 'Giá theo loại phòng'
                       : 'Giá theo hợp đồng',
-                  style: const TextStyle(color: landlordMuted, fontSize: 11),
+                  style: TextStyle(color: palette.muted, fontSize: 11),
                 ),
-                const Divider(height: 28, color: landlordLine),
+                Divider(height: 28, color: palette.line),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.person_outline,
-                      size: 20,
-                      color: landlordMuted,
-                    ),
+                    Icon(Icons.person_outline, size: 20, color: palette.muted),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         details.lease == null
                             ? 'Chưa có người thuê'
                             : '${details.lease!.tenantName} · ${details.lease!.occupantCount} người',
-                        style: const TextStyle(
-                          color: landlordInk,
+                        style: TextStyle(
+                          color: palette.ink,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

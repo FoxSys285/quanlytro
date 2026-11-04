@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
 import '../../shared/widgets/list_pagination.dart';
 
 class LandlordLeasesPage extends StatefulWidget {
-  const LandlordLeasesPage({super.key});
+  const LandlordLeasesPage({super.key, this.createForRoom});
+
+  final String? createForRoom;
 
   @override
   State<LandlordLeasesPage> createState() => _LandlordLeasesPageState();
@@ -18,6 +22,16 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
   int _page = 0;
   static const _pageSize = 10;
   String _search = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.createForRoom != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _editLease();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -60,8 +74,8 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                 '$currentCount hợp đồng hiệu lực · $expiringCount sắp hết hạn',
             trailing: FilledButton.icon(
               onPressed: () => _editLease(),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Tạo hợp đồng'),
+              icon: Icon(Icons.add, size: 18),
+              label: Text('Tạo hợp đồng'),
             ),
           ),
           LayoutBuilder(
@@ -98,19 +112,19 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
           ),
           const SizedBox(height: 14),
           TextField(
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Tìm theo người thuê, phòng hoặc mã hợp đồng',
               prefixIcon: Icon(Icons.search_rounded),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: LandlordPalette.of(context).surface,
               contentPadding: EdgeInsets.symmetric(vertical: 14),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(15)),
-                borderSide: BorderSide(color: landlordLine),
+                borderSide: BorderSide(color: LandlordPalette.of(context).line),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(15)),
-                borderSide: BorderSide(color: landlordLine),
+                borderSide: BorderSide(color: LandlordPalette.of(context).line),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(15)),
@@ -162,9 +176,12 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
             onChanged: (value) => setState(() => _page = value),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Dữ liệu được lưu trên thiết bị và giữ lại khi mở ứng dụng.',
-            style: TextStyle(color: landlordMuted, fontSize: 11),
+            style: TextStyle(
+              color: LandlordPalette.of(context).muted,
+              fontSize: 11,
+            ),
           ),
         ],
       );
@@ -198,9 +215,9 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
     width: width,
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: LandlordPalette.of(context).surface,
       borderRadius: BorderRadius.circular(15),
-      border: Border.all(color: landlordLine),
+      border: Border.all(color: LandlordPalette.of(context).line),
     ),
     child: Row(
       children: [
@@ -218,7 +235,10 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: landlordMuted, fontSize: 10),
+                style: TextStyle(
+                  color: LandlordPalette.of(context).muted,
+                  fontSize: 10,
+                ),
               ),
               const SizedBox(height: 3),
               Text(
@@ -247,10 +267,7 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
             children: [
               CircleAvatar(
                 backgroundColor: landlordBlue.withValues(alpha: 0.1),
-                child: const Icon(
-                  Icons.description_outlined,
-                  color: landlordBlue,
-                ),
+                child: Icon(Icons.description_outlined, color: landlordBlue),
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -259,8 +276,8 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                   children: [
                     Text(
                       'Phòng ${lease.room} · ${lease.tenantName}',
-                      style: const TextStyle(
-                        color: landlordInk,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).ink,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -268,8 +285,8 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                     const SizedBox(height: 3),
                     Text(
                       lease.id,
-                      style: const TextStyle(
-                        color: landlordMuted,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).muted,
                         fontSize: 11,
                       ),
                     ),
@@ -279,7 +296,7 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
               LandlordStatusPill(status, color: color),
             ],
           ),
-          const Divider(height: 23),
+          Divider(height: 23),
           _detailLine(
             'Thời hạn',
             '${landlordDate(lease.startDate)} – ${landlordDate(lease.endDate)}',
@@ -298,13 +315,15 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
             _detailLine('Liên hệ', lease.phone),
           ],
           const SizedBox(height: 11),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 4,
+            runSpacing: 2,
             children: [
               TextButton.icon(
                 onPressed: () => _editLease(lease),
-                icon: const Icon(Icons.edit_outlined, size: 17),
-                label: const Text('Chỉnh sửa'),
+                icon: Icon(Icons.edit_outlined, size: 17),
+                label: Text('Chỉnh sửa'),
               ),
               if (lease.isCurrent)
                 TextButton.icon(
@@ -312,8 +331,8 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFFB64A4A),
                   ),
-                  icon: const Icon(Icons.event_busy_outlined, size: 17),
-                  label: const Text('Kết thúc'),
+                  icon: Icon(Icons.event_busy_outlined, size: 17),
+                  label: Text('Kết thúc'),
                 ),
             ],
           ),
@@ -324,14 +343,14 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
 
   (String, Color) _leaseStatus(LandlordLease lease) {
     if (lease.status == LandlordLeaseStatus.terminated) {
-      return ('Đã kết thúc', landlordMuted);
+      return ('Đã kết thúc', LandlordPalette.of(context).muted);
     }
     if (lease.status == LandlordLeaseStatus.draft) {
       return ('Nháp', const Color(0xFFE08A1E));
     }
     if (lease.isExpiringSoon) return ('Sắp hết hạn', const Color(0xFFE08A1E));
     if (lease.isUpcoming) return ('Sắp bắt đầu', landlordBlue);
-    if (lease.isExpired) return ('Hết hạn', landlordMuted);
+    if (lease.isExpired) return ('Hết hạn', LandlordPalette.of(context).muted);
     return ('Đang hiệu lực', const Color(0xFF16836F));
   }
 
@@ -341,14 +360,17 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
         width: 100,
         child: Text(
           label,
-          style: const TextStyle(color: landlordMuted, fontSize: 12),
+          style: TextStyle(
+            color: LandlordPalette.of(context).muted,
+            fontSize: 12,
+          ),
         ),
       ),
       Expanded(
         child: Text(
           value,
-          style: const TextStyle(
-            color: landlordInk,
+          style: TextStyle(
+            color: LandlordPalette.of(context).ink,
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -372,16 +394,16 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
               children: [
                 Text(
                   'Hợp đồng ${lease.id}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: landlordInk,
+                    color: LandlordPalette.of(context).ink,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Phòng ${lease.room}',
-                  style: const TextStyle(color: landlordMuted),
+                  style: TextStyle(color: LandlordPalette.of(context).muted),
                 ),
                 const SizedBox(height: 12),
                 Expanded(
@@ -466,8 +488,8 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                         _detailHeading('GHI CHÚ'),
                         Text(
                           lease.note.isEmpty ? 'Không có ghi chú.' : lease.note,
-                          style: const TextStyle(
-                            color: landlordInk,
+                          style: TextStyle(
+                            color: LandlordPalette.of(context).ink,
                             fontSize: 12,
                             height: 1.45,
                           ),
@@ -485,8 +507,8 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                       Navigator.pop(context);
                       _editLease(lease);
                     },
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Chỉnh sửa hợp đồng'),
+                    icon: Icon(Icons.edit_outlined),
+                    label: Text('Chỉnh sửa hợp đồng'),
                   ),
                 ),
               ],
@@ -501,7 +523,7 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
     padding: const EdgeInsets.only(bottom: 6),
     child: Text(
       label,
-      style: const TextStyle(
+      style: TextStyle(
         color: landlordBlue,
         fontSize: 11,
         fontWeight: FontWeight.w800,
@@ -515,6 +537,7 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
       context: context,
       builder: (_) => _LeaseEditor(
         lease: lease,
+        initialRoom: lease == null ? widget.createForRoom : null,
         occupiedRooms: _store.activeLeases.map((item) => item.room).toSet(),
       ),
     );
@@ -566,18 +589,18 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Kết thúc hợp đồng?'),
+        title: Text('Kết thúc hợp đồng?'),
         content: Text(
           'Hợp đồng phòng ${lease.room} của ${lease.tenantName} sẽ chuyển sang trạng thái đã kết thúc.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Quay lại'),
+            child: Text('Quay lại'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Kết thúc hợp đồng'),
+            child: Text('Kết thúc hợp đồng'),
           ),
         ],
       ),
@@ -653,9 +676,14 @@ class _LeaseDraft {
 }
 
 class _LeaseEditor extends StatefulWidget {
-  const _LeaseEditor({required this.lease, required this.occupiedRooms});
+  const _LeaseEditor({
+    required this.lease,
+    required this.occupiedRooms,
+    this.initialRoom,
+  });
   final LandlordLease? lease;
   final Set<String> occupiedRooms;
+  final String? initialRoom;
 
   @override
   State<_LeaseEditor> createState() => _LeaseEditorState();
@@ -755,7 +783,8 @@ class _LeaseEditorState extends State<_LeaseEditor> {
     text: widget.lease?.occupantCount.toString() ?? '1',
   );
   late final _note = TextEditingController(text: widget.lease?.note ?? '');
-  late String _room = widget.lease?.room ?? _firstAvailableRoom;
+  late String _room =
+      widget.lease?.room ?? widget.initialRoom ?? _firstAvailableRoom;
   late DateTime _start = widget.lease?.startDate ?? DateTime.now();
   late DateTime _end =
       widget.lease?.endDate ??
@@ -830,7 +859,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
               children: [
                 DropdownButtonFormField<String>(
                   initialValue: _room,
-                  decoration: const InputDecoration(labelText: 'Phòng'),
+                  decoration: InputDecoration(labelText: 'Phòng'),
                   items: [
                     for (final room in availableRooms)
                       DropdownMenuItem(value: room, child: Text('Phòng $room')),
@@ -946,9 +975,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: _waterType,
-                  decoration: const InputDecoration(
-                    labelText: 'Cách tính tiền nước',
-                  ),
+                  decoration: InputDecoration(labelText: 'Cách tính tiền nước'),
                   items: const [
                     DropdownMenuItem(value: 'Theo m³', child: Text('Theo m³')),
                     DropdownMenuItem(
@@ -1036,7 +1063,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                   value: _cashEnabled,
                   onChanged: (value) =>
                       setState(() => _cashEnabled = value ?? false),
-                  title: const Text(
+                  title: Text(
                     'Tiền mặt',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
@@ -1054,7 +1081,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                   value: _bankEnabled,
                   onChanged: (value) =>
                       setState(() => _bankEnabled = value ?? false),
-                  title: const Text(
+                  title: Text(
                     'Chuyển khoản ngân hàng',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
@@ -1077,7 +1104,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                   controller: _note,
                   minLines: 2,
                   maxLines: 4,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Ghi chú thêm trong hợp đồng',
                     alignLabelWithHint: true,
                   ),
@@ -1085,9 +1112,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<LandlordLeaseStatus>(
                   initialValue: _status,
-                  decoration: const InputDecoration(
-                    labelText: 'Trạng thái lưu',
-                  ),
+                  decoration: InputDecoration(labelText: 'Trạng thái lưu'),
                   items: const [
                     DropdownMenuItem(
                       value: LandlordLeaseStatus.active,
@@ -1111,11 +1136,8 @@ class _LeaseEditorState extends State<_LeaseEditor> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        FilledButton(onPressed: _save, child: const Text('Lưu hợp đồng')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy')),
+        FilledButton(onPressed: _save, child: Text('Lưu hợp đồng')),
       ],
     );
   }
@@ -1126,7 +1148,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
       alignment: Alignment.centerLeft,
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           color: landlordBlue,
           fontSize: 11,
           fontWeight: FontWeight.w800,
@@ -1241,13 +1263,17 @@ class _LeaseEditorState extends State<_LeaseEditor> {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          suffixIcon: const Icon(Icons.calendar_month_outlined),
+          suffixIcon: Icon(Icons.calendar_month_outlined),
           isDense: true,
           errorText: date == null ? 'Chọn ngày cấp CCCD' : null,
         ),
         child: Text(
           date == null ? 'Chọn ngày' : landlordDate(date),
-          style: TextStyle(color: date == null ? landlordMuted : landlordInk),
+          style: TextStyle(
+            color: date == null
+                ? LandlordPalette.of(context).muted
+                : LandlordPalette.of(context).ink,
+          ),
         ),
       ),
     ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import '../landlord_ui.dart';
 import '../landlord_demo_store.dart';
 import '../finance/landlord_finance_models.dart';
@@ -31,8 +33,10 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
   @override
   void initState() {
     super.initState();
-    _store.prepareReadings(_ngayKyGhi);
     _store.addListener(_capNhat);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _store.prepareReadings(_ngayKyGhi);
+    });
   }
 
   void _capNhat() {
@@ -79,18 +83,77 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
         Expanded(
           child: Text(
             '$tenLoai: $chiSoCu → $chuoiChiSoMoi',
-            style: const TextStyle(color: landlordInk, fontSize: 13),
+            style: TextStyle(
+              color: LandlordPalette.of(context).ink,
+              fontSize: 13,
+            ),
           ),
         ),
-        Text(
-          chuoiThanhTien,
-          style: const TextStyle(color: landlordMuted, fontSize: 12),
+        Flexible(
+          child: Text(
+            chuoiThanhTien,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              color: LandlordPalette.of(context).muted,
+              fontSize: 12,
+            ),
+          ),
         ),
       ],
     );
   }
 
   // Hộp thoại nhập chỉ số mới
+  Widget _truongNhapChiSo({
+    required TextEditingController controller,
+    required IconData icon,
+    required String ten,
+    required String donVi,
+    required int chiSoCu,
+    required TextInputAction textInputAction,
+  }) {
+    final palette = LandlordPalette.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 17, color: palette.primary),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                ten,
+                style: TextStyle(
+                  color: palette.ink,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Text(
+              'Cũ: $chiSoCu $donVi',
+              style: TextStyle(color: palette.muted, fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 9),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          textInputAction: textInputAction,
+          decoration: InputDecoration(
+            hintText: 'Nhập chỉ số mới',
+            suffixText: donVi,
+            filled: true,
+            fillColor: palette.surfaceAlt,
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _moHopThoaiNhapChiSo(LandlordMeterReading chiSo) async {
     String chuoiDienBanDau = '';
     if (chiSo.newElectric != null) {
@@ -107,44 +170,72 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
 
     final daBamLuu = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Nhập chỉ số phòng ${chiSo.room}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controllerDien,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Chỉ số điện mới',
-                helperText: 'Chỉ số cũ: ${chiSo.oldElectric}',
-              ),
+      builder: (dialogContext) {
+        final palette = LandlordPalette.of(dialogContext);
+        return AlertDialog(
+          scrollable: true,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+          backgroundColor: palette.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          title: Text(
+            'Nhập chỉ số phòng ${chiSo.room}',
+            style: TextStyle(
+              color: palette.ink,
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
             ),
-            TextField(
-              controller: controllerNuoc,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Chỉ số nước mới',
-                helperText: 'Chỉ số cũ: ${chiSo.oldWater}',
-              ),
+          ),
+          content: SizedBox(
+            width: 340,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cập nhật chỉ số điện nước cho kỳ ghi hiện tại.',
+                  style: TextStyle(color: palette.muted, fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                _truongNhapChiSo(
+                  controller: controllerDien,
+                  icon: Icons.bolt_outlined,
+                  ten: 'Chỉ số điện',
+                  donVi: 'kWh',
+                  chiSoCu: chiSo.oldElectric,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 20),
+                _truongNhapChiSo(
+                  controller: controllerNuoc,
+                  icon: Icons.water_drop_outlined,
+                  ten: 'Chỉ số nước',
+                  donVi: 'm³',
+                  chiSoCu: chiSo.oldWater,
+                  textInputAction: TextInputAction.done,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Lưu'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context, false);
-            },
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context, true);
-            },
-            child: const Text('Lưu'),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (daBamLuu != true || !mounted) {
@@ -249,15 +340,19 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
         children: [
           Row(
             children: [
-              Text(
-                'Phòng ${chiSo.room}',
-                style: const TextStyle(
-                  color: landlordInk,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Text(
+                  'Phòng ${chiSo.room}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: LandlordPalette.of(context).ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               widgetTrangThai,
             ],
           ),
@@ -296,39 +391,54 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
         title: 'Chỉ số điện nước',
         subtitle: 'Nhập chỉ số cuối kỳ cho từng phòng.',
       ),
-      Row(
-        children: [
-          Expanded(
-            child: DropdownButtonFormField<DateTime>(
-              initialValue: _ngayKyGhi,
-              decoration: const InputDecoration(
-                labelText: 'Kỳ ghi chỉ số',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: [
-                for (final period in _cacKy)
-                  DropdownMenuItem(
-                    value: period,
-                    child: Text(landlordMonth(period)),
-                  ),
-              ],
-              onChanged: (giaTriMoi) {
-                if (giaTriMoi != null) {
-                  setState(() {
-                    _ngayKyGhi = giaTriMoi;
-                  });
-                  _store.prepareReadings(giaTriMoi);
-                }
-              },
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final picker = DropdownButtonFormField<DateTime>(
+            initialValue: _ngayKyGhi,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Kỳ ghi chỉ số',
+              border: OutlineInputBorder(),
+              isDense: true,
             ),
-          ),
-          const SizedBox(width: 12),
-          LandlordStatusPill(
+            items: [
+              for (final period in _cacKy)
+                DropdownMenuItem(
+                  value: period,
+                  child: Text(
+                    landlordMonth(period),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: (giaTriMoi) {
+              if (giaTriMoi != null) {
+                setState(() {
+                  _ngayKyGhi = giaTriMoi;
+                });
+                _store.prepareReadings(giaTriMoi);
+              }
+            },
+          );
+          final status = LandlordStatusPill(
             'Đã nhập $soLuongDaNhap/${_danhSachChiSo.length}',
             color: mauTrangThai,
-          ),
-        ],
+          );
+          if (constraints.maxWidth < 480) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [picker, const SizedBox(height: 8), status],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: picker),
+              const SizedBox(width: 12),
+              status,
+            ],
+          );
+        },
       ),
       const SizedBox(height: 14),
     ];

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
@@ -20,8 +22,8 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
               'Thông tin chuyển khoản hiển thị trên hướng dẫn thanh toán.',
           trailing: FilledButton.icon(
             onPressed: () => _edit(context),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Thêm tài khoản'),
+            icon: Icon(Icons.add, size: 18),
+            label: Text('Thêm tài khoản'),
           ),
         ),
         Container(
@@ -33,7 +35,7 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFFD6E4FA)),
           ),
-          child: const Row(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.lock_outline_rounded, color: landlordBlue, size: 19),
@@ -42,7 +44,7 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
                 child: Text(
                   'Chỉ lưu thông tin tài khoản để hiển thị cho người thuê. Ứng dụng không yêu cầu mật khẩu ngân hàng, mã PIN hoặc OTP.',
                   style: TextStyle(
-                    color: landlordInk,
+                    color: LandlordPalette.of(context).ink,
                     fontSize: 11,
                     height: 1.45,
                   ),
@@ -54,9 +56,12 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
         for (final account in _store.paymentAccounts)
           _accountCard(context, account),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Thay đổi tài khoản mặc định áp dụng cho hướng dẫn thanh toán mới.',
-          style: TextStyle(color: landlordMuted, fontSize: 11),
+          style: TextStyle(
+            color: LandlordPalette.of(context).muted,
+            fontSize: 11,
+          ),
         ),
       ],
     ),
@@ -72,7 +77,7 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
             children: [
               CircleAvatar(
                 backgroundColor: landlordBlue.withValues(alpha: 0.1),
-                child: const Icon(
+                child: Icon(
                   Icons.account_balance_outlined,
                   color: landlordBlue,
                 ),
@@ -84,8 +89,8 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
                   children: [
                     Text(
                       account.bankName,
-                      style: const TextStyle(
-                        color: landlordInk,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).ink,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
@@ -93,8 +98,8 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       account.accountName,
-                      style: const TextStyle(
-                        color: landlordMuted,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).muted,
                         fontSize: 11,
                       ),
                     ),
@@ -105,14 +110,18 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
                 const LandlordStatusPill('Mặc định', color: landlordBlue),
             ],
           ),
-          const Divider(height: 22),
-          _line('Số tài khoản', account.maskedNumber),
+          Divider(height: 22),
+          _line(context, 'Số tài khoản', account.maskedNumber),
           if (account.branch.isNotEmpty) ...[
             const SizedBox(height: 7),
-            _line('Ghi chú', account.branch),
+            _line(context, 'Ghi chú', account.branch),
           ],
           const SizedBox(height: 11),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 7,
+            runSpacing: 5,
             children: [
               LandlordStatusPill(
                 account.isVerified ? 'Đã xác minh' : 'Chưa xác minh',
@@ -120,18 +129,16 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
                     ? const Color(0xFF16836F)
                     : const Color(0xFFE08A1E),
               ),
-              const SizedBox(width: 7),
               LandlordStatusPill(
                 account.isActive ? 'Đang sử dụng' : 'Đã tạm ngưng',
                 color: account.isActive
                     ? const Color(0xFF16836F)
-                    : landlordMuted,
+                    : LandlordPalette.of(context).muted,
               ),
-              const Spacer(),
               IconButton(
                 tooltip: 'Chỉnh sửa',
                 onPressed: () => _edit(context, account),
-                icon: const Icon(Icons.edit_outlined, size: 19),
+                icon: Icon(Icons.edit_outlined, size: 19),
               ),
             ],
           ),
@@ -151,18 +158,21 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
                     showLandlordMessage(context, error.message.toString());
                   }
                 },
-                icon: const Icon(Icons.star_outline_rounded, size: 17),
-                label: const Text('Đặt làm mặc định'),
+                icon: Icon(Icons.star_outline_rounded, size: 17),
+                label: Text('Đặt làm mặc định'),
               ),
             ),
           ],
-          const Divider(height: 20),
+          Divider(height: 20),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Cho phép người thuê chuyển khoản vào tài khoản này',
-                  style: TextStyle(color: landlordInk, fontSize: 11),
+                  style: TextStyle(
+                    color: LandlordPalette.of(context).ink,
+                    fontSize: 11,
+                  ),
                 ),
               ),
               Switch(
@@ -182,20 +192,23 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
     );
   }
 
-  Widget _line(String label, String value) => Row(
+  Widget _line(BuildContext context, String label, String value) => Row(
     children: [
       SizedBox(
         width: 100,
         child: Text(
           label,
-          style: const TextStyle(color: landlordMuted, fontSize: 11),
+          style: TextStyle(
+            color: LandlordPalette.of(context).muted,
+            fontSize: 11,
+          ),
         ),
       ),
       Expanded(
         child: Text(
           value,
-          style: const TextStyle(
-            color: landlordInk,
+          style: TextStyle(
+            color: LandlordPalette.of(context).ink,
             fontSize: 12,
             fontWeight: FontWeight.w700,
           ),
@@ -328,30 +341,30 @@ class _PaymentAccountEditorState extends State<_PaymentAccountEditor> {
               value: _makeDefault,
               onChanged: (value) =>
                   setState(() => _makeDefault = value ?? false),
-              title: const Text(
+              title: Text(
                 'Dùng làm tài khoản mặc định',
                 style: TextStyle(fontSize: 13),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Hiển thị trong hướng dẫn chuyển khoản mới.',
                 style: TextStyle(fontSize: 10),
               ),
               controlAffinity: ListTileControlAffinity.leading,
             ),
-            const Text(
+            Text(
               'Thông tin được che bớt khi hiển thị trong danh sách.',
-              style: TextStyle(color: landlordMuted, fontSize: 10),
+              style: TextStyle(
+                color: LandlordPalette.of(context).muted,
+                fontSize: 10,
+              ),
             ),
           ],
         ),
       ),
     ),
     actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Hủy'),
-      ),
-      FilledButton(onPressed: _save, child: const Text('Lưu tài khoản')),
+      TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy')),
+      FilledButton(onPressed: _save, child: Text('Lưu tài khoản')),
     ],
   );
 

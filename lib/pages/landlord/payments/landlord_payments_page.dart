@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
@@ -97,7 +99,7 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
                 border: Border.all(color: const Color(0xFFF2E4BF)),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.info_outline_rounded, color: Color(0xFFB17A23)),
                   SizedBox(width: 10),
@@ -142,9 +144,12 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
             ),
           for (final payment in payments) _paymentCard(payment),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Đối chiếu giao dịch ngân hàng thực tế trước khi xác nhận khoản thanh toán.',
-            style: TextStyle(color: landlordMuted, fontSize: 11),
+            style: TextStyle(
+              color: LandlordPalette.of(context).muted,
+              fontSize: 11,
+            ),
           ),
         ],
       );
@@ -175,9 +180,9 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
     width: width,
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: LandlordPalette.of(context).surface,
       borderRadius: BorderRadius.circular(15),
-      border: Border.all(color: landlordLine),
+      border: Border.all(color: LandlordPalette.of(context).line),
     ),
     child: Row(
       children: [
@@ -195,13 +200,16 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: landlordMuted, fontSize: 10),
+                style: TextStyle(
+                  color: LandlordPalette.of(context).muted,
+                  fontSize: 10,
+                ),
               ),
               const SizedBox(height: 3),
               Text(
                 value,
-                style: const TextStyle(
-                  color: landlordInk,
+                style: TextStyle(
+                  color: LandlordPalette.of(context).ink,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
@@ -249,8 +257,8 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
                   children: [
                     Text(
                       '${payment.tenantName} · ${payment.room}',
-                      style: const TextStyle(
-                        color: landlordInk,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).ink,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -258,8 +266,8 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
                     const SizedBox(height: 3),
                     Text(
                       '${payment.id} · ${landlordDate(payment.paidAt)} ${payment.paidAt.hour.toString().padLeft(2, '0')}:${payment.paidAt.minute.toString().padLeft(2, '0')}',
-                      style: const TextStyle(
-                        color: landlordMuted,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).muted,
                         fontSize: 11,
                       ),
                     ),
@@ -269,19 +277,22 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
               LandlordStatusPill(label, color: color),
             ],
           ),
-          const Divider(height: 22),
+          Divider(height: 22),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Người thuê báo đã trả',
-                  style: TextStyle(color: landlordMuted, fontSize: 12),
+                  style: TextStyle(
+                    color: LandlordPalette.of(context).muted,
+                    fontSize: 12,
+                  ),
                 ),
               ),
               Text(
                 formatLandlordMoney(payment.reportedAmount),
-                style: const TextStyle(
-                  color: landlordInk,
+                style: TextStyle(
+                  color: LandlordPalette.of(context).ink,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),
@@ -291,19 +302,25 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
           const SizedBox(height: 7),
           Text(
             'Hóa đơn ${payment.invoiceId} · còn nợ ${formatLandlordMoney(invoice?.remaining ?? 0)}',
-            style: const TextStyle(color: landlordMuted, fontSize: 11),
+            style: TextStyle(
+              color: LandlordPalette.of(context).muted,
+              fontSize: 11,
+            ),
           ),
           const SizedBox(height: 7),
           Text(
             'Mã giao dịch: ${payment.reference}',
-            style: const TextStyle(color: landlordMuted, fontSize: 11),
+            style: TextStyle(
+              color: LandlordPalette.of(context).muted,
+              fontSize: 11,
+            ),
           ),
           if (payment.status == LandlordPaymentStatus.approved &&
               payment.approvedAmount != payment.reportedAmount) ...[
             const SizedBox(height: 7),
             Text(
               'Đã ghi nhận ${formatLandlordMoney(amount)}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Color(0xFF16836F),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -314,7 +331,7 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
             const SizedBox(height: 7),
             Text(
               'Lý do: ${payment.rejectionReason}',
-              style: const TextStyle(color: Color(0xFFD64545), fontSize: 11),
+              style: TextStyle(color: Color(0xFFD64545), fontSize: 11),
             ),
           ],
           if (payment.status == LandlordPaymentStatus.pending) ...[
@@ -323,8 +340,8 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () => _review(payment),
-                icon: const Icon(Icons.fact_check_outlined, size: 18),
-                label: const Text('Kiểm tra và xử lý'),
+                icon: Icon(Icons.fact_check_outlined, size: 18),
+                label: Text('Kiểm tra và xử lý'),
               ),
             ),
           ],
@@ -359,7 +376,7 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Đóng'),
+              child: Text('Đóng'),
             ),
           ],
         ),
@@ -429,7 +446,7 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Đối soát thanh toán'),
+    title: Text('Đối soát thanh toán'),
     content: SizedBox(
       width: 440,
       child: SingleChildScrollView(
@@ -439,21 +456,27 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
           children: [
             Text(
               '${widget.payment.tenantName} · phòng ${widget.payment.room}',
-              style: const TextStyle(
-                color: landlordInk,
+              style: TextStyle(
+                color: LandlordPalette.of(context).ink,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 5),
             Text(
               'Hóa đơn ${widget.invoice.id} · tổng ${formatLandlordMoney(widget.invoice.total)}',
-              style: const TextStyle(color: landlordMuted, fontSize: 12),
+              style: TextStyle(
+                color: LandlordPalette.of(context).muted,
+                fontSize: 12,
+              ),
             ),
             Text(
               'Đã xác nhận ${formatLandlordMoney(widget.invoice.paidAmount)} · còn nợ ${formatLandlordMoney(widget.invoice.remaining)}',
-              style: const TextStyle(color: landlordMuted, fontSize: 12),
+              style: TextStyle(
+                color: LandlordPalette.of(context).muted,
+                fontSize: 12,
+              ),
             ),
-            const Divider(height: 22),
+            Divider(height: 22),
             _infoRow(
               'Số tiền người thuê báo',
               formatLandlordMoney(widget.payment.reportedAmount),
@@ -469,7 +492,7 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
                 Uint8List.fromList(widget.payment.proofBytes!),
                 height: 180,
                 errorBuilder: (_, _, _) =>
-                    const Text('Không đọc được ảnh minh chứng.'),
+                    Text('Không đọc được ảnh minh chứng.'),
               ),
             ],
             const SizedBox(height: 13),
@@ -485,25 +508,26 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
             TextField(
               controller: _reason,
               maxLines: 2,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Lý do từ chối',
                 hintText: 'Nhập nội dung để người thuê kiểm tra',
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Xác nhận khoản tiền sẽ cập nhật số đã thu của hóa đơn ngay lập tức.',
-              style: TextStyle(color: landlordMuted, fontSize: 10, height: 1.4),
+              style: TextStyle(
+                color: LandlordPalette.of(context).muted,
+                fontSize: 10,
+                height: 1.4,
+              ),
             ),
           ],
         ),
       ),
     ),
     actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Đóng'),
-      ),
+      TextButton(onPressed: () => Navigator.pop(context), child: Text('Đóng')),
       TextButton(
         onPressed: () {
           if (_reason.text.trim().isEmpty) {
@@ -516,7 +540,7 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
           );
         },
         style: TextButton.styleFrom(foregroundColor: const Color(0xFFD64545)),
-        child: const Text('Từ chối'),
+        child: Text('Từ chối'),
       ),
       FilledButton.icon(
         onPressed: () {
@@ -530,8 +554,8 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
           }
           Navigator.pop(context, _PaymentReviewResult.approve(value));
         },
-        icon: const Icon(Icons.check_rounded, size: 17),
-        label: const Text('Xác nhận'),
+        icon: Icon(Icons.check_rounded, size: 17),
+        label: Text('Xác nhận'),
       ),
     ],
   );
@@ -543,14 +567,17 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
         width: 155,
         child: Text(
           label,
-          style: const TextStyle(color: landlordMuted, fontSize: 11),
+          style: TextStyle(
+            color: LandlordPalette.of(context).muted,
+            fontSize: 11,
+          ),
         ),
       ),
       Expanded(
         child: Text(
           value,
-          style: const TextStyle(
-            color: landlordInk,
+          style: TextStyle(
+            color: LandlordPalette.of(context).ink,
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
