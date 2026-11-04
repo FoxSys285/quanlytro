@@ -69,8 +69,6 @@ flutter:
   assets:
     - assets/images/room_types/
     - assets/images/rental_api/
-
-  assets:
     - assets/images/tenant_discovery_hero.png
 
   # To add assets to your application, add an assets section, like this:
