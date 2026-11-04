@@ -1,6 +1,6 @@
 # TroPremium
 
-Ứng dụng Flutter quản lý nhà trọ với ba vai trò: Chủ trọ, Người thuê và Quản trị viên. Phiên bản hiện tại dùng **SQLite trên thiết bị**, chưa kết nối Firebase hoặc Supabase.
+Ứng dụng Flutter quản lý nhà trọ với ba vai trò: Chủ trọ, Người thuê và Quản trị viên. **Mặc định dùng Firebase Authentication + Firestore theo vai trò**; SQLite là cache riêng theo UID trên thiết bị. Bản web đọc Firestore trực tiếp.
 
 ## Chạy ứng dụng
 
@@ -9,9 +9,13 @@ flutter pub get
 flutter run
 ```
 
-SQLite hỗ trợ Android, iOS và máy tính Windows/Linux/macOS. Bản hiện tại không chạy cơ sở dữ liệu trên trình duyệt.
+SQLite hỗ trợ Android, iOS và máy tính Windows/Linux/macOS. Trình duyệt dùng Firebase, không mở SQLite.
 
-## Tài khoản mẫu
+## Tài khoản và phân quyền
+
+Tài khoản thật được tạo trong Firebase Authentication; quyền lấy từ `users/{uid}`. Người thuê nối qua `tenantId` đến hợp đồng, hóa đơn và yêu cầu của chính mình. Client không tự cấp vai trò. Xem [thiết lập Firebase](docs/FIREBASE_CLOUD.md) và [kết quả kiểm tra 3 role](docs/ROLE_SYNC_AUDIT.md).
+
+Thông tin dưới đây chỉ áp dụng bản cũ chạy chủ động với `--dart-define=USE_FIREBASE_AUTH=false`, cần dữ liệu SQLite có sẵn. Không dùng bản này sau khi Rules đã khóa collection cũ.
 
 | Vai trò | Email | Mật khẩu ban đầu |
 |---|---|---|
@@ -23,7 +27,7 @@ Chọn vai trò trên màn hình đăng nhập để điền tài khoản mẫu.
 
 ## Dữ liệu và chức năng
 
-Lần mở đầu tạo **10 nhà trọ, 454 phòng**, mỗi nhà có 3–4 loại phòng, 3–8 tầng, 6–12 phòng mỗi tầng. Có sẵn hợp đồng hiệu lực, người thuê, hóa đơn, công nợ, thanh toán chờ duyệt, điện nước, thông báo và lịch xem phòng.
+Dữ liệu hiện có gồm **10 nhà trọ, 454 phòng**. Ứng dụng tải dữ liệu đã được cấp quyền, không tự tạo nhà, hợp đồng hay tài khoản mẫu khi đăng nhập.
 
 - Chủ trọ: chuyển nhà đang quản lý; thêm/sửa nhà và phòng; quản lý loại phòng, dịch vụ, hợp đồng, thành viên, chỉ số điện nước, hóa đơn, thanh toán, tài khoản nhận tiền, sự cố, nhân viên và thông báo.
 - Người thuê mẫu Minh Anh: tìm/lọc phòng theo khu vực, giá, diện tích, điện nước; yêu thích và đặt lịch; xem hợp đồng/hóa đơn; gửi thanh toán; đề nghị thêm thành viên; báo và xác nhận sự cố; nhắn tin và gửi hỗ trợ.
@@ -36,7 +40,7 @@ Lần mở đầu tạo **10 nhà trọ, 454 phòng**, mỗi nhà có 3–4 lo�
 
 Chi tiết quy mô, kiến trúc lưu trữ và cách kiểm tra: [SQLite và dữ liệu mẫu](docs/SQLITE_VA_DU_LIEU_MAU.md).
 
-Đăng nhập Firebase và Rules theo vai trò: [các bước chuyển dữ liệu, cấp UID và bật chế độ thật](docs/FIREBASE_CLOUD.md). Chưa publish Rules khóa dữ liệu cũ khi tài khoản thật chưa được chuẩn bị.
+Đăng nhập Firebase và Rules theo vai trò: [các bước chuyển dữ liệu và cấp UID](docs/FIREBASE_CLOUD.md). Mẫu thu thập nhà/phòng và lệnh kiểm tra/import: [hướng dẫn Excel](docs/DATA_IMPORT.md).
 
 ## Kiểm tra và đóng gói
 

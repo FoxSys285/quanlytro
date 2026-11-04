@@ -1,3 +1,5 @@
+import '../../shared/profile/account_store.dart';
+import '../../../layouts/role_layout.dart';
 import '../../../data/admin_store.dart';
 
 import 'dart:async';
@@ -29,7 +31,7 @@ class TenantDiscoveryPage extends StatefulWidget {
   const TenantDiscoveryPage({
     super.key,
     this.viewingStore,
-    this.tenantId = ViewingStore.demoTenantId,
+    String? tenantId,
     this.catalogSource,
     this.resultsOnly = false,
     this.initialQuery = '',
@@ -44,11 +46,13 @@ class TenantDiscoveryPage extends StatefulWidget {
     this.initialAmenities = const {},
     this.initialSort = 'default',
     this.locationService = const TenantLocationService(),
-  });
+  }) : _tenantId = tenantId ?? '';
 
   final TenantLocationService locationService;
   final ViewingStore? viewingStore;
-  final String tenantId;
+  final String _tenantId;
+  String get tenantId =>
+      _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
   final TenantCatalogSource? catalogSource;
   final bool resultsOnly;
   final String initialQuery;
@@ -383,7 +387,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       loading: _catalogLoading,
       hasError: _catalogError,
       offline: _offlineFallback,
-      profileName: TenantSession.name,
+      profileName: AccountStore.instance.profile(AppRole.tenant).name,
       query: _query,
       sort: _sort,
       searchController: _searchController,
@@ -700,12 +704,12 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
             LandlordDemoStore.instance
                 .currentLeaseForTenant(TenantSession.currentTenantId)
                 ?.tenantName ??
-            TenantSession.name,
+            AccountStore.instance.profile(AppRole.tenant).name,
         initialPhone:
             LandlordDemoStore.instance
                 .currentLeaseForTenant(TenantSession.currentTenantId)
                 ?.phone ??
-            TenantSession.phone,
+            AccountStore.instance.profile(AppRole.tenant).phone,
       ),
     );
     if (!mounted || request == null) return;

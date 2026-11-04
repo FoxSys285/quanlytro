@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../layouts/role_layout.dart';
@@ -6,7 +8,8 @@ import 'local_database.dart';
 import 'rental_cloud_codec.dart';
 
 /// Chỉ tải nghiệp vụ của chủ trọ hoặc người thuê đã được Firebase cấp quyền.
-class ScopedFirestoreRentalRepository implements RentalRepository {
+class ScopedFirestoreRentalRepository
+    implements RentalRepository, RentalChangeSource {
   ScopedFirestoreRentalRepository({
     required this.session,
     FirebaseFirestore? firestore,
@@ -16,6 +19,66 @@ class ScopedFirestoreRentalRepository implements RentalRepository {
   final _baseline = <String, Map<String, dynamic>>{};
   final _owners = <String, String>{};
   final _ticketAuthors = <String, String>{};
+  final _localBaseline = <String, Map<String, dynamic>>{};
+
+  @override
+  Stream<void> get changes => Stream<void>.multi((controller) {
+    Query<Map<String, dynamic>> records = _firestore.collection(
+      'rental_records',
+    );
+    Query<Map<String, dynamic>> properties = _firestore.collection(
+      'rental_properties',
+    );
+    Query<Map<String, dynamic>> tickets = _firestore.collection(
+      'support_tickets',
+    );
+    if (session.role == AppRole.landlord) {
+      records = records.where('ownerUid', isEqualTo: session.uid);
+      properties = properties.where('ownerUid', isEqualTo: session.uid);
+    } else if (session.role == AppRole.tenant) {
+      records = records.where('tenantIds', arrayContains: session.tenantId);
+    }
+    if (session.role != AppRole.admin) {
+      tickets = tickets.where('accountUid', isEqualTo: session.uid);
+    }
+    final subscriptions = <StreamSubscription<dynamic>>[];
+    void watch(Stream<dynamic> stream) {
+      subscriptions.add(
+        stream.listen(
+          (_) => controller.add(null),
+          onError: controller.addError,
+        ),
+      );
+    }
+
+    watch(properties.snapshots());
+    watch(records.snapshots());
+    watch(tickets.snapshots());
+    if (session.role != AppRole.tenant) {
+      Query<Map<String, dynamic>> rooms = _firestore.collection('public_rooms');
+      if (session.role == AppRole.landlord) {
+        rooms = rooms.where('ownerUid', isEqualTo: session.uid);
+      }
+      watch(rooms.snapshots());
+    }
+    watch(_firestore.doc('user_state/${session.uid}').snapshots());
+    watch(_firestore.doc('public_settings/viewings').snapshots());
+    watch(_firestore.doc('users/${session.uid}').snapshots());
+    if (session.role != AppRole.tenant) {
+      watch(
+        _firestore
+            .doc(
+              'management/${session.role == AppRole.admin ? 'system' : session.uid}',
+            )
+            .snapshots(),
+      );
+    }
+    controller.onCancel = () async {
+      await Future.wait(
+        subscriptions.map((subscription) => subscription.cancel()),
+      );
+    };
+  });
 
   @override
   Future<Map<String, Map<String, dynamic>>> readAll() async {
@@ -40,6 +103,8 @@ class ScopedFirestoreRentalRepository implements RentalRepository {
     ]);
     final stores = <String, Map<String, dynamic>>{};
     _baseline.clear();
+    _owners.clear();
+    _ticketAuthors.clear();
     for (final doc in results[0].docs) {
       final data = doc.data();
       _baseline[doc.reference.path] = data;
@@ -86,6 +151,7 @@ class ScopedFirestoreRentalRepository implements RentalRepository {
       },
     };
     final messages = <Map<String, dynamic>>[];
+    final announcementReads = <String, Map<String, dynamic>>{};
     for (final doc in results[1].docs) {
       final envelope = doc.data();
       _baseline[doc.reference.path] = envelope;
@@ -99,6 +165,10 @@ class ScopedFirestoreRentalRepository implements RentalRepository {
         store.addAll(data);
       } else if (kind == 'messages') {
         messages.add(data);
+      } else if (kind == 'tenantAnnouncements' &&
+          session.role != AppRole.tenant) {
+        final reads = announcementReads.putIfAbsent(id, () => {});
+        reads.addAll(Map<String, dynamic>.from(data['readByTenant'] as Map));
       } else if (kind == 'conversations' || kind == 'viewings') {
         (snapshot[kind]!['records'] as List).add(data);
       } else if ((kind == 'announcements' && session.role != AppRole.tenant) ||
@@ -108,17 +178,17 @@ class ScopedFirestoreRentalRepository implements RentalRepository {
         (store[kind] as List).add(data);
       }
     }
-    messages.sort((a, b) => (a['index'] as int).compareTo(b['index'] as int));
+    for (final entry in announcementReads.entries) {
+      final announcements = snapshot['announcements:${entry.key}'];
+      if (announcements != null) {
+        (announcements['readByTenant'] as Map).addAll(entry.value);
+      }
+    }
     for (final conversation in snapshot['conversations']!['records'] as List) {
-      conversation['messages'] = [
-        for (final message in messages)
-          if (message['conversationId'] == conversation['id'])
-            {
-              'text': message['text'],
-              'time': message['time'],
-              'fromLandlord': message['fromLandlord'],
-            },
-      ];
+      conversation['messages'] = decodeCloudMessages(
+        messages,
+        '${Uri.encodeComponent(conversation['propertyId'] as String)}:conversations:${Uri.encodeComponent(conversation['id'] as String)}',
+      );
     }
     for (final id in stores.keys) {
       snapshot.putIfAbsent(
@@ -198,11 +268,15 @@ class ScopedFirestoreRentalRepository implements RentalRepository {
       _baseline[doc.reference.path] = doc.data();
       _ticketAuthors[doc.id] = doc.data()['accountUid'] as String;
     }
+    _localBaseline
+      ..clear()
+      ..addAll(_encode(snapshot));
     return snapshot;
   }
 
-  @override
-  Future<void> saveAll(Map<String, Map<String, dynamic>> documents) async {
+  Map<String, Map<String, dynamic>> _encode(
+    Map<String, Map<String, dynamic>> documents,
+  ) {
     if (session.role == AppRole.landlord) {
       for (final store
           in documents['portfolio']?['properties'] as List? ?? []) {
@@ -213,6 +287,20 @@ class ScopedFirestoreRentalRepository implements RentalRepository {
       }
     }
     final encoded = encodeCloudDocuments(documents, owners: _owners);
+    if (session.role == AppRole.landlord) {
+      // Only admin controls publication; landlord edits must preserve moderation.
+      for (final entry in encoded.entries) {
+        if (entry.key.startsWith('rental_properties/')) {
+          entry.value['published'] = _baseline[entry.key]?['published'] ?? true;
+        } else if (entry.key.startsWith('public_rooms/')) {
+          final property =
+              _baseline['rental_properties/${entry.value['propertyId']}'];
+          entry.value['published'] =
+              property?['published'] != false &&
+              (_baseline[entry.key]?['published'] ?? true);
+        }
+      }
+    }
     if (session.role == AppRole.tenant) {
       // Không xuất bản lại phòng/thiết lập/chứng từ của chủ trọ từ bản chiếu người thuê.
       encoded.removeWhere(
@@ -228,6 +316,18 @@ class ScopedFirestoreRentalRepository implements RentalRepository {
               'tenantAnnouncements',
             ].contains(row['kind']),
       );
+      for (final entry in encoded.entries) {
+        final saved = _baseline[entry.key];
+        if (entry.value['kind'] == 'conversations' && saved != null) {
+          final data = entry.value['data'] as Map;
+          // Rental-derived names are display data; tenants only change counters.
+          entry.value['data'] = {
+            ...Map<String, dynamic>.from(saved['data'] as Map),
+            'unread': data['unread'],
+            'tenantUnread': data['tenantUnread'],
+          };
+        }
+      }
     } else {
       for (final entry in _baseline.entries) {
         if (encoded.containsKey(entry.key)) continue;
@@ -238,6 +338,9 @@ class ScopedFirestoreRentalRepository implements RentalRepository {
             'available': false,
           };
         } else if (entry.key.startsWith('rental_properties/')) {
+          encoded[entry.key] = {...entry.value, 'archived': true};
+        } else if (entry.key.startsWith('rental_records/') &&
+            entry.value['kind'] != 'messages') {
           encoded[entry.key] = {...entry.value, 'archived': true};
         }
       }
@@ -265,36 +368,59 @@ class ScopedFirestoreRentalRepository implements RentalRepository {
         'data': ticket,
       };
     }
+    return encoded;
+  }
+
+  @override
+  Future<void> saveAll(Map<String, Map<String, dynamic>> documents) async {
+    final encoded = _encode(documents);
     final changed = encoded.entries
         .where(
           (e) =>
-              cloudFingerprint(e.value) != cloudFingerprint(_baseline[e.key]),
+              cloudFingerprint(e.value) !=
+              cloudFingerprint(_localBaseline[e.key]),
         )
         .toList();
-    // Giữ các projection phòng từ server ngoài baseline ghi của người thuê.
-    for (var offset = 0; offset < changed.length; offset += 100) {
-      final chunk = changed.skip(offset).take(100).toList();
-      await _firestore.runTransaction((transaction) async {
-        final live = await Future.wait(
-          chunk.map((e) => transaction.get(_firestore.doc(e.key))),
-        );
-        for (var i = 0; i < chunk.length; i++) {
-          final entry = chunk[i];
-          if (cloudFingerprint(live[i].data()) !=
-              cloudFingerprint(_baseline[entry.key])) {
-            throw StateError(
-              'Dữ liệu đã thay đổi trên thiết bị khác. Mở lại ứng dụng để tải bản mới.',
-            );
-          }
-        }
-        for (final entry in chunk) {
-          transaction.set(_firestore.doc(entry.key), entry.value);
-        }
-      });
-      for (final entry in chunk) {
-        _baseline[entry.key] = entry.value;
-      }
+    if (changed.isEmpty) return;
+    // One operation is atomic: never save an approval without its invoice.
+    if (changed.length > 400) {
+      throw StateError(
+        'Thay đổi quá lớn. Chia nhỏ thao tác hoặc dùng công cụ nhập dữ liệu.',
+      );
     }
+    final committed = await _firestore.runTransaction((transaction) async {
+      final live = await Future.wait(
+        changed.map((e) => transaction.get(_firestore.doc(e.key))),
+      );
+      final merged = <String, Map<String, dynamic>>{};
+      for (var i = 0; i < changed.length; i++) {
+        final entry = changed[i];
+        final value = mergeCloudDocument(
+          _localBaseline[entry.key],
+          entry.value,
+          live[i].data(),
+          serverBefore: _baseline[entry.key],
+          atomic: [
+            'leases',
+            'invoices',
+            'payments',
+          ].contains(entry.value['kind']),
+        );
+        // Preserve moderation even when admin hides a room after our read.
+        if (session.role == AppRole.landlord &&
+            entry.key.startsWith('public_rooms/') &&
+            live[i].exists) {
+          value['published'] =
+              entry.value['published'] != false &&
+              live[i].data()!['published'] == true;
+        }
+        merged[entry.key] = value;
+        transaction.set(_firestore.doc(entry.key), value);
+      }
+      return merged;
+    });
+    _baseline.addAll(committed);
+    _localBaseline.addAll(encoded);
   }
 
   @override

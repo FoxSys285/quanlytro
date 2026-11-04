@@ -6,7 +6,7 @@ service cloud.firestore {
     function admin() { return active() && profile().role == 'admin'; }
     function owner(data) { return active() && profile().role == 'landlord' && data.ownerUid == request.auth.uid; }
     function tenant(data) { return active() && profile().role == 'tenant' && profile().tenantId in data.tenantIds; }
-    function ownsProperty(id) { return owner(get(/databases/$(database)/documents/rental_properties/$(id)).data); }
+    function ownsProperty(id) { return owner(getAfter(/databases/$(database)/documents/rental_properties/$(id)).data); }
     function sameEnvelope() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['data']) &&
         request.resource.data.archived == false;
@@ -14,7 +14,10 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if active() && (uid == request.auth.uid || admin());
       // Role/disabled/tenantId provisioned through Admin SDK, never self-assigned.
-      allow write: if false;
+      allow create, delete: if false;
+      allow update: if admin() && uid != request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disabled']) &&
+        request.resource.data.disabled is bool;
     }
     match /app_documents/{id} { allow read, write: if false; }
     match /user_state/{uid} {
@@ -42,22 +45,26 @@ service cloud.firestore {
     match /rental_properties/{id} {
       allow read: if true;
       allow create: if admin() || owner(request.resource.data);
-      allow update: if admin() || (owner(resource.data) && request.resource.data.ownerUid == resource.data.ownerUid);
+      allow update: if admin() || (owner(resource.data) && request.resource.data.ownerUid == resource.data.ownerUid &&
+        request.resource.data.get('published', true) == resource.data.get('published', true));
       allow delete: if false;
     }
     match /public_rooms/{id} {
       allow read: if true;
-      allow create: if admin() || (ownsProperty(request.resource.data.propertyId) && owner(request.resource.data));
+      allow create: if admin() || (ownsProperty(request.resource.data.propertyId) && owner(request.resource.data) &&
+        (request.resource.data.published == false ||
+          getAfter(/databases/$(database)/documents/rental_properties/$(request.resource.data.propertyId)).data.get('published', true) == true));
       allow update: if admin() || (owner(resource.data) &&
         request.resource.data.ownerUid == resource.data.ownerUid &&
-        request.resource.data.propertyId == resource.data.propertyId);
+        request.resource.data.propertyId == resource.data.propertyId &&
+        (request.resource.data.published == resource.data.published || request.resource.data.published == false));
       allow delete: if false;
     }
     match /rental_records/{id} {
       allow read: if admin() || owner(resource.data) || tenant(resource.data);
       allow get: if active() && !exists(/databases/$(database)/documents/rental_records/$(id));
       allow create: if admin() || (owner(request.resource.data) && ownsProperty(request.resource.data.propertyId) &&
-        (request.resource.data.kind != 'messages' || request.resource.data.data.fromLandlord == true)) ||
+        (request.resource.data.kind != 'messages' || landlordMessageCreate())) ||
         (tenant(request.resource.data) && tenantCreate());
       allow update: if admin() || (owner(resource.data) && resource.data.kind != 'messages' &&
         request.resource.data.ownerUid == resource.data.ownerUid &&
@@ -74,12 +81,12 @@ service cloud.firestore {
         let leaseId = request.resource.data.data.leaseId;
         // Các mã hợp đồng sinh bởi ứng dụng không chứa dấu '/' hoặc ':'.
         let doc = get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':leases:' + leaseId)).data;
-        return tenant(doc);
+        return tenant(doc) && doc.archived == false && doc.kind == 'leases' && doc.data.status == 'active';
       }
       function tenantCreate() {
         let d = request.resource.data.data;
         return validTarget() && (
-          (request.resource.data.kind == 'viewings' && d.tenantId == profile().tenantId && d.status == 'pending') ||
+          (request.resource.data.kind == 'viewings' && d.tenantId == profile().tenantId && d.status == 'pending' && acceptingViewings()) ||
           (request.resource.data.kind == 'incidents' && d.reporterId == profile().tenantId && d.status == 'newly' && ownLease()) ||
           (request.resource.data.kind == 'members' && d.requestedBy == profile().tenantId && d.status == 'pending' && d.isRepresentative == false && ownLease()) ||
           (request.resource.data.kind == 'conversations' && d.tenantId == profile().tenantId && d.messages == []) ||
@@ -87,10 +94,24 @@ service cloud.firestore {
           (request.resource.data.kind == 'payments' && paymentCreate())
         );
       }
+      function acceptingViewings() {
+        return !exists(/databases/$(database)/documents/public_settings/viewings) ||
+          get(/databases/$(database)/documents/public_settings/viewings).data.acceptingViewings == true;
+      }
+      function landlordMessageCreate() {
+        let d = request.resource.data.data;
+        let conversation = getAfter(/databases/$(database)/documents/rental_records/$(d.conversationKey)).data;
+        return owner(conversation) && conversation.kind == 'conversations' && conversation.archived == false &&
+          conversation.propertyId == request.resource.data.propertyId &&
+          conversation.tenantIds == request.resource.data.tenantIds && conversation.data.id == d.conversationId &&
+          d.fromLandlord == true && d.text is string && d.text.size() > 0 && d.text.size() <= 5000 &&
+          d.index is int && d.index >= 0;
+      }
       function messageCreate() {
         let d = request.resource.data.data;
         let conversation = getAfter(/databases/$(database)/documents/rental_records/$(d.conversationKey)).data;
-        return tenant(conversation) && conversation.propertyId == request.resource.data.propertyId &&
+        return tenant(conversation) && conversation.kind == 'conversations' && conversation.archived == false &&
+          conversation.propertyId == request.resource.data.propertyId &&
           conversation.data.id == d.conversationId &&
           d.fromLandlord == false && d.text is string && d.text.size() > 0 && d.text.size() <= 5000 &&
           d.index is int && d.index >= 0;
@@ -98,7 +119,8 @@ service cloud.firestore {
       function paymentCreate() {
         let d = request.resource.data.data;
         let invoice = get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':invoices:' + d.invoiceId)).data;
-        return tenant(invoice) && d.status == 'pending' && d.approvedAmount == null &&
+        return tenant(invoice) && invoice.kind == 'invoices' && invoice.archived == false && invoice.data.cancelled == false &&
+          invoice.ownerUid == request.resource.data.ownerUid && d.status == 'pending' && d.approvedAmount == null &&
           d.reviewedAt == null && d.reportedAmount is int && d.reportedAmount > 0 &&
           d.reportedAmount <= 1000000000;
       }
@@ -108,16 +130,20 @@ service cloud.firestore {
         let changed = d.diff(old).affectedKeys();
         return
           (resource.data.kind == 'viewings' && changed.hasOnly(['status']) && old.status != 'cancelled' && d.status == 'cancelled') ||
-          (resource.data.kind == 'incidents' && changed.hasOnly(['status']) && old.status == 'resolved' && d.status == 'closed') ||
+          (resource.data.kind == 'incidents' && changed.hasOnly(['status']) && old.status == 'resolved' && d.status in ['closed', 'newly']) ||
           (resource.data.kind == 'conversations' && conversationUpdate()) ||
-          (resource.data.kind == 'tenantAnnouncements' && changed.hasOnly(['readByTenant']));
+          (resource.data.kind == 'tenantAnnouncements' && changed.hasOnly(['readByTenant']) &&
+            d.readByTenant.keys().hasOnly([profile().tenantId]) &&
+            d.readByTenant[profile().tenantId] is list &&
+            d.readByTenant[profile().tenantId].hasOnly(old.recipients.keys()));
       }
       function conversationUpdate() {
         let d = request.resource.data.data;
         let old = resource.data.data;
         let changed = d.diff(old).affectedKeys();
-        return (changed.hasOnly(['tenantUnread']) && d.tenantUnread == 0) ||
-          (changed.hasOnly(['unread']) && d.unread == old.unread + 1);
+        return changed.hasOnly(['tenantUnread', 'unread']) &&
+          (d.tenantUnread == old.tenantUnread || d.tenantUnread == 0) &&
+          (d.unread == old.unread || d.unread == old.unread + 1);
       }
     }
   }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../pages/landlord/landlord_demo_store.dart';
 import '../pages/landlord/staff/landlord_staff_store.dart';
@@ -13,6 +14,7 @@ import 'local_database.dart';
 import 'local_auth.dart';
 import 'admin_store.dart';
 import 'firestore_repository.dart';
+import 'rental_cloud_codec.dart';
 import '../layouts/role_layout.dart';
 
 class AppPersistence {
@@ -28,9 +30,17 @@ class AppPersistence {
   Future<void> _pending = Future.value();
   bool _scheduled = false;
   bool _disposed = false;
+  bool _restoring = false;
+  bool _dirty = false;
+  bool _remoteChanged = false;
+  Timer? _refreshTimer;
+  StreamSubscription<void>? _remoteSubscription;
+  final refreshing = ValueNotifier<bool>(false);
+  String? _remoteFingerprint;
   final _subscriptions = <Listenable>{};
   Future<void> initialize() async {
     final data = await repository.readAll();
+    _remoteFingerprint = cloudFingerprint(data);
     final saved = data['portfolio'];
     if (saved == null || (!cloudMode && data['auth'] == null)) {
       throw StateError(
@@ -103,6 +113,15 @@ class AppPersistence {
     _listen(LocalAuth.instance);
     _listen(AdminStore.instance);
     current = this;
+    if (cloudMode && repository is RentalChangeSource) {
+      _remoteSubscription = (repository as RentalChangeSource).changes.listen(
+        (_) => _scheduleRefresh(),
+        onError: (Object failure) {
+          _closeRevokedSession(failure);
+          error.value = 'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối/quyền tài khoản.';
+        },
+      );
+    }
   }
 
   void _listen(Listenable source) {
@@ -124,7 +143,9 @@ class AppPersistence {
   };
 
   void save() {
-    if (_disposed || _scheduled) return;
+    if (_disposed || _restoring) return;
+    _dirty = true;
+    if (_scheduled) return;
     _scheduled = true;
     scheduleMicrotask(() {
       _scheduled = false;
@@ -154,12 +175,90 @@ class AppPersistence {
           saveStatus.value = cloudConfirmed
               ? 'Đã lưu dữ liệu lên Firebase'
               : 'Đã lưu trên máy · Firebase chưa kết nối';
-        } catch (_) {
+          _dirty = false;
+          if (_remoteChanged) _scheduleRefresh();
+        } catch (failure) {
+          _closeRevokedSession(failure);
           error.value = 'Chưa hoàn tất lưu dữ liệu. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
           saveStatus.value = error.value!;
         }
       });
     });
+  }
+
+  void _scheduleRefresh() {
+    if (_disposed) return;
+    _remoteChanged = true;
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer(const Duration(milliseconds: 350), () {
+      unawaited(refresh());
+    });
+  }
+
+  /// Không thay bản chỉnh sửa chưa lưu bằng dữ liệu thiết bị khác.
+  Future<void> refresh({bool discardUnsaved = false}) async {
+    if (_disposed || !cloudMode || refreshing.value) return;
+    _pending = _pending.then((_) async {
+      if (_disposed || _scheduled || (_dirty && !discardUnsaved)) return;
+      if (discardUnsaved) _remoteFingerprint = null;
+      refreshing.value = true;
+      _remoteChanged = false;
+      try {
+        final data = await repository.readAll();
+        final fingerprint = cloudFingerprint(data);
+        if (fingerprint == _remoteFingerprint) return;
+        _restoring = true;
+        try {
+          RentalPortfolio.instance.restore(data['portfolio']!);
+          if (!RentalPortfolio.instance.stores.contains(
+            LandlordDemoStore.instance,
+          )) {
+            LandlordDemoStore.instance = RentalPortfolio.instance.active;
+          }
+          AdminStore.instance.restore(data['admin']!);
+          ConversationStore.instance.restore(data['conversations']!);
+          ViewingStore.instance.restore(data['viewings']!);
+          AccountStore.instance.restore(
+            data['accounts'] ?? {'contacts': {}, 'notifications': {}},
+          );
+          LandlordStaffStore.instance.restore(data['staff']!);
+          TenantFavoritesStore.roomNames
+            ..clear()
+            ..addAll(
+              List<String>.from(data['favorites']?['ids'] as List? ?? []),
+            );
+          for (final store in RentalPortfolio.instance.stores) {
+            final announcements = AnnouncementStore.forRental(store);
+            announcements.restore(data['announcements:${store.property.id}']!);
+            _listen(announcements);
+          }
+          _remoteFingerprint = fingerprint;
+          _dirty = false;
+          error.value = null;
+          saveStatus.value = 'Đã nhận dữ liệu mới từ Firebase';
+        } finally {
+          _restoring = false;
+        }
+      } catch (failure) {
+        _closeRevokedSession(failure);
+        _remoteChanged = true;
+        error.value = 'Chưa tải được dữ liệu mới. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+      } finally {
+        refreshing.value = false;
+      }
+    });
+    await _pending;
+  }
+
+  void _closeRevokedSession(Object failure) {
+    if (cloudMode &&
+        LocalAuth.instance.isCloudMode &&
+        failure is FirebaseException &&
+        (failure.code == 'permission-denied' ||
+            failure.code == 'unauthenticated')) {
+      // Không tiếp tục hiển thị dữ liệu riêng sau khi admin thu hồi quyền.
+      scheduleMicrotask(() => unawaited(LocalAuth.instance.signOut()));
+    }
   }
 
   Future<void> saveAdminChanges() async {
@@ -180,6 +279,8 @@ class AppPersistence {
   }
 
   Future<void> dispose() async {
+    _refreshTimer?.cancel();
+    await _remoteSubscription?.cancel();
     await flush();
     _disposed = true;
     for (final source in _subscriptions) {
@@ -189,6 +290,7 @@ class AppPersistence {
     await repository.close();
     error.dispose();
     saveStatus.dispose();
+    refreshing.dispose();
     if (current == this) current = null;
   }
 }

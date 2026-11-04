@@ -1,6 +1,6 @@
 # Chuyển bản demo sang Firebase Authentication
 
-Bản mặc định vẫn dùng đăng nhập demo và dữ liệu cũ. Chế độ thật bật bằng `--dart-define=USE_FIREBASE_AUTH=true`: xác thực trước khi đọc dữ liệu riêng, vai trò lấy từ `users/{uid}` trên server; không đăng nhập bằng tài khoản demo khi Firebase từ chối. SQLite được tách theo UID. Không tự tạo hay nâng vai trò từ ứng dụng.
+Mặc định dùng Firebase thật: xác thực trước khi đọc dữ liệu riêng, vai trò lấy từ `users/{uid}` trên server; không đăng nhập bằng tài khoản demo khi Firebase từ chối. SQLite được tách theo UID; web dùng Firestore trực tiếp. Không tự tạo hay nâng vai trò từ ứng dụng. Cờ `--dart-define=USE_FIREBASE_AUTH=false` chỉ dành đối chiếu bản cũ trước khi khóa collection legacy.
 
 ## 1. Bật và tạo tài khoản
 
@@ -22,7 +22,16 @@ Tài khoản người thuê mẫu được liên kết với mã nghiệp vụ `
 
 ## 2. Sao lưu và chuyển dữ liệu
 
-Đóng app trên emulator trước khi chuyển để tránh app cũ lưu lại dữ liệu đang mở. Các file sao lưu và UID nằm trong `.dart_tool/` đã được Git bỏ qua.
+Đóng app trên emulator trước khi chuyển để tránh app cũ lưu lại dữ liệu đang mở. Các file sao lưu và UID nằm trong `.dart_tool/` đã được Git bỏ qua. Dùng dữ liệu hiện tại, không bổ sung bản mẫu:
+
+```powershell
+python tool/prepare_firebase_migration.py
+flutter test --no-pub tool/export_cloud_data_test.dart
+python tool/publish_cloud_documents.py
+python tool/publish_cloud_documents.py --apply
+```
+
+Chỉ khi cần **bổ sung dữ liệu minh họa** mới dùng luồng cũ bên dưới:
 
 ```powershell
 python tool/update_demo_firestore.py
@@ -80,6 +89,6 @@ Dependency Node cho kiểm tra nằm trong `.dart_tool/firebase_tools/`; không 
 
 Tìm trọ dùng cursor Firestore và đọc lô 32 document, lấy tối đa 8 kết quả/trang. Giá/diện tích được sắp xếp phía server. Tìm chuỗi con và phối hợp nhiều bộ lọc được kiểm tra trong từng lô; tìm rất hẹp có thể phải quét nhiều lô. Đây không phải công cụ tìm kiếm toàn văn.
 
-Chế độ Firebase thật yêu cầu kết nối khi đăng nhập và tải dữ liệu riêng. Không dùng dữ liệu cục bộ của tài khoản khác hoặc quay về mật khẩu demo khi server từ chối. Lưu đồng thời có kiểm tra bản cũ trong transaction; khi xung đột, tải lại dữ liệu trước khi sửa tiếp. Ảnh quá lớn cần được thu nhỏ, không nhét file nhiều MB vào document Firestore.
+Chế độ Firebase thật yêu cầu kết nối khi đăng nhập và tải dữ liệu riêng. Không dùng dữ liệu cục bộ của tài khoản khác hoặc quay về mật khẩu demo khi server từ chối. Listener nhận thay đổi theo quyền và cập nhật store tại chỗ, giữ nhà đang mở; không thay bản chỉnh sửa chưa lưu. Mỗi lần lưu là một transaction (tối đa 400 document), hợp đồng/hóa đơn/thanh toán kiểm tra phiên bản nghiêm ngặt; các trường độc lập khác có thể hợp nhất. Khi cùng sửa một trường, tải lại dữ liệu trước khi sửa tiếp. Ảnh quá lớn cần được thu nhỏ, không nhét file nhiều MB vào document Firestore.
 
 Tài liệu đối chiếu: [Firebase Email/Password](https://firebase.google.com/docs/auth/flutter/password-auth), [Rules và Authentication](https://firebase.google.com/docs/rules/rules-and-auth), [Firestore cursor](https://firebase.google.com/docs/firestore/query-data/query-cursors), [Google Maps URL](https://developers.google.com/maps/documentation/urls/get-started).

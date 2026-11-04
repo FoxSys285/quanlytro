@@ -1,3 +1,5 @@
+import '../../shared/rental/tenant_session.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../shared/viewings/models/room_viewing.dart';
@@ -7,14 +9,13 @@ import '../tenant_feature_ui.dart';
 import 'components/tenant_viewing_card.dart';
 
 class TenantViewingsPage extends StatefulWidget {
-  const TenantViewingsPage({
-    super.key,
-    this.store,
-    this.tenantId = ViewingStore.demoTenantId,
-  });
+  const TenantViewingsPage({super.key, this.store, String? tenantId})
+    : _tenantId = tenantId ?? '';
   final ViewingStore? store;
   // Pass the authenticated tenant's ID when the backend is connected.
-  final String tenantId;
+  final String _tenantId;
+  String get tenantId =>
+      _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
 
   @override
   State<TenantViewingsPage> createState() => _TenantViewingsPageState();

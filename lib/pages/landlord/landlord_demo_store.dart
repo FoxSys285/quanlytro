@@ -7,6 +7,7 @@ import 'rooms/models/landlord_room.dart';
 import 'finance/landlord_finance_models.dart';
 import '../shared/rental/lease_member.dart';
 import '../shared/rental/tenant_session.dart';
+import '../shared/rental/rental_record_id.dart';
 import 'incidents/models/landlord_suco.dart';
 import 'services/models/landlord_dichvu.dart';
 import 'meter_readings/models/landlord_chisodiennuoc.dart';
@@ -378,6 +379,9 @@ class LandlordDemoStore extends ChangeNotifier {
     if (existing != null && !_leases.contains(existing)) {
       throw ArgumentError('Hợp đồng không tồn tại.');
     }
+    if (tenantId != null && !RegExp(r'^[^\s/:]+$').hasMatch(tenantId)) {
+      throw ArgumentError('Mã người thuê không hợp lệ.');
+    }
     final requiredFields = [
       room,
       landlordName,
@@ -467,8 +471,14 @@ class LandlordDemoStore extends ChangeNotifier {
     }
     if (existing == null) {
       String? knownTenantId = tenantId;
-      for (final prior in _leases) {
+      for (final prior in {
+        ..._leases,
+        for (final store in RentalPortfolio.instance.stores) ...store.leases,
+      }) {
         if (prior.tenantCitizenId == tenantCitizenId.trim()) {
+          if (knownTenantId != null && knownTenantId != prior.tenantId) {
+            throw ArgumentError('CCCD đã liên kết với mã người thuê khác.');
+          }
           knownTenantId ??= prior.tenantId;
         }
       }
@@ -968,7 +978,7 @@ class LandlordDemoStore extends ChangeNotifier {
       throw ArgumentError('Hóa đơn đã có thanh toán đang chờ chủ trọ duyệt.');
     }
     final payment = LandlordPayment(
-      id: 'TT-GUI-${_nextPayment++}',
+      id: rentalRecordId('TT-GUI'),
       invoiceId: invoiceId,
       tenantName: invoice.tenantName,
       room: invoice.room,
@@ -1089,7 +1099,7 @@ class LandlordDemoStore extends ChangeNotifier {
         'Phòng đã đủ sức chứa, bao gồm yêu cầu đang chờ duyệt.',
       );
     }
-    final id = 'member-request-${DateTime.now().microsecondsSinceEpoch}';
+    final id = rentalRecordId('member-request');
     final member = LeaseMember(
       id: id,
       leaseId: lease.id,
@@ -1210,7 +1220,7 @@ class LandlordDemoStore extends ChangeNotifier {
     _incidents.insert(
       0,
       LandlordIncident(
-        id: 'incident-${_nextIncident++}',
+        id: rentalRecordId('incident'),
         leaseId: lease.id,
         reporterId: tenantId,
         title: title.trim(),

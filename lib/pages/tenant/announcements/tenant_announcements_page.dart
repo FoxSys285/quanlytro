@@ -13,11 +13,13 @@ class TenantAnnouncementsPage extends StatefulWidget {
   const TenantAnnouncementsPage({
     super.key,
     this.store,
-    this.tenantId = TenantSession.tenantId,
+    String? tenantId,
     this.showHeader = false,
-  });
+  }) : _tenantId = tenantId ?? '';
   final AnnouncementStore? store;
-  final String tenantId;
+  final String _tenantId;
+  String get tenantId =>
+      _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
   final bool showHeader;
 
   @override

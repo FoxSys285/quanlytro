@@ -29,7 +29,12 @@ class FirebaseAccountSession {
     if (roles.single == AppRole.tenant && tenantId == null) {
       throw ArgumentError('Tài khoản chưa được liên kết với người thuê.');
     }
-    if (tenantId != null && (tenantId is! String || tenantId.isEmpty)) {
+    if (tenantId != null &&
+        (tenantId is! String ||
+            tenantId.trim().isEmpty ||
+            tenantId != tenantId.trim() ||
+            tenantId.contains('/') ||
+            tenantId.contains(':'))) {
       throw ArgumentError('Hồ sơ người thuê chưa hợp lệ.');
     }
     return FirebaseAccountSession(

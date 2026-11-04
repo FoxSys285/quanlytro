@@ -544,6 +544,7 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
     if (result == null || !mounted) return;
     try {
       _store.saveLease(
+        tenantId: result.tenantKey.isEmpty ? null : result.tenantKey,
         existing: lease,
         room: result.room,
         landlordName: result.landlordName,
@@ -611,6 +612,7 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
 
 class _LeaseDraft {
   const _LeaseDraft({
+    required this.tenantKey,
     required this.room,
     required this.landlordName,
     required this.landlordPermanentAddress,
@@ -643,6 +645,7 @@ class _LeaseDraft {
     required this.status,
   });
 
+  final String tenantKey;
   final String room;
   final String landlordName;
   final String landlordPermanentAddress;
@@ -720,6 +723,9 @@ class _LeaseEditorState extends State<_LeaseEditor> {
   );
   late final _tenantId = TextEditingController(
     text: widget.lease?.tenantCitizenId ?? '',
+  );
+  late final _tenantKey = TextEditingController(
+    text: widget.lease?.tenantId ?? '',
   );
   late final _tenantAddress = TextEditingController(
     text: widget.lease?.tenantPermanentAddress ?? '',
@@ -814,6 +820,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
     _name.dispose();
     _birthYear.dispose();
     _tenantId.dispose();
+    _tenantKey.dispose();
     _tenantAddress.dispose();
     _phone.dispose();
     _rent.dispose();
@@ -893,6 +900,17 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                   validator: _phoneValidator,
                 ),
                 _sectionTitle('BÊN B · BÊN THUÊ PHÒNG'),
+                _textField(
+                  _tenantKey,
+                  'Mã người thuê (tenantId trong hồ sơ tài khoản)',
+                  readOnly: widget.lease != null,
+                  validator: (value) =>
+                      value == null ||
+                          value.trim().isEmpty ||
+                          RegExp(r'^[^\s/:]+$').hasMatch(value.trim())
+                      ? null
+                      : 'Mã người thuê không chứa khoảng trắng, / hoặc :.',
+                ),
                 _textField(
                   _name,
                   'Họ tên bên B',
@@ -1299,6 +1317,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
     Navigator.pop(
       context,
       _LeaseDraft(
+        tenantKey: _tenantKey.text.trim(),
         room: _room,
         landlordName: _landlordName.text,
         landlordPermanentAddress: _landlordAddress.text,

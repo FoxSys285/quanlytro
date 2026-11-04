@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
@@ -19,6 +20,8 @@ import 'pages/shared/rental/tenant_session.dart';
 import 'pages/shared/auth/login_page.dart';
 import 'pages/shared/widgets/app_brand.dart';
 
+final _appNavigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
@@ -37,7 +40,10 @@ Future<void> main() async {
   AppPersistence? persistence;
   try {
     TenantDiscoveryPage.activeCatalogSource = FirestoreTenantCatalogSource();
-    const cloudAuth = bool.fromEnvironment('USE_FIREBASE_AUTH');
+    const cloudAuth = bool.fromEnvironment(
+      'USE_FIREBASE_AUTH',
+      defaultValue: true,
+    );
     if (cloudAuth) {
       LocalAuth.instance.configureFirebase(
         gateway: FirebaseAccountGateway(),
@@ -45,18 +51,21 @@ Future<void> main() async {
           await AppPersistence.current?.dispose();
           persistence = null;
           TenantSession.authenticatedTenantId = session.tenantId;
-          final local = await SqliteRentalRepository.open(
-            filename: 'quanlytro_${Uri.encodeComponent(session.uid)}.db',
-          );
           final remote = ScopedFirestoreRentalRepository(session: session);
-          persistence = AppPersistence(
-            HybridRentalRepository(
+          final RentalRepository repository;
+          if (kIsWeb) {
+            repository = remote;
+          } else {
+            final local = await SqliteRentalRepository.open(
+              filename: 'quanlytro_${Uri.encodeComponent(session.uid)}.db',
+            );
+            repository = HybridRentalRepository(
               local: local,
               remote: remote,
               strictRemote: true,
-            ),
-            cloudMode: true,
-          );
+            );
+          }
+          persistence = AppPersistence(repository, cloudMode: true);
           await persistence!.initialize();
         },
         onSignedOut: () async {
@@ -129,6 +138,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _appNavigatorKey,
       title: appName,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -199,12 +209,63 @@ class MyApp extends StatelessWidget {
                               onPressed: persistence.save,
                               child: const Text('Thử lưu lại'),
                             ),
+                            if (persistence.cloudMode)
+                              TextButton(
+                                onPressed: () async {
+                                  final discard = await showDialog<bool>(
+                                    context: _appNavigatorKey
+                                        .currentState!
+                                        .overlay!
+                                        .context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Tải dữ liệu mới?'),
+                                      content: const Text(
+                                        'Bỏ thay đổi chưa lưu trên màn hình này và nhận bản mới từ Firebase.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('Giữ chỉnh sửa'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text('Tải bản mới'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (discard == true) {
+                                    await persistence.refresh(
+                                      discardUnsaved: true,
+                                    );
+                                  }
+                                },
+                                child: const Text('Tải bản mới'),
+                              ),
                           ],
                         ),
                       ),
                     ),
                   ),
-                Expanded(child: child!),
+                Expanded(
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: persistence.refreshing,
+                    builder: (context, busy, _) => Stack(
+                      children: [
+                        AbsorbPointer(absorbing: busy, child: child!),
+                        if (busy)
+                          const Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: LinearProgressIndicator(minHeight: 2),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           );
@@ -241,6 +302,7 @@ class _AuthenticatedAppState extends State<_AuthenticatedApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     LocalAuth.instance.setForeground(state == AppLifecycleState.resumed);
     if (state != AppLifecycleState.resumed) AppPersistence.current?.flush();
+    if (state == AppLifecycleState.resumed) AppPersistence.current?.refresh();
   }
 
   @override

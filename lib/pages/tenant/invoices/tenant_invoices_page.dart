@@ -18,11 +18,13 @@ class TenantInvoicesPage extends StatefulWidget {
   const TenantInvoicesPage({
     super.key,
     this.store,
-    this.tenantId = TenantSession.tenantId,
+    String? tenantId,
     this.qrService,
-  });
+  }) : _tenantId = tenantId ?? '';
   final LandlordDemoStore? store;
-  final String tenantId;
+  final String _tenantId;
+  String get tenantId =>
+      _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
   final VietQrService? qrService;
 
   @override

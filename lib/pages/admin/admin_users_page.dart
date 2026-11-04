@@ -51,6 +51,19 @@ Future<List<AdminAccount>> loadAdminAccounts() async {
   ];
 }
 
+Future<void> setAdminAccountDisabled(String uid, bool disabled) async {
+  final auth = LocalAuth.instance;
+  if (!auth.isCloudMode || auth.role != AppRole.admin || auth.session == null) {
+    throw ArgumentError('Đăng nhập admin để quản lý tài khoản Firebase.');
+  }
+  if (uid.isEmpty || uid.contains('/') || uid == auth.session!.uid) {
+    throw ArgumentError('Không thể thay đổi tài khoản quản trị hiện tại.');
+  }
+  await FirebaseFirestore.instance.collection('users').doc(uid).update({
+    'disabled': disabled,
+  });
+}
+
 class AdminUsersPage extends StatefulWidget {
   const AdminUsersPage({super.key, this.activity = false});
   final bool activity;
@@ -59,6 +72,7 @@ class AdminUsersPage extends StatefulWidget {
 }
 
 class _AdminUsersPageState extends State<AdminUsersPage> {
+  final _updatingAccounts = <String>{};
   String _query = '', _role = 'all', _house = 'all', _segment = 'accounts';
   bool _lockedOnly = false;
   int _page = 0;
@@ -357,9 +371,11 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               account.disabled ? 'Đang khóa' : 'Hoạt động',
               color: account.disabled ? adminOrange : adminGreen,
             ),
-            if (!LocalAuth.instance.isCloudMode && account.role != 'admin')
+            if (account.role != 'admin')
               OutlinedButton(
-                onPressed: LocalAuth.instance.role != AppRole.admin
+                onPressed:
+                    LocalAuth.instance.role != AppRole.admin ||
+                        _updatingAccounts.contains(account.id)
                     ? null
                     : () async {
                         final disabled = !account.disabled;
@@ -371,16 +387,38 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                           return;
                         }
                         if (!context.mounted) return;
+                        setState(() => _updatingAccounts.add(account.id));
                         try {
-                          LocalAuth.instance.setDisabled(
-                            AppRole.values.byName(account.role),
-                            disabled,
-                          );
+                          if (LocalAuth.instance.isCloudMode) {
+                            await setAdminAccountDisabled(account.id, disabled);
+                            if (!mounted) return;
+                            setState(() => _accounts = loadAdminAccounts());
+                          } else {
+                            LocalAuth.instance.setDisabled(
+                              AppRole.values.byName(account.role),
+                              disabled,
+                            );
+                          }
                           AdminStore.instance.record(
                             '${disabled ? 'Khóa' : 'Mở khóa'} tài khoản ${account.email}',
                           );
                         } on ArgumentError catch (e) {
-                          adminMessage(context, '${e.message}');
+                          if (context.mounted) {
+                            adminMessage(context, '${e.message}');
+                          }
+                        } catch (_) {
+                          if (context.mounted) {
+                            adminMessage(
+                              context,
+                              'Chưa cập nhật được tài khoản. Kiểm tra kết nối và quyền Firebase.',
+                            );
+                          }
+                        } finally {
+                          if (mounted) {
+                            setState(
+                              () => _updatingAccounts.remove(account.id),
+                            );
+                          }
                         }
                       },
                 child: Text(account.disabled ? 'Mở khóa' : 'Khóa tài khoản'),

@@ -13,7 +13,7 @@ void showTenantPaymentInstructions(
   BuildContext context, {
   required String invoiceId,
   LandlordDemoStore? store,
-  String tenantId = TenantSession.tenantId,
+  String? tenantId,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -32,11 +32,13 @@ class TenantPaymentInstructionsSheet extends StatefulWidget {
     super.key,
     required this.invoiceId,
     this.store,
-    this.tenantId = TenantSession.tenantId,
-  });
+    String? tenantId,
+  }) : _tenantId = tenantId ?? '';
   final String invoiceId;
   final LandlordDemoStore? store;
-  final String tenantId;
+  final String _tenantId;
+  String get tenantId =>
+      _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
   @override
   State<TenantPaymentInstructionsSheet> createState() =>
       _TenantPaymentInstructionsSheetState();

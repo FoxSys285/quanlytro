@@ -17,6 +17,19 @@ void main() {
         ? jsonDecode(configFile.readAsStringSync()) as Map<String, dynamic>
         : <String, dynamic>{};
     final owner = config['landlordUid'] as String? ?? 'legacy-demo';
+    if (config.isNotEmpty) {
+      final uids = [
+        for (final role in ['landlord', 'tenant', 'admin'])
+          config['${role}Uid'],
+      ];
+      expect(
+        uids.every(
+          (uid) => uid is String && uid.isNotEmpty && !uid.contains('/'),
+        ),
+        isTrue,
+      );
+      expect(uids.toSet(), hasLength(3));
+    }
     final output = encodeCloudDocuments(
       input,
       owners: {
@@ -32,14 +45,20 @@ void main() {
         output['users/$uid'] = {
           'role': role,
           'disabled': false,
-          if (role == 'tenant') 'tenantId': 'tenant-demo',
+          if (config['${role}Email'] != null) 'email': config['${role}Email'],
+          if (role == 'tenant') 'tenantId': config['tenantId'] ?? 'tenant-demo',
         };
       }
-      output['management/system'] = {'admin': {...?input['admin'], 'tickets': <dynamic>[]}};
-      output['public_settings/viewings'] = {'acceptingViewings': input['admin']?['acceptingViewings'] ?? true};
+      output['management/system'] = {
+        'admin': {...?input['admin'], 'tickets': <dynamic>[]},
+      };
+      output['public_settings/viewings'] = {
+        'acceptingViewings': input['admin']?['acceptingViewings'] ?? true,
+      };
       for (final ticket in input['admin']?['tickets'] as List? ?? []) {
         output['support_tickets/${ticket['id']}'] = {
-          'accountUid': config['${ticket['role']}Uid'], 'data': ticket,
+          'accountUid': config['${ticket['role']}Uid'],
+          'data': ticket,
         };
       }
       output['management/$owner'] = {'staff': input['staff']};

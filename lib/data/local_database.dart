@@ -12,6 +12,11 @@ abstract interface class RentalRepository {
   Future<void> close();
 }
 
+/// Emits invalidations; readAll still supplies the authoritative snapshot.
+abstract interface class RentalChangeSource {
+  Stream<void> get changes;
+}
+
 class SqliteRentalRepository implements RentalRepository {
   SqliteRentalRepository._(this.database);
   final Database database;

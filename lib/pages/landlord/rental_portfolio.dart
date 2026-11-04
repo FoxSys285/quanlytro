@@ -82,6 +82,34 @@ class RentalPortfolio extends ChangeNotifier {
     'properties': _stores.map((s) => s.toMap()).toList(),
   };
 
+  /// Nhận bản mới từ server, giữ store và nhà đang mở để không mất màn hình.
+  void restore(Map<String, dynamic> map) {
+    final rows = (map['properties'] as List).cast<Map>();
+    if (rows.isEmpty) throw ArgumentError('Cần ít nhất một nhà trọ.');
+    final ids = rows.map((row) => (row['property'] as Map)['id']).toSet();
+    for (final store
+        in _stores.where((s) => !ids.contains(s.property.id)).toList()) {
+      store.removeListener(notifyListeners);
+      _stores.remove(store);
+    }
+    for (final row in rows) {
+      final data = Map<String, dynamic>.from(row);
+      final id = (row['property'] as Map)['id'] as String;
+      var store = byId(id);
+      if (store == null) {
+        store = LandlordDemoStore.demo();
+        _stores.add(store);
+        store.addListener(notifyListeners);
+      }
+      store.restore(data);
+    }
+    if (byId(_selectedId) == null) _selectedId = _stores.first.property.id;
+    for (final store in _stores) {
+      store._changed();
+    }
+    notifyListeners();
+  }
+
   factory RentalPortfolio.fromMap(Map<String, dynamic> map) => RentalPortfolio(
     (map['properties'] as List).map(
       (item) =>

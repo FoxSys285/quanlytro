@@ -8,14 +8,13 @@ import '../tenant_ui.dart';
 import '../tenant_feature_ui.dart';
 
 class TenantBaoSuCoPage extends StatefulWidget {
-  const TenantBaoSuCoPage({
-    super.key,
-    this.store,
-    this.tenantId = TenantSession.tenantId,
-  });
+  const TenantBaoSuCoPage({super.key, this.store, String? tenantId})
+    : _tenantId = tenantId ?? '';
 
   final LandlordDemoStore? store;
-  final String tenantId;
+  final String _tenantId;
+  String get tenantId =>
+      _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
 
   @override
   State<TenantBaoSuCoPage> createState() => _TenantBaoSuCoPageState();

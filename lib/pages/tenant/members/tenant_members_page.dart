@@ -11,13 +11,12 @@ import 'components/tenant_room_member_card.dart';
 import 'models/tenant_room_member.dart';
 
 class TenantMembersPage extends StatelessWidget {
-  const TenantMembersPage({
-    super.key,
-    this.store,
-    this.tenantId = TenantSession.tenantId,
-  });
+  const TenantMembersPage({super.key, this.store, String? tenantId})
+    : _tenantId = tenantId ?? '';
   final LandlordDemoStore? store;
-  final String tenantId;
+  final String _tenantId;
+  String get tenantId =>
+      _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
   @override
   Widget build(BuildContext context) {
     final data = store ?? LandlordDemoStore.instance;

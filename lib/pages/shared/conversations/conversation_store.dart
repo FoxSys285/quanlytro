@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../landlord/conversations/models/landlord_cuoctrochuyen.dart';
 import '../rental/tenant_session.dart';
+import '../rental/rental_record_id.dart';
 import '../../landlord/landlord_demo_store.dart';
 
 /// A conversation and its messages are shared; unread counts belong to each role.
@@ -133,14 +134,43 @@ class ConversationStore extends ChangeNotifier {
     'records': _records.map((r) => r.toMap()).toList(),
   };
   void restore(Map<String, dynamic> map) {
+    final existing = {
+      for (final conversation in _records)
+        (
+          conversation.propertyId,
+          conversation.id,
+          conversation.tenantId,
+          conversation.leaseId,
+        ): conversation,
+    };
+    final restored = (map['records'] as List).map((raw) {
+      final incoming = LandlordConversation.fromMap(
+        Map<String, dynamic>.from(raw as Map),
+      );
+      final current =
+          existing[(
+            incoming.propertyId,
+            incoming.id,
+            incoming.tenantId,
+            incoming.leaseId,
+          )];
+      if (current == null) return incoming;
+      // Open landlord pages and tenant adapters retain this exact source object.
+      current
+        ..tenantName = incoming.tenantName
+        ..room = incoming.room
+        ..landlordName = incoming.landlordName
+        ..propertyName = incoming.propertyName
+        ..unread = incoming.unread
+        ..tenantUnread = incoming.tenantUnread;
+      current.messages
+        ..clear()
+        ..addAll(incoming.messages);
+      return current;
+    }).toList();
     _records
       ..clear()
-      ..addAll(
-        (map['records'] as List).map(
-          (r) =>
-              LandlordConversation.fromMap(Map<String, dynamic>.from(r as Map)),
-        ),
-      );
+      ..addAll(restored);
     _syncRental();
   }
 
@@ -200,6 +230,9 @@ class ConversationStore extends ChangeNotifier {
         text: text.trim(),
         time: time,
         fromLandlord: fromLandlord,
+        id: rentalRecordId('message'),
+        createdAt: DateTime.now().toUtc(),
+        index: conversation.messages.length,
       ),
     );
     if (fromLandlord) {

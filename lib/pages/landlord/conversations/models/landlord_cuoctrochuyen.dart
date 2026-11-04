@@ -5,6 +5,9 @@ class LandlordMessage {
     required this.text,
     required this.time,
     required this.fromLandlord,
+    this.id,
+    this.createdAt,
+    this.index,
   });
 
   // Nội dung tin nhắn
@@ -15,17 +18,29 @@ class LandlordMessage {
 
   // Đánh dấu người gửi: true là chủ trọ gửi, false là khách thuê gửi
   final bool fromLandlord;
+  final String? id;
+  final DateTime? createdAt;
+  // Original ordering position stays stable after concurrent messages merge.
+  final int? index;
 
   Map<String, dynamic> toMap() => {
     'text': text,
     'time': time,
     'fromLandlord': fromLandlord,
+    if (id != null) 'id': id,
+    if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+    if (index != null) 'index': index,
   };
 
   factory LandlordMessage.fromMap(Map<String, dynamic> map) => LandlordMessage(
     text: map['text'] as String,
     time: map['time'] as String,
     fromLandlord: map['fromLandlord'] as bool,
+    id: map['id'] as String?,
+    createdAt: map['createdAt'] == null
+        ? null
+        : DateTime.parse(map['createdAt'] as String),
+    index: map['index'] as int?,
   );
 }
 

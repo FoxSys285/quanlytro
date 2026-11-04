@@ -54,18 +54,21 @@ class AccountStore extends ChangeNotifier {
         address: saved?.address ?? property.address,
       );
     }
+    final cloudTenant = TenantSession.authenticatedTenantId != null;
+    if (cloudTenant && saved != null) return saved;
     final members = rental.members
         .where((member) => member.tenantId == TenantSession.currentTenantId)
         .toList();
     return ContactDetails(
       name: members.isEmpty
-          ? saved?.name ?? TenantSession.name
+          ? saved?.name ?? (cloudTenant ? 'Người thuê' : TenantSession.name)
           : members.first.name,
       phone: members.isEmpty
-          ? saved?.phone ?? TenantSession.phone
+          ? saved?.phone ?? (cloudTenant ? '' : TenantSession.phone)
           : members.first.phone,
-      email: saved?.email ?? 'minhanh@example.com',
-      address: saved?.address ?? 'Bình Thạnh, TP. Hồ Chí Minh',
+      email: saved?.email ?? (cloudTenant ? '' : 'minhanh@example.com'),
+      address:
+          saved?.address ?? (cloudTenant ? '' : 'Bình Thạnh, TP. Hồ Chí Minh'),
     );
   }
 
@@ -90,7 +93,9 @@ class AccountStore extends ChangeNotifier {
           ward: property.ward,
         ),
       );
-    } else if (role == AppRole.tenant) {
+    } else if (role == AppRole.tenant &&
+        TenantSession.authenticatedTenantId == null) {
+      // Hồ sơ cá nhân cloud nằm trong user_state; hợp đồng do chủ trọ quản lý.
       rental.updateTenantContact(
         TenantSession.currentTenantId,
         name: contact.name,

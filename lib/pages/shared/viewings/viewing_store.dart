@@ -4,6 +4,7 @@ import '../../../data/admin_store.dart';
 
 import 'models/room_viewing.dart';
 import '../rental/tenant_session.dart';
+import '../rental/rental_record_id.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../landlord/rooms/models/landlord_room.dart';
 
@@ -244,10 +245,7 @@ class ViewingStore extends ChangeNotifier {
       );
     }
 
-    String id;
-    do {
-      id = 'viewing-request-${_nextRequestId++}';
-    } while (_records.any((record) => record.id == id));
+    final id = rentalRecordId('viewing-request');
 
     final request = RoomViewing(
       id: id,

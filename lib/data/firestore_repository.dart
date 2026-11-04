@@ -125,7 +125,7 @@ class FirestoreRentalRepository implements RentalRepository {
 
 /// Hybrid repository that saves locally to SQLite first (ensuring zero latency
 /// and offline support) and synchronizes with Firebase Cloud Firestore in the background.
-class HybridRentalRepository implements RentalRepository {
+class HybridRentalRepository implements RentalRepository, RentalChangeSource {
   HybridRentalRepository({
     required this.local,
     required this.remote,
@@ -140,9 +140,19 @@ class HybridRentalRepository implements RentalRepository {
   bool lastSaveReachedRemote = false;
 
   @override
+  Stream<void> get changes => remote is RentalChangeSource
+      ? (remote as RentalChangeSource).changes
+      : const Stream.empty();
+
+  @override
   Future<Map<String, Map<String, dynamic>>> readAll() async {
     final localData = await local.readAll();
-    if (!isOnline) return localData;
+    if (!isOnline) {
+      if (strictRemote) {
+        throw StateError('Cần kết nối Firebase để tải dữ liệu.');
+      }
+      return localData;
+    }
 
     try {
       final remoteData = {...await remote.readAll()}..remove('adminDemo');
@@ -181,7 +191,7 @@ class HybridRentalRepository implements RentalRepository {
         if (strictRemote || requireRemote) rethrow;
         debugPrint('Sync to Firestore background error: $e');
       }
-    } else if (requireRemote) {
+    } else if (requireRemote || strictRemote) {
       throw StateError('Firebase chưa kết nối. Dữ liệu đã được giữ trên máy.');
     }
   }

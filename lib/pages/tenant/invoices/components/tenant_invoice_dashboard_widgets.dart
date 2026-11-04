@@ -19,12 +19,14 @@ class TenantInvoiceNavigationBar extends StatelessWidget
     required this.onBack,
     this.onNotifications,
     this.store,
-    this.tenantId = TenantSession.tenantId,
-  });
+    String? tenantId,
+  }) : _tenantId = tenantId ?? '';
   final VoidCallback onBack;
   final VoidCallback? onNotifications;
   final LandlordDemoStore? store;
-  final String tenantId;
+  final String _tenantId;
+  String get tenantId =>
+      _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
   @override
   Size get preferredSize => const Size.fromHeight(60);
 

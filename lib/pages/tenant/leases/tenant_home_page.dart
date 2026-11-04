@@ -1,3 +1,5 @@
+import '../../shared/profile/account_store.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -26,11 +28,13 @@ class TenantHomePage extends StatelessWidget {
   const TenantHomePage({
     super.key,
     this.store,
-    this.tenantId = TenantSession.tenantId,
+    String? tenantId,
     this.title = 'Chỗ ở của tôi',
-  });
+  }) : _tenantId = tenantId ?? '';
   final LandlordDemoStore? store;
-  final String tenantId;
+  final String _tenantId;
+  String get tenantId =>
+      _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
   final String title;
 
   @override
@@ -122,7 +126,7 @@ class TenantHomePage extends StatelessWidget {
             left: 0,
             right: 0,
             child: TenantHeader(
-              profileName: TenantSession.name,
+              profileName: AccountStore.instance.profile(AppRole.tenant).name,
               onAvatarTap: () => Scaffold.maybeOf(context)?.openDrawer(),
               onFavoritesTap: () => Navigator.of(context).push<void>(
                 MaterialPageRoute<void>(

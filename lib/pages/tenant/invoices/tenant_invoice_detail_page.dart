@@ -14,11 +14,13 @@ class TenantInvoiceDetailPage extends StatelessWidget {
     super.key,
     required this.invoiceId,
     this.store,
-    this.tenantId = TenantSession.tenantId,
-  });
+    String? tenantId,
+  }) : _tenantId = tenantId ?? '';
   final String invoiceId;
   final LandlordDemoStore? store;
-  final String tenantId;
+  final String _tenantId;
+  String get tenantId =>
+      _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
 
   @override
   Widget build(BuildContext context) {
