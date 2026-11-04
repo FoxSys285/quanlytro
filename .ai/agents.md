@@ -10,9 +10,9 @@
 - Mẫu Excel phải có khóa liên kết và kiểm tra trước import; không ghi đè hợp đồng/phòng đang thuê. Import mặc định dry-run.
 - Sau khi hoàn thành, ghi kiểm tra thực tế và phần chưa triển khai production vào `docs/ROLE_SYNC_AUDIT.md`.
 - Cập nhật: đang sửa backend chat trong `landlord_cuoctrochuyen.dart`, `shared/conversations/conversation_store.dart`, codec và scoped repository để gửi đồng thời không trùng ID. Anti giữ UI chat tenant, không thay đổi field nghiệp vụ message ID/createdAt của backend.
-- Đã gán 3 UID người dùng cung cấp và chuyển 2.071 document scoped; dữ liệu legacy giữ nguyên. Firebase CLI chưa có credentials quản trị để deploy Rules; chờ người dùng Publish bằng Console.
+- Đã gán 3 UID người dùng cung cấp và chuyển 2.071 document scoped; dữ liệu legacy giữ nguyên. Người dùng đã Publish Rules bằng Console và xác nhận đã Publish bản cuối.
 - Người dùng đã Publish; REST production xác nhận public rooms/properties đọc được, rental_records/users/legacy portfolio trả 403. Không ghi đè/push file UI Anti đang sửa.
-- Codex hoàn tất backend/import: 250 Flutter tests, 4 Python tests, Emulator Rules PASS, analyze sạch, APK cloud build thành công. Mẫu: `artifacts/MAU_THU_THAP_NHA_TRO.xlsx`; báo cáo: `docs/ROLE_SYNC_AUDIT.md`. Đã yêu cầu người dùng Publish lại bản Rules cuối cho chat mở và gửi ngay.
+- Codex hoàn tất backend/import: 250 Flutter tests, 4 Python tests, Emulator Rules PASS, analyze sạch, APK cloud build thành công. Mẫu: `artifacts/MAU_THU_THAP_NHA_TRO.xlsx`; báo cáo: `docs/ROLE_SYNC_AUDIT.md`. Người dùng xác nhận đã Publish Rules bản cuối; kiểm tra lại production vẫn cho đọc danh mục công khai và trả 403 với dữ liệu riêng khi chưa đăng nhập.
 
 ---
 
@@ -51,3 +51,15 @@
 #### C. Đồng bộ thẩm mỹ các trang Admin phụ:
 1. **`lib/pages/admin/admin_users_page.dart` & `AdminCommissionPage`**:
    - Cập nhật các bảng danh sách người dùng, bộ lọc role/trạng thái và bảng hoa hồng để dùng chung các token màu và card styling mới từ `admin_ui.dart`.
+
+## Đối chiếu bàn giao của Codex sau khi người dùng Publish Rules
+
+| Mục Anti bàn giao | Trạng thái đã kiểm tra |
+|---|---|
+| A1: Có nghiệp vụ ở các nhà ngoài `may` | Đã có trong snapshot hiện hành đã chuyển và đọc lại Firebase: `property-2` đến `property-10` có 13–65 hợp đồng/nhà, 15–67 hóa đơn/nhà, 11 thanh toán/nhà và 4 sự cố/nhà. Nhận xét "chỉ thông tin cơ bản" bên trên đã cũ; không tạo thêm dữ liệu trùng. |
+| A2: Đưa danh mục và nghiệp vụ lên Firebase | Hoàn tất 2.071 document, 10 nhà, 454 phòng; giữ legacy để đối chiếu. |
+| A3: Xem cấu trúc dữ liệu trong Console | Collection mới dùng field/map Firestore, không bọc JSON `payload`. Chi tiết nằm trong map `data`; chưa nhân bản mọi field chi tiết ra root vì tạo hai bản cùng dữ liệu. |
+| B: Linter | Đã sửa ngoặc `if (strictRemote)` và kiểm tra toàn dự án: `No issues found`. |
+| C: Thẩm mỹ trang admin phụ | Các trang đã dùng `AdminPanel` và token chung; Codex chưa làm lượt chỉnh thẩm mỹ riêng cho toàn bộ Users/Commission. Thay đổi UI của Anti vẫn ở worktree, chưa nằm trong commit backend `c983251`. |
+
+Rules production đã được kiểm tra lại không đăng nhập: `public_rooms`/`rental_properties` đọc được; `rental_records`/`users`/`app_documents/portfolio` trả 403. Chưa xác thực đăng nhập đồng thời cả ba tài khoản trên thiết bị thật.
