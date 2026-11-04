@@ -10,15 +10,36 @@ import 'rental_cloud_codec.dart';
 /// Cloud Firestore implementation of [RentalRepository].
 /// Saves application documents in the 'app_documents' collection.
 class FirestoreRentalRepository implements RentalRepository {
-  FirestoreRentalRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreRentalRepository({
+    FirebaseFirestore? firestore,
+    this.documentCollection = collectionName,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
+  final String documentCollection;
   final _roomHashes = <String, String>{};
   static const String collectionName = 'app_documents';
 
   CollectionReference<Map<String, dynamic>> get _collection =>
-      _firestore.collection(collectionName);
+      _firestore.collection(documentCollection);
+
+  Future<Map<String, Map<String, dynamic>>> readDocuments(
+    Iterable<String> ids,
+  ) async {
+    final records = await Future.wait(
+      ids.map(
+        (id) =>
+            _collection.doc(id).get(const GetOptions(source: Source.server)),
+      ),
+    );
+    return {
+      for (final doc in records)
+        if (doc.exists)
+          doc.id: Map<String, dynamic>.from(
+            jsonDecode(doc.data()!['payload'] as String) as Map,
+          ),
+    };
+  }
 
   @override
   Future<Map<String, Map<String, dynamic>>> readAll() async {
@@ -26,6 +47,9 @@ class FirestoreRentalRepository implements RentalRepository {
       final snapshot = await _collection.get();
       final result = <String, Map<String, dynamic>>{};
       for (final doc in snapshot.docs) {
+        if (doc.id == 'admin_demo' || doc.id.startsWith('admin_demo:')) {
+          continue;
+        }
         final data = doc.data();
         if (data.containsKey('payload') && data['payload'] is String) {
           try {
@@ -141,14 +165,14 @@ class HybridRentalRepository implements RentalRepository {
     if (!isOnline) return localData;
 
     try {
-      final remoteData = await remote.readAll();
+      final remoteData = {...await remote.readAll()}..remove('adminDemo');
       if (remoteData.isNotEmpty) {
         // Update local with remote data
         await local.saveAll(remoteData);
         return remoteData;
       } else if (localData.isNotEmpty) {
         // Push initial local data to remote
-        await remote.saveAll(localData);
+        await remote.saveAll({...localData}..remove('adminDemo'));
       }
     } catch (e) {
       if (strictRemote) rethrow;
@@ -165,7 +189,7 @@ class HybridRentalRepository implements RentalRepository {
     // Sync to remote in background if connected
     if (isOnline) {
       try {
-        await remote.saveAll(documents);
+        await remote.saveAll({...documents}..remove('adminDemo'));
       } catch (e) {
         if (strictRemote) rethrow;
         debugPrint('Sync to Firestore background error: $e');

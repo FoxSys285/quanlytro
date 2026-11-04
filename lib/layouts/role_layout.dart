@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 enum AppRole { tenant, landlord, admin }
 
@@ -71,6 +72,12 @@ typedef RoleBottomNavigationBuilder = Widget Function(
 );
 
 class RoleLayoutShell extends StatefulWidget {
+  static void navigateTo(BuildContext context, String destinationId) {
+    context
+        .findAncestorStateOfType<_RoleLayoutShellState>()
+        ?._selectDestination(destinationId);
+  }
+
   const RoleLayoutShell({
     super.key,
     required this.role,
@@ -87,6 +94,7 @@ class RoleLayoutShell extends StatefulWidget {
     this.onLogout,
     this.notificationsEnabled = true,
     this.topBar,
+    this.useSidebar = false,
     this.hideAppBarOnDestination,
     this.bottomNavigationBuilder,
   });
@@ -105,6 +113,7 @@ class RoleLayoutShell extends StatefulWidget {
   final VoidCallback? onLogout;
   final bool notificationsEnabled;
   final Widget? topBar;
+  final bool useSidebar;
   final String? hideAppBarOnDestination;
   final RoleBottomNavigationBuilder? bottomNavigationBuilder;
 
@@ -158,6 +167,11 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
       return;
     }
 
+    if (widget.role == AppRole.admin &&
+        widget.useSidebar &&
+        id != _selectedDestinationId) {
+      HapticFeedback.selectionClick();
+    }
     setState(() {
       _selectedDestinationId = id;
       // Highlight the drawer shortcut when available for secondary destinations.
@@ -199,6 +213,10 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
   @override
   Widget build(BuildContext context) {
     final destination = _selectedDestination;
+    final console = widget.role == AppRole.admin && widget.useSidebar;
+    const consoleInk = Colors.white;
+    final adminWide =
+        widget.useSidebar && MediaQuery.sizeOf(context).width >= 1100;
     final page =
         widget.pageBuilder?.call(context, destination) ??
         _LayoutPlaceholder(
@@ -206,10 +224,22 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           destination: destination,
           accentColor: widget.accentColor,
         );
+    final content = console
+        ? AnimatedSwitcher(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: KeyedSubtree(key: ValueKey(destination.id), child: page),
+          )
+        : page;
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: widget.role == AppRole.admin
+          ? const Color(0xFFF5F6FB)
+          : const Color(0xFFF5F7FA),
       onDrawerChanged: _onDrawerChanged,
       drawer: _RoleDrawer(
         scrollController: _drawerScrollController,
@@ -230,11 +260,13 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
       appBar: _selectedDestinationId == widget.hideAppBarOnDestination
           ? null
           : AppBar(
-              backgroundColor: Colors.white,
+              backgroundColor: console ? const Color(0xFF1D2E50) : Colors.white,
+              foregroundColor: console ? consoleInk : null,
+              iconTheme: console ? IconThemeData(color: consoleInk) : null,
               surfaceTintColor: Colors.transparent,
               elevation: 0,
               scrolledUnderElevation: 0,
-              toolbarHeight: 68,
+              toolbarHeight: console ? 56 : 68,
               leading: IconButton(
                 tooltip: 'Mở danh mục chức năng',
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
@@ -246,26 +278,29 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    destination.label,
+                    console && destination.id == 'dashboard'
+                        ? 'Quản trị'
+                        : destination.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF17212B),
+                    style: TextStyle(
+                      color: console ? consoleInk : const Color(0xFF17212B),
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.contextLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF788492),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                  if (!console) const SizedBox(height: 2),
+                  if (!console)
+                    Text(
+                      widget.contextLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF788492),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
                 ],
               ),
               actions: [
@@ -286,7 +321,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                                   ? Icons.notifications_none_rounded
                                   : Icons.notifications_off_outlined,
                             ),
-                            if (widget.notificationsEnabled)
+                            if (widget.notificationsEnabled && !console)
                               Positioned(
                                 top: 0,
                                 right: 0,
@@ -353,7 +388,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                       child: Text(
                         _avatarInitials,
                         style: TextStyle(
-                          color: widget.accentColor,
+                          color: console ? consoleInk : widget.accentColor,
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),
@@ -368,39 +403,102 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         child: Column(
           children: [
             ?widget.topBar,
-            Expanded(child: page),
+            Expanded(
+              child: adminWide
+                  ? Row(
+                      children: [
+                        Container(
+                          width: 224,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF1D2E50),
+                            border: Border(
+                              right: BorderSide(color: Color(0xFFE3E7E8)),
+                            ),
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: ListView(
+                              padding: const EdgeInsets.all(16),
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.fromLTRB(12, 16, 12, 24),
+                                  child: Text(
+                                    'Quản trị trọ',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                for (final item in widget.destinations)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: ListTile(
+                                      selected:
+                                          item.id == _selectedDestinationId,
+                                      selectedTileColor: const Color(
+                                        0xFF535BC6,
+                                      ),
+                                      selectedColor: Colors.white,
+                                      textColor: const Color(0xFFD5DDF0),
+                                      iconColor: const Color(0xFFADBBD5),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      leading: Icon(item.icon, size: 19),
+                                      title: Text(
+                                        item.label,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      onTap: () => _selectDestination(item.id),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Expanded(child: content),
+                      ],
+                    )
+                  : content,
+            ),
           ],
         ),
       ),
-      bottomNavigationBar:
-          widget.bottomNavigationBuilder?.call(
-            context,
-            _selectedTabIndex,
-            _onTabSelected,
-          ) ??
-          NavigationBar(
-            height: 70,
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.transparent,
-            indicatorColor: widget.accentColor.withValues(alpha: 0.12),
-            selectedIndex: _selectedTabIndex,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            onDestinationSelected: _onTabSelected,
-            destinations: [
-              for (final tab in widget.tabs)
-                NavigationDestination(
-                  icon: Icon(tab.icon),
-                  selectedIcon: Icon(tab.selectedIcon),
-                  label: tab.label,
+      bottomNavigationBar: adminWide
+          ? null
+          : widget.bottomNavigationBuilder?.call(
+                  context,
+                  _selectedTabIndex,
+                  _onTabSelected,
+                ) ??
+                NavigationBar(
+                  height: 70,
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.transparent,
+                  indicatorColor: widget.accentColor.withValues(alpha: 0.12),
+                  selectedIndex: _selectedTabIndex,
+                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                  onDestinationSelected: _onTabSelected,
+                  destinations: [
+                    for (final tab in widget.tabs)
+                      NavigationDestination(
+                        icon: Icon(tab.icon),
+                        selectedIcon: Icon(tab.selectedIcon),
+                        label: tab.label,
+                      ),
+                    if (widget.showMoreTab)
+                      const NavigationDestination(
+                        icon: Icon(Icons.grid_view_outlined),
+                        selectedIcon: Icon(Icons.grid_view_rounded),
+                        label: 'Thêm',
+                      ),
+                  ],
                 ),
-              if (widget.showMoreTab)
-                const NavigationDestination(
-                  icon: Icon(Icons.grid_view_outlined),
-                  selectedIcon: Icon(Icons.grid_view_rounded),
-                  label: 'Thêm',
-                ),
-            ],
-          ),
     );
   }
 }

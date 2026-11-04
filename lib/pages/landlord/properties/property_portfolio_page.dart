@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/admin_store.dart';
+
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
 import '../rooms/models/landlord_room.dart';
@@ -135,7 +137,7 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _portfolio,
+    listenable: Listenable.merge([_portfolio, AdminStore.instance]),
     builder: (context, _) {
       final stores = _portfolio.stores
           .where(
@@ -290,6 +292,13 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                if (AdminStore.instance.reviewNote(p.id).isNotEmpty) ...[
+                  Text(
+                    'Yêu cầu từ quản trị viên: ${AdminStore.instance.reviewNote(p.id)}',
+                    style: const TextStyle(color: Color(0xFF9B651A)),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Text(
                   p.address,
                   maxLines: 2,

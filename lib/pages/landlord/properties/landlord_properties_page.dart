@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/admin_store.dart';
+
 import '../landlord_demo_store.dart';
 import 'components/landlord_property_editor.dart';
 import 'components/landlord_property_image.dart';
@@ -32,7 +34,7 @@ class LandlordPropertiesPage extends StatelessWidget {
       return const PropertyPortfolioPage();
     }
     return ListenableBuilder(
-      listenable: _store,
+      listenable: Listenable.merge([_store, AdminStore.instance]),
       builder: (context, _) {
         final property = _store.property;
         return SingleChildScrollView(
@@ -48,6 +50,15 @@ class LandlordPropertiesPage extends StatelessWidget {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 16),
+                  if (AdminStore.instance.reviewNote(property.id).isNotEmpty)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'Yêu cầu từ quản trị viên: ${AdminStore.instance.reviewNote(property.id)}',
+                        ),
+                      ),
+                    ),
                   LandlordPropertyImage(
                     url: property.imageUrl,
                     bytes: property.imageBytes,

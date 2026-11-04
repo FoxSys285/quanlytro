@@ -12,6 +12,9 @@ import '../pages/tenant/discovery/tenant_favorites_store.dart';
 import 'local_database.dart';
 import 'local_auth.dart';
 import 'admin_store.dart';
+import 'firestore_repository.dart';
+import '../pages/admin/admin_demo_data.dart';
+import '../layouts/role_layout.dart';
 
 class AppPersistence {
   AppPersistence(this.repository, {this.cloudMode = false});
@@ -23,6 +26,10 @@ class AppPersistence {
   bool _scheduled = false;
   bool _disposed = false;
   final _subscriptions = <Listenable>{};
+  bool _demoSubscribed = false;
+  RentalRepository get _local => repository is HybridRentalRepository
+      ? (repository as HybridRentalRepository).local
+      : repository;
 
   Future<void> initialize() async {
     final data = await repository.readAll();
@@ -42,6 +49,16 @@ class AppPersistence {
     }
     await LocalAuth.instance.initialize(data['auth']);
     if (data['admin'] != null) AdminStore.instance.restore(data['admin']!);
+    {
+      final local = repository is HybridRentalRepository
+          ? await _local.readAll()
+          : data;
+      AdminDemoData.instance.restore(
+        local['adminDemo'] ?? AdminDemoData().toMap(),
+      );
+      AdminDemoData.instance.addListener(_saveAdminDemo);
+      _demoSubscribed = true;
+    }
     final saved = data['portfolio'];
     RentalPortfolio.instance = saved == null
         ? RentalPortfolio.seeded()
@@ -135,6 +152,95 @@ class AppPersistence {
     });
   }
 
+  void _saveAdminDemo() {
+    if (_disposed) return;
+    final data = AdminDemoData.instance.toMap();
+    _pending = _pending.then((_) async {
+      try {
+        // Tự lưu trên máy; Firebase có nút lưu riêng để báo chính xác kết quả.
+        await _local.saveAll({'adminDemo': data});
+        error.value = null;
+      } catch (_) {
+        error.value = 'Chưa lưu được dữ liệu mẫu trên máy. Vui lòng thử lại.';
+      }
+    });
+  }
+
+  Future<void> syncAdminDemo({required bool download}) async {
+    final auth = LocalAuth.instance;
+    if (_disposed ||
+        auth.role != AppRole.admin ||
+        (cloudMode && auth.session?.role != AppRole.admin)) {
+      throw ArgumentError('Cần đăng nhập tài khoản quản trị viên.');
+    }
+    final demo = AdminDemoData.instance;
+    if (demo.syncing) return;
+    final uid = auth.session?.uid;
+    final prefix = cloudMode
+        ? 'admin_demo_${Uri.encodeComponent(auth.session!.uid)}'
+        : 'admin_demo';
+    final remote = FirestoreRentalRepository(
+      documentCollection: cloudMode ? 'management' : 'app_documents',
+    );
+    demo.setSyncState(
+      true,
+      download ? 'Đang tải từ Firebase…' : 'Đang lưu lên Firebase…',
+    );
+    try {
+      if (download) {
+        final records = await remote
+            .readDocuments([prefix])
+            .timeout(const Duration(seconds: 20));
+        final manifest = records[prefix];
+        if (manifest == null || manifest['schema'] != 1) {
+          throw ArgumentError('Chưa có bộ demo đã lưu trên Firebase.');
+        }
+        final ids = List<String>.from(manifest['properties'] as List);
+        if (ids.isEmpty ||
+            ids.length > 50 ||
+            ids.toSet().length != ids.length) {
+          throw ArgumentError('Danh sách nhà trọ Firebase không hợp lệ.');
+        }
+        records.addAll(
+          await remote
+              .readDocuments([
+                for (final id in ids) '$prefix:${Uri.encodeComponent(id)}',
+              ])
+              .timeout(const Duration(seconds: 20)),
+        );
+        if (_disposed ||
+            auth.role != AppRole.admin ||
+            auth.session?.uid != uid) {
+          throw StateError('Phiên đã kết thúc.');
+        }
+        demo.restoreCloudDocuments(records, prefix);
+        await flush();
+        if (error.value != null) {
+          throw ArgumentError(
+            'Đã tải bộ demo nhưng chưa lưu được trên máy. Kiểm tra dung lượng thiết bị rồi thử lại.',
+          );
+        }
+      } else {
+        await remote
+            .saveAll(demo.cloudDocuments(prefix))
+            .timeout(const Duration(seconds: 20));
+      }
+      demo.setSyncState(
+        false,
+        download
+            ? 'Đã tải bộ demo và lưu trên máy.'
+            : 'Đã lưu bộ demo lên Firebase.',
+      );
+    } on ArgumentError catch (e) {
+      demo.setSyncState(false, '${e.message}');
+    } catch (_) {
+      demo.setSyncState(
+        false,
+        'Chưa xác nhận được đồng bộ. Kiểm tra mạng và quyền tài khoản Firebase rồi thử lại.',
+      );
+    }
+  }
+
   Future<void> flush() async {
     await Future<void>.delayed(Duration.zero);
     await _pending;
@@ -143,6 +249,7 @@ class AppPersistence {
   Future<void> dispose() async {
     await flush();
     _disposed = true;
+    if (_demoSubscribed) AdminDemoData.instance.removeListener(_saveAdminDemo);
     for (final source in _subscriptions) {
       source.removeListener(save);
     }
