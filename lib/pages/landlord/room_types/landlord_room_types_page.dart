@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import 'components/room_type_editor.dart';
 import '../landlord_ui.dart';
 import '../../shared/media/room_photo_gallery.dart';
@@ -39,17 +41,17 @@ class LandlordRoomTypesPage extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa loại phòng'),
+        title: Text('Xóa loại phòng'),
         content: Text('Xóa loại phòng “${type.name}”?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
+            child: Text('Hủy'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
-            child: const Text('Xóa'),
+            child: Text('Xóa'),
           ),
         ],
       ),
@@ -78,7 +80,7 @@ class LandlordRoomTypesPage extends StatelessWidget {
               '${_store.property.name} · Mỗi loại phòng, một phong cách riêng.',
           footer: Text(
             '${_store.roomTypes.length} loại phòng  ·  ${_store.catalog.length} phòng đang quản lý',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -87,15 +89,15 @@ class LandlordRoomTypesPage extends StatelessWidget {
           action: FilledButton.icon(
             onPressed: () => _edit(context),
             style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: LandlordPalette.of(context).surface,
               foregroundColor: const Color(0xFF244C87),
             ),
-            icon: const Icon(Icons.add, size: 19),
-            label: const Text('Thêm loại phòng'),
+            icon: Icon(Icons.add, size: 19),
+            label: Text('Thêm loại phòng'),
           ),
         ),
         const SizedBox(height: 22),
-        const Row(
+        Row(
           children: [
             Icon(
               Icons.collections_bookmark_outlined,
@@ -107,7 +109,7 @@ class LandlordRoomTypesPage extends StatelessWidget {
               child: Text(
                 'Không gian của bạn',
                 style: TextStyle(
-                  color: landlordInk,
+                  color: LandlordPalette.of(context).ink,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
@@ -116,9 +118,13 @@ class LandlordRoomTypesPage extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 7),
-        const Text(
+        Text(
           'Chạm vào ảnh để xem album. Chỉnh sửa để thêm ảnh và chọn ảnh bìa.',
-          style: TextStyle(color: landlordMuted, fontSize: 12, height: 1.5),
+          style: TextStyle(
+            color: LandlordPalette.of(context).muted,
+            fontSize: 12,
+            height: 1.5,
+          ),
         ),
         const SizedBox(height: 16),
         if (_store.roomTypes.isEmpty)
@@ -149,9 +155,9 @@ class LandlordRoomTypesPage extends StatelessWidget {
       key: ValueKey(type.id),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: LandlordPalette.of(context).surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: landlordLine),
+        border: Border.all(color: LandlordPalette.of(context).line),
         boxShadow: const [
           BoxShadow(
             color: Color(0x07172B42),
@@ -180,8 +186,8 @@ class LandlordRoomTypesPage extends StatelessWidget {
               ),
               child: Text(
                 '$roomCount phòng',
-                style: const TextStyle(
-                  color: landlordInk,
+                style: TextStyle(
+                  color: LandlordPalette.of(context).ink,
                   fontWeight: FontWeight.w700,
                   fontSize: 11,
                 ),
@@ -192,8 +198,8 @@ class LandlordRoomTypesPage extends StatelessWidget {
             contentPadding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
             title: Text(
               type.name,
-              style: const TextStyle(
-                color: landlordInk,
+              style: TextStyle(
+                color: LandlordPalette.of(context).ink,
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
               ),
@@ -202,7 +208,7 @@ class LandlordRoomTypesPage extends StatelessWidget {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 formatRoomTypePrice(type.monthlyRent),
-                style: const TextStyle(
+                style: TextStyle(
                   color: landlordBlue,
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
@@ -216,24 +222,24 @@ class LandlordRoomTypesPage extends StatelessWidget {
               children: [
                 TextButton.icon(
                   onPressed: () => _edit(context, type),
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text('Chỉnh sửa'),
+                  icon: Icon(Icons.edit_outlined, size: 16),
+                  label: Text('Chỉnh sửa'),
                   style: TextButton.styleFrom(foregroundColor: landlordBlue),
                 ),
                 const Spacer(),
                 IconButton(
                   tooltip: 'Sửa ${type.name}',
                   onPressed: () => _edit(context, type),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.photo_library_outlined,
-                    color: landlordMuted,
+                    color: LandlordPalette.of(context).muted,
                     size: 20,
                   ),
                 ),
                 IconButton(
                   tooltip: 'Xóa ${type.name}',
                   onPressed: () => _delete(context, type),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.delete_outline,
                     color: Color(0xFFB6656C),
                     size: 20,

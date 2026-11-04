@@ -6,7 +6,7 @@ import '../../landlord/properties/models/landlord_property.dart';
 import '../rental/tenant_session.dart';
 import 'contact_details.dart';
 
-/// Per-account demo preferences and contact information for the current session.
+/// Saved per-account preferences and contact information.
 class AccountStore extends ChangeNotifier {
   AccountStore({required this.rental}) {
     rental.addListener(notifyListeners);
@@ -43,11 +43,7 @@ class AccountStore extends ChangeNotifier {
     final saved = _contacts[role];
     if (role == AppRole.admin) {
       return saved ??
-          const ContactDetails(
-            name: 'Quản trị viên',
-            phone: '0900000099',
-            email: 'admin@tro.local',
-          );
+          const ContactDetails(name: 'Quản trị viên', phone: '', email: '');
     }
     if (role == AppRole.landlord) {
       final property = rental.property;

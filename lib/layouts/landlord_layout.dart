@@ -1,12 +1,21 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as paths;
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
 
 import '../pages/landlord/landlord_demo_store.dart';
+import '../pages/landlord/landlord_theme.dart';
+import '../pages/landlord/announcements/landlord_announcements_page.dart';
 import '../pages/landlord/properties/components/property_switcher.dart';
+import '../pages/landlord/rooms/landlord_rooms_page.dart';
+import 'landlord_navigation.dart';
 import '../pages/shared/profile/account_store.dart';
 import '../pages/landlord/landlord_page_router.dart';
 import 'role_layout.dart';
 
-class LandlordLayout extends StatelessWidget {
+class LandlordLayout extends StatefulWidget {
   const LandlordLayout({
     super.key,
     this.displayName,
@@ -23,165 +32,223 @@ class LandlordLayout extends StatelessWidget {
   final VoidCallback? onLogout;
 
   @override
+  State<LandlordLayout> createState() => _LandlordLayoutState();
+}
+
+class _LandlordLayoutState extends State<LandlordLayout> {
+  bool _dark = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  Future<File> _themeFile() async {
+    final factory = Platform.isWindows || Platform.isLinux
+        ? ffi.databaseFactoryFfi
+        : databaseFactory;
+    return File(
+      paths.join(await factory.getDatabasesPath(), 'landlord_theme.txt'),
+    );
+  }
+
+  Future<void> _loadTheme() async {
+    try {
+      final file = await _themeFile();
+      if (await file.exists() && mounted) {
+        final savedTheme = (await file.readAsString()).trim();
+        if (mounted) setState(() => _dark = savedTheme == 'dark');
+      }
+    } catch (_) {
+      // Theme preference is optional; keep the light theme if storage fails.
+    }
+  }
+
+  Future<void> _toggleTheme() async {
+    setState(() => _dark = !_dark);
+    try {
+      final file = await _themeFile();
+      await file.writeAsString(_dark ? 'dark' : 'light');
+    } catch (_) {
+      // The switch still works for this session if storage is unavailable.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([
-        RentalPortfolio.instance,
-        AccountStore.instance,
-      ]),
-      builder: (context, _) => RoleLayoutShell(
-        key: ValueKey(LandlordDemoStore.activeInstance.property.id),
-        role: AppRole.landlord,
-        topBar: const PropertySwitcher(),
-        notificationsEnabled: AccountStore.instance.notificationsEnabled(
-          AppRole.landlord,
+    return Theme(
+      data: landlordTheme(dark: _dark),
+      child: ListenableBuilder(
+        listenable: Listenable.merge([
+          RentalPortfolio.instance,
+          AccountStore.instance,
+        ]),
+        builder: (context, _) => RoleLayoutShell(
+          key: ValueKey(LandlordDemoStore.activeInstance.property.id),
+          role: AppRole.landlord,
+          topBar: const PropertySwitcher(),
+          hideAppBarOnDestinations: const {'rooms', 'announcements'},
+          hideTopBarOnDestinations: const {'rooms', 'announcements'},
+          notificationsEnabled: AccountStore.instance.notificationsEnabled(
+            AppRole.landlord,
+          ),
+          displayName:
+              widget.displayName ??
+              LandlordDemoStore.activeInstance.property.ownerName,
+          contextLabel:
+              widget.contextLabel ??
+              LandlordDemoStore.activeInstance.property.name,
+          accentColor: LandlordPalette.of(context).primary,
+          themeAction: IconButton(
+            tooltip: _dark
+                ? 'Chuyển sang giao diện sáng'
+                : 'Chuyển sang giao diện tối',
+            onPressed: _toggleTheme,
+            icon: Icon(
+              _dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            ),
+          ),
+          initialDestinationId: 'dashboard',
+          showMoreTab: false,
+          bottomNavigationBuilder: (context, selectedIndex, onSelected) =>
+              LandlordBottomNavigation(
+                selectedIndex: selectedIndex,
+                onSelected: onSelected,
+              ),
+          onPreviewRoleSelected: widget.onPreviewRoleSelected,
+          onLogout: widget.onLogout,
+          pageBuilder:
+              widget.pageBuilder ??
+              (context, destination) {
+                if (destination.id == 'rooms') {
+                  return LandlordRoomsPage(
+                    showHeader: true,
+                    dark: _dark,
+                    onToggleTheme: _toggleTheme,
+                  );
+                }
+                if (destination.id == 'announcements') {
+                  return LandlordAnnouncementsPage(
+                    showHeader: true,
+                    dark: _dark,
+                    onToggleTheme: _toggleTheme,
+                  );
+                }
+                return buildLandlordPage(context, destination);
+              },
+          tabs: landlordTabs,
+          destinations: const [
+            RoleDestination(
+              id: 'dashboard',
+              label: 'Tổng quan',
+              icon: Icons.dashboard_outlined,
+              group: 'Điều hành',
+            ),
+            RoleDestination(
+              id: 'properties',
+              label: 'Nhà trọ',
+              icon: Icons.home_work_outlined,
+              group: 'Điều hành',
+            ),
+            RoleDestination(
+              id: 'rooms',
+              label: 'Phòng trọ',
+              icon: Icons.meeting_room_outlined,
+              group: 'Quản lý nhà',
+            ),
+            RoleDestination(
+              id: 'room_types',
+              label: 'Loại phòng',
+              icon: Icons.category_outlined,
+              group: 'Quản lý nhà',
+            ),
+            RoleDestination(
+              id: 'services',
+              label: 'Dịch vụ và bảng giá',
+              icon: Icons.price_change_outlined,
+              group: 'Quản lý nhà',
+            ),
+            RoleDestination(
+              id: 'meter_readings',
+              label: 'Chỉ số điện nước',
+              icon: Icons.bolt_outlined,
+              group: 'Quản lý nhà',
+            ),
+            RoleDestination(
+              id: 'viewings',
+              label: 'Lịch xem phòng',
+              icon: Icons.calendar_month_outlined,
+              group: 'Cho thuê',
+            ),
+            RoleDestination(
+              id: 'leases',
+              label: 'Hợp đồng',
+              icon: Icons.description_outlined,
+              group: 'Cho thuê',
+            ),
+            RoleDestination(
+              id: 'members',
+              label: 'Người thuê',
+              icon: Icons.groups_outlined,
+              group: 'Cho thuê',
+            ),
+            RoleDestination(
+              id: 'conversations',
+              label: 'Tin nhắn',
+              icon: Icons.forum_outlined,
+              group: 'Cho thuê',
+            ),
+            RoleDestination(
+              id: 'billing',
+              label: 'Lập hóa đơn',
+              icon: Icons.receipt_long_outlined,
+              group: 'Thu chi',
+            ),
+            RoleDestination(
+              id: 'payments',
+              label: 'Duyệt thanh toán',
+              icon: Icons.fact_check_outlined,
+              group: 'Thu chi',
+            ),
+            RoleDestination(
+              id: 'payment_accounts',
+              label: 'Tài khoản nhận tiền',
+              icon: Icons.account_balance_outlined,
+              group: 'Thu chi',
+            ),
+            RoleDestination(
+              id: 'announcements',
+              label: 'Thông báo',
+              icon: Icons.campaign_outlined,
+              group: 'Vận hành',
+            ),
+            RoleDestination(
+              id: 'incidents',
+              label: 'Yêu cầu sửa chữa',
+              icon: Icons.build_outlined,
+              group: 'Vận hành',
+            ),
+            RoleDestination(
+              id: 'staff',
+              label: 'Nhân viên quản lý',
+              icon: Icons.badge_outlined,
+              group: 'Vận hành',
+            ),
+            RoleDestination(
+              id: 'support',
+              label: 'Trợ giúp',
+              icon: Icons.help_outline_rounded,
+              group: 'Tài khoản',
+            ),
+            RoleDestination(
+              id: 'settings',
+              label: 'Cài đặt',
+              icon: Icons.settings_outlined,
+              group: 'Tài khoản',
+            ),
+          ],
         ),
-        displayName:
-            displayName ?? LandlordDemoStore.activeInstance.property.ownerName,
-        contextLabel:
-            contextLabel ?? LandlordDemoStore.activeInstance.property.name,
-        accentColor: const Color(0xFF3769D6),
-        initialDestinationId: 'dashboard',
-        showMoreTab: false,
-        onPreviewRoleSelected: onPreviewRoleSelected,
-        onLogout: onLogout,
-        pageBuilder: pageBuilder ?? buildLandlordPage,
-        tabs: const [
-          RoleTab(
-            label: 'Tổng quan',
-            icon: Icons.dashboard_outlined,
-            selectedIcon: Icons.dashboard_rounded,
-            destinationId: 'dashboard',
-          ),
-          RoleTab(
-            label: 'Phòng',
-            icon: Icons.meeting_room_outlined,
-            selectedIcon: Icons.meeting_room_rounded,
-            destinationId: 'rooms',
-          ),
-          RoleTab(
-            label: 'Tin nhắn',
-            icon: Icons.forum_outlined,
-            selectedIcon: Icons.forum_rounded,
-            destinationId: 'conversations',
-          ),
-          RoleTab(
-            label: 'Thông báo',
-            icon: Icons.notifications_none_rounded,
-            selectedIcon: Icons.notifications_rounded,
-            destinationId: 'announcements',
-          ),
-        ],
-        destinations: const [
-          RoleDestination(
-            id: 'dashboard',
-            label: 'Tổng quan',
-            icon: Icons.dashboard_outlined,
-            group: 'Điều hành',
-          ),
-          RoleDestination(
-            id: 'properties',
-            label: 'Nhà trọ',
-            icon: Icons.home_work_outlined,
-            group: 'Điều hành',
-          ),
-          RoleDestination(
-            id: 'rooms',
-            label: 'Phòng trọ',
-            icon: Icons.meeting_room_outlined,
-            group: 'Quản lý nhà',
-          ),
-          RoleDestination(
-            id: 'room_types',
-            label: 'Loại phòng',
-            icon: Icons.category_outlined,
-            group: 'Quản lý nhà',
-          ),
-          RoleDestination(
-            id: 'services',
-            label: 'Dịch vụ và bảng giá',
-            icon: Icons.price_change_outlined,
-            group: 'Quản lý nhà',
-          ),
-          RoleDestination(
-            id: 'meter_readings',
-            label: 'Chỉ số điện nước',
-            icon: Icons.bolt_outlined,
-            group: 'Quản lý nhà',
-          ),
-          RoleDestination(
-            id: 'viewings',
-            label: 'Lịch xem phòng',
-            icon: Icons.calendar_month_outlined,
-            group: 'Cho thuê',
-          ),
-          RoleDestination(
-            id: 'leases',
-            label: 'Hợp đồng',
-            icon: Icons.description_outlined,
-            group: 'Cho thuê',
-          ),
-          RoleDestination(
-            id: 'members',
-            label: 'Người thuê',
-            icon: Icons.groups_outlined,
-            group: 'Cho thuê',
-          ),
-          RoleDestination(
-            id: 'conversations',
-            label: 'Tin nhắn',
-            icon: Icons.forum_outlined,
-            group: 'Cho thuê',
-          ),
-          RoleDestination(
-            id: 'billing',
-            label: 'Lập hóa đơn',
-            icon: Icons.receipt_long_outlined,
-            group: 'Thu chi',
-          ),
-          RoleDestination(
-            id: 'payments',
-            label: 'Duyệt thanh toán',
-            icon: Icons.fact_check_outlined,
-            group: 'Thu chi',
-          ),
-          RoleDestination(
-            id: 'payment_accounts',
-            label: 'Tài khoản nhận tiền',
-            icon: Icons.account_balance_outlined,
-            group: 'Thu chi',
-          ),
-          RoleDestination(
-            id: 'announcements',
-            label: 'Gửi thông báo',
-            icon: Icons.campaign_outlined,
-            group: 'Vận hành',
-          ),
-          RoleDestination(
-            id: 'incidents',
-            label: 'Yêu cầu sửa chữa',
-            icon: Icons.build_outlined,
-            group: 'Vận hành',
-          ),
-          RoleDestination(
-            id: 'staff',
-            label: 'Nhân viên quản lý',
-            icon: Icons.badge_outlined,
-            group: 'Vận hành',
-          ),
-          RoleDestination(
-            id: 'support',
-            label: 'Trợ giúp',
-            icon: Icons.help_outline_rounded,
-            group: 'Tài khoản',
-          ),
-          RoleDestination(
-            id: 'settings',
-            label: 'Cài đặt',
-            icon: Icons.settings_outlined,
-            group: 'Tài khoản',
-          ),
-        ],
       ),
     );
   }

@@ -3,6 +3,73 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/layouts/role_layout.dart';
 
 void main() {
+  for (final hideHome in [false, true]) {
+    testWidgets(
+      'Merged shell preserves tenant navigation with multiple hidden app bars: $hideHome',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: RoleLayoutShell(
+              role: AppRole.tenant,
+              displayName: 'Tenant',
+              contextLabel: 'Rental',
+              accentColor: Colors.teal,
+              initialDestinationId: 'discovery',
+              hideAppBarOnDestination: 'discovery',
+              hideAppBarOnDestinations: hideHome ? const {'home'} : null,
+              showMoreTab: false,
+              destinations: const [
+                RoleDestination(
+                  id: 'discovery',
+                  label: 'Discovery',
+                  icon: Icons.search,
+                  group: 'Tenant',
+                ),
+                RoleDestination(
+                  id: 'home',
+                  label: 'Home',
+                  icon: Icons.home,
+                  group: 'Tenant',
+                ),
+              ],
+              tabs: const [
+                RoleTab(
+                  label: 'Discovery',
+                  icon: Icons.search,
+                  selectedIcon: Icons.search,
+                  destinationId: 'discovery',
+                ),
+                RoleTab(
+                  label: 'Home',
+                  icon: Icons.home,
+                  selectedIcon: Icons.home,
+                  destinationId: 'home',
+                ),
+              ],
+              pageBuilder: (_, destination) =>
+                  Center(child: Text('body:${destination.id}')),
+              bottomNavigationBuilder: (_, index, select) => TextButton(
+                onPressed: () => select(index == 0 ? 1 : 0),
+                child: Text('tenant-nav:$index'),
+              ),
+            ),
+          ),
+        );
+        expect(find.byType(AppBar), findsNothing);
+        expect(find.byType(NavigationBar), findsNothing);
+        expect(find.text('body:discovery'), findsOneWidget);
+        await tester.tap(find.text('tenant-nav:0'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AppBar), hideHome ? findsNothing : findsOneWidget);
+        expect(
+          tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
+          const Color(0xFFFCFCFC),
+        );
+        expect(find.text('body:home'), findsOneWidget);
+        expect(find.text('tenant-nav:1'), findsOneWidget);
+      },
+    );
+  }
   for (final role in AppRole.values) {
     for (final size in [const Size(390, 640), const Size(1280, 800)]) {
       testWidgets('Drawer keeps selection and scroll for $role at $size', (

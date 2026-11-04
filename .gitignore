@@ -12,6 +12,46 @@
 .swiftpm/
 migrate_working_dir/
 
+# Local AI tools, design experiments and session context (keep on this machine).
+.codex/
+.gemini/
+.impeccable/
+.implacne/
+.agents/
+.claude/
+.cursor/
+.antigravity/
+.aider*
+.continue/
+/.local-backups/
+/.mcp.json
+/AGENTS.md
+/CLAUDE.md
+/GEMINI.md
+/AGENT_SYNC.md
+/DESIGN.md
+/PRODUCT.md
+
+# Local editor overrides, temporary exports and machine-specific files.
+.vscode/*.local.*
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.apk
+*.aab
+*.jks
+*.keystore
+**/key.properties
+**/*firebase-adminsdk*.json
+**/service-account*.json
+**/serviceAccountKey*.json
+
 # IntelliJ related
 *.iml
 *.ipr
@@ -52,3 +92,7 @@ app.*.map.json
 lib/ai.env
 server/ai.env
 **/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+!**/.env.template

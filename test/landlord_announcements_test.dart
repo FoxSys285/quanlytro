@@ -1,15 +1,99 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/layouts/landlord_layout.dart';
+import 'package:quanlytro/layouts/landlord_navigation.dart';
+import 'package:quanlytro/layouts/role_layout.dart';
 import 'package:quanlytro/pages/landlord/announcements/components/landlord_announcement_card.dart';
 import 'package:quanlytro/pages/landlord/announcements/components/landlord_announcement_composer.dart';
 import 'package:quanlytro/pages/landlord/announcements/data/landlord_announcement_demo_data.dart';
 import 'package:quanlytro/pages/landlord/announcements/landlord_announcements_page.dart';
 import 'package:quanlytro/pages/landlord/announcements/models/landlord_announcement.dart';
+import 'package:quanlytro/pages/landlord/billing/landlord_billing_page.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
+import 'package:quanlytro/pages/landlord/rooms/models/landlord_room.dart';
 import 'package:quanlytro/pages/shared/announcements/announcement_store.dart';
 
 void main() {
+  testWidgets('Five owner tabs stay visible across destinations and details', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final originalPortfolio = RentalPortfolio.instance;
+    addTearDown(() => RentalPortfolio.instance = originalPortfolio);
+    RentalPortfolio.instance = RentalPortfolio.seeded();
+    RentalPortfolio.instance.select('may');
+    await tester.pumpWidget(const MaterialApp(home: LandlordLayout()));
+    await tester.pumpAndSettle();
+
+    LandlordBottomNavigation bar() => tester.widget<LandlordBottomNavigation>(
+      find.byType(LandlordBottomNavigation),
+    );
+    expect(landlordTabs.map((tab) => tab.label).toList(), [
+      'Tổng quan',
+      'Phòng',
+      'Thu chi',
+      'Tin nhắn',
+      'Thông báo',
+    ]);
+    expect(bar().selectedIndex, 0);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(LandlordBottomNavigation),
+        matching: find.text('Thông báo'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(LandlordAnnouncementsPage), findsOneWidget);
+    expect(bar().selectedIndex, 4);
+    expect(find.text('Thông báo & Vận hành'), findsOneWidget);
+
+    final invoiceAction = find.text('Xem hóa đơn').first;
+    await tester.ensureVisible(invoiceAction);
+    await tester.tap(invoiceAction);
+    await tester.pumpAndSettle();
+    expect(find.byType(LandlordBillingPage), findsOneWidget);
+    expect(bar().selectedIndex, 2);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(LandlordBottomNavigation),
+        matching: find.text('Thông báo'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    RoleLayoutShell.navigateTo(
+      tester.element(find.byType(LandlordAnnouncementsPage)),
+      'services',
+    );
+    await tester.pumpAndSettle();
+    expect(bar().selectedIndex, 1);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(LandlordBottomNavigation),
+        matching: find.text('Phòng'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final vacant = RentalPortfolio.instance.active.roomDetails.firstWhere(
+      (room) => room.status == LandlordRoomStatus.vacant,
+    );
+    final card = find.byKey(ValueKey(vacant.room.code));
+    await tester.ensureVisible(card);
+    await tester.tap(
+      find.descendant(of: card, matching: find.text('Tạo hợp đồng')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(LandlordBottomNavigation), findsOneWidget);
+    expect(bar().selectedIndex, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   test('Relative time distinguishes yesterday and earlier dates', () {
     final now = DateTime(2026, 10, 4, 9);
     expect(
@@ -31,14 +115,22 @@ void main() {
     await tester.tap(find.byTooltip('Mở danh mục chức năng'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Gửi thông báo'),
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Thông báo'),
+      ),
       250,
       scrollable: find.descendant(
         of: find.byType(Drawer),
         matching: find.byType(Scrollable),
       ),
     );
-    await tester.tap(find.text('Gửi thông báo'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Thông báo'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(LandlordAnnouncementsPage), findsOneWidget);
     expect(

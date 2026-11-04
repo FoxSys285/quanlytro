@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../pages/shared/widgets/app_brand.dart' as brand;
 
@@ -82,7 +83,10 @@ typedef RoleTopBarBuilder = Widget Function(
 
 class RoleLayoutShell extends StatefulWidget {
   /// Opens a destination inside the existing role shell when one is present.
-  static bool navigateTo(BuildContext context, String destinationId) {
+  static bool navigateTo(BuildContext context, String destinationId) =>
+      tryNavigateTo(context, destinationId);
+
+  static bool tryNavigateTo(BuildContext context, String destinationId) {
     final shell = context.findAncestorStateOfType<_RoleLayoutShellState>();
     if (shell == null ||
         !shell.widget.destinations.any((item) => item.id == destinationId)) {
@@ -109,8 +113,11 @@ class RoleLayoutShell extends StatefulWidget {
     this.notificationsEnabled = true,
     this.topBar,
     this.topBarBuilder,
+    this.themeAction,
+    this.useSidebar = false,
     this.hideAppBarOnDestination,
     this.hideAppBarOnDestinations,
+    this.hideTopBarOnDestinations,
     this.bottomNavigationBuilder,
   });
 
@@ -129,8 +136,11 @@ class RoleLayoutShell extends StatefulWidget {
   final bool notificationsEnabled;
   final Widget? topBar;
   final RoleTopBarBuilder? topBarBuilder;
+  final Widget? themeAction;
+  final bool useSidebar;
   final String? hideAppBarOnDestination;
   final Set<String>? hideAppBarOnDestinations;
+  final Set<String>? hideTopBarOnDestinations;
   final RoleBottomNavigationBuilder? bottomNavigationBuilder;
 
   @override
@@ -171,7 +181,24 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
 
   int _tabIndexFor(String id) {
     final index = widget.tabs.indexWhere((tab) => tab.destinationId == id);
-    return index == -1 ? (widget.showMoreTab ? widget.tabs.length : 0) : index;
+    if (index != -1) return index;
+    if (widget.role == AppRole.landlord && !widget.showMoreTab) {
+      const roomPages = {
+        'properties',
+        'room_types',
+        'services',
+        'meter_readings',
+        'viewings',
+        'leases',
+        'members',
+      };
+      const financePages = {'payments', 'payment_accounts'};
+      const noticePages = {'incidents', 'staff'};
+      if (roomPages.contains(id)) return 1;
+      if (financePages.contains(id)) return 2;
+      if (noticePages.contains(id)) return 4;
+    }
+    return widget.showMoreTab ? widget.tabs.length : 0;
   }
 
   RoleDestination get _selectedDestination => widget.destinations.firstWhere(
@@ -186,6 +213,11 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
 
     if (id != _selectedDestinationId) {
       _previousDestinationId = _selectedDestinationId;
+    }
+    if (widget.role == AppRole.admin &&
+        widget.useSidebar &&
+        id != _selectedDestinationId) {
+      HapticFeedback.selectionClick();
     }
     setState(() {
       _selectedDestinationId = id;
@@ -242,6 +274,12 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           _goBackToPreviousDestination,
         ) ??
         widget.topBar;
+    final landlordTheme = widget.role == AppRole.landlord;
+    final scheme = Theme.of(context).colorScheme;
+    final console = widget.role == AppRole.admin && widget.useSidebar;
+    const consoleInk = Colors.white;
+    final adminWide =
+        widget.useSidebar && MediaQuery.sizeOf(context).width >= 1100;
     final page =
         widget.pageBuilder?.call(context, destination) ??
         _LayoutPlaceholder(
@@ -249,12 +287,24 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           destination: destination,
           accentColor: widget.accentColor,
         );
+    final content = console
+        ? AnimatedSwitcher(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: KeyedSubtree(key: ValueKey(destination.id), child: page),
+          )
+        : page;
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: widget.role == AppRole.tenant
+      backgroundColor: widget.role == AppRole.admin
+          ? const Color(0xFFF5F6FB)
+          : widget.role == AppRole.tenant
           ? const Color(0xFFFCFCFC)
-          : const Color(0xFFF5F7FA),
+          : Theme.of(context).scaffoldBackgroundColor,
       onDrawerChanged: _onDrawerChanged,
       drawer: _RoleDrawer(
         scrollController: _drawerScrollController,
@@ -280,13 +330,19 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                   false)
           ? null
           : AppBar(
-              backgroundColor: widget.role == AppRole.tenant
+              backgroundColor: console
+                  ? const Color(0xFF1D2E50)
+                  : widget.role == AppRole.tenant
                   ? const Color(0xFFFCFCFC)
+                  : landlordTheme
+                  ? scheme.surface
                   : Colors.white,
+              foregroundColor: console ? consoleInk : null,
+              iconTheme: console ? IconThemeData(color: consoleInk) : null,
               surfaceTintColor: Colors.transparent,
               elevation: 0,
               scrolledUnderElevation: 0,
-              toolbarHeight: 68,
+              toolbarHeight: console ? 56 : 68,
               leading: IconButton(
                 tooltip: 'Mở danh mục chức năng',
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
@@ -298,29 +354,39 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    destination.label,
+                    console && destination.id == 'dashboard'
+                        ? 'Quản trị'
+                        : destination.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF17212B),
+                    style: TextStyle(
+                      color: console
+                          ? consoleInk
+                          : landlordTheme
+                          ? scheme.onSurface
+                          : const Color(0xFF17212B),
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.contextLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF788492),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                  if (!console) const SizedBox(height: 2),
+                  if (!console)
+                    Text(
+                      widget.contextLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: landlordTheme
+                            ? scheme.onSurface.withValues(alpha: 0.7)
+                            : const Color(0xFF788492),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
                 ],
               ),
               actions: [
+                ?widget.themeAction,
                 IconButton(
                   tooltip: 'Thông báo',
                   onPressed: () => _selectDestination(
@@ -338,7 +404,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                                   ? Icons.notifications_none_rounded
                                   : Icons.notifications_off_outlined,
                             ),
-                            if (widget.notificationsEnabled)
+                            if (widget.notificationsEnabled && !console)
                               Positioned(
                                 top: 0,
                                 right: 0,
@@ -405,7 +471,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                       child: Text(
                         _avatarInitials,
                         style: TextStyle(
-                          color: widget.accentColor,
+                          color: console ? consoleInk : widget.accentColor,
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),
@@ -419,44 +485,115 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         top: false,
         child: Column(
           children: [
-            ?topBar,
-            Expanded(child: page),
+            if (!(widget.hideTopBarOnDestinations?.contains(
+                  _selectedDestinationId,
+                ) ??
+                false))
+              ?topBar,
+            Expanded(
+              child: adminWide
+                  ? Row(
+                      children: [
+                        Container(
+                          width: 224,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF1D2E50),
+                            border: Border(
+                              right: BorderSide(color: Color(0xFFE3E7E8)),
+                            ),
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: ListView(
+                              padding: const EdgeInsets.all(16),
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.fromLTRB(12, 16, 12, 24),
+                                  child: Text(
+                                    'Quản trị trọ',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                for (final item in widget.destinations)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: ListTile(
+                                      selected:
+                                          item.id == _selectedDestinationId,
+                                      selectedTileColor: const Color(
+                                        0xFF535BC6,
+                                      ),
+                                      selectedColor: Colors.white,
+                                      textColor: const Color(0xFFD5DDF0),
+                                      iconColor: const Color(0xFFADBBD5),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      leading: Icon(item.icon, size: 19),
+                                      title: Text(
+                                        item.label,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      onTap: () => _selectDestination(item.id),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Expanded(child: content),
+                      ],
+                    )
+                  : content,
+            ),
           ],
         ),
       ),
-      bottomNavigationBar:
-          widget.bottomNavigationBuilder?.call(
-            context,
-            widget.tabs.any(
-                  (tab) => tab.destinationId == _selectedDestinationId,
-                )
-                ? _selectedTabIndex
-                : -1,
-            _onTabSelected,
-          ) ??
-          NavigationBar(
-            height: 70,
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.transparent,
-            indicatorColor: widget.accentColor.withValues(alpha: 0.12),
-            selectedIndex: _selectedTabIndex,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            onDestinationSelected: _onTabSelected,
-            destinations: [
-              for (final tab in widget.tabs)
-                NavigationDestination(
-                  icon: Icon(tab.icon),
-                  selectedIcon: Icon(tab.selectedIcon),
-                  label: tab.label,
+      bottomNavigationBar: adminWide
+          ? null
+          : widget.bottomNavigationBuilder?.call(
+                  context,
+                  widget.role == AppRole.tenant &&
+                          !widget.tabs.any(
+                            (tab) =>
+                                tab.destinationId == _selectedDestinationId,
+                          )
+                      ? -1
+                      : _selectedTabIndex,
+                  _onTabSelected,
+                ) ??
+                NavigationBar(
+                  height: 70,
+                  backgroundColor: landlordTheme
+                      ? scheme.surface
+                      : Colors.white,
+                  surfaceTintColor: Colors.transparent,
+                  indicatorColor: widget.accentColor.withValues(alpha: 0.12),
+                  selectedIndex: _selectedTabIndex,
+                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                  onDestinationSelected: _onTabSelected,
+                  destinations: [
+                    for (final tab in widget.tabs)
+                      NavigationDestination(
+                        icon: Icon(tab.icon),
+                        selectedIcon: Icon(tab.selectedIcon),
+                        label: tab.label,
+                      ),
+                    if (widget.showMoreTab)
+                      const NavigationDestination(
+                        icon: Icon(Icons.grid_view_outlined),
+                        selectedIcon: Icon(Icons.grid_view_rounded),
+                        label: 'Thêm',
+                      ),
+                  ],
                 ),
-              if (widget.showMoreTab)
-                const NavigationDestination(
-                  icon: Icon(Icons.grid_view_outlined),
-                  selectedIcon: Icon(Icons.grid_view_rounded),
-                  label: 'Thêm',
-                ),
-            ],
-          ),
     );
   }
 }
@@ -496,6 +633,8 @@ class _RoleDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final landlordTheme = role == AppRole.landlord;
+    final scheme = Theme.of(context).colorScheme;
     final groups = <String, List<RoleDestination>>{};
     for (final destination in destinations) {
       groups.putIfAbsent(destination.group, () => []).add(destination);
@@ -505,7 +644,7 @@ class _RoleDrawer extends StatelessWidget {
 
     return Drawer(
       width: drawerWidth,
-      backgroundColor: const Color(0xFFFCFDFE),
+      backgroundColor: landlordTheme ? scheme.surface : const Color(0xFFFCFDFE),
       child: SafeArea(
         child: Column(
           children: [
@@ -532,8 +671,10 @@ class _RoleDrawer extends StatelessWidget {
                           padding: const EdgeInsets.fromLTRB(12, 15, 12, 6),
                           child: Text(
                             entry.key.toUpperCase(),
-                            style: const TextStyle(
-                              color: Color(0xFF8B97A4),
+                            style: TextStyle(
+                              color: landlordTheme
+                                  ? scheme.onSurface.withValues(alpha: 0.58)
+                                  : const Color(0xFF8B97A4),
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.1,
@@ -559,7 +700,10 @@ class _RoleDrawer extends StatelessWidget {
                 ),
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFE9EDF2)),
+            Divider(
+              height: 1,
+              color: landlordTheme ? scheme.outline : const Color(0xFFE9EDF2),
+            ),
             if (onPreviewRoleSelected != null)
               PopupMenuButton<AppRole>(
                 tooltip: 'Chuyển vai trò xem thử',
@@ -634,6 +778,7 @@ class _DrawerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final landlordTheme = role == AppRole.landlord;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 22, 18, 20),
@@ -641,9 +786,20 @@ class _DrawerHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [accentColor.withValues(alpha: 0.13), Colors.white],
+          colors: landlordTheme
+              ? [
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
+                  Theme.of(context).colorScheme.surface,
+                ]
+              : [accentColor.withValues(alpha: 0.13), Colors.white],
         ),
-        border: const Border(bottom: BorderSide(color: Color(0xFFE9EDF2))),
+        border: Border(
+          bottom: BorderSide(
+            color: landlordTheme
+                ? Theme.of(context).colorScheme.outline
+                : const Color(0xFFE9EDF2),
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,8 +813,10 @@ class _DrawerHeader extends StatelessWidget {
                   appName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF17212B),
+                  style: TextStyle(
+                    color: landlordTheme
+                        ? Theme.of(context).colorScheme.onSurface
+                        : const Color(0xFF17212B),
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
@@ -668,7 +826,9 @@ class _DrawerHeader extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.1),
+                  color: landlordTheme
+                      ? accentColor.withValues(alpha: 0.12)
+                      : accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -687,7 +847,9 @@ class _DrawerHeader extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 23,
-                backgroundColor: accentColor.withValues(alpha: 0.16),
+                backgroundColor: landlordTheme
+                    ? accentColor.withValues(alpha: 0.14)
+                    : accentColor.withValues(alpha: 0.16),
                 child: Text(
                   initials,
                   style: TextStyle(
@@ -705,8 +867,10 @@ class _DrawerHeader extends StatelessWidget {
                       displayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF17212B),
+                      style: TextStyle(
+                        color: landlordTheme
+                            ? Theme.of(context).colorScheme.onSurface
+                            : const Color(0xFF17212B),
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -716,8 +880,11 @@ class _DrawerHeader extends StatelessWidget {
                       contextLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF788492),
+                      style: TextStyle(
+                        color: landlordTheme
+                            ? Theme.of(context).colorScheme.onSurface
+                                  .withValues(alpha: 0.68)
+                            : const Color(0xFF788492),
                         fontSize: 11,
                       ),
                     ),
@@ -749,6 +916,8 @@ class _DrawerDestinationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: ListTile(
@@ -758,13 +927,21 @@ class _DrawerDestinationTile extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
         leading: Icon(
           destination.icon,
-          color: selected ? accentColor : const Color(0xFF6D7986),
+          color: selected
+              ? accentColor
+              : dark
+              ? scheme.onSurface.withValues(alpha: 0.7)
+              : const Color(0xFF6D7986),
           size: 21,
         ),
         title: Text(
           destination.drawerLabel ?? destination.label,
           style: TextStyle(
-            color: selected ? accentColor : const Color(0xFF344252),
+            color: selected
+                ? accentColor
+                : dark
+                ? scheme.onSurface
+                : const Color(0xFF344252),
             fontSize: 13,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),

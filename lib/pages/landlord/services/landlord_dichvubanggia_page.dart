@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../landlord_theme.dart';
+
 import '../landlord_ui.dart';
 import '../landlord_demo_store.dart';
 import 'models/landlord_dichvu.dart';
@@ -130,10 +132,10 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
               children: [
                 // Gợi ý chọn mẫu nhanh khi tạo dịch vụ mới
                 if (dichVuCanSua == null) ...[
-                  const Text(
+                  Text(
                     'Chọn mẫu nhanh:',
                     style: TextStyle(
-                      color: landlordMuted,
+                      color: LandlordPalette.of(context).muted,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -207,15 +209,15 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
                   _store.deleteService(dichVuCanSua);
                   Navigator.pop(context, false);
                 },
-                child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+                child: Text('Xóa', style: TextStyle(color: Colors.red)),
               ),
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Hủy'),
+              child: Text('Hủy'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Lưu'),
+              child: Text('Lưu'),
             ),
           ],
         ),
@@ -262,12 +264,12 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
           onPressed: () {
             _moFormDichVu();
           },
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Thêm dịch vụ mới'),
+          icon: Icon(Icons.add_rounded),
+          label: Text('Thêm dịch vụ mới'),
         ),
       ),
       const SizedBox(height: 12),
-      const Text(
+      Text(
         'Bảng giá hiện tại',
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
@@ -300,8 +302,8 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
                     children: [
                       Text(
                         dichVu.name,
-                        style: const TextStyle(
-                          color: landlordInk,
+                        style: TextStyle(
+                          color: LandlordPalette.of(context).ink,
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
@@ -309,8 +311,8 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
                       const SizedBox(height: 3),
                       Text(
                         '${formatLandlordMoney(dichVu.price)} / ${dichVu.unit} · ${dichVu.basis}',
-                        style: const TextStyle(
-                          color: landlordMuted,
+                        style: TextStyle(
+                          color: LandlordPalette.of(context).muted,
                           fontSize: 12,
                         ),
                       ),

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/data/app_persistence.dart';
+import 'package:quanlytro/data/local_auth.dart';
 import 'package:quanlytro/data/local_database.dart';
 import 'package:quanlytro/layouts/role_layout.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
@@ -17,6 +18,12 @@ import 'package:quanlytro/pages/shared/viewings/viewing_store.dart';
 import 'package:quanlytro/data/admin_store.dart';
 import 'package:quanlytro/pages/tenant/discovery/tenant_favorites_store.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+Future<Directory> workspaceTemp(String prefix) async {
+  final root = Directory('build/test-temp');
+  await root.create(recursive: true);
+  return root.createTemp(prefix);
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -90,9 +97,7 @@ void main() {
   });
 
   test('SQLite file reopen preserves images, approved payments, members and readings', () async {
-    final directory = await Directory.systemTemp.createTemp(
-      'quanlytro-sqlite-',
-    );
+    final directory = await workspaceTemp('quanlytro-sqlite-');
     addTearDown(() => directory.delete(recursive: true));
     final path = '${directory.path}/rental.db';
     final portfolio = RentalPortfolio.seeded();
@@ -150,13 +155,23 @@ void main() {
   });
 
   test('Application autosaves notifications, favorites, active property and new rooms', () async {
-    final directory = await Directory.systemTemp.createTemp('quanlytro-app-');
+    final directory = await workspaceTemp('quanlytro-app-');
     addTearDown(() => directory.delete(recursive: true));
     final path = '${directory.path}/app.db';
     var repository = await SqliteRentalRepository.open(
       factory: databaseFactoryFfi,
       path: path,
     );
+    await LocalAuth.instance.initialize();
+    final initialPortfolio = RentalPortfolio.seeded();
+    await repository.saveAll({
+      'portfolio': initialPortfolio.toMap(),
+      'auth': LocalAuth.instance.toMap(),
+      'conversations': ConversationStore.demo().toMap(),
+      'viewings': ViewingStore.demo(rental: LandlordDemoStore.instance).toMap(),
+      'announcements:may': AnnouncementStore.forRental(initialPortfolio.active)
+          .toMap(),
+    });
     var persistence = AppPersistence(repository);
     await persistence.initialize();
     addTearDown(() => persistence.dispose());

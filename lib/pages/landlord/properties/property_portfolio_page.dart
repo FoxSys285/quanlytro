@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/admin_store.dart';
+import '../landlord_theme.dart';
+
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
 import '../rooms/models/landlord_room.dart';
@@ -49,7 +52,7 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Thiết lập tầng và phòng'),
+          title: Text('Thiết lập tầng và phòng'),
           content: SizedBox(
             width: 400,
             child: Column(
@@ -81,9 +84,9 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                   onChanged: (v) => setDialogState(() => rooms = v!),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Có thể sửa từng phòng và bảng giá sau khi tạo.',
-                  style: TextStyle(color: landlordMuted),
+                  style: TextStyle(color: LandlordPalette.of(context).muted),
                 ),
               ],
             ),
@@ -91,11 +94,11 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Hủy'),
+              child: Text('Hủy'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Tạo nhà trọ'),
+              child: Text('Tạo nhà trọ'),
             ),
           ],
         ),
@@ -109,18 +112,18 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa nhà trọ'),
+        title: Text('Xóa nhà trọ'),
         content: Text(
           'Xóa ${store.property.name} và danh sách phòng chưa có hợp đồng?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
+            child: Text('Hủy'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Xóa'),
+            child: Text('Xóa'),
           ),
         ],
       ),
@@ -135,7 +138,7 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _portfolio,
+    listenable: Listenable.merge([_portfolio, AdminStore.instance]),
     builder: (context, _) {
       final stores = _portfolio.stores
           .where(
@@ -206,8 +209,8 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                     ),
                     FilledButton.icon(
                       onPressed: _add,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Thêm nhà trọ'),
+                      icon: Icon(Icons.add),
+                      label: Text('Thêm nhà trọ'),
                     ),
                   ],
                 ),
@@ -249,13 +252,13 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
     children: [
       Text(
         value,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 28,
           color: Colors.white,
           fontWeight: FontWeight.w800,
         ),
       ),
-      Text(label, style: const TextStyle(color: Color(0xFFD6E5FF))),
+      Text(label, style: TextStyle(color: Color(0xFFD6E5FF))),
     ],
   );
 
@@ -283,18 +286,28 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
               children: [
                 Text(
                   p.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: landlordInk,
+                    color: LandlordPalette.of(context).ink,
                   ),
                 ),
                 const SizedBox(height: 8),
+                if (AdminStore.instance.reviewNote(p.id).isNotEmpty) ...[
+                  Text(
+                    'Yêu cầu từ quản trị viên: ${AdminStore.instance.reviewNote(p.id)}',
+                    style: const TextStyle(color: Color(0xFF9B651A)),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Text(
                   p.address,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: landlordMuted, height: 1.4),
+                  style: TextStyle(
+                    color: LandlordPalette.of(context).muted,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -320,7 +333,7 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                 const SizedBox(height: 12),
                 Text(
                   '${p.ownerName}\n${p.phone}',
-                  style: const TextStyle(height: 1.6),
+                  style: TextStyle(height: 1.6),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -340,13 +353,13 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                     IconButton(
                       tooltip: 'Sửa ${p.name}',
                       onPressed: () => _edit(store),
-                      icon: const Icon(Icons.edit_outlined),
+                      icon: Icon(Icons.edit_outlined),
                     ),
                     if (store.leases.isEmpty)
                       IconButton(
                         tooltip: 'Xóa ${p.name}',
                         onPressed: () => _delete(store),
-                        icon: const Icon(Icons.delete_outline),
+                        icon: Icon(Icons.delete_outline),
                       ),
                   ],
                 ),

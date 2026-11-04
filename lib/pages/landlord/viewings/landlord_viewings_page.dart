@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../layouts/landlord_navigation.dart';
+import '../landlord_theme.dart';
+
 import '../../shared/viewings/components/viewing_status_badge.dart';
 import '../../shared/viewings/viewing_store.dart';
 import '../conversations/landlord_tinnhan_page.dart';
@@ -100,11 +103,10 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
         (widget.conversations ?? ViewingConversationStore.instance).forViewing(
           viewing,
         );
-    Navigator.push(
+    LandlordNavigation.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => LandlordTinNhanPage(conversation: conversation),
-      ),
+      page: LandlordTinNhanPage(conversation: conversation),
+      destinationId: 'conversations',
     );
   }
 
@@ -151,12 +153,12 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
                 const SizedBox(height: 18),
                 TextField(
                   onChanged: (value) => setState(() => _query = value),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText:
                         'Tìm người đặt, số điện thoại, phòng hoặc nhu cầu',
                     prefixIcon: Icon(Icons.search),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: LandlordPalette.of(context).surface,
                     border: OutlineInputBorder(),
                   ),
                 ),

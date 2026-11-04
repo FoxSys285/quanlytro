@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'landlord_theme.dart';
+
 const landlordBlue = Color(0xFF3769D6);
 const landlordInk = Color(0xFF1B2935);
 const landlordMuted = Color(0xFF74818C);
@@ -13,14 +15,27 @@ class LandlordPageFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 920),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: children,
+    return ColoredBox(
+      color: LandlordPalette.of(context).canvas,
+      child: SafeArea(
+        top: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              constraints.maxWidth < 600 ? 18 : 32,
+              22,
+              constraints.maxWidth < 600 ? 18 : 32,
+              32,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 920),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: children,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -42,8 +57,9 @@ class LandlordPageTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = LandlordPalette.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 19),
       child: Row(
         children: [
           Expanded(
@@ -52,16 +68,17 @@ class LandlordPageTitle extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: landlordInk,
-                    fontSize: 22,
+                  style: TextStyle(
+                    color: palette.ink,
+                    fontSize: 23,
                     fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(color: landlordMuted, fontSize: 13),
+                  style: TextStyle(color: palette.muted, fontSize: 13),
                 ),
               ],
             ),
@@ -79,28 +96,40 @@ class LandlordCard extends StatelessWidget {
     required this.child,
     this.onTap,
     this.padding = const EdgeInsets.all(14),
-    this.backgroundColor = Colors.white,
+    this.backgroundColor,
   });
 
   final Widget child;
   final VoidCallback? onTap;
   final EdgeInsetsGeometry padding;
-  final Color backgroundColor;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
+    final palette = LandlordPalette.of(context);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: landlordLine),
+        color: backgroundColor ?? palette.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.line),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.14
+                  : 0.035,
+            ),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
           onTap: onTap,
           child: Padding(padding: padding, child: child),
         ),
@@ -142,13 +171,14 @@ class LandlordEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = LandlordPalette.of(context);
     return LandlordCard(
       padding: const EdgeInsets.all(28),
       child: Center(
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: landlordMuted),
+          style: TextStyle(color: palette.muted),
         ),
       ),
     );
@@ -195,9 +225,9 @@ String formatLandlordMoney(int amount) {
   return '$ketQua đ';
 }
 
-// Ví dụ truyền vào: 3500000 
+// Ví dụ truyền vào: 3500000
 // → Kết quả trả về: '3.500.000 đ'.
-// Truyền vào: 50000 
+// Truyền vào: 50000
 // → Kết quả: '50.000 đ'.
 // Cách hoạt động: Dùng vòng lặp duyệt từng số, cứ cách 3 chữ số (tính từ đuôi về) thì chèn thêm dấu . và gắn đuôi đ.
 
@@ -205,4 +235,3 @@ String formatLandlordMoney(int amount) {
 extension LandlordIterableNumX on Iterable<int> {
   int get sum => fold(0, (a, b) => a + b);
 }
-

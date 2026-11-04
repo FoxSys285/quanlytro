@@ -26,6 +26,9 @@ class FirestoreRentalRepository implements RentalRepository {
       final snapshot = await _collection.get();
       final result = <String, Map<String, dynamic>>{};
       for (final doc in snapshot.docs) {
+        if (doc.id == 'admin_demo' || doc.id.startsWith('admin_demo:')) {
+          continue;
+        }
         final data = doc.data();
         if (data.containsKey('payload') && data['payload'] is String) {
           try {
@@ -134,6 +137,7 @@ class HybridRentalRepository implements RentalRepository {
   final RentalRepository remote;
   bool isOnline;
   final bool strictRemote;
+  bool lastSaveReachedRemote = false;
 
   @override
   Future<Map<String, Map<String, dynamic>>> readAll() async {
@@ -141,14 +145,14 @@ class HybridRentalRepository implements RentalRepository {
     if (!isOnline) return localData;
 
     try {
-      final remoteData = await remote.readAll();
+      final remoteData = {...await remote.readAll()}..remove('adminDemo');
       if (remoteData.isNotEmpty) {
         // Update local with remote data
         await local.saveAll(remoteData);
         return remoteData;
       } else if (localData.isNotEmpty) {
         // Push initial local data to remote
-        await remote.saveAll(localData);
+        await remote.saveAll({...localData}..remove('adminDemo'));
       }
     } catch (e) {
       if (strictRemote) rethrow;
@@ -158,18 +162,27 @@ class HybridRentalRepository implements RentalRepository {
   }
 
   @override
-  Future<void> saveAll(Map<String, Map<String, dynamic>> documents) async {
+  Future<void> saveAll(
+    Map<String, Map<String, dynamic>> documents, {
+    bool requireRemote = false,
+  }) async {
     // Always save locally first for instant UI response and persistence
+    lastSaveReachedRemote = false;
     await local.saveAll(documents);
 
     // Sync to remote in background if connected
     if (isOnline) {
       try {
-        await remote.saveAll(documents);
+        await remote
+            .saveAll({...documents}..remove('adminDemo'))
+            .timeout(const Duration(seconds: 20));
+        lastSaveReachedRemote = true;
       } catch (e) {
-        if (strictRemote) rethrow;
+        if (strictRemote || requireRemote) rethrow;
         debugPrint('Sync to Firestore background error: $e');
       }
+    } else if (requireRemote) {
+      throw StateError('Firebase chưa kết nối. Dữ liệu đã được giữ trên máy.');
     }
   }
 

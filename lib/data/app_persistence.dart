@@ -12,6 +12,8 @@ import '../pages/tenant/discovery/tenant_favorites_store.dart';
 import 'local_database.dart';
 import 'local_auth.dart';
 import 'admin_store.dart';
+import 'firestore_repository.dart';
+import '../layouts/role_layout.dart';
 
 class AppPersistence {
   AppPersistence(this.repository, {this.cloudMode = false});
@@ -19,33 +21,34 @@ class AppPersistence {
   final bool cloudMode;
   static AppPersistence? current;
   final error = ValueNotifier<String?>(null);
+  bool cloudConfirmed = false;
+  final saveStatus = ValueNotifier<String>(
+    'Chỉnh sửa trực tiếp dữ liệu đang dùng',
+  );
   Future<void> _pending = Future.value();
   bool _scheduled = false;
   bool _disposed = false;
   final _subscriptions = <Listenable>{};
-
   Future<void> initialize() async {
     final data = await repository.readAll();
-    if (cloudMode) {
-      // Không để trạng thái tài khoản trước tồn tại nếu tài khoản mới thiếu một mục.
-      AdminStore.instance.restore({
-        'verified': <String, bool>{},
-        'hidden': <String>[],
-        'tickets': <dynamic>[],
-        'logs': <dynamic>[],
-        'acceptingViewings': true,
-      });
-      LandlordStaffStore.instance.restore({'nextId': 1, 'staff': <dynamic>[]});
-      if (data['portfolio'] == null) {
-        throw StateError('Chưa có dữ liệu được cấp cho tài khoản.');
-      }
+    final saved = data['portfolio'];
+    if (saved == null || (!cloudMode && data['auth'] == null)) {
+      throw StateError(
+        'Chưa tải được dữ liệu đã lưu. Kiểm tra Firebase hoặc bản lưu trên máy rồi mở lại ứng dụng.',
+      );
     }
     await LocalAuth.instance.initialize(data['auth']);
-    if (data['admin'] != null) AdminStore.instance.restore(data['admin']!);
-    final saved = data['portfolio'];
-    RentalPortfolio.instance = saved == null
-        ? RentalPortfolio.seeded()
-        : RentalPortfolio.fromMap(saved);
+    AdminStore.instance.restore(
+      data['admin'] ??
+          {
+            'verified': <String, bool>{},
+            'hidden': <String>[],
+            'tickets': <dynamic>[],
+            'logs': <dynamic>[],
+            'acceptingViewings': true,
+          },
+    );
+    RentalPortfolio.instance = RentalPortfolio.fromMap(saved);
     LandlordDemoStore.instance = cloudMode
         ? RentalPortfolio.instance.active
         : RentalPortfolio.instance.byId('may') ??
@@ -53,17 +56,15 @@ class AppPersistence {
     ConversationStore.instance.dispose();
     AccountStore.instance.dispose();
     ViewingStore.instance.dispose();
-    ConversationStore.instance = ConversationStore.demo();
+    ConversationStore.instance = ConversationStore();
     AccountStore.instance = AccountStore(rental: LandlordDemoStore.instance);
-    ViewingStore.instance = ViewingStore.demo(
+    ViewingStore.instance = ViewingStore(
+      [],
       rental: LandlordDemoStore.instance,
     );
     AnnouncementStore.reset();
     final conversations = ConversationStore.instance;
     final viewings = ViewingStore.instance;
-    if (data['viewings'] == null) {
-      viewings.seedPortfolio(RentalPortfolio.instance);
-    }
     final accounts = AccountStore.instance;
     final staff = LandlordStaffStore.instance;
     if (data['conversations'] != null) {
@@ -71,14 +72,23 @@ class AppPersistence {
     }
     if (data['viewings'] != null) viewings.restore(data['viewings']!);
     if (data['accounts'] != null) accounts.restore(data['accounts']!);
-    if (data['staff'] != null) staff.restore(data['staff']!);
+    staff.restore(data['staff'] ?? {'nextId': 1, 'staff': <dynamic>[]});
     TenantFavoritesStore.roomNames
       ..clear()
       ..addAll(List<String>.from(data['favorites']?['ids'] as List? ?? []));
     for (final store in RentalPortfolio.instance.stores) {
       final announcements = AnnouncementStore.forRental(store);
       final stored = data['announcements:${store.property.id}'];
-      if (stored != null) announcements.restore(stored);
+      announcements.restore(
+        stored ??
+            {
+              'sent': <dynamic>[],
+              'recipients': <String, dynamic>{},
+              'readByTenant': <String, dynamic>{},
+              'landlordRead': <String>[],
+              'nextId': 1,
+            },
+      );
     }
     if (!cloudMode) await repository.saveAll(_snapshot());
     for (final store in RentalPortfolio.instance.stores) {
@@ -124,15 +134,44 @@ class AppPersistence {
       }
       final snapshot = _snapshot();
       _pending = _pending.then((_) async {
+        cloudConfirmed = false;
+        saveStatus.value = 'Đang lưu dữ liệu…';
         try {
-          await repository.saveAll(snapshot);
+          final target = repository;
+          if (target is HybridRentalRepository) {
+            await target.saveAll(
+              snapshot,
+              requireRemote: LocalAuth.instance.role == AppRole.admin,
+            );
+          } else {
+            await target.saveAll(snapshot);
+          }
           error.value = null;
+          cloudConfirmed =
+              cloudMode ||
+              (target is HybridRentalRepository &&
+                  target.lastSaveReachedRemote);
+          saveStatus.value = cloudConfirmed
+              ? 'Đã lưu dữ liệu lên Firebase'
+              : 'Đã lưu trên máy · Firebase chưa kết nối';
         } catch (_) {
-          error.value =
-              'Chưa lưu được dữ liệu trên thiết bị. Vui lòng thử lại.';
+          error.value = 'Chưa hoàn tất lưu dữ liệu. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+          saveStatus.value = error.value!;
         }
       });
     });
+  }
+
+  Future<void> saveAdminChanges() async {
+    if (_disposed || LocalAuth.instance.role != AppRole.admin) {
+      throw ArgumentError('Chỉ quản trị viên được lưu thay đổi này.');
+    }
+    save();
+    await flush();
+    if (error.value != null) throw StateError(error.value!);
+    if (repository is! HybridRentalRepository && !cloudMode) {
+      throw StateError('Đã lưu trên máy nhưng chưa có kết nối Firebase.');
+    }
   }
 
   Future<void> flush() async {
@@ -149,6 +188,7 @@ class AppPersistence {
     _subscriptions.clear();
     await repository.close();
     error.dispose();
+    saveStatus.dispose();
     if (current == this) current = null;
   }
 }

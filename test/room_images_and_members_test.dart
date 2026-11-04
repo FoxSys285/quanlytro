@@ -209,8 +209,8 @@ void main() {
         ),
       );
       await home();
-      await tester.ensureVisible(find.text('Thêm thành viên'));
-      await tester.tap(find.text('Thêm thành viên'));
+      await tester.ensureVisible(find.text('Yêu cầu thêm thành viên'));
+      await tester.tap(find.text('Yêu cầu thêm thành viên'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Gửi yêu cầu'));
       await tester.pumpAndSettle();

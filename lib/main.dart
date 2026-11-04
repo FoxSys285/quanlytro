@@ -239,6 +239,7 @@ class _AuthenticatedAppState extends State<_AuthenticatedApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    LocalAuth.instance.setForeground(state == AppLifecycleState.resumed);
     if (state != AppLifecycleState.resumed) AppPersistence.current?.flush();
   }
 

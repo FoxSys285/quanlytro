@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../layouts/landlord_navigation.dart';
+import '../landlord_theme.dart';
+
 import '../landlord_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
 import '../landlord_demo_store.dart';
@@ -43,11 +46,10 @@ class _LandlordDanhSachTinNhanPageState
   // Hàm mở màn hình chat chi tiết với người thuê
   Future<void> _moKhungChat(LandlordConversation hoiThoai) async {
     _store.markRead(hoiThoai, landlord: true);
-    await Navigator.push(
+    await LandlordNavigation.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => LandlordTinNhanPage(conversation: hoiThoai),
-      ),
+      page: LandlordTinNhanPage(conversation: hoiThoai),
+      destinationId: 'conversations',
     );
     // Cập nhật lại danh sách sau khi quay về từ khung chat
     if (mounted) {
@@ -93,7 +95,10 @@ class _LandlordDanhSachTinNhanPageState
         final List<Widget> cotBenPhai = [
           Text(
             hoiThoai.lastMessage.time,
-            style: const TextStyle(color: landlordMuted, fontSize: 11),
+            style: TextStyle(
+              color: LandlordPalette.of(context).muted,
+              fontSize: 11,
+            ),
           ),
         ];
 
@@ -105,7 +110,7 @@ class _LandlordDanhSachTinNhanPageState
               backgroundColor: landlordBlue,
               child: Text(
                 '${hoiThoai.unread}',
-                style: const TextStyle(color: Colors.white, fontSize: 10),
+                style: TextStyle(color: Colors.white, fontSize: 10),
               ),
             ),
           );
@@ -123,7 +128,7 @@ class _LandlordDanhSachTinNhanPageState
                 backgroundColor: landlordBlue.withValues(alpha: 0.1),
                 child: Text(
                   hoiThoai.tenantName[0],
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: landlordBlue,
                     fontWeight: FontWeight.w700,
                   ),

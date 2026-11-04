@@ -51,7 +51,7 @@ void main() {
       find.byType(LandlordRoomButton),
       findsNWidgets(LandlordDemoStore.rooms.length),
     );
-    expect(find.text('Phòng A.302'), findsOneWidget);
+    expect(find.text('A.302'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -72,7 +72,7 @@ void main() {
         ),
       );
       expect(find.byType(LandlordRoomButton), findsNWidgets(6));
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Phòng trống'));
+      await tester.tap(find.text('Phòng trống (3)'));
       await tester.pumpAndSettle();
       expect(find.byType(LandlordRoomButton), findsNWidgets(3));
       await tester.enterText(find.byType(TextField), '102');
@@ -92,7 +92,9 @@ void main() {
       await tester.tap(find.text('Tầng 2').last);
       await tester.pumpAndSettle();
       expect(find.byType(LandlordRoomButton), findsNWidgets(2));
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Đang thuê'));
+      await tester.ensureVisible(find.text('Đang thuê (3)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Đang thuê (3)'));
       await tester.pumpAndSettle();
       expect(find.text('Không có phòng phù hợp với bộ lọc.'), findsOneWidget);
       expect(tester.takeException(), isNull);

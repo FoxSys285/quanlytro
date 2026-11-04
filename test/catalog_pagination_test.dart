@@ -140,10 +140,13 @@ void main() {
   testWidgets('AI entry points removed for both roles', (tester) async {
     for (final layout in [const TenantLayout(), const LandlordLayout()]) {
       await tester.pumpWidget(MaterialApp(home: layout));
-      await tester.pumpAndSettle();
+      // The embedded location picker can keep waiting for a platform response.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
       expect(find.byTooltip('Mở trợ lý AI'), findsNothing);
       await tester.tap(find.byTooltip('Mở danh mục chức năng'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
       expect(find.text('Trợ lý AI'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
     }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../landlord_theme.dart';
+
 import '../models/landlord_announcement.dart';
 
 enum _Audience { all, floor, room }
@@ -50,7 +52,7 @@ class _LandlordAnnouncementComposerState
     final floors = _property.rooms.values.toSet().toList()..sort();
     final rooms = _recipients;
     return AlertDialog(
-      backgroundColor: Colors.white,
+      backgroundColor: LandlordPalette.of(context).surface,
       surfaceTintColor: Colors.transparent,
       title: const Text('Tạo thông báo'),
       content: SizedBox(
@@ -70,9 +72,7 @@ class _LandlordAnnouncementComposerState
                 DropdownButtonFormField<_Audience>(
                   initialValue: _audience,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Đối tượng nhận',
-                  ),
+                  decoration: InputDecoration(labelText: 'Đối tượng nhận'),
                   items: const [
                     DropdownMenuItem(
                       value: _Audience.all,
@@ -99,7 +99,7 @@ class _LandlordAnnouncementComposerState
                     key: ValueKey('$_propertyId:${_audience.name}'),
                     initialValue: _target,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Chọn tầng'),
+                    decoration: InputDecoration(labelText: 'Chọn tầng'),
                     items: [
                       for (final floor in floors)
                         DropdownMenuItem(
@@ -202,7 +202,7 @@ class _LandlordAnnouncementComposerState
                 DropdownButtonFormField<AnnouncementCategory>(
                   initialValue: _category,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Phân loại'),
+                  decoration: InputDecoration(labelText: 'Phân loại'),
                   items: [
                     for (final category in AnnouncementCategory.values)
                       DropdownMenuItem(
@@ -216,9 +216,7 @@ class _LandlordAnnouncementComposerState
                 DropdownButtonFormField<AnnouncementPriority>(
                   initialValue: _priority,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Mức độ ưu tiên',
-                  ),
+                  decoration: InputDecoration(labelText: 'Mức độ ưu tiên'),
                   items: [
                     for (final priority in AnnouncementPriority.values)
                       DropdownMenuItem(
@@ -232,7 +230,7 @@ class _LandlordAnnouncementComposerState
                 TextFormField(
                   controller: _title,
                   maxLength: 120,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Tiêu đề',
                     hintText: 'Ví dụ: Tầng 2 - Thông báo cúp điện',
                   ),
@@ -246,7 +244,7 @@ class _LandlordAnnouncementComposerState
                   minLines: 4,
                   maxLines: 8,
                   maxLength: 2000,
-                  decoration: const InputDecoration(labelText: 'Nội dung'),
+                  decoration: InputDecoration(labelText: 'Nội dung'),
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Nhập nội dung thông báo.'
                       : null,

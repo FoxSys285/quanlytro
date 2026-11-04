@@ -11,14 +11,22 @@ void main() {
     await tester.tap(find.byTooltip('Mở danh mục chức năng'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Lịch xem phòng'),
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Lịch xem phòng'),
+      ),
       200,
       scrollable: find.descendant(
         of: find.byType(Drawer),
         matching: find.byType(Scrollable),
       ),
     );
-    await tester.tap(find.text('Lịch xem phòng'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Lịch xem phòng'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(LandlordViewingsPage), findsOneWidget);
     expect(find.byType(LandlordViewingCard), findsNWidgets(6));

@@ -37,6 +37,23 @@ class LocalAuth extends ChangeNotifier {
   final _disabled = <String>{};
   AppRole? _role;
   AppRole? get role => _role;
+  bool _foreground = true;
+  bool get isForeground => _foreground;
+  void setForeground(bool value) {
+    if (_foreground == value) return;
+    _foreground = value;
+    notifyListeners();
+  }
+
+  // Chỉ trả thông tin quản lý, không đưa hash/salt ra giao diện.
+  List<({String email, AppRole role, bool disabled})> get localAccounts => [
+    for (final entry in _credentials.entries)
+      (
+        email: entry.key,
+        role: AppRole.values.byName(entry.value['role'] as String),
+        disabled: _disabled.contains(entry.key),
+      ),
+  ];
   static String emailFor(AppRole role) => '${role.name}@tro.local';
 
   Future<void> initialize([Map<String, dynamic>? saved]) async {
