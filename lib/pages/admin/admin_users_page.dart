@@ -127,9 +127,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           subtitle: 'Tìm đúng người, kiểm tra hồ sơ và trạng thái tài khoản.',
           children: [
             const AdminSyncBar(),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20),
+            AdminPanel(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: _count(
@@ -138,7 +138,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                       Icons.manage_accounts_outlined,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: _count(
                       '$members',
@@ -147,7 +147,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                       color: adminTeal,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: _count(
                       '${accounts?.where((a) => a.disabled).length ?? '—'}',
@@ -159,71 +159,85 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                 ],
               ),
             ),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(
-                  value: 'accounts',
-                  label: Text('Tài khoản'),
-                  icon: Icon(Icons.badge_outlined, size: 18),
-                ),
-                ButtonSegment(
-                  value: 'members',
-                  label: Text('Người thuê'),
-                  icon: Icon(Icons.groups_outlined, size: 18),
-                ),
-              ],
-              selected: {_segment},
-              onSelectionChanged: (v) => setState(() {
-                _segment = v.single;
-                _query = '';
-                _page = 0;
-              }),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              key: ValueKey(_segment),
-              decoration: InputDecoration(
-                labelText: _segment == 'members'
-                    ? 'Tìm tên, điện thoại hoặc phòng'
-                    : 'Tìm tên, email hoặc mã tài khoản',
-                prefixIcon: const Icon(Icons.search_rounded),
-              ),
-              onChanged: (v) => setState(() {
-                _query = v.trim().toLowerCase();
-                _page = 0;
-              }),
-            ),
-            const SizedBox(height: 14),
-            if (_segment == 'members')
-              ..._members(context)
-            else ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+            AdminPanel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final item in [
-                    (id: 'all', label: 'Tất cả'),
-                    ...AppRole.values.map((r) => (id: r.name, label: r.label)),
-                  ])
-                    ChoiceChip(
-                      label: Text(item.label),
-                      selected: _role == item.id,
-                      onSelected: (_) => setState(() {
-                        _role = item.id;
-                        _page = 0;
-                      }),
-                    ),
-                  FilterChip(
-                    label: const Text('Đang khóa'),
-                    selected: _lockedOnly,
-                    onSelected: (v) => setState(() {
-                      _lockedOnly = v;
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'accounts',
+                        label: Text('Tài khoản'),
+                        icon: Icon(Icons.badge_outlined, size: 18),
+                      ),
+                      ButtonSegment(
+                        value: 'members',
+                        label: Text('Người thuê'),
+                        icon: Icon(Icons.groups_outlined, size: 18),
+                      ),
+                    ],
+                    selected: {_segment},
+                    onSelectionChanged: (v) => setState(() {
+                      _segment = v.single;
+                      _query = '';
                       _page = 0;
                     }),
                   ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    key: ValueKey(_segment),
+                    decoration: InputDecoration(
+                      labelText: _segment == 'members'
+                          ? 'Tìm tên, điện thoại hoặc phòng'
+                          : 'Tìm tên, email hoặc mã tài khoản',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                    ),
+                    onChanged: (v) => setState(() {
+                      _query = v.trim().toLowerCase();
+                      _page = 0;
+                    }),
+                  ),
+                  if (_segment == 'accounts') ...[
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final item in [
+                          (id: 'all', label: 'Tất cả'),
+                          ...AppRole.values.map(
+                            (r) => (id: r.name, label: r.label),
+                          ),
+                        ])
+                          ChoiceChip(
+                            label: Text(item.label),
+                            selected: _role == item.id,
+                            onSelected: (_) => setState(() {
+                              _role = item.id;
+                              _page = 0;
+                            }),
+                          ),
+                        FilterChip(
+                          label: const Text('Đang khóa'),
+                          selected: _lockedOnly,
+                          onSelected: (v) => setState(() {
+                            _lockedOnly = v;
+                            _page = 0;
+                          }),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 16),
+            ),
+            if (_segment == 'members')
+              ..._members(context)
+            else ...[
+              AdminSection(
+                'Danh sách tài khoản',
+                caption: '${matched.length} tài khoản phù hợp',
+              ),
               if (snapshot.connectionState == ConnectionState.waiting &&
                   auth.isCloudMode)
                 const LinearProgressIndicator(),
@@ -246,7 +260,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                 const Padding(
                   padding: EdgeInsets.only(bottom: 16),
                   child: Text(
-                    'Tài khoản máy chủ chỉ được xem tại đây. Liên hệ quản trị hệ thống để khóa hoặc mở khóa.',
+                    'Khóa tài khoản sẽ tạm chặn quyền truy cập ứng dụng; hợp đồng và lịch sử vẫn được giữ.',
                     style: TextStyle(color: adminMuted, fontSize: 12),
                   ),
                 ),
@@ -276,39 +290,25 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     String label,
     IconData icon, {
     Color color = adminBlue,
-  }) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.09),
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Column(
-      children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(height: 10),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 23,
-            fontWeight: FontWeight.w700,
-            color: adminInk,
-          ),
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      ExcludeSemantics(child: Icon(icon, color: color, size: 22)),
+      const SizedBox(height: 10),
+      Text(
+        value,
+        style: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          color: adminInk,
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: adminMuted),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    ),
+      ),
+      const SizedBox(height: 4),
+      Text(label, style: const TextStyle(fontSize: 12, color: adminMuted)),
+    ],
   );
 
-  Color _roleColor(String role) => role == 'admin'
-      ? adminPurple
-      : role == 'landlord'
-      ? adminTeal
-      : adminBlue;
+  Color _roleColor(String role) => role == 'landlord' ? adminTeal : adminBlue;
 
   Widget _account(BuildContext context, AdminAccount account) => AdminPanel(
     child: Column(
@@ -318,7 +318,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           children: [
             CircleAvatar(
               backgroundColor: account.disabled
-                  ? const Color(0xFFFBEDEC)
+                  ? adminOrange.withValues(alpha: 0.08)
                   : _roleColor(account.role).withValues(alpha: 0.1),
               foregroundColor: account.disabled
                   ? adminOrange
@@ -421,7 +421,20 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                           }
                         }
                       },
-                child: Text(account.disabled ? 'Mở khóa' : 'Khóa tài khoản'),
+                child: _updatingAccounts.contains(account.id)
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text('Đang cập nhật'),
+                        ],
+                      )
+                    : Text(account.disabled ? 'Mở khóa' : 'Khóa tài khoản'),
               ),
           ],
         ),
@@ -485,8 +498,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                       children: [
                         CircleAvatar(
                           backgroundColor: e.member.isRepresentative
-                              ? const Color(0xFFEEEFFC)
-                              : const Color(0xFFE0F2ED),
+                              ? adminBlue.withValues(alpha: 0.08)
+                              : adminTeal.withValues(alpha: 0.08),
                           foregroundColor: e.member.isRepresentative
                               ? adminBlue
                               : adminTeal,
@@ -539,7 +552,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                                         e.member.status ==
                                             LeaseMemberStatus.active
                                         ? adminGreen
-                                        : adminGold,
+                                        : e.member.status ==
+                                              LeaseMemberStatus.pending
+                                        ? adminGold
+                                        : adminOrange,
                                   ),
                                 ],
                               ),

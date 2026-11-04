@@ -48,7 +48,7 @@ Ba UID do người dùng cung cấp đã được gán admin/tenant/landlord the
 - Firestore Emulator (`demo-quanlytro`, không phải production): kiểm quyền công khai/riêng, truy vấn theo tenant/owner, chống nâng role, khóa tài khoản, duyệt tiền, tin nhắn bất biến, nhà bị ẩn và tạo nhà/phòng cùng transaction PASS.
 - Import Excel: **4 Python test PASS**, gồm validation, workbook → codec Firestore, SQLite add-only/backup/giữ dữ liệu cũ và đăng nhập admin nhập mật khẩu ẩn, từ chối tài khoản sai quyền.
 - Workbook có bốn sheet nhập trống và hai sheet hướng dẫn/ví dụ; đã xem preview cả sáu sheet. Chưa kiểm trên Excel desktop.
-- APK cloud debug build thành công: `build/app/outputs/flutter-apk/app-cloud-debug.apk`. SHA256: `741aee3a548f235bea81d77d1dc26cc5445d0646cd47d4ce318f906b03ca5531`.
+- APK cloud debug mới nhất sau khi hoàn thiện giao diện: `build/app/outputs/flutter-apk/app-cloud-debug.apk`. SHA256: `f53a279356b1c6ae9f76cbc40b8635e2f6f5d6087f76ca143036c93835bd782d`.
 
 Lệnh chạy lại:
 
@@ -70,6 +70,14 @@ Chưa đăng nhập ba tài khoản trên thiết bị thật vì mật khẩu d
 
 Khóa bằng `users.disabled` chặn quyền dữ liệu ứng dụng, không xóa tài khoản Firebase Auth hoặc thu hồi refresh token qua Admin SDK. Tài khoản chưa được cấp vai trò vẫn không vào dữ liệu riêng. Chủ trọ/admin hoàn toàn chưa có nhà chưa có màn onboarding rỗng; đợt chuyển hiện tại đã cấp 10 nhà cho chủ trọ được chỉ định.
 
-Giao diện admin/chat/yêu thích và generated Windows đang có thay đổi đồng thời của Anti/người dùng; Codex giữ nguyên và không đưa các thay đổi ngoài phạm vi đó vào commit backend.
+Giao diện admin chung/dashboard của Anti được review và tích hợp cùng lượt hoàn thiện Users/Commission tiếp theo. Các thay đổi chat tenant/yêu thích và generated Windows được giữ riêng, không đưa vào commit giao diện admin.
+
+## Hoàn thiện giao diện Users/Commission
+
+Đã gom nhóm bộ lọc tài khoản, thống nhất theme và màu trạng thái, hiển thị trạng thái đang khóa/mở, làm rõ bảng tiền đối soát và kết quả tìm kiếm rỗng. Các phép tính hoa hồng và hành động nghiệp vụ được giữ nguyên. Tương phản chữ badge với nền được kiểm tra cho bảng màu hiện tại (tối thiểu 4,85:1).
+
+Kiểm tra widget bao phủ 320/390/768/1440px; 320px có chữ 130%. Đã sửa ảnh thẻ dashboard co lại theo chỗ còn trống để không đẩy chữ tràn khỏi thẻ. Ảnh review được render từ widget Flutter ở 390px và 1440px trong `.impeccable/review/`; đây không phải ảnh chụp từ Android emulator. Hiện không có thiết bị nào trong `adb devices`.
+
+Lượt cuối của phần giao diện: **18 test admin PASS**, gồm tìm kiếm/lọc, trạng thái rỗng, chỉnh hồ sơ, khóa/mở tài khoản, kiểm tra đối soát và render preview. Analyze toàn dự án sạch; APK cloud debug build thành công. Không chạy lại ghi dữ liệu production trong lượt giao diện này.
 
 Mẫu nhập và cách dùng: [DATA_IMPORT.md](DATA_IMPORT.md). Đối chiếu kỹ thuật: [Firestore listeners](https://firebase.google.com/docs/firestore/query-data/listen), [transactions](https://firebase.google.com/docs/firestore/manage-data/transactions), [Firebase Auth](https://firebase.google.com/docs/auth/flutter/password-auth).

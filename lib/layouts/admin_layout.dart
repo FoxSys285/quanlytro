@@ -69,7 +69,7 @@ class AdminLayout extends StatelessWidget {
             minimumSize: const Size(48, 48),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             foregroundColor: adminBlue,
-            side: const BorderSide(color: Color(0xFFD9DCEE)),
+            side: const BorderSide(color: adminLine),
             textStyle: Theme.of(context).textTheme.labelLarge
                 ?.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
             shape: RoundedRectangleBorder(
@@ -85,13 +85,38 @@ class AdminLayout extends StatelessWidget {
           ).copyWith(enableFeedback: true),
         ),
         chipTheme: Theme.of(context).chipTheme.copyWith(
-          selectedColor: const Color(0xFFE9EAFA),
+          backgroundColor: Colors.white,
+          selectedColor: adminBlue.withValues(alpha: 0.1),
+          checkmarkColor: adminBlue,
           labelStyle: Theme.of(context).textTheme.labelLarge
               ?.copyWith(fontSize: 13, color: adminInk),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
           side: const BorderSide(color: adminLine),
+        ),
+        segmentedButtonTheme: SegmentedButtonThemeData(
+          style: ButtonStyle(
+            minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+            textStyle: WidgetStatePropertyAll(
+              Theme.of(context).textTheme.labelLarge
+                  ?.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            foregroundColor: WidgetStateProperty.resolveWith(
+              (states) => states.contains(WidgetState.selected)
+                  ? adminBlue
+                  : adminMuted,
+            ),
+            backgroundColor: WidgetStateProperty.resolveWith(
+              (states) => states.contains(WidgetState.selected)
+                  ? adminBlue.withValues(alpha: 0.1)
+                  : Colors.white,
+            ),
+            side: const WidgetStatePropertyAll(BorderSide(color: adminLine)),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
         ),
         bottomSheetTheme: const BottomSheetThemeData(
           backgroundColor: Colors.white,

@@ -35,7 +35,17 @@ class AdminDashboard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            color: const Color(0xFF1D2E50),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF0F172A),
+                  Color(0xFF1E293B),
+                  Color(0xFF1E1B4B),
+                ],
+              ),
+            ),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1120),
@@ -56,17 +66,17 @@ class AdminDashboard extends StatelessWidget {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              Color(0xFF1D2E50),
-                              Color(0xF21D2E50),
-                              Color(0xA61D2E50),
+                              Color(0xFF0F172A),
+                              Color(0xF20F172A),
+                              Color(0xB31E293B),
                             ],
-                            stops: [0, 0.42, 1],
+                            stops: [0, 0.45, 1],
                           ),
                         ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 22),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -75,7 +85,7 @@ class AdminDashboard extends StatelessWidget {
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 24,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w800,
                               letterSpacing: -0.5,
                             ),
                           ),
@@ -110,7 +120,7 @@ class AdminDashboard extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 22),
                           IntrinsicHeight(
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -121,19 +131,19 @@ class AdminDashboard extends StatelessWidget {
                                       : '${auth.localAccounts.length}',
                                   'Tài khoản',
                                   Icons.people_alt_outlined,
-                                  const Color(0xFF9AE3CD),
+                                  const Color(0xFF34D399),
                                 ),
                                 _stat(
                                   '${stores.length}',
                                   'Nhà trọ',
                                   Icons.apartment_rounded,
-                                  const Color(0xFFFFD29A),
+                                  const Color(0xFFFBBF24),
                                 ),
                                 _stat(
                                   '$occupied / $rooms',
                                   'Phòng đang thuê',
                                   Icons.door_front_door_outlined,
-                                  const Color(0xFFCDD4FF),
+                                  const Color(0xFF818CF8),
                                 ),
                               ],
                             ),
@@ -159,6 +169,14 @@ class AdminDashboard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: FilledButton.tonalIcon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: adminBlue.withValues(alpha: 0.1),
+                              foregroundColor: adminBlue,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
                             onPressed: () => RoleLayoutShell.navigateTo(
                               context,
                               'property_verification',
@@ -173,6 +191,13 @@ class AdminDashboard extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: const BorderSide(color: adminLine),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
                             onPressed: () =>
                                 RoleLayoutShell.navigateTo(context, 'support'),
                             icon: const Icon(
@@ -228,7 +253,7 @@ class AdminDashboard extends StatelessWidget {
                               : c.maxWidth - 24;
                           return SizedBox(
                             height:
-                                248 +
+                                252 +
                                 (MediaQuery.textScalerOf(context).scale(14) -
                                         14) *
                                     6,
@@ -247,26 +272,46 @@ class AdminDashboard extends StatelessWidget {
                       ),
                     const SizedBox(height: 20),
                     AdminPanel(
-                      backgroundColor: const Color(0xFFEEEFFC),
+                      backgroundColor: const Color(0xFFEEF2FF),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Row(
                             children: [
-                              const Icon(
-                                Icons.account_balance_wallet_outlined,
-                                color: adminBlue,
-                                size: 24,
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: adminBlue.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.account_balance_wallet_rounded,
+                                  color: adminBlue,
+                                  size: 24,
+                                ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 14),
                               const Expanded(
-                                child: Text(
-                                  'Đối soát hoa hồng',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: adminInk,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Đối soát hoa hồng',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: adminInk,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Còn phải thu trong các kỳ đã chốt',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: adminMuted,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               Flexible(
@@ -282,14 +327,10 @@ class AdminDashboard extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Còn phải thu trong các kỳ đã chốt',
-                            style: TextStyle(fontSize: 12, color: adminMuted),
-                          ),
+                          const SizedBox(height: 12),
                           Align(
                             alignment: Alignment.centerRight,
-                            child: TextButton.icon(
+                            child: FilledButton.tonalIcon(
                               onPressed: () => RoleLayoutShell.navigateTo(
                                 context,
                                 'commissions',
@@ -316,7 +357,7 @@ class AdminDashboard extends StatelessWidget {
                               onTap: () => _preview(context, stores[i]),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 4,
+                                  vertical: 6,
                                 ),
                                 child: Row(
                                   children: [
@@ -344,8 +385,32 @@ class AdminDashboard extends StatelessWidget {
                                             ),
                                           ),
                                           const SizedBox(height: 5),
-                                          Text(
-                                            '${stores[i].catalog.length} phòng · ${admin.isVerified(stores[i].property.id) ? 'Đã xác minh' : 'Chưa xác minh'}',
+                                          Text.rich(
+                                            TextSpan(
+                                              children: [
+                                                TextSpan(
+                                                  text:
+                                                      '${stores[i].catalog.length} phòng · ',
+                                                ),
+                                                TextSpan(
+                                                  text:
+                                                      admin.isVerified(
+                                                        stores[i].property.id,
+                                                      )
+                                                      ? 'Đã xác minh'
+                                                      : 'Chưa xác minh',
+                                                  style: TextStyle(
+                                                    color:
+                                                        admin.isVerified(
+                                                          stores[i].property.id,
+                                                        )
+                                                        ? adminGreen
+                                                        : adminGold,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                             style: const TextStyle(
                                               fontSize: 12,
                                               color: adminMuted,
@@ -397,7 +462,14 @@ class AdminDashboard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: accent, size: 19),
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: accent, size: 18),
+              ),
               const SizedBox(height: 10),
               Text(
                 value,
@@ -408,7 +480,7 @@ class AdminDashboard extends StatelessWidget {
                   letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 label,
                 style: const TextStyle(color: Color(0xFFD1DCF2), fontSize: 12),
@@ -426,13 +498,16 @@ class AdminDashboard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: adminLine),
       ),
+      elevation: 0,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _preview(context, store),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AdminPropertyPhoto(property: store.property, height: 116),
+            Flexible(
+              child: AdminPropertyPhoto(property: store.property, height: 116),
+            ),
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(

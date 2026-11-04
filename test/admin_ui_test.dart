@@ -25,7 +25,17 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       RentalPortfolio.instance = RentalPortfolio.seeded();
       // Không mở SQLite/Firebase trong kiểm tra giao diện.
-      await tester.pumpWidget(const MaterialApp(home: AdminLayout()));
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(width == 320 ? 1.3 : 1)),
+            child: child!,
+          ),
+          home: const AdminLayout(),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Toàn cảnh nền tảng'), findsOneWidget);
       await tester.ensureVisible(find.text('Mở đối soát'));
@@ -43,6 +53,12 @@ void main() {
       ]) {
         await tester.pumpWidget(
           MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(width == 320 ? 1.3 : 1)),
+              child: child!,
+            ),
             home: Scaffold(
               body: KeyedSubtree(
                 key: ValueKey(id),
@@ -258,7 +274,7 @@ void main() {
         picture.dispose();
       },
     );
-    for (final width in [390.0]) {
+    for (final width in [390.0, 1440.0]) {
       tester.view.physicalSize = Size(width, 900);
       final key = GlobalKey();
       await tester.pumpWidget(
@@ -288,7 +304,7 @@ void main() {
       });
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      const prefix = 'phone-widget';
+      final prefix = width < 600 ? 'phone-widget' : 'desktop-widget';
       await capture(key, prefix);
       await tester.runAsync(() async {
         final boundary =
@@ -433,6 +449,15 @@ void main() {
     await tester.tap(destination('Hoa hồng'));
     await tester.pumpAndSettle();
     expect(find.text('Cơ sở tính:'), findsOneWidget);
+    await tester.enterText(
+      find.byType(TextField).first,
+      'không có nhà này xyz',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Không có nhà trọ phù hợp.'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Mây House'), findsOneWidget);
     await tester.tap(destination('Thêm'));
     await tester.pumpAndSettle();
     expect(find.byType(Drawer), findsOneWidget);

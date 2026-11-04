@@ -46,40 +46,68 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
       });
       final now = DateTime.now();
       final closedMonth = _month.isBefore(DateTime(now.year, now.month));
+      final filteredStores = _portfolio.stores.where((store) {
+        if (!'${store.property.name} ${store.property.ownerName}'
+            .toLowerCase()
+            .contains(_query)) {
+          return false;
+        }
+        final statement = statements
+            .where((s) => s.propertyId == store.property.id)
+            .firstOrNull;
+        final state = statement == null
+            ? 'draft'
+            : statement.remaining == 0
+            ? 'paid'
+            : statement.received > 0
+            ? 'partial'
+            : 'waiting';
+        return _filter == 'all' || _filter == state;
+      }).toList();
       return AdminFrame(
         title: 'Đối soát hoa hồng',
         subtitle: 'Chốt hoa hồng từng tháng, theo dõi công nợ và chứng từ.',
         children: [
           const AdminSyncBar(),
-          Row(
-            children: [
-              IconButton(
-                tooltip: 'Tháng trước',
-                onPressed: () => setState(
-                  () => _month = DateTime(_month.year, _month.month - 1),
-                ),
-                icon: const Icon(Icons.chevron_left),
-              ),
-              Expanded(
-                child: Text(
-                  landlordMonth(_month),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Tháng trước',
+                    onPressed: () => setState(
+                      () => _month = DateTime(_month.year, _month.month - 1),
+                    ),
+                    icon: const Icon(Icons.chevron_left),
                   ),
-                ),
+                  Expanded(
+                    child: Text(
+                      landlordMonth(_month),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: adminInk,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Tháng sau',
+                    onPressed: _month.isBefore(DateTime(now.year, now.month))
+                        ? () => setState(
+                            () => _month = DateTime(
+                              _month.year,
+                              _month.month + 1,
+                            ),
+                          )
+                        : null,
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
               ),
-              IconButton(
-                tooltip: 'Tháng sau',
-                onPressed: _month.isBefore(DateTime(now.year, now.month))
-                    ? () => setState(
-                        () => _month = DateTime(_month.year, _month.month + 1),
-                      )
-                    : null,
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
+            ),
           ),
           const SizedBox(height: 20),
           _summary(statements, forecast),
@@ -108,34 +136,26 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
             onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final item in [
-                  (id: 'all', label: 'Tất cả'),
-                  (id: 'draft', label: 'Chưa chốt'),
-                  (id: 'waiting', label: 'Chờ thu'),
-                  (id: 'partial', label: 'Thu một phần'),
-                  (id: 'paid', label: 'Thu đủ'),
-                ])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(item.label),
-                      selected: _filter == item.id,
-                      onSelected: (_) => setState(() => _filter = item.id),
-                    ),
-                  ),
-              ],
-            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final item in [
+                (id: 'all', label: 'Tất cả'),
+                (id: 'draft', label: 'Chưa chốt'),
+                (id: 'waiting', label: 'Chờ thu'),
+                (id: 'partial', label: 'Thu một phần'),
+                (id: 'paid', label: 'Thu đủ'),
+              ])
+                ChoiceChip(
+                  label: Text(item.label),
+                  selected: _filter == item.id,
+                  onSelected: (_) => setState(() => _filter = item.id),
+                ),
+            ],
           ),
           const SizedBox(height: 16),
-          for (final store in _portfolio.stores.where(
-            (s) => '${s.property.name} ${s.property.ownerName}'
-                .toLowerCase()
-                .contains(_query),
-          ))
+          for (final store in filteredStores)
             Builder(
               builder: (context) {
                 final matches = statements.where(
@@ -157,38 +177,30 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                     : statement.received > 0
                     ? 'partial'
                     : 'waiting';
-                if (_filter != 'all' && _filter != state) {
-                  return const SizedBox.shrink();
-                }
                 final statusColor = state == 'paid'
                     ? adminGreen
                     : state == 'draft'
                     ? adminBlue
-                    : state == 'partial'
-                    ? adminOrange
                     : adminGold;
                 return AdminPanel(
-                  padding: const EdgeInsets.all(12),
-                  backgroundColor: state == 'paid'
-                      ? const Color(0xFFEDF7F2)
-                      : state == 'draft'
-                      ? const Color(0xFFF0F0FC)
-                      : Colors.white,
+                  padding: const EdgeInsets.all(16),
                   child: ExpansionTile(
                     tilePadding: EdgeInsets.zero,
                     childrenPadding: const EdgeInsets.only(top: 12),
                     leading: SizedBox(
-                      width: 62,
+                      width: 48,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: AdminPropertyPhoto(
                           property: store.property,
-                          height: 66,
+                          height: 56,
                         ),
                       ),
                     ),
                     title: Text(
                       store.property.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -200,7 +212,7 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          AdminStatus(
                             state == 'draft'
                                 ? 'Chưa chốt'
                                 : state == 'paid'
@@ -208,11 +220,7 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                                 : state == 'partial'
                                 ? 'Thu một phần'
                                 : 'Chờ thu',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: statusColor,
-                            ),
+                            color: statusColor,
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -224,7 +232,7 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: statusColor,
+                              color: adminInk,
                             ),
                           ),
                         ],
@@ -244,18 +252,6 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                             runSpacing: 8,
                             children: [
                               AdminStatus(
-                                statement == null
-                                    ? 'Chưa chốt'
-                                    : statement.remaining == 0
-                                    ? 'Đã thu đủ'
-                                    : statement.received > 0
-                                    ? 'Đã thu một phần'
-                                    : 'Chờ thu',
-                                color: statement?.remaining == 0
-                                    ? adminGreen
-                                    : adminGold,
-                              ),
-                              AdminStatus(
                                 appliedRate == null
                                     ? 'Chưa đặt tỷ lệ'
                                     : '${appliedRate / 100}% hoa hồng',
@@ -263,19 +259,77 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          Text(
-                            'Tiền phòng đã thu: ${formatLandlordMoney(base)}',
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Hoa hồng${statement == null ? ' dự kiến' : ' phải thu'}: ${due == null ? 'Chưa thiết lập' : formatLandlordMoney(due)}',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          Table(
+                            columnWidths: const {
+                              0: FlexColumnWidth(1.25),
+                              1: FlexColumnWidth(),
+                            },
+                            defaultVerticalAlignment:
+                                TableCellVerticalAlignment.middle,
+                            children: [
+                              for (final line in [
+                                (
+                                  label: 'Tiền phòng đã thu',
+                                  value: formatLandlordMoney(base),
+                                ),
+                                (
+                                  label:
+                                      'Hoa hồng${statement == null ? ' dự kiến' : ' phải thu'}',
+                                  value: due == null
+                                      ? 'Chưa thiết lập'
+                                      : formatLandlordMoney(due),
+                                ),
+                                if (statement != null) ...[
+                                  (
+                                    label: 'Đã nhận',
+                                    value: formatLandlordMoney(
+                                      statement.received,
+                                    ),
+                                  ),
+                                  (
+                                    label: 'Còn lại',
+                                    value: formatLandlordMoney(
+                                      statement.remaining,
+                                    ),
+                                  ),
+                                ],
+                              ])
+                                TableRow(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        0,
+                                        7,
+                                        12,
+                                        7,
+                                      ),
+                                      child: Text(
+                                        line.label,
+                                        style: const TextStyle(
+                                          color: adminMuted,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 7,
+                                      ),
+                                      child: Text(
+                                        line.value,
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                          color: adminInk,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
                           ),
                           if (statement != null) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              'Đã nhận: ${formatLandlordMoney(statement.received)} · Còn lại: ${formatLandlordMoney(statement.remaining)}',
-                            ),
                             const SizedBox(height: 6),
                             Text(
                               'Chốt ngày ${landlordDate(statement.createdAt)}. Cơ sở và tỷ lệ của kỳ này đã được giữ nguyên.',
@@ -398,27 +452,27 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                 );
               },
             ),
-          if (!_portfolio.stores.any((store) {
-            if (!'${store.property.name} ${store.property.ownerName}'
-                .toLowerCase()
-                .contains(_query)) {
-              return false;
-            }
-            final statement = statements
-                .where((s) => s.propertyId == store.property.id)
-                .firstOrNull;
-            final state = statement == null
-                ? 'draft'
-                : statement.remaining == 0
-                ? 'paid'
-                : statement.received > 0
-                ? 'partial'
-                : 'waiting';
-            return _filter == 'all' || _filter == state;
-          }))
+          if (filteredStores.isEmpty)
             const AdminPanel(
-              child: Text(
-                'Không có nhà trọ phù hợp. Thử từ khóa hoặc trạng thái khác.',
+              child: Column(
+                children: [
+                  Icon(Icons.search_off_rounded, size: 32, color: adminMuted),
+                  SizedBox(height: 12),
+                  Text(
+                    'Không có nhà trọ phù hợp.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: adminInk,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Thử từ khóa hoặc trạng thái khác.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: adminMuted),
+                  ),
+                ],
               ),
             ),
         ],
@@ -472,135 +526,110 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
   Widget _summary(List<CommissionStatement> statements, int forecast) {
     final total = statements.fold<int>(0, (n, s) => n + s.due);
     final received = statements.fold<int>(0, (n, s) => n + s.received);
+    final secondary = Colors.white.withValues(alpha: 0.78);
+    final receivedColor = Color.lerp(adminGreen, Colors.white, 0.55)!;
     return AdminPanel(
-      backgroundColor: const Color(0xFF1D2E50),
-      child: Stack(
+      backgroundColor: adminInk,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Positioned(
-            right: -12,
-            top: -8,
-            child: ExcludeSemantics(
-              child: Icon(
-                Icons.account_balance_wallet_rounded,
-                size: 110,
-                color: Color(0x18FFFFFF),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.account_balance_wallet_outlined,
-                    color: Color(0xFF9AE3CD),
-                    size: 21,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      statements.isEmpty ? 'Hoa hồng dự kiến' : 'Còn phải thu',
-                      style: const TextStyle(
-                        color: Color(0xFFD1DCF2),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: receivedColor,
+                size: 21,
               ),
-              const SizedBox(height: 12),
-              Text(
-                formatLandlordMoney(
-                  statements.isEmpty ? forecast : total - received,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  statements.isEmpty ? 'Hoa hồng dự kiến' : 'Còn phải thu',
+                  style: TextStyle(color: secondary, fontSize: 14),
                 ),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 18),
-              if (statements.isNotEmpty && forecast > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    'Dự kiến chưa chốt: ${formatLandlordMoney(forecast)}',
-                    style: const TextStyle(
-                      color: Color(0xFFD1DCF2),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              const Divider(color: Color(0xFF52607D)),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Đã chốt',
-                          style: TextStyle(
-                            color: Color(0xFFD1DCF2),
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          formatLandlordMoney(total),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Đã nhận',
-                          style: TextStyle(
-                            color: Color(0xFFD1DCF2),
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          formatLandlordMoney(received),
-                          style: const TextStyle(
-                            color: Color(0xFF9AE3CD),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: total == 0 ? 0 : received / total,
-                  minHeight: 5,
-                  color: const Color(0xFF9AE3CD),
-                  backgroundColor: const Color(0xFF405476),
-                  semanticsLabel: 'Tỷ lệ hoa hồng đã nhận',
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '${statements.length} nhà trọ đã chốt · ${total == 0 ? 0 : (received * 100 / total).round()}% đã thu',
-                style: const TextStyle(color: Color(0xFFD1DCF2), fontSize: 12),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            formatLandlordMoney(
+              statements.isEmpty ? forecast : total - received,
+            ),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (statements.isNotEmpty && forecast > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                'Dự kiến chưa chốt: ${formatLandlordMoney(forecast)}',
+                style: TextStyle(color: secondary, fontSize: 12),
+              ),
+            ),
+          const SizedBox(height: 18),
+          Divider(color: Colors.white.withValues(alpha: 0.18)),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Đã chốt',
+                      style: TextStyle(color: secondary, fontSize: 12),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      formatLandlordMoney(total),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Đã nhận',
+                      style: TextStyle(color: secondary, fontSize: 12),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      formatLandlordMoney(received),
+                      style: TextStyle(
+                        color: receivedColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: total == 0 ? 0 : received / total,
+              minHeight: 5,
+              color: receivedColor,
+              backgroundColor: Colors.white.withValues(alpha: 0.16),
+              semanticsLabel: 'Tỷ lệ hoa hồng đã nhận',
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${statements.length} nhà trọ đã chốt · ${total == 0 ? 0 : (received * 100 / total).round()}% đã thu',
+            style: TextStyle(color: secondary, fontSize: 12),
           ),
         ],
       ),

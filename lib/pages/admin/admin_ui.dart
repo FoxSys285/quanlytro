@@ -6,16 +6,16 @@ import '../../data/app_persistence.dart';
 import '../../data/local_auth.dart';
 import '../../layouts/role_layout.dart';
 
-const adminInk = Color(0xFF1D2940);
-const adminBlue = Color(0xFF535BC6);
-const adminPurple = Color(0xFF7660B4);
-const adminTeal = Color(0xFF167D72);
-const adminOrange = Color(0xFFB34D39);
-const adminMuted = Color(0xFF606C80);
-const adminGold = Color(0xFF8D601E);
-const adminLine = Color(0xFFE3E7E8);
-const adminCanvas = Color(0xFFF5F6FB);
-const adminGreen = Color(0xFF216B53);
+const adminInk = Color(0xFF0F172A);
+const adminBlue = Color(0xFF4F46E5);
+const adminPurple = Color(0xFF7C3AED);
+const adminTeal = Color(0xFF0D9488);
+const adminOrange = Color(0xFFEF4444);
+const adminMuted = Color(0xFF64748B);
+const adminGold = Color(0xFFD97706);
+const adminLine = Color(0xFFE2E8F0);
+const adminCanvas = Color(0xFFF8FAFC);
+const adminGreen = Color(0xFF059669);
 
 class AdminSyncBar extends StatelessWidget {
   const AdminSyncBar({super.key});
@@ -25,28 +25,58 @@ class AdminSyncBar extends StatelessWidget {
     if (persistence == null) return const SizedBox.shrink();
     return ValueListenableBuilder<String>(
       valueListenable: persistence.saveStatus,
-      builder: (context, status, _) => Padding(
-        padding: const EdgeInsets.only(bottom: 16),
+      builder: (context, status, _) => Container(
+        margin: const EdgeInsets.only(bottom: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: adminLine),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x040F172A),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
         child: Row(
           children: [
-            Icon(
-              persistence.error.value != null
-                  ? Icons.cloud_off_outlined
-                  : persistence.cloudConfirmed
-                  ? Icons.cloud_done_outlined
-                  : Icons.cloud_sync_outlined,
-              size: 19,
-              color: persistence.error.value != null
-                  ? adminOrange
-                  : persistence.cloudConfirmed
-                  ? adminGreen
-                  : adminMuted,
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color:
+                    (persistence.error.value != null
+                            ? adminOrange
+                            : persistence.cloudConfirmed
+                            ? adminGreen
+                            : adminBlue)
+                        .withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                persistence.error.value != null
+                    ? Icons.cloud_off_rounded
+                    : persistence.cloudConfirmed
+                    ? Icons.cloud_done_rounded
+                    : Icons.cloud_sync_rounded,
+                size: 16,
+                color: persistence.error.value != null
+                    ? adminOrange
+                    : persistence.cloudConfirmed
+                    ? adminGreen
+                    : adminBlue,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 status,
-                style: const TextStyle(fontSize: 12, color: adminMuted),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: adminMuted,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             TextButton(
@@ -66,6 +96,11 @@ class AdminSyncBar extends StatelessWidget {
                         }
                       }
                     },
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: adminBlue,
+                textStyle: const TextStyle(fontWeight: FontWeight.w700),
+              ),
               child: Text(
                 persistence.error.value == null ? 'Đồng bộ' : 'Thử lại',
               ),
@@ -90,7 +125,7 @@ class AdminFrame extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       return SingleChildScrollView(
-        padding: EdgeInsets.all(constraints.maxWidth < 600 ? 20 : 32),
+        padding: EdgeInsets.all(constraints.maxWidth < 600 ? 18 : 28),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1160),
@@ -100,19 +135,23 @@ class AdminFrame extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 24,
-                    height: 1.15,
-                    letterSpacing: -0.4,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 26,
+                    height: 1.2,
+                    letterSpacing: -0.6,
+                    fontWeight: FontWeight.w800,
                     color: adminInk,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   subtitle,
-                  style: const TextStyle(color: adminMuted, height: 1.5),
+                  style: const TextStyle(
+                    color: adminMuted,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 ...children,
                 const SizedBox(height: 24),
               ],
@@ -144,6 +183,15 @@ class AdminPanel extends StatelessWidget {
       border: Border.all(
         color: backgroundColor == Colors.white ? adminLine : backgroundColor,
       ),
+      boxShadow: backgroundColor == Colors.white
+          ? const [
+              BoxShadow(
+                color: Color(0x060F172A),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ]
+          : null,
     ),
     child: Material(type: MaterialType.transparency, child: child),
   );
@@ -158,14 +206,19 @@ class AdminStatus extends StatelessWidget {
     duration: MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 180),
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
     decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.08),
+      color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: color.withValues(alpha: 0.2)),
     ),
     child: Text(
       text,
-      style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+      style: TextStyle(
+        color: Color.lerp(color, adminInk, 0.3),
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
     ),
   );
 }
@@ -176,7 +229,7 @@ class AdminSection extends StatelessWidget {
   final String? caption;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 12, bottom: 16),
+    padding: const EdgeInsets.only(top: 14, bottom: 16),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -185,7 +238,8 @@ class AdminSection extends StatelessWidget {
           style: const TextStyle(
             color: adminInk,
             fontSize: 19,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
           ),
         ),
         if (caption != null) ...[
@@ -218,7 +272,11 @@ class AdminMetrics extends StatelessWidget {
                   Expanded(
                     child: Text(
                       item.label,
-                      style: const TextStyle(color: adminMuted, fontSize: 13),
+                      style: const TextStyle(
+                        color: adminMuted,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -228,8 +286,9 @@ class AdminMetrics extends StatelessWidget {
                       textAlign: TextAlign.end,
                       style: const TextStyle(
                         color: adminInk,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 22,
+                        letterSpacing: -0.5,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
@@ -262,7 +321,13 @@ class AdminMetrics extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (var i = 0; i < items.length; i++) ...[
-              if (i > 0) const SizedBox(width: 24),
+              if (i > 0)
+                Container(
+                  width: 1,
+                  height: 48,
+                  color: adminLine,
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                ),
               Expanded(child: metric(i)),
             ],
           ],
@@ -331,14 +396,18 @@ class AdminPropertyPhoto extends StatelessWidget {
                 bottom: 8,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Color(0xD91D2940),
-                    borderRadius: BorderRadius.all(Radius.circular(5)),
+                    color: Color(0xD90F172A),
+                    borderRadius: BorderRadius.all(Radius.circular(6)),
                   ),
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                     child: Text(
                       'Ảnh minh họa',
-                      style: TextStyle(color: Colors.white, fontSize: 11),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),

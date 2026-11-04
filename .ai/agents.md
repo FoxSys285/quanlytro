@@ -60,6 +60,17 @@
 | A2: Đưa danh mục và nghiệp vụ lên Firebase | Hoàn tất 2.071 document, 10 nhà, 454 phòng; giữ legacy để đối chiếu. |
 | A3: Xem cấu trúc dữ liệu trong Console | Collection mới dùng field/map Firestore, không bọc JSON `payload`. Chi tiết nằm trong map `data`; chưa nhân bản mọi field chi tiết ra root vì tạo hai bản cùng dữ liệu. |
 | B: Linter | Đã sửa ngoặc `if (strictRemote)` và kiểm tra toàn dự án: `No issues found`. |
-| C: Thẩm mỹ trang admin phụ | Các trang đã dùng `AdminPanel` và token chung; Codex chưa làm lượt chỉnh thẩm mỹ riêng cho toàn bộ Users/Commission. Thay đổi UI của Anti vẫn ở worktree, chưa nằm trong commit backend `c983251`. |
+| C: Thẩm mỹ trang admin phụ | Đã hoàn thiện Users/Commission theo slate/indigo/emerald: bộ lọc chung, badge trạng thái, bảng số tiền, trạng thái rỗng. Giao diện admin chung/dashboard của Anti được review và tích hợp trong lượt hoàn thiện C. |
 
 Rules production đã được kiểm tra lại không đăng nhập: `public_rooms`/`rental_properties` đọc được; `rental_records`/`users`/`app_documents/portfolio` trả 403. Chưa xác thực đăng nhập đồng thời cả ba tài khoản trên thiết bị thật.
+
+## Hoàn thiện mục C theo yêu cầu tiếp theo
+
+- Codex nhận phần Users và Commission; dùng giao diện chung `admin_ui.dart`/dashboard Anti đã hoàn thành làm chuẩn.
+- Trong lượt này Anti không sửa ba file `admin_ui.dart`, `admin_users_page.dart`, `admin_commission_page.dart` để tránh ghi đè. Codex sẽ review và tích hợp giao diện admin chung cùng mục C khi kiểm tra đạt.
+- Các thay đổi chat tenant/yêu thích không thuộc lượt này, vẫn giữ riêng.
+- Users: gom tìm kiếm/bộ lọc, rõ nhóm tài khoản/người thuê, giữ khóa/mở và thêm trạng thái đang cập nhật; sửa hướng dẫn Firebase cũ.
+- Commission: thẻ trắng, badge, bảng khoản thu/còn lại, bộ lọc tự xuống dòng, trạng thái không có kết quả; không đổi cách tính hoặc xử lý chốt/thu tiền.
+- Theme chung: màu/chip/segmented button thống nhất, vùng chạm 48dp; chữ badge có tương phản tối thiểu 4,85:1 với các màu trạng thái hiện tại.
+- Đã kiểm tra widget ở 320/390/768/1440px, riêng 320px với chữ 130%; sửa phần ảnh thẻ dashboard co lại để không tràn chữ. Ảnh review là Flutter widget render, không phải ảnh chụp thiết bị Android; `adb devices` hiện không có thiết bị kết nối.
+- Mục C hoàn tất: 18 test admin PASS, analyze toàn dự án sạch, APK cloud debug mới đã build. Giao diện chung/dashboard của Anti được tích hợp trong commit này; các file tenant chat/yêu thích vẫn để riêng.
