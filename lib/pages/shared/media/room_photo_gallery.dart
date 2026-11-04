@@ -23,7 +23,7 @@ class RoomPhotoImage extends StatelessWidget {
         fit: fit,
         width: double.infinity,
         height: double.infinity,
-        cacheWidth: fit == BoxFit.cover ? 1200 : null,
+        cacheWidth: fit == BoxFit.cover ? 480 : null,
         semanticLabel: label,
         errorBuilder: failed,
       );
@@ -34,7 +34,7 @@ class RoomPhotoImage extends StatelessWidget {
         fit: fit,
         width: double.infinity,
         height: double.infinity,
-        cacheWidth: fit == BoxFit.cover ? 1200 : null,
+        cacheWidth: fit == BoxFit.cover ? 480 : null,
         semanticLabel: label,
         errorBuilder: failed,
       );
@@ -45,7 +45,7 @@ class RoomPhotoImage extends StatelessWidget {
         fit: fit,
         width: double.infinity,
         height: double.infinity,
-        cacheWidth: fit == BoxFit.cover ? 1200 : null,
+        cacheWidth: fit == BoxFit.cover ? 480 : null,
         semanticLabel: label,
         frameBuilder: (_, child, frame, wasSynchronouslyLoaded) =>
             wasSynchronouslyLoaded || frame != null

@@ -24,6 +24,7 @@ class LandlordPropertyImage extends StatelessWidget {
       child: bytes != null
           ? Image.memory(
               bytes!,
+              cacheWidth: 600,
               fit: BoxFit.cover,
               semanticLabel: semanticLabel,
               errorBuilder: (_, _, _) => _placeholder(failed: true),
@@ -31,6 +32,7 @@ class LandlordPropertyImage extends StatelessWidget {
           : url.startsWith('assets/')
           ? Image.asset(
               url,
+              cacheWidth: 600,
               fit: BoxFit.cover,
               semanticLabel: semanticLabel,
               errorBuilder: (_, _, _) => _placeholder(failed: true),
@@ -41,6 +43,7 @@ class LandlordPropertyImage extends StatelessWidget {
               children: [
                 Image.asset(
                   'assets/images/room_types/interior.webp',
+                  cacheWidth: 600,
                   fit: BoxFit.cover,
                   semanticLabel: 'Nội thất phòng · ảnh minh họa',
                   errorBuilder: (_, _, _) => _placeholder(),
