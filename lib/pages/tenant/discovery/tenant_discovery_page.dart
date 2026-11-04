@@ -28,11 +28,35 @@ class TenantDiscoveryPage extends StatefulWidget {
     this.viewingStore,
     this.tenantId = ViewingStore.demoTenantId,
     this.catalogSource,
+    this.resultsOnly = false,
+    this.initialQuery = '',
+    this.initialMaxRent = 20000000,
+    this.initialElectricityRange = const RangeValues(0, 5),
+    this.initialCity,
+    this.initialWard,
+    this.initialArea,
+    this.initialWaterType = 'Tất cả',
+    this.initialMinArea,
+    this.initialMaxArea,
+    this.initialAmenities = const {},
+    this.initialSort = 'default',
   });
 
   final ViewingStore? viewingStore;
   final String tenantId;
   final TenantCatalogSource? catalogSource;
+  final bool resultsOnly;
+  final String initialQuery;
+  final int initialMaxRent;
+  final RangeValues initialElectricityRange;
+  final String? initialCity;
+  final String? initialWard;
+  final String? initialArea;
+  final String initialWaterType;
+  final double? initialMinArea;
+  final double? initialMaxArea;
+  final Set<String> initialAmenities;
+  final String initialSort;
   static TenantCatalogSource? activeCatalogSource;
 
   @override
@@ -174,6 +198,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     super.didChangeDependencies();
     if (_restored) return;
     _restored = true;
+    if (widget.resultsOnly) return;
     final saved = PageStorage.maybeOf(context)
         ?.readState(context, identifier: 'discovery-${widget.tenantId}');
     if (saved is! Map<String, dynamic>) return;
@@ -198,24 +223,27 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     if (_catalogPages.isEmpty) _catalogKey = null;
   }
 
-  void _saveState() =>
-      PageStorage.maybeOf(context)?.writeState(context, <String, dynamic>{
-        'query': _searchController.text,
-        'rent': _maxRent,
-        'electricity': _electricityRange,
-        'city': _selectedCity,
-        'ward': _selectedWard,
-        'area': _selectedArea,
-        'water': _waterType,
-        'minArea': _minArea,
-        'maxArea': _maxArea,
-        'amenities': {..._amenities},
-        'sort': _sort,
-        'page': _page,
-        'catalogKey': _catalogKey,
-        'catalogIndex': _catalogIndex,
-        'catalogPages': [..._catalogPages],
-      }, identifier: 'discovery-${widget.tenantId}');
+  void _saveState() {
+    if (widget.resultsOnly) return;
+    PageStorage.maybeOf(context)?.writeState(context, <String, dynamic>{
+      'query': _searchController.text,
+      'rent': _maxRent,
+      'electricity': _electricityRange,
+      'city': _selectedCity,
+      'ward': _selectedWard,
+      'area': _selectedArea,
+      'water': _waterType,
+      'minArea': _minArea,
+      'maxArea': _maxArea,
+      'amenities': {..._amenities},
+      'sort': _sort,
+      'page': _page,
+      'catalogKey': _catalogKey,
+      'catalogIndex': _catalogIndex,
+      'catalogPages': [..._catalogPages],
+    }, identifier: 'discovery-${widget.tenantId}');
+  }
+
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
 
@@ -231,6 +259,18 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   @override
   void initState() {
     super.initState();
+    _query = widget.initialQuery;
+    _searchController.text = widget.initialQuery;
+    _maxRent = widget.initialMaxRent;
+    _electricityRange = widget.initialElectricityRange;
+    _selectedCity = widget.initialCity;
+    _selectedWard = widget.initialWard;
+    _selectedArea = widget.initialArea;
+    _waterType = widget.initialWaterType;
+    _minArea = widget.initialMinArea;
+    _maxArea = widget.initialMaxArea;
+    _amenities = {...widget.initialAmenities};
+    _sort = widget.initialSort;
     RentalPortfolio.instance.addListener(_refreshListings);
     AdminStore.instance.addListener(_refreshListings);
   }
@@ -296,6 +336,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         : rooms.skip(page * _pageSize).take(_pageSize).toList();
 
     return TenantDiscoveryHome(
+      resultsOnly: widget.resultsOnly,
       localRooms: rooms,
       visibleRooms: visibleRooms,
       remote: remote,
@@ -325,6 +366,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         });
       },
       onFilter: () => _showFilterSheet(context),
+      onOpenSearch: _openSearch,
       onFavorites: _openFavorites,
       onFavoriteToggle: _toggleFavorite,
       onRoomTap: (room) => _showRoomDetails(context, room),
@@ -646,6 +688,30 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       MaterialPageRoute<void>(builder: (_) => const TenantFavoritesPage()),
     );
     if (mounted) setState(() {});
+  }
+
+  Future<void> _openSearch() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TenantDiscoveryPage(
+          viewingStore: widget.viewingStore,
+          tenantId: widget.tenantId,
+          catalogSource: _catalogSource,
+          resultsOnly: true,
+          initialQuery: _searchController.text.trim(),
+          initialMaxRent: _maxRent,
+          initialElectricityRange: _electricityRange,
+          initialCity: _selectedCity,
+          initialWard: _selectedWard,
+          initialArea: _selectedArea,
+          initialWaterType: _waterType,
+          initialMinArea: _minArea,
+          initialMaxArea: _maxArea,
+          initialAmenities: _amenities,
+          initialSort: _sort,
+        ),
+      ),
+    );
   }
 }
 
