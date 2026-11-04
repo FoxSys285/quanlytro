@@ -21,12 +21,10 @@ class ScopedFirestoreRentalRepository
   final _owners = <String, String>{};
   final _ticketAuthors = <String, String>{};
   final _localBaseline = <String, Map<String, dynamic>>{};
+  Map<String, Map<String, dynamic>>? _lastReadSnapshot;
 
   @override
   Stream<void> get changes => Stream<void>.multi((controller) {
-    Query<Map<String, dynamic>> records = _firestore.collection(
-      'rental_records',
-    );
     Query<Map<String, dynamic>> properties = _firestore.collection(
       'rental_properties',
     );
@@ -34,10 +32,7 @@ class ScopedFirestoreRentalRepository
       'support_tickets',
     );
     if (session.role == AppRole.landlord) {
-      records = records.where('ownerUid', isEqualTo: session.uid);
       properties = properties.where('ownerUid', isEqualTo: session.uid);
-    } else if (session.role == AppRole.tenant) {
-      records = records.where('tenantIds', arrayContains: session.tenantId);
     }
     if (session.role != AppRole.admin) {
       tickets = tickets.where('accountUid', isEqualTo: session.uid);
@@ -45,7 +40,7 @@ class ScopedFirestoreRentalRepository
     final subscriptions = <StreamSubscription<dynamic>>[];
     void watch(Stream<dynamic> stream) {
       subscriptions.add(
-        stream.listen(
+        stream.skip(1).listen(
           (_) {
             if (!controller.isClosed) controller.add(null);
           },
@@ -63,15 +58,7 @@ class ScopedFirestoreRentalRepository
     }
 
     watch(properties.snapshots());
-    watch(records.snapshots());
     watch(tickets.snapshots());
-    if (session.role != AppRole.tenant) {
-      Query<Map<String, dynamic>> rooms = _firestore.collection('public_rooms');
-      if (session.role == AppRole.landlord) {
-        rooms = rooms.where('ownerUid', isEqualTo: session.uid);
-      }
-      watch(rooms.snapshots());
-    }
     watch(_firestore.doc('user_state/${session.uid}').snapshots());
     watch(_firestore.doc('public_settings/viewings').snapshots());
     watch(_firestore.doc('users/${session.uid}').snapshots());
@@ -108,19 +95,45 @@ class ScopedFirestoreRentalRepository
       }
       records = records.where('tenantIds', arrayContains: session.tenantId);
     }
-    final results = await Future.wait([
+    Query<Map<String, dynamic>> tickets = _firestore.collection(
+      'support_tickets',
+    );
+    if (session.role != AppRole.admin) {
+      tickets = tickets.where('accountUid', isEqualTo: session.uid);
+    }
+
+    final futures = <Future<dynamic>>[
       properties.get(),
       records.get(),
-    ]);
+      _firestore.collection('user_state').doc(session.uid).get(),
+      tickets.get(),
+      _firestore.doc('public_settings/viewings').get(),
+      if (session.role == AppRole.admin)
+        _firestore.doc('management/system').get()
+      else if (session.role == AppRole.landlord)
+        _firestore.doc('management/${session.uid}').get(),
+    ];
+    final results = await Future.wait(futures);
+    final propSnap = results[0] as QuerySnapshot<Map<String, dynamic>>;
+    final recordSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
+    final own = results[2] as DocumentSnapshot<Map<String, dynamic>>;
+    final savedTickets = results[3] as QuerySnapshot<Map<String, dynamic>>;
+    final viewingSettings =
+        results[4] as DocumentSnapshot<Map<String, dynamic>>;
+    final settings = results.length > 5
+        ? results[5] as DocumentSnapshot<Map<String, dynamic>>
+        : null;
+
     final stores = <String, Map<String, dynamic>>{};
     _baseline.clear();
     _owners.clear();
     _ticketAuthors.clear();
-    for (final doc in results[0].docs) {
+    for (final doc in propSnap.docs) {
       final data = doc.data();
       _baseline[doc.reference.path] = data;
-      _owners[doc.id] = data['ownerUid'] as String;
-      if (data['archived'] == true) continue;
+      final ownerUid = data['ownerUid'] as String?;
+      if (ownerUid != null) _owners[doc.id] = ownerUid;
+      if (data['archived'] == true || data['data'] is! Map) continue;
       stores[doc.id] = {
         ...Map<String, dynamic>.from(data['data'] as Map),
         for (final kind in [
@@ -139,16 +152,6 @@ class ScopedFirestoreRentalRepository
     if (stores.isEmpty) {
       throw ArgumentError('Tài khoản chưa được cấp dữ liệu nhà trọ.');
     }
-    if (session.role != AppRole.tenant) {
-      Query<Map<String, dynamic>> rooms = _firestore.collection('public_rooms');
-      if (session.role == AppRole.landlord) {
-        rooms = rooms.where('ownerUid', isEqualTo: session.uid);
-      }
-      final public = await rooms.get();
-      for (final doc in public.docs) {
-        _baseline[doc.reference.path] = doc.data();
-      }
-    }
     final snapshot = <String, Map<String, dynamic>>{
       'viewings': {'records': <dynamic>[], 'nextId': 1},
       'conversations': {'records': <dynamic>[]},
@@ -163,15 +166,17 @@ class ScopedFirestoreRentalRepository
     };
     final messages = <Map<String, dynamic>>[];
     final announcementReads = <String, Map<String, dynamic>>{};
-    for (final doc in results[1].docs) {
+    for (final doc in recordSnap.docs) {
       final envelope = doc.data();
       _baseline[doc.reference.path] = envelope;
       if (envelope['archived'] == true) continue;
-      final id = envelope['propertyId'] as String;
+      final id = envelope['propertyId'] as String?;
+      final kind = envelope['kind'] as String?;
+      final rawData = envelope['data'];
+      if (id == null || kind == null || rawData is! Map) continue;
       final store = stores[id];
       if (store == null) continue;
-      final kind = envelope['kind'] as String;
-      final data = Map<String, dynamic>.from(envelope['data'] as Map);
+      final data = Map<String, dynamic>.from(rawData);
       if (kind == 'settings') {
         store.addAll(data);
       } else if (kind == 'messages') {
@@ -179,7 +184,9 @@ class ScopedFirestoreRentalRepository
       } else if (kind == 'tenantAnnouncements' &&
           session.role != AppRole.tenant) {
         final reads = announcementReads.putIfAbsent(id, () => {});
-        reads.addAll(Map<String, dynamic>.from(data['readByTenant'] as Map));
+        if (data['readByTenant'] is Map) {
+          reads.addAll(Map<String, dynamic>.from(data['readByTenant'] as Map));
+        }
       } else if (kind == 'conversations' || kind == 'viewings') {
         (snapshot[kind]!['records'] as List).add(data);
       } else if ((kind == 'announcements' && session.role != AppRole.tenant) ||
@@ -191,14 +198,17 @@ class ScopedFirestoreRentalRepository
     }
     for (final entry in announcementReads.entries) {
       final announcements = snapshot['announcements:${entry.key}'];
-      if (announcements != null) {
+      if (announcements != null && announcements['readByTenant'] is Map) {
         (announcements['readByTenant'] as Map).addAll(entry.value);
       }
     }
     for (final conversation in snapshot['conversations']!['records'] as List) {
+      final propId = conversation['propertyId'] as String?;
+      final convId = conversation['id'] as String?;
+      if (propId == null || convId == null) continue;
       conversation['messages'] = decodeCloudMessages(
         messages,
-        '${Uri.encodeComponent(conversation['propertyId'] as String)}:conversations:${Uri.encodeComponent(conversation['id'] as String)}',
+        '${Uri.encodeComponent(propId)}:conversations:${Uri.encodeComponent(convId)}',
       );
     }
     for (final id in stores.keys) {
@@ -225,11 +235,7 @@ class ScopedFirestoreRentalRepository
       'selectedId': (ordered.first['property'] as Map)['id'],
       'properties': ordered,
     };
-    final own = await _firestore
-        .collection('user_state')
-        .doc(session.uid)
-        .get();
-    if (own.exists) {
+    if (own.exists && own.data() != null) {
       _baseline[own.reference.path] = own.data()!;
       final data = own.data()!;
       for (final key in ['accounts', 'favorites']) {
@@ -238,48 +244,35 @@ class ScopedFirestoreRentalRepository
         }
       }
     }
-    if (session.role == AppRole.admin) {
-      final settings = await _firestore.doc('management/system').get();
-      if (settings.exists) {
-        _baseline[settings.reference.path] = settings.data()!;
+    if (settings != null && settings.exists && settings.data() != null) {
+      _baseline[settings.reference.path] = settings.data()!;
+      if (session.role == AppRole.admin && settings.data()!['admin'] is Map) {
         snapshot['admin'] = Map<String, dynamic>.from(
           settings.data()!['admin'] as Map,
         );
-      }
-    } else if (session.role == AppRole.landlord) {
-      final settings = await _firestore.doc('management/${session.uid}').get();
-      if (settings.exists) {
-        _baseline[settings.reference.path] = settings.data()!;
+      } else if (session.role == AppRole.landlord &&
+          settings.data()!['staff'] is Map) {
         snapshot['staff'] = Map<String, dynamic>.from(
           settings.data()!['staff'] as Map,
         );
       }
     }
-    Query<Map<String, dynamic>> tickets = _firestore.collection(
-      'support_tickets',
-    );
-    if (session.role != AppRole.admin) {
-      tickets = tickets.where('accountUid', isEqualTo: session.uid);
-    }
-    final savedTickets = await tickets.get();
-    final viewingSettings = await _firestore
-        .doc('public_settings/viewings')
-        .get();
-    if (viewingSettings.exists) {
+    if (viewingSettings.exists && viewingSettings.data() != null) {
       _baseline[viewingSettings.reference.path] = viewingSettings.data()!;
       snapshot['admin']!['acceptingViewings'] = viewingSettings
           .data()!['acceptingViewings'];
     }
     snapshot['admin']!['tickets'] = [
-      for (final doc in savedTickets.docs) doc.data()['data'],
+      for (final doc in savedTickets.docs)
+        if (doc.data()['data'] != null) doc.data()['data'],
     ];
     for (final doc in savedTickets.docs) {
       _baseline[doc.reference.path] = doc.data();
-      _ticketAuthors[doc.id] = doc.data()['accountUid'] as String;
+      final author = doc.data()['accountUid'] as String?;
+      if (author != null) _ticketAuthors[doc.id] = author;
     }
-    _localBaseline
-      ..clear()
-      ..addAll(_encode(snapshot));
+    _localBaseline.clear();
+    _lastReadSnapshot = snapshot;
     return snapshot;
   }
 
@@ -382,6 +375,9 @@ class ScopedFirestoreRentalRepository
 
   @override
   Future<void> saveAll(Map<String, Map<String, dynamic>> documents) async {
+    if (_localBaseline.isEmpty && _lastReadSnapshot != null) {
+      _localBaseline.addAll(_encode(_lastReadSnapshot!));
+    }
     final encoded = _encode(documents);
     final changed = encoded.entries
         .where(

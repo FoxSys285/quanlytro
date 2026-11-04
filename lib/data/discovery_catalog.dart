@@ -86,7 +86,7 @@ class FirestoreTenantCatalogSource implements TenantCatalogSource {
       final snapshot =
           await (cursor == null ? request : request.startAfterDocument(cursor))
               .limit(32)
-              .get(const GetOptions(source: Source.server));
+              .get();
       for (final doc in snapshot.docs) {
         cursor = doc;
         final data = doc.data();

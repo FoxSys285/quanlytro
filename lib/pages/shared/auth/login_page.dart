@@ -451,7 +451,7 @@ class _LoginPageState extends State<LoginPage> {
                           ? null
                           : () => setState(() {
                               _email.text = acc.email;
-                              if (!isCloud) _password.text = 'Tro@2026';
+                              _password.text = isCloud ? '123456' : 'Tro@2026';
                               _error = null;
                             }),
                     ),

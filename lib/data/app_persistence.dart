@@ -39,6 +39,139 @@ class AppPersistence {
   String? _remoteFingerprint;
   final _subscriptions = <Listenable>{};
   bool get isDisposed => _disposed;
+
+  /// Khởi tạo nhanh (bất đồng bộ) cho phiên đăng nhập Cloud để vào giao diện ngay lập tức,
+  /// sau đó tải và đồng bộ dữ liệu từ Firestore trong nền mà không làm treo hoặc văng ứng dụng.
+  Future<void> initializeAsync() async {
+    _restoring = true;
+    try {
+      await LocalAuth.instance.initialize(null);
+      AdminStore.instance.restore({
+        'verified': <String, bool>{},
+        'hidden': <String>[],
+        'tickets': <dynamic>[],
+        'logs': <dynamic>[],
+        'acceptingViewings': true,
+      });
+      if (RentalPortfolio.instance.stores.length <= 1) {
+        RentalPortfolio.instance = RentalPortfolio.seeded();
+      }
+      LandlordDemoStore.instance = RentalPortfolio.instance.active;
+      ConversationStore.instance.dispose();
+      AccountStore.instance.dispose();
+      ViewingStore.instance.dispose();
+      ConversationStore.instance = ConversationStore();
+      AccountStore.instance = AccountStore(rental: LandlordDemoStore.instance);
+      ViewingStore.instance = ViewingStore(
+        [],
+        rental: LandlordDemoStore.instance,
+      );
+      AnnouncementStore.reset();
+      LandlordStaffStore.instance.restore({'nextId': 1, 'staff': <dynamic>[]});
+      TenantFavoritesStore.roomNames.clear();
+      for (final store in RentalPortfolio.instance.stores) {
+        final announcements = AnnouncementStore.forRental(store);
+        announcements.restore({
+          'sent': <dynamic>[],
+          'recipients': <String, dynamic>{},
+          'readByTenant': <String, dynamic>{},
+          'landlordRead': <String>[],
+          'nextId': 1,
+        });
+        _listen(announcements);
+      }
+      _listen(RentalPortfolio.instance);
+      _listen(ConversationStore.instance);
+      _listen(ViewingStore.instance);
+      _listen(AccountStore.instance);
+      _listen(LandlordStaffStore.instance);
+      _listen(TenantFavoritesStore.changes);
+      _listen(LocalAuth.instance);
+      _listen(AdminStore.instance);
+      current = this;
+      saveStatus.value = 'Đang đồng bộ dữ liệu từ Firebase…';
+    } finally {
+      _restoring = false;
+    }
+    unawaited(_syncFromCloudInBackground());
+  }
+
+  Future<void> _syncFromCloudInBackground() async {
+    if (_disposed) return;
+    refreshing.value = true;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (_disposed) return;
+      final data = await repository.readAll();
+      if (_disposed) return;
+      await Future<void>.delayed(Duration.zero);
+      if (_disposed) return;
+      _restoring = true;
+      try {
+        if (data['portfolio'] != null) {
+          RentalPortfolio.instance.restore(data['portfolio']!);
+          if (!RentalPortfolio.instance.stores.contains(
+            LandlordDemoStore.instance,
+          )) {
+            LandlordDemoStore.instance = RentalPortfolio.instance.active;
+          }
+        }
+        if (data['admin'] != null) {
+          AdminStore.instance.restore(data['admin']!);
+        }
+        if (data['conversations'] != null) {
+          ConversationStore.instance.restore(data['conversations']!);
+        }
+        if (data['viewings'] != null) {
+          ViewingStore.instance.restore(data['viewings']!);
+        }
+        AccountStore.instance.restore(
+          data['accounts'] ?? {'contacts': {}, 'notifications': {}},
+        );
+        if (data['staff'] != null) {
+          LandlordStaffStore.instance.restore(data['staff']!);
+        }
+        TenantFavoritesStore.roomNames
+          ..clear()
+          ..addAll(
+            List<String>.from(data['favorites']?['ids'] as List? ?? []),
+          );
+        for (final store in RentalPortfolio.instance.stores) {
+          final announcements = AnnouncementStore.forRental(store);
+          final stored = data['announcements:${store.property.id}'];
+          if (stored != null) {
+            announcements.restore(stored);
+          }
+          _listen(announcements);
+        }
+        _dirty = false;
+        cloudConfirmed = true;
+        error.value = null;
+        saveStatus.value = 'Đã đồng bộ dữ liệu từ Firebase';
+      } finally {
+        _restoring = false;
+      }
+      if (!_disposed && cloudMode && repository is RentalChangeSource) {
+        await _remoteSubscription?.cancel();
+        _remoteSubscription = (repository as RentalChangeSource).changes.listen(
+          (_) => _scheduleRefresh(),
+          onError: (Object failure) {
+            debugPrint('Remote stream error: $failure');
+          },
+        );
+      }
+    } catch (failure) {
+      debugPrint('Background cloud sync warning: $failure');
+      if (!_disposed) {
+        saveStatus.value = 'Đang dùng dữ liệu tạm · Chưa đồng bộ hết từ Firebase';
+      }
+    } finally {
+      if (!_disposed) {
+        refreshing.value = false;
+      }
+    }
+  }
+
   Future<void> initialize() async {
     final data = await repository.readAll();
     _remoteFingerprint = cloudFingerprint(data);
@@ -119,7 +252,8 @@ class AppPersistence {
         (_) => _scheduleRefresh(),
         onError: (Object failure) {
           _closeRevokedSession(failure);
-          error.value = 'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối/quyền tài khoản.';
+          error.value =
+              'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối/quyền tài khoản.';
         },
       );
     }
@@ -156,6 +290,7 @@ class AppPersistence {
       }
       final snapshot = _snapshot();
       _pending = _pending.then((_) async {
+        if (_disposed) return;
         cloudConfirmed = false;
         saveStatus.value = 'Đang lưu dữ liệu…';
         try {
@@ -168,6 +303,7 @@ class AppPersistence {
           } else {
             await target.saveAll(snapshot);
           }
+          if (_disposed) return;
           error.value = null;
           cloudConfirmed =
               cloudMode ||
@@ -179,8 +315,10 @@ class AppPersistence {
           _dirty = false;
           if (_remoteChanged) _scheduleRefresh();
         } catch (failure) {
+          if (_disposed) return;
           _closeRevokedSession(failure);
-          error.value = 'Chưa hoàn tất lưu dữ liệu. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+          error.value =
+              'Chưa hoàn tất lưu dữ liệu. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
           saveStatus.value = error.value!;
         }
       });
@@ -206,6 +344,7 @@ class AppPersistence {
       _remoteChanged = false;
       try {
         final data = await repository.readAll();
+        if (_disposed) return;
         final fingerprint = cloudFingerprint(data);
         if (fingerprint == _remoteFingerprint) return;
         _restoring = true;
@@ -241,11 +380,15 @@ class AppPersistence {
           _restoring = false;
         }
       } catch (failure) {
+        if (_disposed) return;
         _closeRevokedSession(failure);
         _remoteChanged = true;
-        error.value = 'Chưa tải được dữ liệu mới. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+        error.value =
+            'Chưa tải được dữ liệu mới. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
       } finally {
-        refreshing.value = false;
+        if (!_disposed) {
+          refreshing.value = false;
+        }
       }
     });
     await _pending;

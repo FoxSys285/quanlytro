@@ -364,6 +364,7 @@ class AdminPropertyPhoto extends StatelessWidget {
         : url.startsWith('assets/')
         ? Image.asset(
             url,
+            cacheWidth: 600,
             fit: BoxFit.cover,
             errorBuilder: (_, _, _) => fallback(),
           )

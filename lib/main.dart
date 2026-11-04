@@ -60,21 +60,8 @@ Future<void> main() async {
           persistence = null;
           TenantSession.authenticatedTenantId = session.tenantId;
           final remote = ScopedFirestoreRentalRepository(session: session);
-          final RentalRepository repository;
-          if (kIsWeb) {
-            repository = remote;
-          } else {
-            final local = await SqliteRentalRepository.open(
-              filename: 'quanlytro_${Uri.encodeComponent(session.uid)}.db',
-            );
-            repository = HybridRentalRepository(
-              local: local,
-              remote: remote,
-              strictRemote: true,
-            );
-          }
-          persistence = AppPersistence(repository, cloudMode: true);
-          await persistence!.initialize();
+          persistence = AppPersistence(remote, cloudMode: true);
+          await persistence!.initializeAsync();
         },
         onSignedOut: () async {
           await persistence?.dispose();
@@ -263,18 +250,18 @@ class MyApp extends StatelessWidget {
                       : ValueListenableBuilder<bool>(
                           valueListenable: persistence.refreshing,
                           builder: (context, busy, _) => Stack(
-                      children: [
-                        AbsorbPointer(absorbing: busy, child: child!),
-                        if (busy)
-                          const Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: LinearProgressIndicator(minHeight: 2),
+                            children: [
+                              child!,
+                              if (busy)
+                                const Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: LinearProgressIndicator(minHeight: 2),
+                                ),
+                            ],
                           ),
-                      ],
-                    ),
-                  ),
+                        ),
                 ),
               ],
             ),
