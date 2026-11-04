@@ -5,7 +5,6 @@ import '../landlord/properties/models/landlord_property.dart';
 import '../../data/app_persistence.dart';
 import '../../data/local_auth.dart';
 import '../../layouts/role_layout.dart';
-import 'admin_demo_data.dart';
 
 const adminInk = Color(0xFF1D2940);
 const adminBlue = Color(0xFF535BC6);
@@ -18,134 +17,63 @@ const adminLine = Color(0xFFE3E7E8);
 const adminCanvas = Color(0xFFF5F6FB);
 const adminGreen = Color(0xFF216B53);
 
-class AdminDemoBar extends StatelessWidget {
-  const AdminDemoBar({super.key});
+class AdminSyncBar extends StatelessWidget {
+  const AdminSyncBar({super.key});
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: AdminDemoData.instance,
-    builder: (context, _) {
-      final demo = AdminDemoData.instance;
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Material(
-          color: demo.enabled
-              ? const Color(0xFFFFF1D9)
-              : const Color(0xFFEEEFFC),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      demo.enabled
-                          ? Icons.science_outlined
-                          : Icons.play_circle_outline,
-                      color: demo.enabled ? adminGold : adminBlue,
-                      size: 21,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            demo.enabled
-                                ? 'Đang dùng dữ liệu demo'
-                                : 'Khám phá dữ liệu mẫu',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: adminInk,
-                            ),
-                          ),
-                          if (demo.enabled)
-                            const Text(
-                              'Tự lưu trên máy · Bộ mẫu riêng',
-                              style: TextStyle(fontSize: 11, color: adminMuted),
-                            ),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: demo.syncing
-                          ? null
-                          : () {
-                              HapticFeedback.selectionClick();
-                              demo.toggle();
-                            },
-                      child: Text(demo.enabled ? 'Tắt demo' : 'Dùng demo'),
-                    ),
-                    if (demo.enabled)
-                      PopupMenuButton<bool>(
-                        tooltip: 'Lưu và tải dữ liệu mẫu',
-                        enabled:
-                            !demo.syncing &&
-                            LocalAuth.instance.role == AppRole.admin,
-                        icon: const Icon(
-                          Icons.cloud_sync_outlined,
-                          color: adminGold,
-                        ),
-                        onSelected: (download) => _sync(context, download),
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(
-                            value: false,
-                            child: ListTile(
-                              leading: Icon(Icons.cloud_upload_outlined),
-                              title: Text('Lưu Firebase'),
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: true,
-                            child: ListTile(
-                              leading: Icon(Icons.cloud_download_outlined),
-                              title: Text('Tải Firebase'),
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-                if (demo.enabled) ...[
-                  if (demo.syncing) const LinearProgressIndicator(minHeight: 2),
-                  if (demo.syncMessage.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        demo.syncMessage,
-                        style: const TextStyle(fontSize: 12, color: adminInk),
-                      ),
-                    ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      );
-    },
-  );
-
-  Future<void> _sync(BuildContext context, bool download) async {
+  Widget build(BuildContext context) {
     final persistence = AppPersistence.current;
-    if (persistence == null) {
-      adminMessage(context, 'Mở ứng dụng và đăng nhập admin để đồng bộ.');
-      return;
-    }
-    if (download &&
-        !await adminConfirm(
-          context,
-          'Tải bộ demo từ Firebase?',
-          'Bộ demo trên máy sẽ được thay bằng bản đã lưu trên Firebase.',
-        )) {
-      return;
-    }
-    try {
-      await persistence.syncAdminDemo(download: download);
-    } on ArgumentError catch (e) {
-      if (context.mounted) adminMessage(context, '${e.message}');
-    }
+    if (persistence == null) return const SizedBox.shrink();
+    return ValueListenableBuilder<String>(
+      valueListenable: persistence.saveStatus,
+      builder: (context, status, _) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Row(
+          children: [
+            Icon(
+              persistence.error.value != null
+                  ? Icons.cloud_off_outlined
+                  : persistence.cloudConfirmed
+                  ? Icons.cloud_done_outlined
+                  : Icons.cloud_sync_outlined,
+              size: 19,
+              color: persistence.error.value != null
+                  ? adminOrange
+                  : persistence.cloudConfirmed
+                  ? adminGreen
+                  : adminMuted,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                status,
+                style: const TextStyle(fontSize: 12, color: adminMuted),
+              ),
+            ),
+            TextButton(
+              onPressed: LocalAuth.instance.role != AppRole.admin
+                  ? null
+                  : () async {
+                      try {
+                        await persistence.saveAdminChanges();
+                      } catch (e) {
+                        if (context.mounted) {
+                          adminMessage(
+                            context,
+                            e is StateError
+                                ? e.message
+                                : 'Chưa lưu được dữ liệu. Vui lòng thử lại.',
+                          );
+                        }
+                      }
+                    },
+              child: Text(
+                persistence.error.value == null ? 'Đồng bộ' : 'Thử lại',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

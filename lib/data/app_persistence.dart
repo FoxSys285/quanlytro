@@ -13,7 +13,6 @@ import 'local_database.dart';
 import 'local_auth.dart';
 import 'admin_store.dart';
 import 'firestore_repository.dart';
-import '../pages/admin/admin_demo_data.dart';
 import '../layouts/role_layout.dart';
 
 class AppPersistence {
@@ -22,47 +21,34 @@ class AppPersistence {
   final bool cloudMode;
   static AppPersistence? current;
   final error = ValueNotifier<String?>(null);
+  bool cloudConfirmed = false;
+  final saveStatus = ValueNotifier<String>(
+    'Chỉnh sửa trực tiếp dữ liệu đang dùng',
+  );
   Future<void> _pending = Future.value();
   bool _scheduled = false;
   bool _disposed = false;
   final _subscriptions = <Listenable>{};
-  bool _demoSubscribed = false;
-  RentalRepository get _local => repository is HybridRentalRepository
-      ? (repository as HybridRentalRepository).local
-      : repository;
-
   Future<void> initialize() async {
     final data = await repository.readAll();
-    if (cloudMode) {
-      // Không để trạng thái tài khoản trước tồn tại nếu tài khoản mới thiếu một mục.
-      AdminStore.instance.restore({
-        'verified': <String, bool>{},
-        'hidden': <String>[],
-        'tickets': <dynamic>[],
-        'logs': <dynamic>[],
-        'acceptingViewings': true,
-      });
-      LandlordStaffStore.instance.restore({'nextId': 1, 'staff': <dynamic>[]});
-      if (data['portfolio'] == null) {
-        throw StateError('Chưa có dữ liệu được cấp cho tài khoản.');
-      }
+    final saved = data['portfolio'];
+    if (saved == null || (!cloudMode && data['auth'] == null)) {
+      throw StateError(
+        'Chưa tải được dữ liệu đã lưu. Kiểm tra Firebase hoặc bản lưu trên máy rồi mở lại ứng dụng.',
+      );
     }
     await LocalAuth.instance.initialize(data['auth']);
-    if (data['admin'] != null) AdminStore.instance.restore(data['admin']!);
-    {
-      final local = repository is HybridRentalRepository
-          ? await _local.readAll()
-          : data;
-      AdminDemoData.instance.restore(
-        local['adminDemo'] ?? AdminDemoData().toMap(),
-      );
-      AdminDemoData.instance.addListener(_saveAdminDemo);
-      _demoSubscribed = true;
-    }
-    final saved = data['portfolio'];
-    RentalPortfolio.instance = saved == null
-        ? RentalPortfolio.seeded()
-        : RentalPortfolio.fromMap(saved);
+    AdminStore.instance.restore(
+      data['admin'] ??
+          {
+            'verified': <String, bool>{},
+            'hidden': <String>[],
+            'tickets': <dynamic>[],
+            'logs': <dynamic>[],
+            'acceptingViewings': true,
+          },
+    );
+    RentalPortfolio.instance = RentalPortfolio.fromMap(saved);
     LandlordDemoStore.instance = cloudMode
         ? RentalPortfolio.instance.active
         : RentalPortfolio.instance.byId('may') ??
@@ -70,17 +56,15 @@ class AppPersistence {
     ConversationStore.instance.dispose();
     AccountStore.instance.dispose();
     ViewingStore.instance.dispose();
-    ConversationStore.instance = ConversationStore.demo();
+    ConversationStore.instance = ConversationStore();
     AccountStore.instance = AccountStore(rental: LandlordDemoStore.instance);
-    ViewingStore.instance = ViewingStore.demo(
+    ViewingStore.instance = ViewingStore(
+      [],
       rental: LandlordDemoStore.instance,
     );
     AnnouncementStore.reset();
     final conversations = ConversationStore.instance;
     final viewings = ViewingStore.instance;
-    if (data['viewings'] == null) {
-      viewings.seedPortfolio(RentalPortfolio.instance);
-    }
     final accounts = AccountStore.instance;
     final staff = LandlordStaffStore.instance;
     if (data['conversations'] != null) {
@@ -88,14 +72,23 @@ class AppPersistence {
     }
     if (data['viewings'] != null) viewings.restore(data['viewings']!);
     if (data['accounts'] != null) accounts.restore(data['accounts']!);
-    if (data['staff'] != null) staff.restore(data['staff']!);
+    staff.restore(data['staff'] ?? {'nextId': 1, 'staff': <dynamic>[]});
     TenantFavoritesStore.roomNames
       ..clear()
       ..addAll(List<String>.from(data['favorites']?['ids'] as List? ?? []));
     for (final store in RentalPortfolio.instance.stores) {
       final announcements = AnnouncementStore.forRental(store);
       final stored = data['announcements:${store.property.id}'];
-      if (stored != null) announcements.restore(stored);
+      announcements.restore(
+        stored ??
+            {
+              'sent': <dynamic>[],
+              'recipients': <String, dynamic>{},
+              'readByTenant': <String, dynamic>{},
+              'landlordRead': <String>[],
+              'nextId': 1,
+            },
+      );
     }
     if (!cloudMode) await repository.saveAll(_snapshot());
     for (final store in RentalPortfolio.instance.stores) {
@@ -141,103 +134,43 @@ class AppPersistence {
       }
       final snapshot = _snapshot();
       _pending = _pending.then((_) async {
+        cloudConfirmed = false;
+        saveStatus.value = 'Đang lưu dữ liệu…';
         try {
-          await repository.saveAll(snapshot);
+          final target = repository;
+          if (target is HybridRentalRepository) {
+            await target.saveAll(
+              snapshot,
+              requireRemote: LocalAuth.instance.role == AppRole.admin,
+            );
+          } else {
+            await target.saveAll(snapshot);
+          }
           error.value = null;
+          cloudConfirmed =
+              cloudMode ||
+              (target is HybridRentalRepository &&
+                  target.lastSaveReachedRemote);
+          saveStatus.value = cloudConfirmed
+              ? 'Đã lưu dữ liệu lên Firebase'
+              : 'Đã lưu trên máy · Firebase chưa kết nối';
         } catch (_) {
-          error.value =
-              'Chưa lưu được dữ liệu trên thiết bị. Vui lòng thử lại.';
+          error.value = 'Chưa hoàn tất lưu dữ liệu. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+          saveStatus.value = error.value!;
         }
       });
     });
   }
 
-  void _saveAdminDemo() {
-    if (_disposed) return;
-    final data = AdminDemoData.instance.toMap();
-    _pending = _pending.then((_) async {
-      try {
-        // Tự lưu trên máy; Firebase có nút lưu riêng để báo chính xác kết quả.
-        await _local.saveAll({'adminDemo': data});
-        error.value = null;
-      } catch (_) {
-        error.value = 'Chưa lưu được dữ liệu mẫu trên máy. Vui lòng thử lại.';
-      }
-    });
-  }
-
-  Future<void> syncAdminDemo({required bool download}) async {
-    final auth = LocalAuth.instance;
-    if (_disposed ||
-        auth.role != AppRole.admin ||
-        (cloudMode && auth.session?.role != AppRole.admin)) {
-      throw ArgumentError('Cần đăng nhập tài khoản quản trị viên.');
+  Future<void> saveAdminChanges() async {
+    if (_disposed || LocalAuth.instance.role != AppRole.admin) {
+      throw ArgumentError('Chỉ quản trị viên được lưu thay đổi này.');
     }
-    final demo = AdminDemoData.instance;
-    if (demo.syncing) return;
-    final uid = auth.session?.uid;
-    final prefix = cloudMode
-        ? 'admin_demo_${Uri.encodeComponent(auth.session!.uid)}'
-        : 'admin_demo';
-    final remote = FirestoreRentalRepository(
-      documentCollection: cloudMode ? 'management' : 'app_documents',
-    );
-    demo.setSyncState(
-      true,
-      download ? 'Đang tải từ Firebase…' : 'Đang lưu lên Firebase…',
-    );
-    try {
-      if (download) {
-        final records = await remote
-            .readDocuments([prefix])
-            .timeout(const Duration(seconds: 20));
-        final manifest = records[prefix];
-        if (manifest == null || manifest['schema'] != 1) {
-          throw ArgumentError('Chưa có bộ demo đã lưu trên Firebase.');
-        }
-        final ids = List<String>.from(manifest['properties'] as List);
-        if (ids.isEmpty ||
-            ids.length > 50 ||
-            ids.toSet().length != ids.length) {
-          throw ArgumentError('Danh sách nhà trọ Firebase không hợp lệ.');
-        }
-        records.addAll(
-          await remote
-              .readDocuments([
-                for (final id in ids) '$prefix:${Uri.encodeComponent(id)}',
-              ])
-              .timeout(const Duration(seconds: 20)),
-        );
-        if (_disposed ||
-            auth.role != AppRole.admin ||
-            auth.session?.uid != uid) {
-          throw StateError('Phiên đã kết thúc.');
-        }
-        demo.restoreCloudDocuments(records, prefix);
-        await flush();
-        if (error.value != null) {
-          throw ArgumentError(
-            'Đã tải bộ demo nhưng chưa lưu được trên máy. Kiểm tra dung lượng thiết bị rồi thử lại.',
-          );
-        }
-      } else {
-        await remote
-            .saveAll(demo.cloudDocuments(prefix))
-            .timeout(const Duration(seconds: 20));
-      }
-      demo.setSyncState(
-        false,
-        download
-            ? 'Đã tải bộ demo và lưu trên máy.'
-            : 'Đã lưu bộ demo lên Firebase.',
-      );
-    } on ArgumentError catch (e) {
-      demo.setSyncState(false, '${e.message}');
-    } catch (_) {
-      demo.setSyncState(
-        false,
-        'Chưa xác nhận được đồng bộ. Kiểm tra mạng và quyền tài khoản Firebase rồi thử lại.',
-      );
+    save();
+    await flush();
+    if (error.value != null) throw StateError(error.value!);
+    if (repository is! HybridRentalRepository && !cloudMode) {
+      throw StateError('Đã lưu trên máy nhưng chưa có kết nối Firebase.');
     }
   }
 
@@ -249,13 +182,13 @@ class AppPersistence {
   Future<void> dispose() async {
     await flush();
     _disposed = true;
-    if (_demoSubscribed) AdminDemoData.instance.removeListener(_saveAdminDemo);
     for (final source in _subscriptions) {
       source.removeListener(save);
     }
     _subscriptions.clear();
     await repository.close();
     error.dispose();
+    saveStatus.dispose();
     if (current == this) current = null;
   }
 }

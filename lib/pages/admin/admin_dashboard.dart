@@ -8,7 +8,6 @@ import '../landlord/landlord_demo_store.dart';
 import '../landlord/finance/landlord_finance_models.dart';
 import '../landlord/landlord_ui.dart' show formatLandlordMoney;
 import 'admin_ui.dart';
-import 'admin_demo_data.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({
@@ -117,8 +116,7 @@ class AdminDashboard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 _stat(
-                                  auth.isCloudMode ||
-                                          AdminDemoData.instance.enabled
+                                  auth.isCloudMode
                                       ? (userCount?.toString() ?? '—')
                                       : '${auth.localAccounts.length}',
                                   'Tài khoản',
@@ -156,7 +154,7 @@ class AdminDashboard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const AdminDemoBar(),
+                    const AdminSyncBar(),
                     Row(
                       children: [
                         Expanded(

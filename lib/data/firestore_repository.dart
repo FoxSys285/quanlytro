@@ -10,36 +10,15 @@ import 'rental_cloud_codec.dart';
 /// Cloud Firestore implementation of [RentalRepository].
 /// Saves application documents in the 'app_documents' collection.
 class FirestoreRentalRepository implements RentalRepository {
-  FirestoreRentalRepository({
-    FirebaseFirestore? firestore,
-    this.documentCollection = collectionName,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreRentalRepository({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
-  final String documentCollection;
   final _roomHashes = <String, String>{};
   static const String collectionName = 'app_documents';
 
   CollectionReference<Map<String, dynamic>> get _collection =>
-      _firestore.collection(documentCollection);
-
-  Future<Map<String, Map<String, dynamic>>> readDocuments(
-    Iterable<String> ids,
-  ) async {
-    final records = await Future.wait(
-      ids.map(
-        (id) =>
-            _collection.doc(id).get(const GetOptions(source: Source.server)),
-      ),
-    );
-    return {
-      for (final doc in records)
-        if (doc.exists)
-          doc.id: Map<String, dynamic>.from(
-            jsonDecode(doc.data()!['payload'] as String) as Map,
-          ),
-    };
-  }
+      _firestore.collection(collectionName);
 
   @override
   Future<Map<String, Map<String, dynamic>>> readAll() async {
@@ -158,6 +137,7 @@ class HybridRentalRepository implements RentalRepository {
   final RentalRepository remote;
   bool isOnline;
   final bool strictRemote;
+  bool lastSaveReachedRemote = false;
 
   @override
   Future<Map<String, Map<String, dynamic>>> readAll() async {
@@ -182,18 +162,27 @@ class HybridRentalRepository implements RentalRepository {
   }
 
   @override
-  Future<void> saveAll(Map<String, Map<String, dynamic>> documents) async {
+  Future<void> saveAll(
+    Map<String, Map<String, dynamic>> documents, {
+    bool requireRemote = false,
+  }) async {
     // Always save locally first for instant UI response and persistence
+    lastSaveReachedRemote = false;
     await local.saveAll(documents);
 
     // Sync to remote in background if connected
     if (isOnline) {
       try {
-        await remote.saveAll({...documents}..remove('adminDemo'));
+        await remote
+            .saveAll({...documents}..remove('adminDemo'))
+            .timeout(const Duration(seconds: 20));
+        lastSaveReachedRemote = true;
       } catch (e) {
-        if (strictRemote) rethrow;
+        if (strictRemote || requireRemote) rethrow;
         debugPrint('Sync to Firestore background error: $e');
       }
+    } else if (requireRemote) {
+      throw StateError('Firebase chưa kết nối. Dữ liệu đã được giữ trên máy.');
     }
   }
 

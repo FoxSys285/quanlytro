@@ -23,6 +23,7 @@ migrate_working_dir/
 .antigravity/
 .aider*
 .continue/
+/.local-backups/
 /.mcp.json
 /AGENTS.md
 /CLAUDE.md

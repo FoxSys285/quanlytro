@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -6,11 +7,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/data/local_auth.dart';
+import 'package:quanlytro/data/admin_store.dart';
 import 'package:quanlytro/layouts/admin_layout.dart';
 import 'package:quanlytro/layouts/role_layout.dart';
 import 'package:quanlytro/pages/admin/admin_page_router.dart';
-import 'package:quanlytro/pages/admin/admin_demo_data.dart';
-import 'package:quanlytro/pages/admin/admin_commission_page.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
 
 void main() {
@@ -210,6 +210,30 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     RentalPortfolio.instance = RentalPortfolio.seeded();
+    const liveSnapshot = String.fromEnvironment('ADMIN_LIVE_SNAPSHOT');
+    if (liveSnapshot.isNotEmpty) {
+      await tester.runAsync(() async {
+        final portfolioRaw = jsonDecode(
+          await File('$liveSnapshot/portfolio.json').readAsString(),
+        ) as Map;
+        RentalPortfolio.instance = RentalPortfolio.fromMap(
+          Map<String, dynamic>.from(
+            jsonDecode(
+              portfolioRaw['fields']['payload']['stringValue'] as String,
+            ) as Map,
+          ),
+        );
+        final adminRaw = jsonDecode(
+          await File('$liveSnapshot/admin-after.json').readAsString(),
+        ) as Map;
+        AdminStore.instance.restore(
+          Map<String, dynamic>.from(
+            jsonDecode(adminRaw['fields']['payload']['stringValue'] as String)
+                as Map,
+          ),
+        );
+      });
+    }
     await tester.runAsync(() async {
       final font = File('.dart_tool/previews/Roboto.ttf');
       if (await font.exists()) {
@@ -289,17 +313,15 @@ void main() {
         await tester.pumpAndSettle();
         await capture(key, '$prefix-$id');
       }
-      AdminDemoData.instance.enabled = true;
-      AdminDemoData.instance.notifyListeners();
       await tester.pumpAndSettle();
-      await capture(key, '$prefix-demo-commissions');
+      await capture(key, '$prefix-live-commissions');
       final house = find.text('Mây House').first;
       await tester.ensureVisible(house);
       await tester.pumpAndSettle();
-      await capture(key, '$prefix-demo-commission-list');
+      await capture(key, '$prefix-live-commission-list');
       await tester.tap(house);
       await tester.pumpAndSettle();
-      await capture(key, '$prefix-demo-commission-expanded');
+      await capture(key, '$prefix-live-commission-expanded');
       for (final id in ['users', 'activity']) {
         RoleLayoutShell.navigateTo(
           tester.element(find.byType(Scaffold).first),
@@ -315,85 +337,82 @@ void main() {
           await tester.tap(membersTab);
           await tester.pumpAndSettle();
         }
-        await capture(key, '$prefix-demo-$id');
+        await capture(key, '$prefix-live-$id');
         expect(tester.takeException(), isNull);
       }
-      AdminDemoData.instance.enabled = false;
     }
   });
 
-  testWidgets(
-    'Demo tenant list paginates, opens details and persists a contact edit',
-    (tester) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(390, 900);
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.runAsync(
-        () => LocalAuth.instance.signIn('admin@tro.local', 'Tro@2026'),
-      );
-      final demo = AdminDemoData.instance..enabled = true;
-      addTearDown(() async {
-        demo.enabled = false;
-        await LocalAuth.instance.signOut();
-      });
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => buildAdminPage(
-                context,
-                const RoleDestination(
-                  id: 'users',
-                  label: 'Người dùng',
-                  icon: Icons.people,
-                  group: 'admin',
-                ),
+  testWidgets('Tenant list edits shared records without a demo switch', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.runAsync(
+      () => LocalAuth.instance.signIn('admin@tro.local', 'Tro@2026'),
+    );
+    addTearDown(() => LocalAuth.instance.signOut());
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => buildAdminPage(
+              context,
+              const RoleDestination(
+                id: 'users',
+                label: 'Người dùng',
+                icon: Icons.people,
+                group: 'admin',
               ),
             ),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      final membersTab = find.descendant(
-        of: find.byType(SegmentedButton<String>),
-        matching: find.text('Người thuê'),
-      );
-      await tester.ensureVisible(membersTab);
-      await tester.tap(membersTab);
-      await tester.pumpAndSettle();
-      final member = demo.portfolio.stores.first.members.first;
-      final name = find.text(member.name).first;
-      await tester.ensureVisible(name);
-      await tester.tap(name);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Sửa hồ sơ mẫu'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).last, 'Người thuê đã sửa');
-      await tester.tap(find.widgetWithText(FilledButton, 'Lưu'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).last, '0987654321');
-      await tester.tap(find.widgetWithText(FilledButton, 'Lưu'));
-      await tester.pumpAndSettle();
-      expect(
-        demo.portfolio.stores.first.members.first.name,
-        'Người thuê đã sửa',
-      );
-      expect(demo.portfolio.stores.first.members.first.phone, '0987654321');
-      expect(find.text('Người thuê đã sửa'), findsOneWidget);
-      final next = find.byTooltip('Trang tiếp theo');
-      await tester.ensureVisible(next);
-      await tester.tap(next);
-      await tester.pumpAndSettle();
-      expect(find.textContaining('13–24 /'), findsOneWidget);
-      expect(find.text('Người thuê đã sửa'), findsNothing);
-      await tester.ensureVisible(find.byType(TextField).first);
-      await tester.enterText(find.byType(TextField).first, 'không tồn tại xyz');
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Không tìm thấy hồ sơ.'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    final membersTab = find.descendant(
+      of: find.byType(SegmentedButton<String>),
+      matching: find.text('Người thuê'),
+    );
+    await tester.ensureVisible(membersTab);
+    await tester.tap(membersTab);
+    await tester.pumpAndSettle();
+    final member = RentalPortfolio.instance.stores.first.members.first;
+    final name = find.text(member.name).first;
+    await tester.ensureVisible(name);
+    await tester.tap(name);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sửa hồ sơ'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Người thuê đã sửa');
+    await tester.tap(find.widgetWithText(FilledButton, 'Lưu'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '0987654321');
+    await tester.tap(find.widgetWithText(FilledButton, 'Lưu'));
+    await tester.pumpAndSettle();
+    expect(
+      RentalPortfolio.instance.stores.first.members.first.name,
+      'Người thuê đã sửa',
+    );
+    expect(
+      RentalPortfolio.instance.stores.first.members.first.phone,
+      '0987654321',
+    );
+    expect(find.text('Người thuê đã sửa'), findsOneWidget);
+    final next = find.byTooltip('Trang tiếp theo');
+    await tester.ensureVisible(next);
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('13–24 /'), findsOneWidget);
+    expect(find.text('Người thuê đã sửa'), findsNothing);
+    await tester.ensureVisible(find.byType(TextField).first);
+    await tester.enterText(find.byType(TextField).first, 'không tồn tại xyz');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Không tìm thấy hồ sơ.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Admin navigation opens users, commissions and the more drawer', (
     tester,
@@ -420,36 +439,6 @@ void main() {
     await tester.tap(find.text('Hoạt động ứng dụng').last);
     await tester.pumpAndSettle();
     expect(find.text('Phạm vi thống kê'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('Loading another demo anchor selects its commission month', (
-    tester,
-  ) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(320, 900);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final demo = AdminDemoData.instance;
-    final before = demo.toMap();
-    addTearDown(() => demo.restore(before));
-    demo.restore({...before, 'enabled': true, 'anchor': '2026-11-04T00:00:00'});
-    await tester.pumpWidget(
-      MaterialApp(
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: const TextScaler.linear(1.3)),
-          child: child!,
-        ),
-        home: const Scaffold(body: AdminCommissionPage()),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Tháng 10/2026'), findsOneWidget);
-    demo.restore({...demo.toMap(), 'anchor': '2026-02-04T00:00:00'});
-    await tester.pumpAndSettle();
-    expect(find.text('Tháng 01/2026'), findsOneWidget);
-    expect(find.text('Tháng 10/2026'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

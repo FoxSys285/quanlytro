@@ -6,7 +6,6 @@ import '../../layouts/role_layout.dart';
 import '../landlord/landlord_demo_store.dart';
 import '../landlord/finance/landlord_finance_models.dart';
 import 'admin_ui.dart';
-import 'admin_demo_data.dart';
 import 'admin_dashboard.dart';
 import 'admin_users_page.dart';
 
@@ -18,8 +17,7 @@ class AdminWorkspacePage extends StatefulWidget {
 }
 
 class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
-  AdminDemoData get demo => AdminDemoData.instance;
-  AdminStore get _admin => demo.enabled ? demo.admin : AdminStore.instance;
+  AdminStore get _admin => AdminStore.instance;
   late final Future<List<AdminAccount>>? _cloudAccounts =
       LocalAuth.instance.isCloudMode && LocalAuth.instance.role == AppRole.admin
       ? loadAdminAccounts()
@@ -33,14 +31,12 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
       RentalPortfolio.instance,
       AdminStore.instance,
       LocalAuth.instance,
-      demo,
     ]),
     builder: (context, _) {
-      final stores =
-          (demo.enabled ? demo.portfolio : RentalPortfolio.instance).stores;
+      final stores = RentalPortfolio.instance.stores;
       final admin = _admin;
       final id = widget.destination.id;
-      final children = <Widget>[const AdminDemoBar()];
+      final children = <Widget>[const AdminSyncBar()];
       if (id == 'dashboard') {
         if (_cloudAccounts != null) {
           return FutureBuilder<List<AdminAccount>>(
@@ -49,18 +45,11 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
               context,
               stores,
               admin,
-              userCount: demo.enabled
-                  ? demo.accounts.length
-                  : snapshot.data?.length,
+              userCount: snapshot.data?.length,
             ),
           );
         }
-        return _dashboard(
-          context,
-          stores,
-          admin,
-          userCount: demo.enabled ? demo.accounts.length : null,
-        );
+        return _dashboard(context, stores, admin, userCount: null);
       }
       if (id == 'property_verification' || id == 'moderation') {
         final verification = id == 'property_verification';

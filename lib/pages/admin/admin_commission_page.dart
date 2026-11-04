@@ -7,7 +7,6 @@ import '../../layouts/role_layout.dart';
 import '../landlord/landlord_demo_store.dart';
 import '../landlord/finance/landlord_finance_models.dart';
 import 'admin_ui.dart';
-import 'admin_demo_data.dart';
 import '../landlord/landlord_ui.dart' show formatLandlordMoney;
 
 class AdminCommissionPage extends StatefulWidget {
@@ -17,46 +16,41 @@ class AdminCommissionPage extends StatefulWidget {
 }
 
 class _AdminCommissionPageState extends State<AdminCommissionPage> {
-  AdminDemoData get demo => AdminDemoData.instance;
-  AdminStore get _admin => demo.enabled ? demo.admin : AdminStore.instance;
-  RentalPortfolio get _portfolio =>
-      demo.enabled ? demo.portfolio : RentalPortfolio.instance;
-  late DateTime _month = demo.enabled
-      ? demo.month
-      : DateTime(DateTime.now().year, DateTime.now().month - 1);
+  AdminStore get _admin => AdminStore.instance;
+  RentalPortfolio get _portfolio => RentalPortfolio.instance;
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   String _filter = 'all', _query = '';
-  late bool _wasDemo = demo.enabled;
-  late DateTime _demoMonth = demo.month;
-
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([
       AdminStore.instance,
       RentalPortfolio.instance,
       LocalAuth.instance,
-      demo,
     ]),
     builder: (context, _) {
-      if (_wasDemo != demo.enabled ||
-          (demo.enabled && _demoMonth != demo.month)) {
-        _wasDemo = demo.enabled;
-        _demoMonth = demo.month;
-        _month = demo.enabled
-            ? demo.month
-            : DateTime(DateTime.now().year, DateTime.now().month - 1);
-      }
       final admin = _admin;
       final authorized = LocalAuth.instance.role == AppRole.admin;
       final statements = admin.statements
           .where((s) => s.month == _month)
           .toList();
+      final forecast = _portfolio.stores.fold<int>(0, (sum, store) {
+        if (statements.any((s) => s.propertyId == store.property.id)) {
+          return sum;
+        }
+        final rate = admin.commissionRate(store.property.id);
+        return sum +
+            (rate == null
+                ? 0
+                : (commissionRentCollected(store, _month) * rate + 5000) ~/
+                      10000);
+      });
       final now = DateTime.now();
       final closedMonth = _month.isBefore(DateTime(now.year, now.month));
       return AdminFrame(
         title: 'Đối soát hoa hồng',
         subtitle: 'Chốt hoa hồng từng tháng, theo dõi công nợ và chứng từ.',
         children: [
-          const AdminDemoBar(),
+          const AdminSyncBar(),
           Row(
             children: [
               IconButton(
@@ -88,7 +82,7 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
             ],
           ),
           const SizedBox(height: 20),
-          _summary(statements),
+          _summary(statements, forecast),
           const AdminPanel(
             child: ExpansionTile(
               tilePadding: EdgeInsets.zero,
@@ -475,7 +469,7 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
     }
   }
 
-  Widget _summary(List<CommissionStatement> statements) {
+  Widget _summary(List<CommissionStatement> statements, int forecast) {
     final total = statements.fold<int>(0, (n, s) => n + s.due);
     final received = statements.fold<int>(0, (n, s) => n + s.received);
     return AdminPanel(
@@ -496,25 +490,30 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.account_balance_wallet_outlined,
                     color: Color(0xFF9AE3CD),
                     size: 21,
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Còn phải thu',
-                      style: TextStyle(color: Color(0xFFD1DCF2), fontSize: 14),
+                      statements.isEmpty ? 'Hoa hồng dự kiến' : 'Còn phải thu',
+                      style: const TextStyle(
+                        color: Color(0xFFD1DCF2),
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               Text(
-                formatLandlordMoney(total - received),
+                formatLandlordMoney(
+                  statements.isEmpty ? forecast : total - received,
+                ),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -522,6 +521,17 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                 ),
               ),
               const SizedBox(height: 18),
+              if (statements.isNotEmpty && forecast > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Dự kiến chưa chốt: ${formatLandlordMoney(forecast)}',
+                    style: const TextStyle(
+                      color: Color(0xFFD1DCF2),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
               const Divider(color: Color(0xFF52607D)),
               const SizedBox(height: 12),
               Row(

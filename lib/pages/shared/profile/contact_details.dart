@@ -24,8 +24,8 @@ class ContactDetails {
     name: map['name'] as String,
     phone: map['phone'] as String,
     email: map['email'] as String,
-    address: map['address'] as String,
-    jobTitle: map['jobTitle'] as String,
+    address: map['address'] as String? ?? '',
+    jobTitle: map['jobTitle'] as String? ?? '',
   );
 }
 

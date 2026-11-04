@@ -72,6 +72,29 @@ class AdminStore extends ChangeNotifier {
   int? commissionRate(String id) => _commissionRates[id];
   List<CommissionStatement> get statements => List.unmodifiable(_statements);
 
+  void editMemberContact(
+    String propertyId,
+    String memberId,
+    String name,
+    String phone,
+  ) {
+    _requireAdmin();
+    name = name.trim();
+    phone = phone.trim().replaceAll(RegExp(r'[\s.-]'), '');
+    if (name.isEmpty ||
+        name.length > 100 ||
+        !RegExp(r'^\+?[0-9]{9,15}$').hasMatch(phone)) {
+      throw ArgumentError(
+        'Nhập họ tên tối đa 100 ký tự và số điện thoại hợp lệ.',
+      );
+    }
+    final store = _portfolio.byId(propertyId);
+    final member = store?.members.where((m) => m.id == memberId).firstOrNull;
+    if (member == null) throw ArgumentError('Không tìm thấy hồ sơ người thuê.');
+    store!.updateTenantContact(member.tenantId, name: name, phone: phone);
+    record('Cập nhật liên hệ người thuê ${member.tenantId} tại $propertyId');
+  }
+
   static String _proof(LandlordDemoStore store) => sha256
       .convert(
         utf8.encode(

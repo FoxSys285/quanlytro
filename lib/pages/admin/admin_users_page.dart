@@ -2,14 +2,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/admin_store.dart';
+import '../../data/app_persistence.dart';
 import '../../data/local_auth.dart';
 import '../../layouts/role_layout.dart';
 import '../landlord/landlord_demo_store.dart';
 import '../shared/widgets/list_pagination.dart';
 import 'admin_ui.dart';
-import 'admin_demo_data.dart';
 import '../shared/rental/lease_member.dart';
 import '../landlord/finance/landlord_finance_models.dart';
+
+typedef AdminAccount = ({
+  String id,
+  String email,
+  String name,
+  String role,
+  bool disabled,
+});
 
 Future<List<AdminAccount>> loadAdminAccounts() async {
   final auth = LocalAuth.instance;
@@ -55,24 +63,19 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   bool _lockedOnly = false;
   int _page = 0;
   late Future<List<AdminAccount>> _accounts = loadAdminAccounts();
-  AdminDemoData get demo => AdminDemoData.instance;
-  RentalPortfolio get portfolio =>
-      demo.enabled ? demo.portfolio : RentalPortfolio.instance;
+  RentalPortfolio get portfolio => RentalPortfolio.instance;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([
       LocalAuth.instance,
       RentalPortfolio.instance,
-      demo,
     ]),
     builder: (context, _) => FutureBuilder<List<AdminAccount>>(
       future: _accounts,
       builder: (context, snapshot) {
         final auth = LocalAuth.instance;
-        final accounts = demo.enabled
-            ? demo.accounts
-            : auth.isCloudMode
+        final accounts = auth.isCloudMode
             ? snapshot.data
             : [
                 for (final a in auth.localAccounts)
@@ -109,7 +112,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           title: 'Người dùng & tài khoản',
           subtitle: 'Tìm đúng người, kiểm tra hồ sơ và trạng thái tài khoản.',
           children: [
-            const AdminDemoBar(),
+            const AdminSyncBar(),
             Padding(
               padding: const EdgeInsets.only(bottom: 20),
               child: Row(
@@ -208,10 +211,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               ),
               const SizedBox(height: 16),
               if (snapshot.connectionState == ConnectionState.waiting &&
-                  auth.isCloudMode &&
-                  !demo.enabled)
+                  auth.isCloudMode)
                 const LinearProgressIndicator(),
-              if (snapshot.hasError && !demo.enabled)
+              if (snapshot.hasError)
                 AdminPanel(
                   child: Column(
                     children: [
@@ -226,20 +228,12 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                     ],
                   ),
                 ),
-              if (auth.isCloudMode && !demo.enabled)
+              if (auth.isCloudMode)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 16),
                   child: Text(
                     'Tài khoản máy chủ chỉ được xem tại đây. Liên hệ quản trị hệ thống để khóa hoặc mở khóa.',
                     style: TextStyle(color: adminMuted, fontSize: 12),
-                  ),
-                ),
-              if (demo.enabled)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    'Tài khoản mô phỏng, không dùng để đăng nhập.',
-                    style: TextStyle(color: adminGold, fontSize: 12),
                   ),
                 ),
               if (accounts != null && matched.isEmpty)
@@ -363,8 +357,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               account.disabled ? 'Đang khóa' : 'Hoạt động',
               color: account.disabled ? adminOrange : adminGreen,
             ),
-            if ((demo.enabled || !LocalAuth.instance.isCloudMode) &&
-                account.role != 'admin')
+            if (!LocalAuth.instance.isCloudMode && account.role != 'admin')
               OutlinedButton(
                 onPressed: LocalAuth.instance.role != AppRole.admin
                     ? null
@@ -373,27 +366,19 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                         if (!await adminConfirm(
                           context,
                           disabled ? 'Khóa tài khoản?' : 'Mở khóa tài khoản?',
-                          '${account.email}\n${demo.enabled
-                              ? 'Thay đổi tài khoản mẫu và lưu trên máy.'
-                              : disabled
-                              ? 'Tài khoản sẽ không đăng nhập được cho đến khi mở khóa.'
-                              : 'Tài khoản có thể đăng nhập trở lại.'}',
+                          '${account.email}\n${disabled ? 'Tài khoản sẽ không đăng nhập được cho đến khi mở khóa.' : 'Tài khoản có thể đăng nhập trở lại.'}',
                         )) {
                           return;
                         }
                         if (!context.mounted) return;
                         try {
-                          if (demo.enabled) {
-                            demo.setLocked(account.id, disabled);
-                          } else {
-                            LocalAuth.instance.setDisabled(
-                              AppRole.values.byName(account.role),
-                              disabled,
-                            );
-                            AdminStore.instance.record(
-                              '${disabled ? 'Khóa' : 'Mở khóa'} tài khoản ${account.email}',
-                            );
-                          }
+                          LocalAuth.instance.setDisabled(
+                            AppRole.values.byName(account.role),
+                            disabled,
+                          );
+                          AdminStore.instance.record(
+                            '${disabled ? 'Khóa' : 'Mở khóa'} tài khoản ${account.email}',
+                          );
                         } on ArgumentError catch (e) {
                           adminMessage(context, '${e.message}');
                         }
@@ -597,32 +582,40 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   : 'Thành viên phòng',
               style: const TextStyle(color: adminBlue),
             ),
-            if (demo.enabled && LocalAuth.instance.role == AppRole.admin) ...[
+            if (LocalAuth.instance.role == AppRole.admin) ...[
               const SizedBox(height: 20),
               FilledButton.icon(
                 icon: const Icon(Icons.edit_outlined),
-                label: const Text('Sửa hồ sơ mẫu'),
+                label: const Text('Sửa hồ sơ'),
                 onPressed: () async {
                   final name = await adminInput(
                     context,
-                    title: 'Sửa hồ sơ mẫu',
+                    title: 'Sửa hồ sơ',
                     label: 'Họ tên',
                     initial: member.name,
                   );
                   if (name == null || !context.mounted) return;
                   final phone = await adminInput(
                     context,
-                    title: 'Sửa hồ sơ mẫu',
+                    title: 'Sửa hồ sơ',
                     label: 'Số điện thoại',
                     initial: member.phone,
                     numeric: true,
                   );
                   if (phone == null || !context.mounted) return;
                   try {
-                    demo.editMember(store.property.id, member.id, name, phone);
+                    AdminStore.instance.editMemberContact(
+                      store.property.id,
+                      member.id,
+                      name,
+                      phone,
+                    );
                     Navigator.pop(context);
+                    await AppPersistence.current?.saveAdminChanges();
                   } on ArgumentError catch (e) {
-                    adminMessage(context, '${e.message}');
+                    if (mounted) adminMessage(this.context, '${e.message}');
+                  } on StateError catch (e) {
+                    if (mounted) adminMessage(this.context, e.message);
                   }
                 },
               ),
@@ -635,31 +628,25 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
 
   Widget _activity(BuildContext context, List<AdminAccount>? accounts) {
     final auth = LocalAuth.instance;
-    final count = demo.enabled
-        ? 17
-        : auth.role != null && auth.isForeground
-        ? 1
-        : 0;
+    final count = auth.role != null && auth.isForeground ? 1 : 0;
     return AdminFrame(
       title: 'Hoạt động ứng dụng',
       subtitle: 'Theo dõi phiên sử dụng và tình trạng tài khoản.',
       children: [
-        const AdminDemoBar(),
+        const AdminSyncBar(),
         AdminPanel(
           backgroundColor: const Color(0xFF1D2E50),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              const Row(
                 children: [
-                  const Icon(Icons.sensors_rounded, color: Color(0xFF87DFC0)),
-                  const SizedBox(width: 10),
+                  Icon(Icons.sensors_rounded, color: Color(0xFF87DFC0)),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      demo.enabled
-                          ? 'Đang mở app · mô phỏng'
-                          : 'Thiết bị hiện tại',
-                      style: const TextStyle(
+                      'Thiết bị hiện tại',
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
@@ -678,9 +665,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                demo.enabled
-                    ? '17 phiên giả lập để xem giao diện'
-                    : count == 1
+                count == 1
                     ? 'Phiên đăng nhập đang hoạt động'
                     : 'Chưa có phiên đang hoạt động',
                 style: const TextStyle(color: Color(0xFFD1DCF2), fontSize: 13),
@@ -688,22 +673,20 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
             ],
           ),
         ),
-        AdminPanel(
+        const AdminPanel(
           child: ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            leading: const Icon(Icons.info_outline_rounded, color: adminBlue),
-            title: const Text('Phạm vi thống kê'),
+            leading: Icon(Icons.info_outline_rounded, color: adminBlue),
+            title: Text('Phạm vi thống kê'),
             subtitle: Text(
-              demo.enabled
-                  ? 'Dữ liệu minh họa, không phải online thật'
-                  : 'Số online toàn hệ thống chưa khả dụng',
-              style: const TextStyle(fontSize: 12, color: adminMuted),
+              'Số online toàn hệ thống chưa khả dụng',
+              style: TextStyle(fontSize: 12, color: adminMuted),
             ),
-            children: const [
+            children: [
               Padding(
                 padding: EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'Bản hiện tại chỉ đếm phiên trên thiết bị đang dùng. Bật dữ liệu demo để xem các trạng thái mô phỏng.',
+                  'Chỉ đếm phiên đăng nhập trên thiết bị đang dùng. Không suy ra số online từ số tài khoản hay lần đăng nhập gần nhất.',
                 ),
               ),
             ],
@@ -727,11 +710,6 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                 ),
               ],
             ),
-          ),
-        if (!demo.enabled)
-          const Text(
-            'Chỉ số cập nhật khi ứng dụng chuyển vào hoặc ra khỏi màn hình.',
-            style: TextStyle(color: adminMuted, fontSize: 12),
           ),
       ],
     );

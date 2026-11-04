@@ -26,7 +26,7 @@
 ## Các phần backend còn thiếu
 
 1. **Online toàn hệ thống:** cần dịch vụ presence theo tài khoản/phiên, xử lý mất mạng và hết hạn phiên. Hướng chính thức của Firebase dùng Realtime Database và Cloud Functions để phản chiếu trạng thái sang Firestore: [Firebase presence](https://firebase.google.com/docs/firestore/solutions/presence). Không thể coi “đăng nhập gần nhất” là đang mở app.
-2. **Khóa tài khoản Firebase:** `firestore.rules` hiện cấm client ghi `users`; cần luồng backend có kiểm tra quyền admin. Bản cập nhật không thay rule, không cấp quyền và không thao tác dữ liệu máy chủ.
+2. **Khóa tài khoản Firebase:** `firestore.rules` hiện cấm client ghi `users`; cần luồng backend có kiểm tra quyền admin. Chưa triển khai backend khóa tài khoản; không đổi Rules hoặc quyền.
 3. **Xác minh pháp lý:** mô hình nhà trọ chưa có giấy tờ sở hữu/ủy quyền. Duyệt hiện tại chỉ xác minh thông tin cơ bản; không được gọi là đã kiểm tra pháp lý.
 4. **Gửi yêu cầu bổ sung qua Firebase:** cần projection/kênh nhận riêng cho đúng chủ nhà trọ. Không mở quyền đọc toàn bộ cấu hình quản trị cho chủ trọ.
 
@@ -34,11 +34,11 @@
 
 Các bài kiểm tra mới dùng đối tượng trong bộ nhớ và JSON, không mở SQLite/Firebase, không sửa dữ liệu thật. Kiểm tra giao diện tại 320, 390, 768 và 1440 px; kiểm tra điều hướng, tìm kiếm, khóa/mở local, xác minh thiếu hồ sơ, thay đổi sau xác minh, tính tiền, duyệt thu muộn, chốt trùng, thu vượt và khôi phục trạng thái.
 
-Vòng giao diện trước có 23 bài kiểm tra đạt. Vòng dữ liệu mẫu bổ sung kiểm tra lưu/khôi phục, lỗi ghi local, phân trang, sửa thông tin người đại diện và đổi tháng khi tải bộ mẫu khác. Đã xem ảnh Flutter widget của tổng quan, hồ sơ nhanh, tài khoản, xác minh, hoa hồng và hoạt động. Bài kiểm tra xác nhận lệnh âm chạm/rung được gửi qua platform channel, chữ lớn 1,3 lần và giảm chuyển động không gây tràn giao diện. Chưa kiểm tra âm/rung hoặc hiệu năng trên thiết bị Android thật.
+Vòng dữ liệu hiện tại kiểm tra sửa trực tiếp hồ sơ đại diện/thành viên, cùng một snapshot được lưu local và gửi lên remote, lỗi Firebase phải hiện rõ, thử lại thành công và không tạo dữ liệu giả khi thiếu bản lưu. Kiểm tra SQLite dùng thư mục tạm trong workspace. Bài kiểm tra giao diện xác nhận phân trang, sửa hồ sơ, điều hướng, phản hồi platform channel, chữ lớn và giảm chuyển động. Chưa kiểm tra âm/rung hoặc hiệu năng trên thiết bị Android thật.
 
 ```powershell
 flutter analyze --no-pub
-flutter test --no-pub test/admin_demo_test.dart test/admin_workflow_test.dart test/admin_ui_test.dart test/role_drawer_test.dart test/portfolio_ui_test.dart --dart-define=ADMIN_PREVIEW=true
+flutter test --no-pub test/admin_live_data_test.dart test/admin_workflow_test.dart test/admin_ui_test.dart test/role_drawer_test.dart test/portfolio_ui_test.dart --dart-define=ADMIN_PREVIEW=true
 ```
 
 Tạo ảnh kiểm tra từ widget, không chạy `main()` hay kết nối database:
@@ -51,13 +51,27 @@ flutter test --no-pub test/admin_ui_test.dart --dart-define=ADMIN_PREVIEW=true
 
 Phản hồi trong admin dùng ripple Material, âm chạm hệ thống, rung nhẹ khi chọn/xác nhận, chuyển mục 180 ms và bottom sheet 260/180 ms. Không có âm phát tự động, không thêm thư viện âm thanh; âm chạm còn phụ thuộc cài đặt âm lượng/âm hệ thống của Android.
 
-## Dữ liệu mẫu có thể chỉnh và lưu Firebase
+## Dữ liệu đang dùng — không có chế độ demo
 
-- Chọn **Dùng demo** trong admin. Bộ mẫu có 10 nhà trọ, hồ sơ thuê, 24 tài khoản mô phỏng và ba kỳ hoa hồng tính tương đối theo thời điểm tạo mẫu. Có đủ trạng thái chưa đặt tỷ lệ, chưa chốt, chờ thu, thu một phần và thu đủ. Tài khoản mẫu không phải tài khoản đăng nhập; số 17 phiên là minh họa và được ghi rõ trên UI.
-- **Người dùng → Người thuê → chạm hồ sơ → Sửa hồ sơ mẫu** để đổi tên/điện thoại. Người đại diện lưu vào hợp đồng gốc của bộ mẫu; thành viên lưu vào hồ sơ. Khóa/mở tài khoản mẫu và thay đổi hoa hồng tự lưu local, tách khỏi dữ liệu nghiệp vụ đang dùng.
-- **Hoa hồng → chạm nhà trọ → Đặt tỷ lệ → Chốt kỳ → Ghi nhận tiền** để thử quy trình. Có tìm kiếm, lọc trạng thái, thẻ thu gọn kèm ảnh; hướng dẫn nằm trong “Cơ sở tính”. Hồ sơ thuê chia trang 12 người.
-- Chạm **biểu tượng đám mây** trên thanh demo: **Lưu Firebase** gửi bản chụp bộ mẫu; **Tải Firebase** xác nhận trước khi thay bộ mẫu trên máy. App chỉ báo đã lưu khi có kết quả thành công; lỗi mạng/quyền hoặc lỗi lưu local có thông báo. Tải bộ mẫu khác tháng sẽ chọn đúng tháng của bộ vừa tải.
-- Luồng legacy dùng `app_documents/admin_demo` và `app_documents/admin_demo:<propertyId>`, theo envelope JSON `payload` hiện có. Khi chạy chế độ Firebase Auth, dùng `management/admin_demo_<uid>` và các document nhà trọ tương ứng. Một batch gồm manifest và từng nhà trọ; kiểm tra generation tránh ghép lẫn hai bản tải. Giới hạn 800.000 byte JSON mỗi phần để chừa chỗ dưới giới hạn document Firestore; không thay `admin`, `auth`, `portfolio` hoặc xuất tin demo vào `public_rooms`.
-- Không đổi hoặc deploy Rules. Quyền thực tế do máy chủ quyết định; `firestore.rules` trong repo hiện cấm `app_documents`, còn `management` cần Firebase admin. Ảnh Console có document `admin` không chứng minh client được quyền ghi. Chưa xác nhận ghi/tải Firebase thật trong vòng này vì không có thiết bị Android hay kết nối điều khiển Console.
+- Đã bỏ `AdminDemoData`, nút “Dùng demo”, 24 tài khoản mô phỏng và chỉ số 17 phiên giả. Các trang admin dùng chung `RentalPortfolio.instance` và `AdminStore.instance` với ứng dụng.
+- **Người dùng → Người thuê → chạm hồ sơ → Sửa hồ sơ** sửa trực tiếp dữ liệu liên hệ hiện tại. Người đại diện cập nhật nguồn hợp đồng; thành viên cập nhật hồ sơ. Có kiểm tra quyền admin và tên/số điện thoại hợp lệ.
+- Tự lưu qua repository hiện có: legacy ghi `app_documents/portfolio` và `app_documents/admin`; chế độ Firebase Auth dùng các collection nghiệp vụ và `management/system`. Không ghi vào namespace `admin_demo` nữa. Dữ liệu cũ trong namespace đó không được chọn làm nguồn ứng dụng.
+- Thanh trạng thái chỉ báo **Đã lưu dữ liệu lên Firebase** khi remote xác nhận. Lỗi mạng/quyền hiện rõ, giữ thay đổi trên máy và có nút thử lại. Không báo thành công Firebase chỉ vì SQLite ghi được. Nếu chưa có dữ liệu đã lưu thì báo lỗi, không tự sinh bộ nhà trọ/tài khoản/tin nhắn/lịch xem phòng giả.
+- Hoa hồng mở tháng hiện tại và tính dự kiến từ tiền phòng trong các khoản thu đã duyệt. Chốt kỳ chỉ khi tháng kết thúc; ghi nhận tiền hoa hồng phải có số thực nhận và chứng từ, không tự giả định đã nhận.
 
-Tài liệu chính thức: [Firestore batch nguyên tử](https://firebase.google.com/docs/firestore/manage-data/transactions), [giới hạn Firestore](https://firebase.google.com/docs/firestore/quotas). APK debug nằm tại `build/app/outputs/flutter-apk/app-debug.apk`. Các bài test không ghi database thật.
+### Dữ liệu Firebase đã cập nhật trực tiếp ngày 04/11/2026
+
+Theo yêu cầu mỗi trọ một tỷ lệ: `may` 3%, `property-2` 3,5%, rồi tăng 0,5 điểm phần trăm mỗi nhà đến `property-10` 7,5%. Đã đọc lại document sau commit để xác nhận. Không thay hồ sơ, hóa đơn, khoản thu hay chứng từ hiện có.
+
+Khoản thu đã duyệt hiện đều nằm trong tháng 11/2026. Tổng phần tiền phòng được tính hoa hồng là 138.075.000 đ; dự kiến hoa hồng 7.305.375 đ. Tháng 11 chưa kết thúc nên chưa tạo kỳ đã chốt; không thêm chứng từ đã nhận tiền.
+
+`tool/initialize_admin_commissions.py` mặc định chỉ đọc/lập kế hoạch. `--apply` mới ghi; sao lưu vào `.local-backups/firestore/` (bị Git bỏ qua), bảo toàn giá trị đã có, không nhân đôi kỳ và không tạo khoản nhận tiền. Commit kiểm tra update-time của cả portfolio và admin để tránh ghi đè bản vừa thay đổi. Không sửa Rules.
+
+Phạm vi xác minh là dữ liệu đã ghi/đọc lại, không phải bảo mật production: endpoint legacy hiện chấp nhận thao tác REST không kèm Firebase Auth. Quyền truy cập đang triển khai không được thay đổi trong tác vụ này.
+
+```powershell
+python -m unittest discover -s test -p test_admin_commission_import.py
+python tool/initialize_admin_commissions.py --project doantro-caf4b
+```
+
+Ảnh kiểm tra có thể dùng snapshot đã đọc từ Firebase bằng `--dart-define=ADMIN_LIVE_SNAPSHOT=build/admin-live-backup/<thu-muc>` kèm `ADMIN_PREVIEW=true`. Snapshot/backup không đưa lên Git. Các bài test không tự ghi database thật; thao tác ghi thật đã thực hiện riêng qua script có `--apply` và được kiểm tra bằng đọc lại.
