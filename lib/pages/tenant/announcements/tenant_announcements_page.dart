@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../tenant_ui.dart';
+import '../tenant_detail_ui.dart';
+import '../tenant_inbox_hero.dart';
 import '../../shared/announcements/announcement_store.dart';
 import '../../shared/rental/tenant_session.dart';
 import '../../landlord/announcements/models/landlord_announcement.dart';
@@ -12,9 +14,11 @@ class TenantAnnouncementsPage extends StatefulWidget {
     super.key,
     this.store,
     this.tenantId = TenantSession.tenantId,
+    this.showHeader = false,
   });
   final AnnouncementStore? store;
   final String tenantId;
+  final bool showHeader;
 
   @override
   State<TenantAnnouncementsPage> createState() =>
@@ -46,69 +50,76 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
     _store.markTenantRead(item.id, widget.tenantId);
     showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          item.title,
-          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
-        ),
-        content: SizedBox(
-          width: 500,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    TenantStatusPill(item.category, color: tenantGreen),
-                    if (item.isImportant)
-                      const TenantStatusPill(
-                        'Quan trọng',
-                        color: Color(0xFFD64545),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Chủ trọ · ${_store.rental.property.ownerName}',
-                  style: TextStyle(
-                    color: tenantInk,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+      builder: (context) => TenantDetailTheme(
+        child: AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          title: Text(
+            item.title,
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+          ),
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TenantDetailIcon(
+                    tenantAnnouncementIcon(item.category),
+                    size: 46,
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${item.recipient}\n${formatTenantAnnouncementDate(item.publishedAt)}',
-                  style: const TextStyle(
-                    color: tenantMuted,
-                    fontSize: 12,
-                    height: 1.6,
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      TenantStatusPill(item.category, color: tenantGreen),
+                      if (item.isImportant)
+                        const TenantStatusPill(
+                          'Quan trọng',
+                          color: Color(0xFFD64545),
+                        ),
+                    ],
                   ),
-                ),
-                const Divider(height: 28),
-                SelectableText(
-                  item.content,
-                  style: const TextStyle(
-                    color: tenantInk,
-                    fontSize: 14,
-                    height: 1.65,
+                  const SizedBox(height: 16),
+                  Text(
+                    'Chủ trọ · ${_store.rental.property.ownerName}',
+                    style: const TextStyle(
+                      color: tenantInk,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    '${item.recipient}\n${formatTenantAnnouncementDate(item.publishedAt)}',
+                    style: const TextStyle(
+                      color: tenantMuted,
+                      fontSize: 12,
+                      height: 1.6,
+                    ),
+                  ),
+                  const Divider(height: 28),
+                  SelectableText(
+                    item.content,
+                    style: const TextStyle(
+                      color: tenantInk,
+                      fontSize: 14,
+                      height: 1.65,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đóng'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
-          ),
-        ],
       ),
     );
   }
@@ -134,34 +145,42 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
     final items =
         all.where((item) => !_unreadOnly || !_isRead(item.id)).toList()
           ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-    return TenantPageFrame(
+    return TenantInboxPageFrame(
+      imageAsset: 'assets/images/tenant_announcements_hero.png',
+      title: 'Thông báo',
+      subtitle: 'Thông tin từ chủ trọ dành cho ${_store.rental.property.name}.',
+      showHeader: widget.showHeader,
       children: [
-        TenantPageTitle(
-          title: 'Thông báo nhà trọ',
-          subtitle:
-              'Thông tin từ chủ trọ dành cho ${_store.rental.property.name}.',
-        ),
         TenantSurface(
           child: Row(
             children: [
-              const Icon(Icons.campaign_outlined, color: tenantGreen, size: 28),
+              const TenantDetailIcon(
+                Icons.mark_email_unread_outlined,
+                size: 44,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _store.rental.property.name,
-                      style: TextStyle(
+                      '$unreadCount thông báo chưa đọc',
+                      style: const TextStyle(
                         color: tenantInk,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     Text(
-                      '$unreadCount thông báo chưa đọc',
-                      style: const TextStyle(color: tenantMuted, fontSize: 12),
+                      unreadCount == 0
+                          ? 'Bạn đã cập nhật tất cả thông tin.'
+                          : 'Xem cập nhật mới nhất từ chủ trọ.',
+                      style: const TextStyle(
+                        color: tenantMuted,
+                        fontSize: 12,
+                        height: 1.5,
+                      ),
                     ),
                   ],
                 ),
@@ -174,20 +193,33 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            ChoiceChip(
-              label: const Text('Tất cả'),
-              selected: !_unreadOnly,
-              onSelected: (_) => setState(() => _unreadOnly = false),
+            _filter(
+              'Tất cả',
+              !_unreadOnly,
+              () => setState(() => _unreadOnly = false),
             ),
-            ChoiceChip(
-              label: Text('Chưa đọc ($unreadCount)'),
-              selected: _unreadOnly,
-              onSelected: (_) => setState(() => _unreadOnly = true),
+            _filter(
+              'Chưa đọc ($unreadCount)',
+              _unreadOnly,
+              () => setState(() => _unreadOnly = true),
             ),
           ],
         ),
-        const SizedBox(height: 18),
-        if (items.isEmpty)
+        const SizedBox(height: 22),
+        TenantSectionHeading(
+          'Thông báo mới nhất',
+          trailing: Text(
+            '${items.length} thông báo',
+            style: const TextStyle(color: tenantMuted, fontSize: 11),
+          ),
+        ),
+        if (all.isEmpty)
+          const TenantEmptyState(
+            icon: Icons.notifications_none_rounded,
+            title: 'Chưa có thông báo',
+            subtitle: 'Thông tin từ chủ trọ sẽ xuất hiện tại đây.',
+          )
+        else if (items.isEmpty)
           const TenantEmptyState(
             icon: Icons.mark_email_read_outlined,
             title: 'Bạn đã đọc hết thông báo',
@@ -203,4 +235,21 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
       ],
     );
   }
+
+  Widget _filter(String label, bool selected, VoidCallback onTap) => ChoiceChip(
+    label: Text(label),
+    selected: selected,
+    onSelected: (_) => onTap(),
+    showCheckmark: false,
+    selectedColor: const Color(0xFFE3F5E9),
+    backgroundColor: Colors.white,
+    side: BorderSide(color: selected ? const Color(0xFFC3E8CF) : tenantLine),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    labelStyle: TextStyle(
+      color: selected ? tenantGreenDark : tenantMuted,
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  );
 }

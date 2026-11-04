@@ -11,6 +11,7 @@ import 'discovery/tenant_discovery_page.dart';
 import 'incidents/tenant_baosuco_page.dart';
 import 'invoices/tenant_invoices_page.dart';
 import 'leases/tenant_home_page.dart';
+import 'leases/tenant_lease_contract_page.dart';
 import 'members/tenant_members_page.dart';
 import 'tenant_ui.dart';
 import '../shared/rental/tenant_session.dart';
@@ -19,22 +20,25 @@ import 'viewings/tenant_viewings_page.dart';
 Widget buildTenantPage(BuildContext context, RoleDestination destination) {
   return switch (destination.id) {
     'support' => const HelpPage(role: AppRole.tenant),
-    'settings' => const AccountSettingsPage(role: AppRole.tenant),
+    'settings' => const AccountSettingsPage(
+      role: AppRole.tenant,
+      showPageTitle: false,
+    ),
     'profile' => const AccountProfilePage(role: AppRole.tenant),
     'notifications' => const NotificationSettingsPage(role: AppRole.tenant),
     'discovery' => TenantDiscoveryPage(tenantId: TenantSession.currentTenantId),
     'viewings' => TenantViewingsPage(tenantId: TenantSession.currentTenantId),
     'my_lease' => TenantHomePage(tenantId: TenantSession.currentTenantId),
-    'lease_contract' => TenantHomePage(
+    'lease_contract' => TenantLeaseContractPage(
       tenantId: TenantSession.currentTenantId,
-      title: 'Hợp đồng thuê',
     ),
     'members' => TenantMembersPage(tenantId: TenantSession.currentTenantId),
     'announcements' => TenantAnnouncementsPage(
       tenantId: TenantSession.currentTenantId,
+      showHeader: true,
     ),
     'invoices' => TenantInvoicesPage(tenantId: TenantSession.currentTenantId),
-    'conversations' => const TenantDanhSachTinNhanPage(),
+    'conversations' => const TenantDanhSachTinNhanPage(showHeader: true),
     'incidents' => TenantBaoSuCoPage(tenantId: TenantSession.currentTenantId),
     _ => _TenantSecondaryPage(destination: destination),
   };
@@ -49,7 +53,7 @@ class _TenantSecondaryPage extends StatelessWidget {
     children: [
       TenantPageTitle(
         title: destination.label,
-        subtitle: 'Không gian người thuê trên Ứng dụng thuê trọ.',
+        subtitle: 'Không gian người thuê trên TroPremium.',
       ),
       TenantSurface(
         padding: const EdgeInsets.fromLTRB(23, 28, 23, 28),

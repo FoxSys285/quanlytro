@@ -6,7 +6,7 @@ import 'package:quanlytro/pages/tenant/conversations/tenant_tinnhan_page.dart';
 import 'package:quanlytro/pages/tenant/conversations/tenant_danhsachtinnhan_page.dart';
 
 void main() {
-  for (final width in [390.0, 1280.0]) {
+  for (final width in [320.0, 390.0, 1280.0]) {
     testWidgets('Tenant conversation list, search and chat at $width', (
       tester,
     ) async {
@@ -58,6 +58,7 @@ void main() {
         find.byType(TextField),
         '  Em đến lúc 15 giờ ạ.  ',
       );
+      await tester.pump();
       await tester.tap(find.byTooltip('Gửi tin nhắn'));
       await tester.pumpAndSettle();
       expect(conversations[1].messages.last.text, 'Em đến lúc 15 giờ ạ.');
@@ -67,7 +68,7 @@ void main() {
       expect(find.text('Bạn: Em đến lúc 15 giờ ạ.'), findsOneWidget);
 
       // Leaving the tab must preserve the conversation and its sent messages.
-      await tester.tap(find.byIcon(Icons.search_rounded).last);
+      await tester.tap(find.text('Chỗ ở của tôi').last);
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.forum_outlined));
       await tester.pumpAndSettle();

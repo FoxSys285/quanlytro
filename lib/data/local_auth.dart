@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
 import '../layouts/role_layout.dart';
+import 'auth_validation.dart';
 import 'firebase_account_gateway.dart';
 
 /// Local demo accounts, or Firebase accounts when explicitly configured.
@@ -111,6 +112,35 @@ class LocalAuth extends ChangeNotifier {
     }
     _role = AppRole.values.byName(account['role'] as String);
     notifyListeners();
+  }
+
+  Future<void> register(String email, String password) async {
+    final error =
+        validateAccountEmail(email) ?? validateAccountPassword(password);
+    if (error != null) throw ArgumentError(error);
+    await _closing;
+    if (_role != null) {
+      throw ArgumentError('Vui lòng đăng xuất trước khi tạo tài khoản mới.');
+    }
+    final gateway = _gateway;
+    if (gateway == null) {
+      throw ArgumentError(
+        'Đăng ký qua email chưa khả dụng trong bản dùng thử. Bạn có thể dùng tài khoản mẫu hoặc liên hệ quản trị viên để được cấp tài khoản.',
+      );
+    }
+    await gateway.register(email.trim().toLowerCase(), password);
+  }
+
+  Future<void> requestPasswordReset(String email) async {
+    final error = validateAccountEmail(email);
+    if (error != null) throw ArgumentError(error);
+    final gateway = _gateway;
+    if (gateway == null) {
+      throw ArgumentError(
+        'Bản dùng thử không gửi email khôi phục. Mật khẩu ban đầu của tài khoản mẫu là Tro@2026. Nếu đã đổi mật khẩu, vui lòng liên hệ quản trị viên.',
+      );
+    }
+    await gateway.requestPasswordReset(email.trim().toLowerCase());
   }
 
   Future<void> signOut() {

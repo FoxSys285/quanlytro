@@ -1,4 +1,4 @@
-# Quản lý trọ
+# TroPremium
 
 Ứng dụng Flutter quản lý nhà trọ với ba vai trò: Chủ trọ, Người thuê và Quản trị viên. Phiên bản hiện tại dùng **SQLite trên thiết bị**, chưa kết nối Firebase hoặc Supabase.
 

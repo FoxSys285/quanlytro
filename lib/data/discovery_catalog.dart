@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../pages/shared/media/room_photo.dart';
+import '../pages/tenant/discovery/models/tenant_area_selection.dart';
 import '../pages/tenant/discovery/models/tenant_room_listing.dart';
 
 class TenantCatalogQuery {
@@ -31,8 +32,8 @@ class TenantCatalogQuery {
         room.price <= maxRent &&
         room.electricityPrice >= minElectricity &&
         room.electricityPrice <= maxElectricity &&
-        (city == null || city == room.city) &&
-        (ward == null || ward == room.ward) &&
+        (city == null || sameLocationName(city!, room.city)) &&
+        (ward == null || sameLocationName(ward!, room.ward)) &&
         (waterType == 'Tất cả' || waterType == room.waterType) &&
         (minArea == null || room.areaSquareMeters >= minArea!) &&
         (maxArea == null || room.areaSquareMeters <= maxArea!) &&

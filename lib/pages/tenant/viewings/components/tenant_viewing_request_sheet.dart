@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../discovery/models/tenant_room_listing.dart';
 import '../../tenant_ui.dart';
+import '../../tenant_detail_ui.dart';
+import '../../tenant_feature_ui.dart';
 import '../models/tenant_viewing_request.dart';
 
 class TenantViewingRequestSheet extends StatefulWidget {
@@ -49,183 +51,195 @@ class _TenantViewingRequestSheetState extends State<TenantViewingRequestSheet> {
   }
 
   @override
-  Widget build(BuildContext context) => TenantBottomSheetSurface(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const TenantSheetHandle(),
-        const Text(
-          'Đặt lịch xem phòng',
-          style: TextStyle(
-            color: tenantInk,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) => TenantDetailTheme(
+    child: TenantBottomSheetSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const TenantSheetHandle(),
+          const TenantFormHeading(
+            icon: Icons.event_available_rounded,
+            title: 'Đặt lịch xem phòng',
+            subtitle:
+                'Chọn thời gian mong muốn. Chủ trọ sẽ xác nhận lịch với bạn.',
           ),
-        ),
-        const SizedBox(height: 5),
-        const Text(
-          'Chọn thời gian mong muốn. Chủ trọ sẽ xác nhận lịch với bạn.',
-          style: TextStyle(color: tenantMuted, fontSize: 12, height: 1.45),
-        ),
-        const SizedBox(height: 14),
-        TenantSurface(
-          padding: const EdgeInsets.all(13),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: tenantGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 14),
+          TenantSurface(
+            padding: const EdgeInsets.all(13),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: tenantGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.meeting_room_outlined,
+                    color: tenantGreen,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.meeting_room_outlined,
-                  color: tenantGreen,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.room.name,
-                      style: const TextStyle(
-                        color: tenantInk,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.room.name,
+                        style: const TextStyle(
+                          color: tenantInk,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${widget.room.address} · ${formatTenantMoney(widget.room.price)}/tháng',
-                      style: const TextStyle(color: tenantMuted, fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _name,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Họ và tên',
-                  prefixIcon: Icon(Icons.person_outline_rounded),
-                  hintText: 'Tên người liên hệ chính',
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Nhập họ tên để chủ trọ liên hệ.'
-                    : null,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _phone,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Số điện thoại',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                  hintText: 'Số chủ trọ có thể gọi lại',
-                ),
-                validator: (value) {
-                  final digits = (value ?? '').replaceAll(
-                    RegExp(r'[^0-9]'),
-                    '',
-                  );
-                  if (digits.length < 9 || digits.length > 12) {
-                    return 'Nhập số điện thoại hợp lệ.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: _datePicker()),
-                  const SizedBox(width: 10),
-                  Expanded(child: _timePicker()),
-                ],
-              ),
-              if (_dateError != null) ...[
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _dateError!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontSize: 11,
-                    ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${widget.room.address} · ${formatTenantMoney(widget.room.price)}/tháng',
+                        style: const TextStyle(
+                          color: tenantMuted,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-              const SizedBox(height: 10),
-              DropdownButtonFormField<int>(
-                initialValue: _attendeeCount,
-                decoration: const InputDecoration(
-                  labelText: 'Số người cùng đến xem',
-                  prefixIcon: Icon(Icons.groups_outlined),
-                ),
-                items: [
-                  for (var count = 1; count <= 6; count++)
-                    DropdownMenuItem(value: count, child: Text('$count người')),
-                ],
-                onChanged: (value) =>
-                    setState(() => _attendeeCount = value ?? 1),
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _needs,
-                minLines: 2,
-                maxLines: 3,
-                maxLength: 240,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Nhu cầu hoặc câu hỏi cho chủ trọ',
-                  hintText:
-                      'Ví dụ: cần chỗ để xe, xem nội thất, hỏi tiền cọc...',
-                  alignLabelWithHint: true,
-                  prefixIcon: Icon(Icons.notes_rounded),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-        const SizedBox(height: 13),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: _submit,
-            icon: const Icon(Icons.calendar_month_rounded, size: 18),
-            label: const Text('Gửi yêu cầu đặt lịch'),
-            style: FilledButton.styleFrom(
-              backgroundColor: tenantGreen,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(13),
+          const SizedBox(height: 12),
+          Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _name,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Họ và tên',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                    hintText: 'Tên người liên hệ chính',
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Nhập họ tên để chủ trọ liên hệ.'
+                      : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _phone,
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Số điện thoại',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                    hintText: 'Số chủ trọ có thể gọi lại',
+                  ),
+                  validator: (value) {
+                    final digits = (value ?? '').replaceAll(
+                      RegExp(r'[^0-9]'),
+                      '',
+                    );
+                    if (digits.length < 9 || digits.length > 12) {
+                      return 'Nhập số điện thoại hợp lệ.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                LayoutBuilder(
+                  builder: (context, constraints) => constraints.maxWidth < 420
+                      ? Column(
+                          children: [
+                            _datePicker(),
+                            const SizedBox(height: 12),
+                            _timePicker(),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(child: _datePicker()),
+                            const SizedBox(width: 10),
+                            Expanded(child: _timePicker()),
+                          ],
+                        ),
+                ),
+                if (_dateError != null) ...[
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _dateError!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                DropdownButtonFormField<int>(
+                  isExpanded: true,
+                  initialValue: _attendeeCount,
+                  decoration: const InputDecoration(
+                    labelText: 'Số người cùng đến xem',
+                    prefixIcon: Icon(Icons.groups_outlined),
+                  ),
+                  items: [
+                    for (var count = 1; count <= 6; count++)
+                      DropdownMenuItem(
+                        value: count,
+                        child: Text('$count người'),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _attendeeCount = value ?? 1),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _needs,
+                  minLines: 2,
+                  maxLines: 3,
+                  maxLength: 240,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Nhu cầu hoặc câu hỏi cho chủ trọ',
+                    hintText:
+                        'Ví dụ: cần chỗ để xe, xem nội thất, hỏi tiền cọc...',
+                    alignLabelWithHint: true,
+                    prefixIcon: Icon(Icons.notes_rounded),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 13),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _submit,
+              icon: const Icon(Icons.calendar_month_rounded, size: 18),
+              label: const Text('Gửi yêu cầu đặt lịch'),
+              style: FilledButton.styleFrom(
+                backgroundColor: tenantGreen,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 7),
-        const Center(
-          child: Text(
-            'Lịch ở trạng thái chờ cho đến khi chủ trọ xác nhận.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: tenantMuted, fontSize: 10),
+          const SizedBox(height: 7),
+          const Center(
+            child: Text(
+              'Lịch ở trạng thái chờ cho đến khi chủ trọ xác nhận.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: tenantMuted, fontSize: 10),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 
@@ -250,6 +264,7 @@ class _TenantViewingRequestSheetState extends State<TenantViewingRequestSheet> {
   );
 
   Widget _timePicker() => DropdownButtonFormField<String>(
+    isExpanded: true,
     initialValue: _time,
     decoration: const InputDecoration(
       labelText: 'Giờ mong muốn',

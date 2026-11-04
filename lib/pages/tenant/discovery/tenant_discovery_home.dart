@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../tenant_ui.dart';
+import 'components/tenant_area_picker_page.dart';
 import '../../shared/media/room_photo_gallery.dart';
 import '../../shared/widgets/list_pagination.dart';
 import 'components/tenant_room_card.dart';
 import 'models/tenant_room_listing.dart';
+import 'services/tenant_location_service.dart';
 import 'tenant_favorites_store.dart';
 
 class TenantDiscoveryHome extends StatelessWidget {
@@ -21,7 +23,6 @@ class TenantDiscoveryHome extends StatelessWidget {
     required this.profileName,
     required this.query,
     required this.sort,
-    required this.selectedCity,
     required this.searchController,
     required this.activeFilterCount,
     required this.currentPage,
@@ -31,12 +32,15 @@ class TenantDiscoveryHome extends StatelessWidget {
     required this.activeFilters,
     required this.onSearchChanged,
     required this.onSearchClear,
+    required this.onSearchSubmitted,
     required this.onFilter,
+    required this.onPickArea,
+    required this.onAreaSelected,
     required this.onOpenSearch,
     required this.onFavorites,
+    required this.onSettings,
     required this.onFavoriteToggle,
     required this.onRoomTap,
-    required this.onSelectArea,
     required this.onSortChanged,
     required this.onLocalPageChanged,
     required this.onRemotePrevious,
@@ -46,6 +50,7 @@ class TenantDiscoveryHome extends StatelessWidget {
     required this.onReloadOnline,
     required this.onNearby,
     required this.onDeals,
+    this.locationService = const TenantLocationService(),
   });
 
   final bool resultsOnly;
@@ -58,7 +63,6 @@ class TenantDiscoveryHome extends StatelessWidget {
   final String profileName;
   final String query;
   final String sort;
-  final String? selectedCity;
   final TextEditingController searchController;
   final int activeFilterCount;
   final int currentPage;
@@ -68,12 +72,15 @@ class TenantDiscoveryHome extends StatelessWidget {
   final Widget? activeFilters;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onSearchClear;
+  final VoidCallback onSearchSubmitted;
   final VoidCallback onFilter;
+  final VoidCallback onPickArea;
+  final ValueChanged<TenantAreaSelection> onAreaSelected;
   final VoidCallback onOpenSearch;
   final VoidCallback onFavorites;
+  final VoidCallback onSettings;
   final ValueChanged<TenantRoomListing> onFavoriteToggle;
   final ValueChanged<TenantRoomListing> onRoomTap;
-  final ValueChanged<TenantRoomListing> onSelectArea;
   final ValueChanged<String?> onSortChanged;
   final ValueChanged<int> onLocalPageChanged;
   final VoidCallback onRemotePrevious;
@@ -83,10 +90,16 @@ class TenantDiscoveryHome extends StatelessWidget {
   final VoidCallback onReloadOnline;
   final VoidCallback onNearby;
   final VoidCallback onDeals;
+  final TenantLocationService locationService;
 
   @override
   Widget build(BuildContext context) {
-    if (resultsOnly) return _resultsPage(context);
+    if (resultsOnly) {
+      return ColoredBox(
+        color: tenantCanvas,
+        child: SafeArea(top: false, child: _resultsPage(context)),
+      );
+    }
 
     final homeRooms = remote
         ? visibleRooms
@@ -101,11 +114,6 @@ class TenantDiscoveryHome extends StatelessWidget {
         .where((room) => room.ownerPropertyId != null || room.roomCode != null)
         .toList();
     final trustedRooms = trustedListings.isEmpty ? homeRooms : trustedListings;
-    final areas = <String, List<TenantRoomListing>>{};
-    for (final room in homeRooms) {
-      final name = room.ward.isNotEmpty ? room.ward : room.city;
-      if (name.isNotEmpty) areas.putIfAbsent(name, () => []).add(room);
-    }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -121,21 +129,6 @@ class TenantDiscoveryHome extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _hero(context),
-              SizedBox(
-                height: 37,
-                child: Transform.translate(
-                  offset: const Offset(0, -29),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _searchBar(context),
-                  ),
-                ),
-              ),
-              if (activeFilters != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 7, 18, 2),
-                  child: activeFilters!,
-                ),
               if (remote && loading)
                 const Padding(
                   padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -182,13 +175,22 @@ class TenantDiscoveryHome extends StatelessWidget {
               ),
               const SizedBox(height: 22),
               _sectionHeading(
-                icon: Icons.map_rounded,
+                icon: Icons.location_on_rounded,
                 color: const Color(0xFF315F55),
-                title: 'Khám phá theo khu vực',
-                onSeeAll: onOpenSearch,
+                title: 'V\u1ecb tr\u00ed',
               ),
               const SizedBox(height: 11),
-              _areaCarousel(areas),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  height: 410,
+                  child: TenantAreaPickerPage(
+                    embedded: true,
+                    onSelected: onAreaSelected,
+                    locationService: locationService,
+                  ),
+                ),
+              ),
               const SizedBox(height: 22),
               _sectionHeading(
                 icon: Icons.verified_user_rounded,
@@ -235,7 +237,6 @@ class TenantDiscoveryHome extends StatelessWidget {
   }
 
   Widget _resultsPage(BuildContext context) {
-    final topInset = MediaQuery.paddingOf(context).top;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -249,8 +250,14 @@ class TenantDiscoveryHome extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              TenantHeader(
+                profileName: profileName,
+                onAvatarTap: () => Navigator.of(context).maybePop(),
+                onFavoritesTap: onFavorites,
+                onSettingsTap: onSettings,
+              ),
               Padding(
-                padding: EdgeInsets.fromLTRB(12, topInset + 5, 18, 12),
+                padding: const EdgeInsets.fromLTRB(12, 5, 18, 12),
                 child: Row(
                   children: [
                     IconButton(
@@ -274,6 +281,24 @@ class TenantDiscoveryHome extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _searchBar(context),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: onPickArea,
+                      icon: const Icon(Icons.map_outlined, size: 18),
+                      label: const Text('Chọn trên bản đồ'),
+                    ),
+                    TextButton.icon(
+                      onPressed: onNearby,
+                      icon: const Icon(Icons.my_location_rounded, size: 18),
+                      label: const Text('Vị trí hiện tại'),
+                    ),
+                  ],
+                ),
               ),
               if (activeFilters != null)
                 Padding(
@@ -426,7 +451,25 @@ class TenantDiscoveryHome extends StatelessWidget {
     ),
   );
 
-  Widget _hero(BuildContext context) {
+  Widget _hero(BuildContext context) => SizedBox(
+    height: 281,
+    width: double.infinity,
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 244,
+          child: _heroArtwork(context),
+        ),
+        Positioned(left: 16, right: 16, top: 215, child: _searchBar(context)),
+      ],
+    ),
+  );
+
+  Widget _heroArtwork(BuildContext context) {
     final topInset = MediaQuery.paddingOf(context).top;
     return SizedBox(
       height: 244,
@@ -454,122 +497,15 @@ class TenantDiscoveryHome extends StatelessWidget {
             ),
           ),
           Positioned(
-            top: topInset + 26,
-            left: 18,
-            right: 18,
-            child: Row(
-              children: [
-                TenantProfileAvatar(name: profileName, radius: 19),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Material(
-                    color: Colors.white.withValues(alpha: 0.87),
-                    borderRadius: BorderRadius.circular(28),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(28),
-                      onTap: onFilter,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 9,
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on_rounded,
-                              size: 19,
-                              color: Color(0xFF06A651),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                selectedCity ?? 'TP. Tuy Hòa',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFF202332),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: Color(0xFF555A66),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Material(
-                  color: Colors.white.withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(22),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(22),
-                    onTap: onFavorites,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 11,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.favorite_border_rounded,
-                            color: Color(0xFF08783B),
-                            size: 17,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'Yêu thích',
-                            style: TextStyle(
-                              color: Color(0xFF08783B),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Material(
-                  color: Colors.white.withValues(alpha: 0.94),
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => showTenantPreviewNotice(context),
-                    child: const SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        clipBehavior: Clip.none,
-                        children: [
-                          Icon(
-                            Icons.notifications_none_rounded,
-                            color: Color(0xFF202332),
-                            size: 23,
-                          ),
-                          Positioned(
-                            top: 6,
-                            right: 6,
-                            child: CircleAvatar(
-                              radius: 4,
-                              backgroundColor: Color(0xFFE43C3C),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            top: 0,
+            left: 0,
+            right: 0,
+            child: TenantHeader(
+              profileName: profileName,
+              onAvatarTap: () => Scaffold.maybeOf(context)?.openDrawer(),
+              onFavoritesTap: onFavorites,
+              onSettingsTap: onSettings,
+              overlay: true,
             ),
           ),
           Positioned(
@@ -632,8 +568,8 @@ class TenantDiscoveryHome extends StatelessWidget {
   }
 
   Widget _searchBar(BuildContext context) => Container(
-    height: 64,
-    padding: const EdgeInsets.all(6),
+    height: 46,
+    padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(34),
@@ -647,29 +583,31 @@ class TenantDiscoveryHome extends StatelessWidget {
     ),
     child: Row(
       children: [
-        const SizedBox(width: 13),
+        const SizedBox(width: 8),
         IconButton(
           tooltip: 'Tìm nhà trọ',
-          onPressed: resultsOnly ? null : onOpenSearch,
+          onPressed: onSearchSubmitted,
           icon: const Icon(
             Icons.search_rounded,
             color: Color(0xFF5C6070),
-            size: 27,
+            size: 20,
           ),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 30, height: 30),
         ),
-        const SizedBox(width: 9),
+        const SizedBox(width: 5),
         Expanded(
           child: TextField(
             controller: searchController,
-            readOnly: !resultsOnly,
-            onTap: resultsOnly ? null : onOpenSearch,
-            onChanged: resultsOnly ? onSearchChanged : null,
-            style: const TextStyle(color: Color(0xFF222433), fontSize: 14),
+            onChanged: onSearchChanged,
+            onSubmitted: (_) => onSearchSubmitted(),
+            textInputAction: TextInputAction.search,
+            style: const TextStyle(color: Color(0xFF222433), fontSize: 12),
             decoration: InputDecoration(
               hintText: 'Tìm kiếm nhà trọ, khu vực...',
               hintStyle: const TextStyle(
                 color: Color(0xFF9498A2),
-                fontSize: 14,
+                fontSize: 11,
               ),
               isDense: true,
               contentPadding: EdgeInsets.zero,
@@ -686,16 +624,17 @@ class TenantDiscoveryHome extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 3),
         Material(
+          key: ValueKey(resultsOnly ? 'rental-list-filter' : 'explore-filter'),
           color: const Color(0xFFE1F4E8),
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: onFilter,
             child: SizedBox(
-              width: 50,
-              height: 50,
+              width: 38,
+              height: 38,
               child: Stack(
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,
@@ -703,7 +642,7 @@ class TenantDiscoveryHome extends StatelessWidget {
                   const Icon(
                     Icons.tune_rounded,
                     color: Color(0xFF073B25),
-                    size: 24,
+                    size: 20,
                   ),
                   if (activeFilterCount > 0)
                     Positioned(
@@ -760,10 +699,10 @@ class TenantDiscoveryHome extends StatelessWidget {
         ),
         _quickCategory(
           icon: Icons.map_outlined,
-          label: 'Theo khu vực',
+          label: 'Vị trí',
           color: const Color(0xFF08A94F),
           background: const Color(0xFFE1F4E8),
-          onTap: onFilter,
+          onTap: onPickArea,
         ),
         _quickCategory(
           icon: Icons.star_rounded,
@@ -771,13 +710,6 @@ class TenantDiscoveryHome extends StatelessWidget {
           color: const Color(0xFFFFB600),
           background: const Color(0xFFFFF4D9),
           onTap: onDeals,
-        ),
-        _quickCategory(
-          icon: Icons.grid_view_rounded,
-          label: 'Bộ lọc nâng cao',
-          color: const Color(0xFF08A94F),
-          background: const Color(0xFFE1F4E8),
-          onTap: onFilter,
         ),
       ],
     ),
@@ -834,7 +766,7 @@ class TenantDiscoveryHome extends StatelessWidget {
     required IconData icon,
     required Color color,
     required String title,
-    required VoidCallback onSeeAll,
+    VoidCallback? onSeeAll,
   }) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 18),
     child: Row(
@@ -854,32 +786,33 @@ class TenantDiscoveryHome extends StatelessWidget {
             ),
           ),
         ),
-        InkWell(
-          onTap: onSeeAll,
-          borderRadius: BorderRadius.circular(12),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Xem tất cả',
-                  style: TextStyle(
-                    color: Color(0xFF08783B),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+        if (onSeeAll != null)
+          InkWell(
+            onTap: onSeeAll,
+            borderRadius: BorderRadius.circular(12),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Xem tất cả',
+                    style: TextStyle(
+                      color: Color(0xFF08783B),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                SizedBox(width: 4),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Color(0xFF08783B),
-                  size: 17,
-                ),
-              ],
+                  SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Color(0xFF08783B),
+                    size: 17,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
       ],
     ),
   );
@@ -1114,65 +1047,6 @@ class TenantDiscoveryHome extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _areaCarousel(Map<String, List<TenantRoomListing>> areas) {
-    if (areas.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      height: 112,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        scrollDirection: Axis.horizontal,
-        itemCount: areas.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          final entry = areas.entries.elementAt(index);
-          final room = entry.value.first;
-          return Material(
-            color: const Color(0xFFE7F5EC),
-            borderRadius: BorderRadius.circular(18),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(18),
-              onTap: () => onSelectArea(room),
-              child: SizedBox(
-                width: 150,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.location_on_rounded,
-                        color: Color(0xFF078843),
-                        size: 20,
-                      ),
-                      const Spacer(),
-                      Text(
-                        entry.key,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF173E2A),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        '${entry.value.length} tin đăng',
-                        style: const TextStyle(
-                          color: Color(0xFF5F7567),
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }

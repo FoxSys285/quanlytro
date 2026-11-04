@@ -10,6 +10,8 @@ import 'components/tenant_room_details_page.dart';
 import 'models/tenant_room_listing.dart';
 import 'tenant_favorites_store.dart';
 import '../tenant_ui.dart';
+import '../tenant_feature_ui.dart';
+import '../tenant_detail_ui.dart';
 import '../../shared/viewings/viewing_store.dart';
 import '../viewings/components/tenant_viewing_request_sheet.dart';
 import '../viewings/models/tenant_viewing_request.dart';
@@ -38,6 +40,7 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
     super.initState();
     RentalPortfolio.instance.addListener(_refreshListings);
     AdminStore.instance.addListener(_refreshListings);
+    TenantFavoritesStore.changes.addListener(_refreshListings);
   }
 
   void _refreshListings() {
@@ -58,6 +61,7 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
   void dispose() {
     RentalPortfolio.instance.removeListener(_refreshListings);
     AdminStore.instance.removeListener(_refreshListings);
+    TenantFavoritesStore.changes.removeListener(_refreshListings);
     super.dispose();
   }
 
@@ -80,17 +84,12 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
         .toSet()
         .toList();
 
-    return Scaffold(
-      backgroundColor: tenantCanvas,
-      appBar: AppBar(
-        backgroundColor: tenantCanvas,
-        surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'Yêu thích',
-          style: TextStyle(color: tenantInk, fontWeight: FontWeight.w800),
-        ),
-      ),
-      body: TenantPageFrame(
+    return TenantSubpageScaffold(
+      title: 'Yêu thích',
+      child: TenantFeatureFrame(
+        artwork: TenantFeatureArtwork.favorites,
+        title: 'Phòng đã lưu',
+        subtitle: 'Giữ lại những chỗ ở bạn yêu thích và đặt lịch khi sẵn sàng.',
         children: [
           TextField(
             onChanged: (value) => setState(() => _query = value.trim()),
@@ -98,7 +97,7 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
               hintText: 'Tìm trong danh sách yêu thích',
               prefixIcon: const Icon(Icons.search_rounded, color: tenantGreen),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: const Color(0xFFF4F9F6),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: tenantLine),
@@ -142,8 +141,7 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
             trailing: favoriteRooms.isEmpty
                 ? null
                 : TextButton.icon(
-                    onPressed: () =>
-                        setState(() => TenantFavoritesStore.roomNames.clear()),
+                    onPressed: TenantFavoritesStore.clear,
                     icon: const Icon(Icons.delete_outline_rounded, size: 16),
                     label: const Text('Xóa tất cả'),
                     style: TextButton.styleFrom(
@@ -180,6 +178,13 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
               ),
               const SizedBox(height: 14),
             ],
+          const SizedBox(height: 10),
+          const TenantFeatureBanner(
+            icon: Icons.favorite_rounded,
+            title: 'Chọn chỗ ở phù hợp với bạn',
+            subtitle:
+                'Mở tin đã lưu để xem thông tin phòng và gửi yêu cầu đặt lịch.',
+          ),
         ],
       ),
     );

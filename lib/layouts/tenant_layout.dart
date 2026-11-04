@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../pages/tenant/tenant_page_router.dart';
 import '../pages/landlord/landlord_demo_store.dart';
 import '../pages/shared/profile/account_store.dart';
+import '../pages/shared/announcements/announcement_store.dart';
+import '../pages/shared/conversations/conversation_store.dart';
+import '../pages/shared/rental/tenant_session.dart';
+import '../pages/tenant/discovery/tenant_favorites_page.dart';
+import '../pages/tenant/tenant_settings_page.dart';
+import '../pages/tenant/tenant_page_router.dart';
+import '../pages/tenant/tenant_ui.dart';
+import '../pages/tenant/tenant_navigation_bar.dart';
+import '../pages/tenant/leases/components/tenant_lease_overview.dart';
+import '../pages/tenant/invoices/components/tenant_invoice_dashboard_widgets.dart';
 import 'role_layout.dart';
 
 class TenantLayout extends StatelessWidget {
@@ -27,7 +36,7 @@ class TenantLayout extends StatelessWidget {
     const tenantTabs = [
       RoleTab(
         label: 'Khám phá',
-        icon: Icons.home_outlined,
+        icon: Icons.travel_explore_rounded,
         selectedIcon: Icons.home_rounded,
         destinationId: 'discovery',
       ),
@@ -36,12 +45,6 @@ class TenantLayout extends StatelessWidget {
         icon: Icons.home_outlined,
         selectedIcon: Icons.home_rounded,
         destinationId: 'my_lease',
-      ),
-      RoleTab(
-        label: 'Hợp đồng thuê',
-        icon: Icons.description_outlined,
-        selectedIcon: Icons.description_rounded,
-        destinationId: 'lease_contract',
       ),
       RoleTab(
         label: 'Tin nhắn',
@@ -69,7 +72,74 @@ class TenantLayout extends StatelessWidget {
         accentColor: const Color(0xFF08A94F),
         initialDestinationId: 'discovery',
         showMoreTab: false,
-        hideAppBarOnDestinations: const {'discovery', 'my_lease'},
+        hideAppBarOnDestinations: const {
+          'discovery',
+          'viewings',
+          'my_lease',
+          'lease_contract',
+          'members',
+          'invoices',
+          'conversations',
+          'announcements',
+          'incidents',
+          'support',
+          'settings',
+        },
+        topBarBuilder:
+            (context, destination, onOpenDrawer, onSelectDestination, onBack) {
+              if (destination.id == 'invoices') {
+                return TenantInvoiceNavigationBar(
+                  onBack: onBack,
+                  onNotifications: () => onSelectDestination('announcements'),
+                  store: store,
+                  tenantId: TenantSession.currentTenantId,
+                );
+              }
+              if (destination.id == 'lease_contract') {
+                return TenantLeaseNavigationBar(onBack: onBack);
+              }
+              if (const {
+                'discovery',
+                'my_lease',
+                'conversations',
+                'announcements',
+              }.contains(destination.id)) {
+                return const SizedBox.shrink();
+              }
+              if (const {
+                'settings',
+                'profile',
+                'notifications',
+                'viewings',
+                'members',
+                'incidents',
+                'support',
+              }.contains(destination.id)) {
+                return TenantNavigationBar(
+                  title: destination.label,
+                  onBack: onBack,
+                  onNotifications: () => onSelectDestination('announcements'),
+                  notifications: AnnouncementStore.forRental(store),
+                  tenantId: TenantSession.currentTenantId,
+                );
+              }
+              return TenantHeader(
+                profileName:
+                    displayName ??
+                    AccountStore.instance.profile(AppRole.tenant).name,
+                onAvatarTap: onOpenDrawer,
+                onFavoritesTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const TenantFavoritesPage(),
+                  ),
+                ),
+                onSettingsTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const TenantSettingsPage(),
+                  ),
+                ),
+              );
+            },
         bottomNavigationBuilder: (context, selectedIndex, onSelected) =>
             _TenantBottomNavigation(
               tabs: tenantTabs,
@@ -166,34 +236,58 @@ class _TenantBottomNavigation extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
-  Widget build(BuildContext context) => Container(
-    decoration: const BoxDecoration(
-      color: Colors.white,
-      boxShadow: [
-        BoxShadow(
-          color: Color(0x100D1C18),
-          blurRadius: 16,
-          offset: Offset(0, -5),
-        ),
-      ],
-    ),
-    child: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 7, 4, 3),
-        child: Row(
-          children: [
-            for (var index = 0; index < tabs.length; index++)
-              Expanded(
-                child: _TenantBottomNavigationItem(
-                  tab: tabs[index],
-                  selected: index == selectedIndex,
-                  showMessageCount:
-                      tabs[index].destinationId == 'conversations',
-                  onTap: () => onSelected(index),
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([
+      ConversationStore.instance,
+      AnnouncementStore.instance,
+    ]),
+    builder: (context, _) => Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x100D1C18),
+            blurRadius: 16,
+            offset: Offset(0, -5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 7, 4, 3),
+          child: Row(
+            children: [
+              for (var index = 0; index < tabs.length; index++)
+                Expanded(
+                  child: _TenantBottomNavigationItem(
+                    tab: tabs[index],
+                    selected: index == selectedIndex,
+                    unreadCount: switch (tabs[index].destinationId) {
+                      'conversations' =>
+                        ConversationStore.instance
+                            .forTenant(TenantSession.currentTenantId)
+                            .fold<int>(
+                              0,
+                              (sum, item) => sum + item.tenantUnread,
+                            ),
+                      'announcements' =>
+                        AnnouncementStore.instance
+                            .forTenant(TenantSession.currentTenantId)
+                            .where(
+                              (item) => !AnnouncementStore.instance.isRead(
+                                item.id,
+                                TenantSession.currentTenantId,
+                              ),
+                            )
+                            .length,
+                      _ => 0,
+                    },
+                    onTap: () => onSelected(index),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     ),
@@ -204,13 +298,13 @@ class _TenantBottomNavigationItem extends StatelessWidget {
   const _TenantBottomNavigationItem({
     required this.tab,
     required this.selected,
-    required this.showMessageCount,
+    required this.unreadCount,
     required this.onTap,
   });
 
   final RoleTab tab;
   final bool selected;
-  final bool showMessageCount;
+  final int unreadCount;
   final VoidCallback onTap;
 
   @override
@@ -238,21 +332,25 @@ class _TenantBottomNavigationItem extends StatelessWidget {
                       color: color,
                       size: 25,
                     ),
-                    if (showMessageCount)
+                    if (unreadCount > 0)
                       Positioned(
                         right: -9,
                         top: -5,
                         child: Container(
-                          width: 19,
+                          key: ValueKey(
+                            'tenant-${tab.destinationId}-unread-badge',
+                          ),
+                          constraints: const BoxConstraints(minWidth: 19),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
                           height: 19,
                           alignment: Alignment.center,
                           decoration: const BoxDecoration(
                             color: Color(0xFFE83D3D),
                             shape: BoxShape.circle,
                           ),
-                          child: const Text(
-                            '3',
-                            style: TextStyle(
+                          child: Text(
+                            unreadCount > 99 ? '99+' : '$unreadCount',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
                               fontWeight: FontWeight.w800,

@@ -97,7 +97,9 @@ void main() {
           portfolio.dispose();
         });
         await tester.pumpWidget(
-          const MaterialApp(home: Scaffold(body: TenantDiscoveryPage())),
+          const MaterialApp(
+            home: Scaffold(body: TenantDiscoveryPage(resultsOnly: true)),
+          ),
         );
         await tester.pumpAndSettle();
         expect(find.byType(TenantRoomCard), findsNWidgets(8));

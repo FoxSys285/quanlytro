@@ -17,6 +17,7 @@ import 'data/discovery_catalog.dart';
 import 'pages/tenant/discovery/tenant_discovery_page.dart';
 import 'pages/shared/rental/tenant_session.dart';
 import 'pages/shared/auth/login_page.dart';
+import 'pages/shared/widgets/app_brand.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ Future<void> main() async {
   }
   runApp(
     const MaterialApp(
+      title: appName,
       home: Scaffold(body: Center(child: CircularProgressIndicator())),
     ),
   );
@@ -84,6 +86,7 @@ Future<void> main() async {
     await persistence?.dispose();
     runApp(
       MaterialApp(
+        title: appName,
         home: Scaffold(
           body: SafeArea(
             child: Center(
@@ -126,7 +129,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ứng dụng thuê trọ',
+      title: appName,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

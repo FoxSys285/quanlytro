@@ -11,6 +11,8 @@ import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
 
 import 'components/tenant_discovery_filter_sheet.dart';
+import 'components/tenant_area_picker_page.dart';
+import 'services/tenant_location_service.dart';
 import 'components/tenant_room_details_page.dart';
 import 'models/tenant_room_listing.dart';
 import 'tenant_discovery_home.dart';
@@ -18,6 +20,7 @@ import '../../shared/viewings/viewing_store.dart';
 import 'tenant_favorites_page.dart';
 import 'tenant_favorites_store.dart';
 import '../tenant_ui.dart';
+import '../tenant_settings_page.dart';
 import '../../shared/widgets/list_pagination.dart';
 import '../viewings/components/tenant_viewing_request_sheet.dart';
 import '../viewings/models/tenant_viewing_request.dart';
@@ -40,8 +43,10 @@ class TenantDiscoveryPage extends StatefulWidget {
     this.initialMaxArea,
     this.initialAmenities = const {},
     this.initialSort = 'default',
+    this.locationService = const TenantLocationService(),
   });
 
+  final TenantLocationService locationService;
   final ViewingStore? viewingStore;
   final String tenantId;
   final TenantCatalogSource? catalogSource;
@@ -89,8 +94,11 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   bool _catalogLoading = false;
   bool _catalogError = false;
   bool _offlineFallback = false;
+  bool _findingNearby = false;
+  bool _openingSearch = false;
 
   TenantCatalogQuery get _catalogQuery {
+    if (!widget.resultsOnly) return const TenantCatalogQuery();
     final preset = switch (_selectedArea) {
       'Dưới 20 m²' => (0.0, 19.999999),
       '20–30 m²' => (20.0, 29.999999),
@@ -121,20 +129,22 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   }
 
   void _syncCatalog() {
-    final key = jsonEncode([
-      _query,
-      _maxRent,
-      _electricityRange.start,
-      _electricityRange.end,
-      _selectedCity,
-      _selectedWard,
-      _waterType,
-      _selectedArea,
-      _minArea,
-      _maxArea,
-      (_amenities.toList()..sort()),
-      _sort,
-    ]);
+    final key = !widget.resultsOnly
+        ? 'discovery-home'
+        : jsonEncode([
+            _query,
+            _maxRent,
+            _electricityRange.start,
+            _electricityRange.end,
+            _selectedCity,
+            _selectedWard,
+            _waterType,
+            _selectedArea,
+            _minArea,
+            _maxArea,
+            (_amenities.toList()..sort()),
+            _sort,
+          ]);
     if (_catalogKey == key) return;
     _catalogKey = key;
     _catalogGeneration++;
@@ -198,9 +208,9 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     super.didChangeDependencies();
     if (_restored) return;
     _restored = true;
-    if (widget.resultsOnly) return;
+    if (!widget.resultsOnly) return;
     final saved = PageStorage.maybeOf(context)
-        ?.readState(context, identifier: 'discovery-${widget.tenantId}');
+        ?.readState(context, identifier: _storageIdentifier);
     if (saved is! Map<String, dynamic>) return;
     _query = saved['query'] as String;
     _searchController.text = _query;
@@ -221,10 +231,14 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       saved['catalogPages'] as List<CatalogPage>? ?? const [],
     );
     if (_catalogPages.isEmpty) _catalogKey = null;
+    TenantSelectedLocation.instance.restore(
+      city: _selectedCity,
+      ward: _selectedWard,
+    );
   }
 
   void _saveState() {
-    if (widget.resultsOnly) return;
+    if (!widget.resultsOnly) return;
     PageStorage.maybeOf(context)?.writeState(context, <String, dynamic>{
       'query': _searchController.text,
       'rent': _maxRent,
@@ -241,7 +255,25 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       'catalogKey': _catalogKey,
       'catalogIndex': _catalogIndex,
       'catalogPages': [..._catalogPages],
-    }, identifier: 'discovery-${widget.tenantId}');
+    }, identifier: _storageIdentifier);
+  }
+
+  String get _storageIdentifier {
+    final initialFilters = [
+      widget.initialQuery,
+      widget.initialCity,
+      widget.initialWard,
+      widget.initialMaxRent,
+      widget.initialSort,
+      widget.initialArea,
+      widget.initialMinArea,
+      widget.initialMaxArea,
+      widget.initialElectricityRange.start,
+      widget.initialElectricityRange.end,
+      widget.initialWaterType,
+      widget.initialAmenities.toList()..sort(),
+    ];
+    return 'discovery-results-${widget.tenantId}-${jsonEncode(initialFilters)}';
   }
 
   final _searchController = TextEditingController();
@@ -251,6 +283,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   void dispose() {
     RentalPortfolio.instance.removeListener(_refreshListings);
     AdminStore.instance.removeListener(_refreshListings);
+    TenantSelectedLocation.instance.removeListener(_refreshListings);
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -259,6 +292,10 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   @override
   void initState() {
     super.initState();
+    RentalPortfolio.instance.addListener(_refreshListings);
+    AdminStore.instance.addListener(_refreshListings);
+    TenantSelectedLocation.instance.addListener(_refreshListings);
+    if (!widget.resultsOnly) return;
     _query = widget.initialQuery;
     _searchController.text = widget.initialQuery;
     _maxRent = widget.initialMaxRent;
@@ -271,12 +308,11 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     _maxArea = widget.initialMaxArea;
     _amenities = {...widget.initialAmenities};
     _sort = widget.initialSort;
-    RentalPortfolio.instance.addListener(_refreshListings);
-    AdminStore.instance.addListener(_refreshListings);
   }
 
   void _refreshListings() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
   }
 
   @override
@@ -287,14 +323,17 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     final minimumElectricity = (_electricityRange.start * 1000).round();
     final maximumElectricity = (_electricityRange.end * 1000).round();
     final rooms = TenantRoomDemoData.allListings.where((room) {
+      if (!widget.resultsOnly) return true;
       final searchableText =
           '${room.name} ${room.address} ${room.roomType} ${room.tags.join(' ')} ${room.city} ${room.ward}'
               .toLowerCase();
       final matchesQuery =
           normalizedQuery.isEmpty || searchableText.contains(normalizedQuery);
       final matchesLocation =
-          (_selectedCity == null || room.city == _selectedCity) &&
-          (_selectedWard == null || room.ward == _selectedWard);
+          (_selectedCity == null ||
+              sameLocationName(room.city, _selectedCity!)) &&
+          (_selectedWard == null ||
+              sameLocationName(room.ward, _selectedWard!));
       final matchesElectricity =
           room.electricityPrice >= minimumElectricity &&
           room.electricityPrice <= maximumElectricity;
@@ -335,7 +374,8 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
               : _catalogPages[_catalogIndex].items)
         : rooms.skip(page * _pageSize).take(_pageSize).toList();
 
-    return TenantDiscoveryHome(
+    final home = TenantDiscoveryHome(
+      locationService: widget.locationService,
       resultsOnly: widget.resultsOnly,
       localRooms: rooms,
       visibleRooms: visibleRooms,
@@ -346,7 +386,6 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       profileName: TenantSession.name,
       query: _query,
       sort: _sort,
-      selectedCity: _selectedCity,
       searchController: _searchController,
       activeFilterCount: _activeFilterCount,
       currentPage: _catalogIndex,
@@ -358,6 +397,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
           _catalogPages[_catalogIndex].nextCursor != null,
       activeFilters: _activeFilterCount > 0 ? _activeFiltersBar() : null,
       onSearchChanged: _onSearchChanged,
+      onSearchSubmitted: _submitSearch,
       onSearchClear: () {
         _searchDebounce?.cancel();
         _searchController.clear();
@@ -367,15 +407,13 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         });
       },
       onFilter: () => _showFilterSheet(context),
+      onPickArea: _openAreaPicker,
+      onAreaSelected: (selection) => unawaited(_applyAreaSelection(selection)),
       onOpenSearch: _openSearch,
       onFavorites: _openFavorites,
+      onSettings: _openSettings,
       onFavoriteToggle: _toggleFavorite,
       onRoomTap: (room) => _showRoomDetails(context, room),
-      onSelectArea: (room) => setState(() {
-        _selectedCity = room.city;
-        _selectedWard = room.ward.isEmpty ? null : room.ward;
-        _page = 0;
-      }),
       onSortChanged: (value) => setState(() {
         _sort = value ?? 'default';
         _page = 0;
@@ -399,15 +437,10 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         _offlineFallback = false;
         _catalogKey = null;
       }),
-      onNearby: () => setState(() {
-        _sort = 'areaAsc';
-        _page = 0;
-      }),
-      onDeals: () => setState(() {
-        _sort = 'rentAsc';
-        _page = 0;
-      }),
+      onNearby: _findNearby,
+      onDeals: () => _openSearch(initialSort: 'rentAsc'),
     );
+    return Material(type: MaterialType.transparency, child: home);
   }
 
   int get _activeFilterCount {
@@ -565,7 +598,24 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     });
   }
 
+  void _submitSearch() {
+    FocusScope.of(context).unfocus();
+    _searchDebounce?.cancel();
+    if (!widget.resultsOnly) {
+      unawaited(_openSearch());
+      return;
+    }
+    setState(() {
+      _query = _searchController.text.trim();
+      _page = 0;
+    });
+  }
+
   void _onSearchChanged(String value) {
+    if (!widget.resultsOnly) {
+      setState(() => _query = value);
+      return;
+    }
     _saveState();
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 250), () {
@@ -578,11 +628,14 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   }
 
   Future<void> _showFilterSheet(BuildContext context) async {
+    FocusScope.of(context).unfocus();
     final filters = await showModalBottomSheet<TenantDiscoveryFilterSelection>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => TenantDiscoveryFilterSheet(
+        locationService: widget.locationService,
+        availableRooms: [for (final page in _catalogPages) ...page.items],
         initialRent: _maxRent,
         initialCity: _selectedCity,
         initialWard: _selectedWard,
@@ -595,6 +648,10 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       ),
     );
     if (!mounted || filters == null) return;
+    if (!widget.resultsOnly) {
+      await _openSearch(filters: filters);
+      return;
+    }
     setState(() {
       _maxRent = filters.maxRent;
       _selectedCity = filters.city;
@@ -607,6 +664,14 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       _amenities = filters.amenities;
       _page = 0;
     });
+    if (filters.city != null) {
+      TenantSelectedLocation.instance.select(
+        city: filters.city!,
+        ward: filters.ward,
+      );
+    } else {
+      TenantSelectedLocation.instance.reset();
+    }
   }
 
   void _showRoomDetails(BuildContext context, TenantRoomListing room) {
@@ -691,28 +756,119 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _openSearch() async {
+  Future<void> _openSettings() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => TenantDiscoveryPage(
-          viewingStore: widget.viewingStore,
-          tenantId: widget.tenantId,
-          catalogSource: _catalogSource,
-          resultsOnly: true,
-          initialQuery: _searchController.text.trim(),
-          initialMaxRent: _maxRent,
-          initialElectricityRange: _electricityRange,
-          initialCity: _selectedCity,
-          initialWard: _selectedWard,
-          initialArea: _selectedArea,
-          initialWaterType: _waterType,
-          initialMinArea: _minArea,
-          initialMaxArea: _maxArea,
-          initialAmenities: _amenities,
-          initialSort: _sort,
-        ),
+      MaterialPageRoute<void>(builder: (_) => const TenantSettingsPage()),
+    );
+  }
+
+  Future<void> _findNearby() async {
+    if (_findingNearby) return;
+    _findingNearby = true;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text('Đang lấy vị trí để tìm phòng…')),
+      );
+    try {
+      final selection = await widget.locationService.currentArea();
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      await _applyAreaSelection(selection);
+    } on TenantLocationFailure catch (error) {
+      if (!mounted) return;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Không lấy được vị trí. Hãy thử lại hoặc chọn khu vực tìm phòng.',
+            ),
+          ),
+        );
+    } finally {
+      _findingNearby = false;
+    }
+  }
+
+  Future<void> _openAreaPicker() async {
+    final selection = await Navigator.of(context).push<TenantAreaSelection>(
+      MaterialPageRoute<TenantAreaSelection>(
+        builder: (_) =>
+            TenantAreaPickerPage(locationService: widget.locationService),
       ),
     );
+    if (!mounted || selection == null) return;
+    await _applyAreaSelection(selection);
+  }
+
+  Future<void> _applyAreaSelection(TenantAreaSelection selection) async {
+    if (!mounted) return;
+    TenantSelectedLocation.instance.select(
+      city: selection.city,
+      ward: selection.ward,
+    );
+    if (widget.resultsOnly) {
+      setState(() {
+        _selectedCity = selection.city;
+        _selectedWard = selection.ward;
+        _page = 0;
+      });
+    } else {
+      await _openSearch(city: selection.city, ward: selection.ward);
+    }
+  }
+
+  Future<void> _openSearch({
+    TenantDiscoveryFilterSelection? filters,
+    String? city,
+    String? ward,
+    String? initialSort,
+  }) async {
+    if (_openingSearch) return;
+    _openingSearch = true;
+    FocusScope.of(context).unfocus();
+    try {
+      if (city != null) {
+        TenantSelectedLocation.instance.select(city: city, ward: ward);
+      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => TenantDiscoveryPage(
+            viewingStore: widget.viewingStore,
+            locationService: widget.locationService,
+            tenantId: widget.tenantId,
+            catalogSource: _catalogSource,
+            resultsOnly: true,
+            initialQuery: _searchController.text.trim(),
+            initialMaxRent: filters?.maxRent ?? _maxRent,
+            initialElectricityRange:
+                filters?.electricityRange ?? _electricityRange,
+            initialCity: filters != null ? filters.city : city ?? _selectedCity,
+            initialWard: filters != null
+                ? filters.ward
+                : city != null
+                ? ward
+                : _selectedWard,
+            initialArea: filters != null ? filters.area : _selectedArea,
+            initialWaterType: filters?.waterType ?? _waterType,
+            initialMinArea: filters != null ? filters.minArea : _minArea,
+            initialMaxArea: filters != null ? filters.maxArea : _maxArea,
+            initialAmenities: filters?.amenities ?? _amenities,
+            initialSort: initialSort ?? _sort,
+          ),
+        ),
+      );
+    } finally {
+      _openingSearch = false;
+      if (mounted) setState(() {});
+    }
   }
 }
 

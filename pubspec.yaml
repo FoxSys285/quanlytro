@@ -1,5 +1,5 @@
 name: quanlytro
-description: "A new Flutter project."
+description: "TroPremium - Ứng dụng quản lý và tìm kiếm phòng trọ."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -41,10 +41,14 @@ dependencies:
   crypto: ^3.0.6
 
   http: ^1.6.0
+  flutter_svg: ^2.3.0
   firebase_core: 3.15.2
   cloud_firestore: 5.6.12
   firebase_auth: 5.7.0
   url_launcher: 6.3.2
+  geocoding: ^5.0.1
+  geolocator: ^14.1.2
+  google_maps_flutter: ^2.19.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -67,9 +71,22 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/images/tropremium_logo.png
+    - assets/images/login_hero.png
     - assets/images/room_types/
     - assets/images/rental_api/
     - assets/images/tenant_discovery_hero.png
+    - assets/images/tenant_home_hero.png
+    - assets/images/tenant_contract_hero.png
+    - assets/images/tenant_invoices_hero.png
+    - assets/images/tenant_favorites_hero.png
+    - assets/images/tenant_settings_hero.png
+    - assets/images/tenant_incidents_hero.png
+    - assets/images/tenant_viewings_hero.png
+    - assets/images/tenant_members_hero.png
+    - assets/images/tenant_help_hero.png
+    - assets/images/tenant_messages_hero.png
+    - assets/images/tenant_announcements_hero.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

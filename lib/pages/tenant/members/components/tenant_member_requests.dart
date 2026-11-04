@@ -5,6 +5,8 @@ import '../../../landlord/landlord_demo_store.dart';
 import '../../../landlord/finance/landlord_finance_models.dart';
 import '../../../shared/rental/lease_member.dart';
 import '../../tenant_ui.dart';
+import '../../tenant_detail_ui.dart';
+import '../../tenant_feature_ui.dart';
 
 class TenantMemberRequests extends StatelessWidget {
   const TenantMemberRequests({
@@ -46,9 +48,11 @@ class TenantMemberRequests extends StatelessWidget {
                 : () async {
                     final sent = await showDialog<bool>(
                       context: context,
-                      builder: (_) => _MemberRequestEditor(
-                        store: store,
-                        tenantId: tenantId,
+                      builder: (_) => TenantDetailTheme(
+                        child: _MemberRequestEditor(
+                          store: store,
+                          tenantId: tenantId,
+                        ),
                       ),
                     );
                     if (sent == true && context.mounted) {
@@ -176,18 +180,24 @@ class _MemberRequestEditorState extends State<_MemberRequestEditor> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Thêm thành viên'),
+    titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+    title: const TenantFormHeading(
+      icon: Icons.person_add_alt_1_rounded,
+      title: 'Thêm thành viên',
+      subtitle: 'Gửi thông tin người ở cùng để chủ trọ xem xét.',
+    ),
+    contentPadding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
     content: SizedBox(
       width: 420,
       child: SingleChildScrollView(
         child: Form(
           key: _form,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Gửi thông tin người ở cùng để chủ trọ xem xét.'),
-              const SizedBox(height: 18),
               TextFormField(
                 controller: _name,
                 maxLength: 80,
@@ -195,7 +205,8 @@ class _MemberRequestEditorState extends State<_MemberRequestEditor> {
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Họ tên thành viên',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person_outline_rounded),
+                  counterText: '',
                 ),
                 validator: (value) => value == null || value.trim().isEmpty
                     ? 'Nhập họ tên thành viên.'
@@ -211,20 +222,23 @@ class _MemberRequestEditorState extends State<_MemberRequestEditor> {
                 ],
                 decoration: const InputDecoration(
                   labelText: 'Số điện thoại',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone_outlined),
                 ),
                 validator: (value) => !RegExp(r'^0\d{9}$').hasMatch(value ?? '')
                     ? 'Nhập số điện thoại 10 chữ số, bắt đầu bằng 0.'
                     : null,
               ),
               const SizedBox(height: 12),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.event_outlined),
-                title: const Text('Ngày dự kiến vào ở'),
-                subtitle: Text(landlordDate(_date)),
-                trailing: const Icon(Icons.edit_calendar_outlined),
-                onTap: _pickDate,
+              Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.event_outlined),
+                  title: const Text('Ngày dự kiến vào ở'),
+                  subtitle: Text(landlordDate(_date)),
+                  trailing: const Icon(Icons.edit_calendar_outlined),
+                  onTap: _pickDate,
+                ),
               ),
               if (_error != null)
                 Text(_error!, style: const TextStyle(color: Colors.red)),

@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../../landlord/incidents/models/landlord_suco.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
+import '../tenant_detail_ui.dart';
 import '../tenant_ui.dart';
+import '../tenant_feature_ui.dart';
 
-// Tên Class chính bằng tiếng Việt
 class TenantBaoSuCoPage extends StatefulWidget {
   const TenantBaoSuCoPage({
     super.key,
@@ -21,273 +22,330 @@ class TenantBaoSuCoPage extends StatefulWidget {
 }
 
 class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
-  // 1. DỮ KIỆN (Biến dữ liệu đưa lên đầu)
-  static const _danhMucSuCo = ['Điện', 'Nước', 'Điện lạnh', 'Internet', 'Khác'];
-
   LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
-  List<LandlordIncident> get _danhSachSuCo =>
-      _store.incidentsForTenant(widget.tenantId);
 
-  // 2. VÒNG ĐỜI VÀ LẮNG NGHE
-  @override
-  void initState() {
-    super.initState();
-    _store.addListener(_capNhat);
+  void _updateStatus(LandlordIncident incident, IncidentStatus status) {
+    _store.updateIncident(incident, status, tenantId: widget.tenantId);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Đã cập nhật: ${status.label}')));
   }
 
-  void _capNhat() {
-    if (mounted) {
-      setState(() {});
+  Future<void> _createRequest() async {
+    final sent = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TenantDetailTheme(
+        child: _IncidentRequestSheet(store: _store, tenantId: widget.tenantId),
+      ),
+    );
+    if (sent == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã gửi yêu cầu cho chủ trọ.')),
+      );
     }
   }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _store,
+    builder: (context, _) {
+      final lease = _store.currentLeaseForTenant(widget.tenantId);
+      final incidents = _store.incidentsForTenant(widget.tenantId);
+      final waiting = incidents
+          .where((i) => i.status == IncidentStatus.newly)
+          .length;
+      final processing = incidents
+          .where((i) => i.status == IncidentStatus.inProgress)
+          .length;
+      final completed = incidents.length - waiting - processing;
+      return TenantFeatureFrame(
+        artwork: TenantFeatureArtwork.incidents,
+        title: 'Báo cáo sự cố',
+        subtitle: lease == null
+            ? 'Gửi yêu cầu sửa chữa và theo dõi tiến độ xử lý.'
+            : 'Gửi yêu cầu sửa chữa cho chủ trọ phòng ${lease.room}.',
+        children: [
+          TenantSurface(
+            child: Row(
+              children: [
+                _metric('$waiting', 'Mới gửi', const Color(0xFFD64545)),
+                _metric('$processing', 'Đang xử lý', const Color(0xFFB57920)),
+                _metric('$completed', 'Đã xử lý', tenantGreenDark),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: lease == null ? null : _createRequest,
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: const Text('Tạo yêu cầu mới'),
+            ),
+          ),
+          if (lease == null) ...[
+            const SizedBox(height: 12),
+            const TenantDetailNote(
+              'Bạn cần có hợp đồng đang hiệu lực để gửi yêu cầu sửa chữa.',
+            ),
+          ],
+          const SizedBox(height: 24),
+          TenantSectionHeading(
+            'Yêu cầu của tôi',
+            trailing: Text(
+              '${incidents.length} yêu cầu',
+              style: const TextStyle(color: tenantMuted, fontSize: 11),
+            ),
+          ),
+          if (incidents.isEmpty)
+            const TenantEmptyState(
+              icon: Icons.build_outlined,
+              title: 'Chưa có sự cố nào',
+              subtitle: 'Khi phòng có vấn đề, hãy gửi yêu cầu cho chủ trọ.',
+            ),
+          for (final incident in incidents) ...[
+            TenantSurface(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TenantDetailIcon(switch (incident.category) {
+                        'Điện' => Icons.electrical_services_rounded,
+                        'Nước' => Icons.water_drop_outlined,
+                        'Internet' => Icons.wifi_rounded,
+                        'Điện lạnh' => Icons.ac_unit_rounded,
+                        _ => Icons.handyman_outlined,
+                      }),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              incident.title,
+                              style: const TextStyle(
+                                color: tenantInk,
+                                fontSize: 14,
+                                height: 1.4,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              '${incident.category} · ${incident.date}',
+                              style: const TextStyle(
+                                color: tenantMuted,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 13),
+                  TenantStatusPill(
+                    incident.status.label,
+                    color: incident.status.color,
+                  ),
+                  const TenantThinDivider(),
+                  Text(
+                    incident.description,
+                    style: const TextStyle(
+                      color: tenantInk,
+                      fontSize: 13,
+                      height: 1.6,
+                    ),
+                  ),
+                  if (incident.status == IncidentStatus.resolved) ...[
+                    const SizedBox(height: 14),
+                    const TenantDetailNote(
+                      'Chủ trọ đã xử lý. Hãy kiểm tra và xác nhận kết quả.',
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () =>
+                                _updateStatus(incident, IncidentStatus.newly),
+                            child: const Text('Mở lại'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () =>
+                                _updateStatus(incident, IncidentStatus.closed),
+                            child: const Text('Xác nhận'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 8),
+          const TenantFeatureBanner(
+            icon: Icons.support_agent_rounded,
+            title: 'Theo dõi đến khi xử lý xong',
+            subtitle: 'Kiểm tra kết quả sau khi chủ trọ xử lý. Bạn có thể xác nhận hoặc mở lại yêu cầu.',
+          ),
+        ],
+      );
+    },
+  );
+
+  Widget _metric(String value, String label, Color color) => Expanded(
+    child: Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: tenantMuted, fontSize: 11),
+        ),
+      ],
+    ),
+  );
+}
+
+class _IncidentRequestSheet extends StatefulWidget {
+  const _IncidentRequestSheet({required this.store, required this.tenantId});
+  final LandlordDemoStore store;
+  final String tenantId;
+
+  @override
+  State<_IncidentRequestSheet> createState() => _IncidentRequestSheetState();
+}
+
+class _IncidentRequestSheetState extends State<_IncidentRequestSheet> {
+  final _form = GlobalKey<FormState>();
+  final _title = TextEditingController();
+  final _description = TextEditingController();
+  String _category = 'Điện';
+  String? _error;
 
   @override
   void dispose() {
-    _store.removeListener(_capNhat);
+    _title.dispose();
+    _description.dispose();
     super.dispose();
   }
 
-  // 3. CÁC HÀM XỬ LÝ (Viết trước hàm build)
-  // Hàm cập nhật trạng thái sự cố và hiển thị thông báo
-  void _capNhatTrangThai(LandlordIncident suCo, IncidentStatus trangThaiMoi) {
-    _store.updateIncident(suCo, trangThaiMoi, tenantId: widget.tenantId);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Đã cập nhật: ${trangThaiMoi.label}')),
-    );
-  }
-
-  // Hàm tạo danh sách loại sự cố cho Dropdown bằng LINQ gọn gàng
-  List<DropdownMenuItem<String>> _taoDanhSachMucSuCo() {
-    return _danhMucSuCo
-        .map((muc) => DropdownMenuItem(value: muc, child: Text(muc)))
-        .toList();
-  }
-
-  // Hàm mở form tạo yêu cầu sửa chữa mới
-  Future<void> _moFormTaoMoi() async {
-    final oNhapTieuDe = TextEditingController();
-    final oNhapMoTa = TextEditingController();
-    var loaiSuCo = _danhMucSuCo.first;
-
-    final ketQuaLuu = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => TenantBottomSheetSurface(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const TenantSheetHandle(),
-              const Text(
-                'Tạo yêu cầu sửa chữa',
-                style: TextStyle(
-                  color: tenantInk,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: oNhapTieuDe,
-                decoration: const InputDecoration(
-                  labelText: 'Tiêu đề',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: loaiSuCo,
-                decoration: const InputDecoration(
-                  labelText: 'Loại sự cố',
-                  border: OutlineInputBorder(),
-                ),
-                items: _taoDanhSachMucSuCo(),
-                onChanged: (giaTri) {
-                  setSheetState(() {
-                    if (giaTri != null) {
-                      loaiSuCo = giaTri;
-                    }
-                  });
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: oNhapMoTa,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả chi tiết',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: FilledButton.styleFrom(backgroundColor: tenantGreen),
-                  child: const Text('Gửi yêu cầu'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    // Kiểm tra nếu người dùng không bấm lưu hoặc màn hình đã đóng
-    if (ketQuaLuu != true) {
-      return;
-    }
-    if (!mounted) {
-      return;
-    }
-
-    final tieuDe = oNhapTieuDe.text.trim();
-    final moTa = oNhapMoTa.text.trim();
-    if (tieuDe.isEmpty || moTa.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập tiêu đề và mô tả.')),
-      );
-      return;
-    }
-
+  void _submit() {
+    if (!_form.currentState!.validate()) return;
     try {
-      _store.createIncident(
+      widget.store.createIncident(
         tenantId: widget.tenantId,
-        title: tieuDe,
-        category: loaiSuCo,
-        description: moTa,
+        title: _title.text.trim(),
+        category: _category,
+        description: _description.text.trim(),
       );
+      Navigator.pop(context, true);
     } on ArgumentError catch (error) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.message.toString())));
-      return;
+      setState(() => _error = error.message.toString());
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã gửi yêu cầu cho chủ trọ.')),
-    );
   }
 
-  // 4. HÀM BUILD ĐẶT Ở DƯỚI CÙNG
   @override
-  Widget build(BuildContext context) {
-    String tieuDePhu = 'Gửi yêu cầu sửa chữa cho chủ trọ.';
-    final hopDong = _store.currentLeaseForTenant(widget.tenantId);
-    if (hopDong != null) {
-      tieuDePhu = 'Gửi yêu cầu sửa chữa cho chủ trọ phòng ${hopDong.room}.';
-    }
-
-    VoidCallback? hamTaoMoi;
-    if (hopDong != null) {
-      hamTaoMoi = _moFormTaoMoi;
-    }
-
-    // Danh sách widget hiển thị trên toàn màn hình
-    final List<Widget> danhSachWidget = [
-      TenantPageTitle(title: 'Báo sự cố', subtitle: tieuDePhu),
-      SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: hamTaoMoi,
-          style: FilledButton.styleFrom(backgroundColor: tenantGreen),
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Tạo yêu cầu mới'),
-        ),
-      ),
-      const SizedBox(height: 18),
-      const TenantSectionHeading('Yêu cầu của tôi'),
-    ];
-
-    // Kiểm tra nếu chưa có sự cố nào thì hiển thị giao diện trống
-    if (_danhSachSuCo.isEmpty) {
-      danhSachWidget.add(
-        const TenantEmptyState(
-          icon: Icons.build_outlined,
-          title: 'Chưa có sự cố nào',
-          subtitle: 'Khi phòng có vấn đề, hãy gửi yêu cầu cho chủ trọ.',
-        ),
-      );
-    } else {
-      // Duyệt qua từng sự cố để tạo thẻ hiển thị bằng vòng lặp for đơn giản
-      for (int i = 0; i < _danhSachSuCo.length; i++) {
-        final suCo = _danhSachSuCo[i];
-
-        // Nếu sự cố đã được chủ trọ xử lý thì hiển thị 2 nút: Mở lại hoặc Xác nhận
-        Widget? dongNutThaoTac;
-        if (suCo.status == IncidentStatus.resolved) {
-          dongNutThaoTac = Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+  Widget build(BuildContext context) => TenantBottomSheetSurface(
+    child: Form(
+      key: _form,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const TenantSheetHandle(),
+          const TenantFormHeading(
+            icon: Icons.handyman_rounded,
+            title: 'Tạo yêu cầu sửa chữa',
+            subtitle: 'Mô tả vấn đề để chủ trọ hỗ trợ bạn nhanh hơn.',
+          ),
+          const SizedBox(height: 20),
+          TenantSurface(
+            child: Column(
               children: [
-                TextButton(
-                  onPressed: () {
-                    _capNhatTrangThai(suCo, IncidentStatus.newly);
-                  },
-                  child: const Text('Mở lại'),
+                TextFormField(
+                  controller: _title,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Tiêu đề',
+                    prefixIcon: Icon(Icons.edit_note_rounded),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Vui lòng nhập tiêu đề.'
+                      : null,
                 ),
-                const SizedBox(width: 6),
-                FilledButton(
-                  onPressed: () {
-                    _capNhatTrangThai(suCo, IncidentStatus.closed);
-                  },
-                  style: FilledButton.styleFrom(backgroundColor: tenantGreen),
-                  child: const Text('Xác nhận'),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: _category,
+                  decoration: const InputDecoration(
+                    labelText: 'Loại sự cố',
+                    prefixIcon: Icon(Icons.category_outlined),
+                  ),
+                  items: [
+                    for (final category in [
+                      'Điện',
+                      'Nước',
+                      'Điện lạnh',
+                      'Internet',
+                      'Khác',
+                    ])
+                      DropdownMenuItem(value: category, child: Text(category)),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _category = value ?? _category),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _description,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Mô tả chi tiết',
+                    alignLabelWithHint: true,
+                    hintText: 'Vị trí xảy ra, biểu hiện và thời gian phát hiện sự cố…',
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Vui lòng nhập mô tả.'
+                      : null,
                 ),
               ],
             ),
-          );
-        }
-
-        // Tạo danh sách widget con bên trong thẻ sự cố
-        final List<Widget> danhSachPhanTuThe = [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  suCo.title,
-                  style: const TextStyle(
-                    color: tenantInk,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              TenantStatusPill(suCo.status.label, color: suCo.status.color),
-            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${suCo.category} · ${suCo.date}',
-            style: const TextStyle(color: tenantMuted, fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            suCo.description,
-            style: const TextStyle(color: tenantInk, fontSize: 13),
-          ),
-        ];
-
-        // Thêm nút thao tác nếu có
-        if (dongNutThaoTac != null) {
-          danhSachPhanTuThe.add(dongNutThaoTac);
-        }
-
-        danhSachWidget.add(
-          TenantSurface(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: danhSachPhanTuThe,
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _submit,
+              icon: const Icon(Icons.send_rounded, size: 18),
+              label: const Text('Gửi yêu cầu'),
             ),
           ),
-        );
-        danhSachWidget.add(const SizedBox(height: 10));
-      }
-    }
-
-    return TenantPageFrame(children: danhSachWidget);
-  }
+        ],
+      ),
+    ),
+  );
 }

@@ -25,7 +25,8 @@ void main() {
           ),
         );
         await tester.tap(find.byTooltip('Mở danh mục chức năng'));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
         final support = find.widgetWithText(ListTile, 'Trợ giúp');
         await tester.ensureVisible(support);
         await tester.tap(support);

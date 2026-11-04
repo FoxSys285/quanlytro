@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../tenant_inbox_hero.dart';
 import '../tenant_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
+import 'components/tenant_conversation_card.dart';
 import 'models/tenant_cuoctrochuyen.dart';
 import 'tenant_tinnhan_page.dart';
 
-// Tên Class chính bằng tiếng Việt
 class TenantDanhSachTinNhanPage extends StatefulWidget {
-  const TenantDanhSachTinNhanPage({super.key});
+  const TenantDanhSachTinNhanPage({super.key, this.showHeader = false});
+
+  final bool showHeader;
 
   @override
   State<TenantDanhSachTinNhanPage> createState() =>
@@ -15,235 +18,139 @@ class TenantDanhSachTinNhanPage extends StatefulWidget {
 }
 
 class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
-  // 1. DỮ KIỆN (Biến trạng thái đưa lên đầu)
-  String _tuKhoaTimKiem = '';
-
-  // 2. VÒNG ĐỜI VÀ LẮNG NGHE DỮ LIỆU
-  @override
-  void initState() {
-    super.initState();
-    ConversationStore.instance.addListener(_capNhat);
-  }
-
-  void _capNhat() {
-    if (mounted) {
-      setState(() {});
-    }
-  }
+  final _search = TextEditingController();
+  bool _unreadOnly = false;
 
   @override
   void dispose() {
-    ConversationStore.instance.removeListener(_capNhat);
+    _search.dispose();
     super.dispose();
   }
 
-  // 3. CÁC HÀM XỬ LÝ (Viết trước hàm build)
-  // Hàm chuyển sang màn hình chat chi tiết với chủ trọ
-  Future<void> _moManHinhTroChuyen(TenantConversation cuocTroChuyen) async {
-    if (cuocTroChuyen.source != null) {
+  Future<void> _open(TenantConversation conversation) async {
+    if (conversation.source != null) {
       ConversationStore.instance.markRead(
-        cuocTroChuyen.source!,
+        conversation.source!,
         landlord: false,
       );
+    } else {
+      setState(() => conversation.unread = 0);
     }
-    setState(() {
-      cuocTroChuyen.unread = 0;
-    });
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => TenantTinNhanPage(conversation: cuocTroChuyen),
+        builder: (_) => TenantTinNhanPage(conversation: conversation),
       ),
     );
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
-  // 4. HÀM BUILD ĐẶT Ở DƯỚI CÙNG, CHẠY MỘT MẠCH LIỀN
   @override
-  Widget build(BuildContext context) {
-    // Lọc danh sách cuộc trò chuyện theo từ khóa tìm kiếm bằng LINQ gọn gàng
-    final danhSachHoiThoai = TenantConversation.demoConversations.where((
-      cuocTroChuyen,
-    ) {
-      final chuoiTimKiem =
-          '${cuocTroChuyen.landlordName} ${cuocTroChuyen.contextLabel}'
-              .toLowerCase();
-      return chuoiTimKiem.contains(_tuKhoaTimKiem);
-    }).toList();
-
-    // Danh sách widget hiển thị trên toàn màn hình
-    final List<Widget> danhSachWidget = [
-      const TenantPageTitle(
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: ConversationStore.instance,
+    builder: (context, _) {
+      final all = TenantConversation.demoConversations;
+      final unreadCount = all.where((item) => item.unread > 0).length;
+      final query = _search.text.trim().toLowerCase();
+      final conversations = all
+          .where(
+            (item) =>
+                (!_unreadOnly || item.unread > 0) &&
+                '${item.landlordName} ${item.contextLabel} ${item.source?.propertyName ?? ''}'
+                    .toLowerCase()
+                    .contains(query),
+          )
+          .toList();
+      return TenantInboxPageFrame(
+        imageAsset: 'assets/images/tenant_messages_hero.png',
         title: 'Tin nhắn',
-        subtitle: 'Trao đổi với chủ trọ về chỗ ở và phòng bạn quan tâm.',
-      ),
-      TextField(
-        onChanged: (giaTri) {
-          setState(() {
-            _tuKhoaTimKiem = giaTri.trim().toLowerCase();
-          });
-        },
-        decoration: InputDecoration(
-          hintText: 'Tìm chủ trọ, nhà trọ hoặc phòng...',
-          prefixIcon: const Icon(Icons.search_rounded, color: tenantMuted),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: tenantLine),
+        subtitle: 'Kết nối với chủ trọ về chỗ ở và những phòng bạn quan tâm.',
+        showHeader: widget.showHeader,
+        children: [
+          TextField(
+            controller: _search,
+            onChanged: (_) => setState(() {}),
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Tìm chủ trọ, nhà trọ hoặc phòng...',
+              hintStyle: const TextStyle(color: tenantMuted, fontSize: 12),
+              fillColor: Colors.white,
+              prefixIcon: const Icon(Icons.search_rounded, size: 21),
+              suffixIcon: _search.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Xóa tìm kiếm',
+                      onPressed: () => setState(_search.clear),
+                      icon: const Icon(Icons.close_rounded, size: 19),
+                    ),
+            ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: tenantLine),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _filter(
+                'Tất cả (${all.length})',
+                !_unreadOnly,
+                () => setState(() => _unreadOnly = false),
+              ),
+              _filter(
+                'Chưa đọc ($unreadCount)',
+                _unreadOnly,
+                () => setState(() => _unreadOnly = true),
+              ),
+            ],
           ),
-        ),
-      ),
-      const SizedBox(height: 20),
-      TenantSectionHeading('Cuộc trò chuyện (${danhSachHoiThoai.length})'),
-    ];
-
-    // Kiểm tra nếu danh sách rỗng thì hiển thị thông báo trống
-    if (danhSachHoiThoai.isEmpty) {
-      danhSachWidget.add(
-        const TenantEmptyState(
-          icon: Icons.forum_outlined,
-          title: 'Không tìm thấy cuộc trò chuyện',
-          subtitle: 'Thử tìm bằng tên chủ trọ, nhà trọ hoặc số phòng khác.',
-        ),
+          const SizedBox(height: 22),
+          TenantSectionHeading(
+            'Cuộc trò chuyện',
+            trailing: Text(
+              '${conversations.length} hội thoại',
+              style: const TextStyle(color: tenantMuted, fontSize: 11),
+            ),
+          ),
+          if (conversations.isEmpty)
+            TenantEmptyState(
+              icon: query.isNotEmpty
+                  ? Icons.search_off_rounded
+                  : Icons.mark_chat_read_outlined,
+              title: query.isNotEmpty
+                  ? 'Không tìm thấy cuộc trò chuyện'
+                  : _unreadOnly
+                  ? 'Bạn đã đọc hết tin nhắn'
+                  : 'Chưa có cuộc trò chuyện',
+              subtitle: query.isNotEmpty
+                  ? 'Thử tìm bằng tên chủ trọ, nhà trọ hoặc số phòng khác.'
+                  : _unreadOnly
+                  ? 'Các hội thoại đã đọc vẫn nằm trong mục Tất cả.'
+                  : 'Hội thoại với chủ trọ sẽ xuất hiện tại đây.',
+            ),
+          for (final conversation in conversations) ...[
+            TenantConversationCard(
+              conversation: conversation,
+              onTap: () => _open(conversation),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
       );
-    } else {
-      // Duyệt qua từng cuộc trò chuyện để tạo thẻ ListTile hiển thị
-      for (int i = 0; i < danhSachHoiThoai.length; i++) {
-        final cuocTroChuyen = danhSachHoiThoai[i];
+    },
+  );
 
-        // Nếu có tin nhắn chưa đọc thì in đậm tiêu đề
-        FontWeight doDamTieuDe;
-        if (cuocTroChuyen.unread > 0) {
-          doDamTieuDe = FontWeight.w800;
-        } else {
-          doDamTieuDe = FontWeight.w600;
-        }
-
-        // Lấy nội dung tin nhắn cuối cùng để hiển thị bản xem trước
-        String noiDungTinNhanCuoi;
-        if (cuocTroChuyen.messages.isEmpty) {
-          noiDungTinNhanCuoi = 'Chưa có tin nhắn';
-        } else {
-          final tinNhanCuoi = cuocTroChuyen.messages.last;
-          if (tinNhanCuoi.fromTenant) {
-            noiDungTinNhanCuoi = 'Bạn: ${tinNhanCuoi.text}';
-          } else {
-            noiDungTinNhanCuoi = tinNhanCuoi.text;
-          }
-        }
-
-        // Lấy thời gian của tin nhắn cuối
-        String thoiGianTinNhan = '';
-        if (cuocTroChuyen.messages.isNotEmpty) {
-          thoiGianTinNhan = cuocTroChuyen.messages.last.time;
-        }
-
-        // Tạo huy hiệu số tin nhắn chưa đọc nếu có
-        Widget? huyHieuChuaDoc;
-        if (cuocTroChuyen.unread > 0) {
-          huyHieuChuaDoc = Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Semantics(
-              label: '${cuocTroChuyen.unread} tin nhắn chưa đọc',
-              child: CircleAvatar(
-                radius: 10,
-                backgroundColor: tenantGreen,
-                child: Text(
-                  '${cuocTroChuyen.unread}',
-                  style: const TextStyle(color: Colors.white, fontSize: 10),
-                ),
-              ),
-            ),
-          );
-        }
-
-        // Gom các widget bên phải của thẻ item (thời gian + huy hiệu chưa đọc)
-        final List<Widget> danhSachWidgetBenPhai = [
-          Text(
-            thoiGianTinNhan,
-            style: const TextStyle(color: tenantMuted, fontSize: 10),
-          ),
-        ];
-        if (huyHieuChuaDoc != null) {
-          danhSachWidgetBenPhai.add(huyHieuChuaDoc);
-        }
-
-        danhSachWidget.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: TenantSurface(
-              padding: EdgeInsets.zero,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  onTap: () {
-                    _moManHinhTroChuyen(cuocTroChuyen);
-                  },
-                  leading: CircleAvatar(
-                    backgroundColor: const Color(0xFFE8F2EE),
-                    child: Text(
-                      cuocTroChuyen.initials,
-                      style: const TextStyle(
-                        color: tenantGreenDark,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  title: Text(
-                    cuocTroChuyen.landlordName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: tenantInk,
-                      fontSize: 14,
-                      fontWeight: doDamTieuDe,
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        cuocTroChuyen.contextLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: tenantMuted,
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        noiDungTinNhanCuoi,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: tenantInk, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  trailing: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: danhSachWidgetBenPhai,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-    }
-
-    return TenantPageFrame(children: danhSachWidget);
-  }
+  Widget _filter(String label, bool selected, VoidCallback onTap) => ChoiceChip(
+    label: Text(label),
+    selected: selected,
+    onSelected: (_) => onTap(),
+    showCheckmark: false,
+    selectedColor: const Color(0xFFE3F5E9),
+    backgroundColor: Colors.white,
+    side: BorderSide(color: selected ? const Color(0xFFC3E8CF) : tenantLine),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    labelStyle: TextStyle(
+      color: selected ? tenantGreenDark : tenantMuted,
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  );
 }

@@ -4,6 +4,8 @@ import '../../landlord/landlord_demo_store.dart';
 import '../../landlord/finance/landlord_finance_models.dart';
 import '../../shared/rental/tenant_session.dart';
 import '../tenant_ui.dart';
+import '../tenant_detail_ui.dart';
+import 'components/tenant_payment_card.dart';
 import 'components/tenant_invoice_charge_rows.dart';
 import 'components/tenant_payment_instructions_sheet.dart';
 
@@ -21,10 +23,9 @@ class TenantInvoiceDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = store ?? LandlordDemoStore.instance;
-    return Scaffold(
-      backgroundColor: tenantCanvas,
-      appBar: AppBar(title: const Text('Chi tiết hóa đơn')),
-      body: ListenableBuilder(
+    return TenantSubpageScaffold(
+      title: 'Chi tiết hóa đơn',
+      child: ListenableBuilder(
         listenable: data,
         builder: (context, _) {
           final invoice = data.invoiceById(invoiceId);
@@ -43,7 +44,7 @@ class TenantInvoiceDetailPage extends StatelessWidget {
           final pending = payments.any(
             (payment) => payment.status == LandlordPaymentStatus.pending,
           );
-          return TenantPageFrame(
+          return TenantDetailFrame(
             children: [
               Container(
                 width: double.infinity,
@@ -97,16 +98,16 @@ class TenantInvoiceDetailPage extends StatelessWidget {
                   children: [
                     TenantInvoiceChargeRows(charges: invoice.charges),
                     const TenantThinDivider(),
-                    TenantDataRow(
+                    TenantDetailRow(
                       label: 'TỔNG CỘNG',
                       value: formatTenantMoney(invoice.total),
                       emphasized: true,
                     ),
-                    TenantDataRow(
+                    TenantDetailRow(
                       label: 'Đã xác nhận',
                       value: formatTenantMoney(invoice.paidAmount),
                     ),
-                    TenantDataRow(
+                    TenantDetailRow(
                       label: 'Còn phải trả',
                       value: formatTenantMoney(invoice.remaining),
                       emphasized: true,
@@ -116,44 +117,27 @@ class TenantInvoiceDetailPage extends StatelessWidget {
               ),
               const SizedBox(height: 15),
               for (final payment in payments) ...[
-                TenantSurface(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${formatTenantMoney(payment.reportedAmount)} · ${payment.method}',
-                      ),
-                      Text('Tham chiếu: ${payment.reference}'),
-                      Text('Ngày báo trả: ${landlordDate(payment.paidAt)}'),
-                      Text(switch (payment.status) {
-                        LandlordPaymentStatus.pending => 'Chờ chủ trọ duyệt',
-                        LandlordPaymentStatus.approved =>
-                          'Đã xác nhận ${formatTenantMoney(payment.approvedAmount ?? 0)}',
-                        LandlordPaymentStatus.rejected =>
-                          'Từ chối: ${payment.rejectionReason}',
-                      }),
-                      if (payment.proofName != null)
-                        Text('Minh chứng: ${payment.proofName}'),
-                    ],
-                  ),
-                ),
+                TenantPaymentCard(payment: payment),
                 const SizedBox(height: 10),
               ],
               if (!invoice.cancelled && invoice.remaining > 0)
-                FilledButton.icon(
-                  onPressed: pending
-                      ? null
-                      : () => showTenantPaymentInstructions(
-                          context,
-                          invoiceId: invoice.id,
-                          store: data,
-                          tenantId: tenantId,
-                        ),
-                  icon: const Icon(Icons.payments_outlined),
-                  label: Text(
-                    pending
-                        ? 'Đang chờ duyệt thanh toán'
-                        : 'Thanh toán hóa đơn',
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: pending
+                        ? null
+                        : () => showTenantPaymentInstructions(
+                            context,
+                            invoiceId: invoice.id,
+                            store: data,
+                            tenantId: tenantId,
+                          ),
+                    icon: const Icon(Icons.payments_outlined),
+                    label: Text(
+                      pending
+                          ? 'Đang chờ duyệt thanh toán'
+                          : 'Thanh toán hóa đơn',
+                    ),
                   ),
                 ),
             ],

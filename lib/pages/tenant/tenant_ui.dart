@@ -79,6 +79,146 @@ class TenantProfileAvatar extends StatelessWidget {
   }
 }
 
+class TenantSelectedLocation extends ChangeNotifier {
+  TenantSelectedLocation._();
+
+  static final instance = TenantSelectedLocation._();
+
+  static const defaultCity = 'TP. Tuy Hòa';
+  String city = defaultCity;
+  String? ward;
+  bool hasSelection = false;
+
+  void select({required String city, String? ward}) {
+    this.city = city;
+    this.ward = ward;
+    hasSelection = true;
+    notifyListeners();
+  }
+
+  void reset() {
+    city = defaultCity;
+    ward = null;
+    hasSelection = false;
+    notifyListeners();
+  }
+
+  void restore({String? city, String? ward}) {
+    this.city = city ?? defaultCity;
+    this.ward = city == null ? null : ward;
+    hasSelection = city != null;
+  }
+}
+
+class TenantHeader extends StatelessWidget {
+  const TenantHeader({
+    super.key,
+    required this.profileName,
+    required this.onAvatarTap,
+    required this.onFavoritesTap,
+    required this.onSettingsTap,
+    this.overlay = false,
+  });
+
+  final String profileName;
+  final VoidCallback onAvatarTap;
+  final VoidCallback onFavoritesTap;
+  final VoidCallback onSettingsTap;
+  final bool overlay;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    bottom: false,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 7),
+      child: Row(
+        children: [
+          Tooltip(
+            message: 'Mở danh mục chức năng',
+            child: Material(
+              color: Colors.white.withValues(alpha: overlay ? 0.9 : 1),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onAvatarTap,
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: Center(
+                    child: TenantProfileAvatar(name: profileName, radius: 26),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              profileName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: tenantInk,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          _TenantHeaderAction(
+            tooltip: 'Y\u00eau th\u00edch',
+            onTap: onFavoritesTap,
+            icon: Icons.favorite_rounded,
+            color: const Color(0xFFE93E78),
+            overlay: overlay,
+          ),
+          const SizedBox(width: 8),
+          _TenantHeaderAction(
+            tooltip: 'C\u00e0i \u0111\u1eb7t',
+            onTap: onSettingsTap,
+            icon: Icons.settings_rounded,
+            color: tenantInk,
+            overlay: overlay,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _TenantHeaderAction extends StatelessWidget {
+  const _TenantHeaderAction({
+    required this.tooltip,
+    required this.onTap,
+    required this.icon,
+    required this.color,
+    required this.overlay,
+  });
+
+  final String tooltip;
+  final VoidCallback onTap;
+  final IconData icon;
+  final Color color;
+  final bool overlay;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: Material(
+      color: Colors.white.withValues(alpha: overlay ? 0.94 : 1),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Icon(icon, color: color, size: 23),
+        ),
+      ),
+    ),
+  );
+}
+
 class TenantPageTitle extends StatelessWidget {
   const TenantPageTitle({
     super.key,
@@ -208,12 +348,14 @@ class TenantStatusPill extends StatelessWidget {
             Icon(icon, size: 13, color: color),
             const SizedBox(width: 4),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

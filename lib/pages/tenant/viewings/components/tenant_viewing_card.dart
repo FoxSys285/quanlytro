@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../shared/viewings/components/viewing_status_badge.dart';
 import '../../../shared/viewings/models/room_viewing.dart';
+import '../../tenant_detail_ui.dart';
 import '../../tenant_ui.dart';
 
 class TenantViewingCard extends StatelessWidget {
@@ -18,18 +19,7 @@ class TenantViewingCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: tenantGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.meeting_room_outlined,
-                  color: tenantGreen,
-                  size: 26,
-                ),
-              ),
+              const TenantDetailIcon(Icons.meeting_room_rounded, size: 46),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -39,66 +29,117 @@ class TenantViewingCard extends StatelessWidget {
                       viewing.roomName,
                       style: const TextStyle(
                         color: tenantInk,
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
+                        height: 1.3,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      viewing.address,
-                      style: const TextStyle(
-                        color: tenantMuted,
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
+                    const SizedBox(height: 5),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 15,
+                          color: tenantGreenDark,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            viewing.address,
+                            style: const TextStyle(
+                              color: tenantMuted,
+                              fontSize: 11,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          ViewingStatusBadge(status: viewing.status),
-          const Divider(height: 28, color: tenantLine),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Icon(
-                Icons.calendar_month_outlined,
-                color: tenantGreen,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  viewingDateLabel(viewing.startsAt),
-                  style: const TextStyle(
-                    color: tenantInk,
-                    fontWeight: FontWeight.w600,
+              ViewingStatusBadge(status: viewing.status),
+              if (viewing.attendeeCount != null)
+                TenantStatusPill(
+                  '${viewing.attendeeCount} người xem',
+                  color: tenantGreenDark,
+                  icon: Icons.groups_outlined,
+                ),
+            ],
+          ),
+          const TenantThinDivider(),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F9F5),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.calendar_month_rounded,
+                  color: tenantGreenDark,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        viewingDateLabel(viewing.startsAt),
+                        style: const TextStyle(
+                          color: tenantInk,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        viewingTimeLabel(viewing.startsAt),
+                        style: const TextStyle(
+                          color: tenantGreenDark,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(
-                Icons.access_time_rounded,
-                color: tenantGreen,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                viewingTimeLabel(viewing.startsAt),
-                style: const TextStyle(
-                  color: tenantGreenDark,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+          if (viewing.personalNeeds.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.notes_rounded, size: 17, color: tenantMuted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    viewing.personalNeeds,
+                    style: const TextStyle(
+                      color: tenantMuted,
+                      fontSize: 11,
+                      height: 1.5,
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     ),

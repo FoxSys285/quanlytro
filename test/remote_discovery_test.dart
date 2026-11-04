@@ -32,7 +32,9 @@ void main() {
     final source = _Source();
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(body: TenantDiscoveryPage(catalogSource: source)),
+        home: Scaffold(
+          body: TenantDiscoveryPage(catalogSource: source, resultsOnly: true),
+        ),
       ),
     );
     await tester.pump();
@@ -72,7 +74,9 @@ void main() {
     final source = _Source();
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(body: TenantDiscoveryPage(catalogSource: source)),
+        home: Scaffold(
+          body: TenantDiscoveryPage(catalogSource: source, resultsOnly: true),
+        ),
       ),
     );
     await tester.pump();

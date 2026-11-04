@@ -62,7 +62,7 @@ class _LandlordSecondaryPage extends StatelessWidget {
     children: [
       LandlordPageTitle(
         title: destination.label,
-        subtitle: 'Không gian chủ trọ trên Ứng dụng thuê trọ.',
+        subtitle: 'Không gian chủ trọ trên TroPremium.',
       ),
       const LandlordEmptyState(
         message: 'Màn hình này sẽ được thiết kế ở bước tiếp theo.',

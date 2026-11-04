@@ -23,4 +23,10 @@ class TenantFavoritesStore {
     if (!roomNames.add(roomName)) roomNames.remove(roomName);
     changes.value++;
   }
+
+  static void clear() {
+    if (roomNames.isEmpty) return;
+    roomNames.clear();
+    changes.value++;
+  }
 }

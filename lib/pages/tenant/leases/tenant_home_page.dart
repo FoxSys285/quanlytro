@@ -2,17 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../layouts/role_layout.dart';
+
 import '../../landlord/finance/landlord_finance_models.dart';
 import '../../landlord/announcements/models/landlord_announcement.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../shared/announcements/announcement_store.dart';
-import '../../shared/profile/account_store.dart';
 import '../../shared/rental/tenant_session.dart';
+import '../discovery/tenant_favorites_page.dart';
 import '../announcements/tenant_announcements_page.dart';
-import '../../shared/settings/account_settings_page.dart';
 import '../incidents/tenant_baosuco_page.dart';
 import '../invoices/tenant_invoices_page.dart';
+import '../invoices/components/tenant_invoice_dashboard_widgets.dart';
+import 'tenant_activity_badge.dart';
+import 'tenant_lease_contract_page.dart';
+import 'components/tenant_lease_overview.dart';
 import '../tenant_ui.dart';
+import '../tenant_detail_ui.dart';
+import '../tenant_settings_page.dart';
 import 'components/tenant_lease_member_row.dart';
 import '../members/components/tenant_member_requests.dart';
 
@@ -32,23 +38,9 @@ class TenantHomePage extends StatelessWidget {
     final data = store ?? LandlordDemoStore.instance;
     final notifications = AnnouncementStore.forRental(data);
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        data,
-        notifications,
-        AccountStore.instance,
-      ]),
+      listenable: Listenable.merge([data, notifications]),
       builder: (context, _) {
         final lease = data.currentLeaseForTenant(tenantId);
-        final members = lease == null
-            ? const []
-            : data.membersForLease(lease.id);
-        var profileName = AccountStore.instance.profile(AppRole.tenant).name;
-        for (final member in members) {
-          if (member.tenantId == tenantId) {
-            profileName = member.name;
-            break;
-          }
-        }
         final latestNotifications = notifications.forTenant(tenantId)
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -61,7 +53,7 @@ class TenantHomePage extends StatelessWidget {
           child: TenantPageFrame(
             padding: const EdgeInsets.only(bottom: 20),
             children: [
-              _heroHeader(context, profileName),
+              _heroHeader(context),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
@@ -86,6 +78,8 @@ class TenantHomePage extends StatelessWidget {
                       latestNotifications.take(5).toList(),
                     ),
                     const SizedBox(height: 18),
+                    _activityHistorySection(context, data),
+                    const SizedBox(height: 18),
                     _verifiedBanner(context),
                     const SizedBox(height: 12),
                   ],
@@ -98,16 +92,15 @@ class TenantHomePage extends StatelessWidget {
     );
   }
 
-  Widget _heroHeader(BuildContext context, String profileName) {
-    final topInset = MediaQuery.paddingOf(context).top;
+  Widget _heroHeader(BuildContext context) {
     return SizedBox(
-      height: 246,
+      height: 220,
       width: double.infinity,
       child: Stack(
         fit: StackFit.expand,
         children: [
           Image.asset(
-            'assets/images/tenant_discovery_hero.png',
+            'assets/images/tenant_home_hero.png',
             fit: BoxFit.cover,
             alignment: Alignment.centerRight,
           ),
@@ -125,92 +118,29 @@ class TenantHomePage extends StatelessWidget {
             ),
           ),
           Positioned(
-            top: topInset + 12,
-            left: 18,
-            right: 18,
-            child: Row(
-              children: [
-                TenantProfileAvatar(name: profileName, radius: 30),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        profileName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: tenantInk,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDDF2E5),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.verified_rounded,
-                              color: tenantGreen,
-                              size: 14,
-                            ),
-                            SizedBox(width: 5),
-                            Text(
-                              'Người thuê',
-                              style: TextStyle(
-                                color: tenantGreenDark,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+            top: 0,
+            left: 0,
+            right: 0,
+            child: TenantHeader(
+              profileName: TenantSession.name,
+              onAvatarTap: () => Scaffold.maybeOf(context)?.openDrawer(),
+              onFavoritesTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const TenantFavoritesPage(),
                 ),
-                Material(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => Navigator.of(context).push<void>(
-                      MaterialPageRoute<void>(
-                        builder: (_) => Scaffold(
-                          backgroundColor: tenantCanvas,
-                          appBar: AppBar(title: const Text('Cài đặt')),
-                          body: const AccountSettingsPage(role: AppRole.tenant),
-                        ),
-                      ),
-                    ),
-                    child: const SizedBox(
-                      width: 42,
-                      height: 42,
-                      child: Icon(
-                        Icons.settings_rounded,
-                        color: tenantInk,
-                        size: 23,
-                      ),
-                    ),
-                  ),
+              ),
+              onSettingsTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const TenantSettingsPage(),
                 ),
-              ],
+              ),
+              overlay: true,
             ),
           ),
           Positioned(
             left: 18,
             right: 18,
-            top: topInset + 104,
+            top: MediaQuery.paddingOf(context).top + 83,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -220,15 +150,15 @@ class TenantHomePage extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF102B1B),
-                    fontSize: 31,
+                    fontSize: 30,
                     height: 1.1,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.8,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 7),
                 const Text(
-                  'Quản lý thông tin phòng trọ, hợp đồng\nvà các dịch vụ liên quan',
+                  'Qu\u1ea3n l\u00fd th\u00f4ng tin ph\u00f2ng tr\u1ecd, h\u1ee3p \u0111\u1ed3ng v\u00e0 c\u00e1c d\u1ecbch v\u1ee5 li\u00ean quan',
                   maxLines: 2,
                   style: TextStyle(
                     color: Color(0xFF263A2F),
@@ -237,7 +167,7 @@ class TenantHomePage extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 9),
                 Container(
                   width: 36,
                   height: 3,
@@ -429,7 +359,11 @@ class TenantHomePage extends StatelessWidget {
                 child: _stayAction(
                   icon: Icons.description_rounded,
                   label: 'Xem hợp đồng',
-                  onPressed: () => _showContractDetails(context, data, lease),
+                  onPressed: () => _openPage(
+                    context,
+                    'Hợp đồng thuê',
+                    TenantLeaseContractPage(store: data, tenantId: tenantId),
+                  ),
                 ),
               ),
               const SizedBox(width: 7),
@@ -576,6 +510,205 @@ class TenantHomePage extends StatelessWidget {
           ),
     ],
   );
+
+  Widget _activityHistorySection(
+    BuildContext context,
+    LandlordDemoStore data, {
+    bool showAll = true,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.calendar_month_rounded,
+              color: tenantGreenDark,
+              size: 20,
+            ),
+            const SizedBox(width: 9),
+            const Expanded(
+              child: Text(
+                'Lịch sử hoạt động',
+                style: TextStyle(
+                  color: tenantInk,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (showAll)
+              TextButton.icon(
+                onPressed: () => _openActivityHistory(context, data),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                label: const Text('Xem tất cả'),
+                style: TextButton.styleFrom(
+                  foregroundColor: tenantGreenDark,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 2,
+                    vertical: 4,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      _activityRow(
+        icon: Icons.check_circle_rounded,
+        color: const Color(0xFF07944D),
+        title: 'Đã thanh toán hóa đơn tháng 11/2026',
+        date: '02/11/2026 • 09:30',
+        trailing: const TenantActivityBadge(
+          label: '+ 250.000đ',
+          color: Color(0xFFE4F5E9),
+          foreground: Color(0xFF07944D),
+        ),
+        onTap: () => _openPage(
+          context,
+          'Hóa đơn',
+          TenantInvoicesPage(store: data, tenantId: tenantId),
+        ),
+      ),
+      _activityRow(
+        icon: Icons.description_rounded,
+        color: const Color(0xFF1688CC),
+        title: 'Ký hợp đồng thuê phòng',
+        date: '15/10/2026 • 14:20',
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: tenantMuted,
+          size: 21,
+        ),
+        onTap: () => _openPage(
+          context,
+          'Hợp đồng thuê',
+          TenantLeaseContractPage(store: data, tenantId: tenantId),
+        ),
+      ),
+      _activityRow(
+        icon: Icons.priority_high_rounded,
+        color: const Color(0xFFFFB400),
+        title: 'Báo sự cố: Máy lạnh không hoạt động',
+        date: '10/10/2026 • 16:45',
+        trailing: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TenantActivityBadge(
+              label: 'Đã xử lý',
+              color: Color(0xFFE4F5E9),
+              foreground: Color(0xFF07944D),
+            ),
+            SizedBox(width: 5),
+            Icon(Icons.chevron_right_rounded, color: tenantMuted, size: 21),
+          ],
+        ),
+        isLast: true,
+        onTap: () => _openPage(
+          context,
+          'Báo sự cố',
+          TenantBaoSuCoPage(store: data, tenantId: tenantId),
+        ),
+      ),
+    ],
+  );
+
+  Widget _activityRow({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String date,
+    required Widget trailing,
+    required VoidCallback onTap,
+    bool isLast = false,
+  }) => IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 42,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              if (!isLast)
+                Positioned(
+                  top: 26,
+                  bottom: 0,
+                  left: 20,
+                  child: Container(width: 1, color: tenantLine),
+                ),
+              Container(
+                width: 36,
+                height: 36,
+                margin: const EdgeInsets.only(top: 3),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.11),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 19),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: tenantInk,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            date,
+                            style: const TextStyle(
+                              color: tenantMuted,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    trailing,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  void _openActivityHistory(BuildContext context, LandlordDemoStore data) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          backgroundColor: tenantCanvas,
+          appBar: AppBar(title: const Text('Lịch sử hoạt động')),
+          body: TenantPageFrame(
+            children: [_activityHistorySection(context, data, showAll: false)],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _notificationRow(
     BuildContext context,
@@ -809,156 +942,27 @@ class TenantHomePage extends StatelessWidget {
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
-  void _openPage(BuildContext context, String title, Widget page) =>
-      Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) => Scaffold(
-            appBar: AppBar(title: Text(title)),
-            body: page,
-          ),
-        ),
-      );
-
-  void _showContractDetails(
-    BuildContext context,
-    LandlordDemoStore data,
-    LandlordLease lease,
-  ) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ListenableBuilder(
-        listenable: data,
-        builder: (context, _) => TenantBottomSheetSurface(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const TenantSheetHandle(),
-              Text(
-                '${lease.id} · Phòng ${lease.room}',
-                style: const TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 15),
-              TenantSurface(
-                child: Column(
-                  children: [
-                    TenantDataRow(label: 'Chủ trọ', value: lease.landlordName),
-                    TenantDataRow(
-                      label: 'Địa chỉ bên A',
-                      value: lease.landlordPermanentAddress,
-                    ),
-                    TenantDataRow(
-                      label: 'CCCD bên A',
-                      value: lease.landlordCitizenId,
-                    ),
-                    TenantDataRow(
-                      label: 'Điện thoại/Zalo',
-                      value: lease.landlordContact,
-                    ),
-                    const TenantThinDivider(),
-                    TenantDataRow(
-                      label: 'Người đại diện thuê',
-                      value: lease.tenantName,
-                    ),
-                    TenantDataRow(
-                      label: 'Năm sinh',
-                      value: lease.tenantBirthYear,
-                    ),
-                    TenantDataRow(
-                      label: 'CCCD bên B',
-                      value: lease.tenantCitizenId,
-                    ),
-                    TenantDataRow(
-                      label: 'Ngày cấp',
-                      value: lease.tenantCitizenIssueDate == null
-                          ? '—'
-                          : landlordDate(lease.tenantCitizenIssueDate!),
-                    ),
-                    TenantDataRow(
-                      label: 'Thường trú bên B',
-                      value: lease.tenantPermanentAddress,
-                    ),
-                    TenantDataRow(
-                      label: 'Điện thoại bên B',
-                      value: lease.phone,
-                    ),
-                    const TenantThinDivider(),
-                    TenantDataRow(
-                      label: 'Thời hạn',
-                      value:
-                          '${landlordDate(lease.startDate)} – ${landlordDate(lease.endDate)}',
-                    ),
-                    TenantDataRow(
-                      label: 'Số tháng thuê',
-                      value: '${lease.termMonths} tháng',
-                    ),
-                    TenantDataRow(
-                      label: 'Tiền thuê',
-                      value: '${formatTenantMoney(lease.monthlyRent)}/tháng',
-                    ),
-                    TenantDataRow(
-                      label: 'Tiền đặt cọc',
-                      value: formatTenantMoney(lease.deposit),
-                    ),
-                    TenantDataRow(
-                      label: 'Ngày thanh toán',
-                      value: 'Ngày ${lease.dueDay} hằng tháng',
-                    ),
-                    TenantDataRow(
-                      label: 'Giá điện',
-                      value: '${formatTenantMoney(lease.electricityPrice)}/kWh',
-                    ),
-                    TenantDataRow(
-                      label: 'Giá nước',
-                      value:
-                          '${formatTenantMoney(lease.waterPrice)}/${lease.waterType == 'Theo tháng' ? 'tháng' : 'm³'}',
-                    ),
-                    TenantDataRow(
-                      label: 'Tiền xe',
-                      value: formatTenantMoney(lease.vehicleFee),
-                    ),
-                    TenantDataRow(
-                      label: 'Tiền dịch vụ',
-                      value: formatTenantMoney(lease.serviceFee),
-                    ),
-                    TenantDataRow(
-                      label: 'Số người ở',
-                      value:
-                          '${data.membersForLease(lease.id).length} / ${data.roomByCode(lease.room)?.capacity ?? '—'} người',
-                    ),
-                    if (lease.cashPaymentEnabled)
-                      TenantDataRow(
-                        label: 'Tiền mặt',
-                        value: lease.cashPaymentLocation,
-                      ),
-                    if (lease.bankTransferEnabled) ...[
-                      TenantDataRow(
-                        label: 'Ngân hàng trong hợp đồng',
-                        value: lease.bankName,
-                      ),
-                      TenantDataRow(
-                        label: 'Tài khoản trong hợp đồng',
-                        value: lease.bankAccountNumber,
-                      ),
-                    ],
-                    TenantDataRow(
-                      label: 'Ghi chú',
-                      value: lease.note.isEmpty ? '—' : lease.note,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 17),
-              FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Đóng'),
-              ),
-            ],
-          ),
+  void _openPage(BuildContext context, String title, Widget page) {
+    if (page is TenantInvoicesPage &&
+        RoleLayoutShell.navigateTo(context, 'invoices')) {
+      return;
+    }
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (routeContext) => TenantSubpageScaffold(
+          title: title,
+          appBar: page is TenantLeaseContractPage
+              ? TenantLeaseNavigationBar(
+                  onBack: () => Navigator.of(routeContext).maybePop(),
+                )
+              : page is TenantInvoicesPage
+              ? TenantInvoiceNavigationBar(
+                  onBack: () => Navigator.of(routeContext).maybePop(),
+                  store: page.store,
+                  tenantId: page.tenantId,
+                )
+              : null,
+          child: page,
         ),
       ),
     );

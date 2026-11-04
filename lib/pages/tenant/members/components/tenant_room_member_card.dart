@@ -11,7 +11,7 @@ class TenantRoomMemberCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = member.isRepresentative
         ? tenantGreen
-        : const Color(0xFF7181C1);
+        : const Color(0xFF218C75);
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TenantSurface(
@@ -62,7 +62,7 @@ class TenantRoomMemberCard extends StatelessWidget {
                 ),
               ],
             ),
-            const Divider(height: 28, color: tenantLine),
+            const Divider(height: 24, color: tenantLine),
             Row(
               children: [
                 const Icon(Icons.phone_outlined, size: 19, color: tenantMuted),

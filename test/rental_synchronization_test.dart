@@ -19,7 +19,6 @@ import 'package:quanlytro/pages/tenant/discovery/models/tenant_room_listing.dart
 import 'package:quanlytro/pages/tenant/incidents/tenant_baosuco_page.dart';
 import 'package:quanlytro/pages/tenant/invoices/tenant_invoice_detail_page.dart';
 import 'package:quanlytro/pages/tenant/leases/tenant_home_page.dart';
-import 'package:quanlytro/pages/tenant/leases/components/tenant_lease_overview_card.dart';
 import 'package:quanlytro/pages/tenant/members/tenant_members_page.dart';
 
 LandlordDemoStore createStore() {
@@ -659,15 +658,11 @@ void main() {
             home: Scaffold(body: TenantHomePage(store: store)),
           ),
         );
+        await tester.ensureVisible(find.text('Xem hợp đồng'));
+        await tester.tap(find.text('Xem hợp đồng'));
+        await tester.pumpAndSettle();
         expect(find.text('HD-2026-0302'), findsOneWidget);
-        expect(
-          find.descendant(
-            of: find.widgetWithText(TenantLeaseOverviewCard, 'Tiền thuê'),
-            matching: find.text('3.500.000 đ'),
-          ),
-          findsOneWidget,
-        );
-        expect(find.text('Trần Thu Hà'), findsOneWidget);
+        expect(find.text('3.500.000 đ'), findsNWidgets(2));
         final lease = store.currentLeaseForTenant(TenantSession.tenantId)!;
         saveLease(store, lease, existing: lease, rent: 4200000);
         await tester.pump();

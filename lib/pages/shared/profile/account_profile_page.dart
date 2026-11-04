@@ -6,6 +6,9 @@ import 'account_store.dart';
 import 'contact_details.dart';
 import 'contact_editor.dart';
 import '../rental/tenant_session.dart';
+import '../../tenant/tenant_detail_ui.dart';
+import '../../tenant/tenant_ui.dart';
+import '../../tenant/tenant_feature_ui.dart';
 
 class AccountProfilePage extends StatelessWidget {
   const AccountProfilePage({super.key, required this.role, this.store});
@@ -16,10 +19,18 @@ class AccountProfilePage extends StatelessWidget {
   Future<void> _edit(BuildContext context) async {
     final contact = await showDialog<ContactDetails>(
       context: context,
-      builder: (_) => ContactEditor(
-        title: 'Chỉnh sửa hồ sơ',
-        initial: _store.profile(role),
-      ),
+      builder: (_) => role == AppRole.tenant
+          ? TenantDetailTheme(
+              child: ContactEditor(
+                title: 'Chỉnh sửa hồ sơ',
+                initial: _store.profile(role),
+                tenantStyle: true,
+              ),
+            )
+          : ContactEditor(
+              title: 'Chỉnh sửa hồ sơ',
+              initial: _store.profile(role),
+            ),
     );
     if (contact == null || !context.mounted) return;
     _store.saveProfile(role, contact);
@@ -37,6 +48,86 @@ class AccountProfilePage extends StatelessWidget {
       final lease = role == AppRole.tenant
           ? _store.rental.currentLeaseForTenant(TenantSession.currentTenantId)
           : null;
+      if (role == AppRole.tenant) {
+        return TenantFeatureFrame(
+          artwork: TenantFeatureArtwork.settings,
+          title: 'Hồ sơ cá nhân',
+          subtitle: 'Thông tin liên hệ để kết nối với chủ trọ dễ dàng hơn.',
+          children: [
+            TenantSurface(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      TenantProfileAvatar(name: contact.name, radius: 32),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              contact.name,
+                              style: const TextStyle(
+                                color: tenantInk,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TenantStatusPill(role.label, color: tenantGreen),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const TenantSectionHeading('Thông tin liên hệ'),
+            TenantSurface(
+              child: Column(
+                children: [
+                  _tenantLine(
+                    Icons.phone_outlined,
+                    'Số điện thoại',
+                    contact.phone,
+                  ),
+                  const TenantThinDivider(),
+                  _tenantLine(Icons.email_outlined, 'Email', contact.email),
+                  const TenantThinDivider(),
+                  _tenantLine(
+                    Icons.location_on_outlined,
+                    'Địa chỉ liên hệ',
+                    contact.address,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const TenantSectionHeading('Chỗ ở hiện tại'),
+            TenantSurface(
+              child: _tenantLine(
+                Icons.home_work_outlined,
+                _store.rental.property.name,
+                lease == null
+                    ? 'Chưa có phòng đang thuê'
+                    : 'Phòng ${lease.room}',
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _edit(context),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Chỉnh sửa hồ sơ'),
+              ),
+            ),
+          ],
+        );
+      }
       return LandlordPageFrame(
         children: [
           LandlordPageTitle(
@@ -100,6 +191,35 @@ class AccountProfilePage extends StatelessWidget {
         ],
       );
     },
+  );
+
+  Widget _tenantLine(IconData icon, String label, String value) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      TenantDetailIcon(icon),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: tenantMuted, fontSize: 11),
+            ),
+            const SizedBox(height: 5),
+            SelectableText(
+              value.isEmpty ? 'Chưa cập nhật' : value,
+              style: const TextStyle(
+                color: tenantInk,
+                fontSize: 13,
+                height: 1.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
   );
 
   Widget _line(IconData icon, String label, String value) => Padding(

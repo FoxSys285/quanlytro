@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../landlord/finance/landlord_finance_models.dart';
 import '../../tenant_ui.dart';
+import '../../tenant_detail_ui.dart';
 
 class TenantInvoiceChargeRows extends StatelessWidget {
   const TenantInvoiceChargeRows({super.key, required this.charges});
@@ -10,7 +11,7 @@ class TenantInvoiceChargeRows extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     children: [
       for (final charge in charges)
-        TenantDataRow(
+        TenantDetailRow(
           label: charge.name,
           value: formatTenantMoney(charge.amount),
         ),

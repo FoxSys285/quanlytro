@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'contact_details.dart';
+import '../../tenant/tenant_feature_ui.dart';
 
 class ContactEditor extends StatefulWidget {
   const ContactEditor({
@@ -8,10 +9,12 @@ class ContactEditor extends StatefulWidget {
     required this.title,
     required this.initial,
     this.isStaff = false,
+    this.tenantStyle = false,
   });
   final String title;
   final ContactDetails initial;
   final bool isStaff;
+  final bool tenantStyle;
   @override
   State<ContactEditor> createState() => _ContactEditorState();
 }
@@ -35,7 +38,7 @@ class _ContactEditorState extends State<ContactEditor> {
   InputDecoration _decoration(String label, IconData icon) => InputDecoration(
     labelText: label,
     prefixIcon: Icon(icon),
-    border: const OutlineInputBorder(),
+    border: widget.tenantStyle ? null : const OutlineInputBorder(),
     counterText: '',
   );
 
@@ -43,12 +46,30 @@ class _ContactEditorState extends State<ContactEditor> {
   Widget build(BuildContext context) => AlertDialog(
     backgroundColor: Colors.white,
     surfaceTintColor: Colors.transparent,
-    title: Text(widget.title),
+    titlePadding: widget.tenantStyle
+        ? const EdgeInsets.fromLTRB(16, 16, 16, 0)
+        : null,
+    title: widget.tenantStyle
+        ? TenantFormHeading(
+            icon: Icons.edit_note_rounded,
+            title: widget.title,
+            subtitle: 'Thông tin giúp chủ trọ liên hệ và hỗ trợ bạn.',
+          )
+        : Text(widget.title),
+    contentPadding: widget.tenantStyle
+        ? const EdgeInsets.fromLTRB(16, 20, 16, 8)
+        : const EdgeInsets.fromLTRB(24, 20, 24, 24),
+    actionsPadding: widget.tenantStyle
+        ? const EdgeInsets.fromLTRB(16, 8, 16, 16)
+        : null,
     content: SizedBox(
       width: 500,
       child: SingleChildScrollView(
         child: Form(
           key: _form,
+          autovalidateMode: widget.tenantStyle
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -100,6 +121,7 @@ class _ContactEditorState extends State<ContactEditor> {
       FilledButton(
         onPressed: () {
           if (!_form.currentState!.validate()) return;
+          FocusScope.of(context).unfocus();
           Navigator.pop(
             context,
             ContactDetails(

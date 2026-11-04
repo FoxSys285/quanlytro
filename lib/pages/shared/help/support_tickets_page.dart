@@ -4,10 +4,16 @@ import '../../../data/admin_store.dart';
 import '../../../layouts/role_layout.dart';
 import '../../landlord/landlord_ui.dart';
 import '../../landlord/finance/landlord_finance_models.dart';
+import '../../tenant/tenant_detail_ui.dart';
+import '../../tenant/tenant_feature_ui.dart';
+import '../../tenant/tenant_ui.dart';
 
 class SupportTicketsPage extends StatelessWidget {
   const SupportTicketsPage({super.key, required this.role});
   final AppRole role;
+
+  Widget _dialogStyle(Widget child) =>
+      role == AppRole.tenant ? TenantDetailTheme(child: child) : child;
 
   Future<void> _compose(BuildContext context) async {
     final title = TextEditingController();
@@ -15,57 +21,78 @@ class SupportTicketsPage extends StatelessWidget {
     String? error;
     await showDialog<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Gửi yêu cầu hỗ trợ'),
-          content: SizedBox(
-            width: 460,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: title,
-                    maxLength: 120,
-                    decoration: const InputDecoration(labelText: 'Tiêu đề'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: content,
-                    minLines: 4,
-                    maxLines: 7,
-                    maxLength: 2000,
-                    decoration: const InputDecoration(
-                      labelText: 'Mô tả vấn đề và cách tái hiện',
+      builder: (context) => _dialogStyle(
+        StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            titlePadding: role == AppRole.tenant
+                ? const EdgeInsets.fromLTRB(16, 16, 16, 0)
+                : null,
+            title: role == AppRole.tenant
+                ? const TenantFormHeading(
+                    icon: Icons.support_agent_rounded,
+                    title: 'Gửi yêu cầu hỗ trợ',
+                    subtitle: 'Mô tả rõ màn hình và thao tác để quản trị viên kiểm tra.',
+                  )
+                : const Text('Gửi yêu cầu hỗ trợ'),
+            content: SizedBox(
+              width: 460,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: title,
+                      maxLength: 120,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText: 'Tiêu đề',
+                        prefixIcon: role == AppRole.tenant
+                            ? const Icon(Icons.edit_note_rounded)
+                            : null,
+                      ),
                     ),
-                  ),
-                  if (error != null)
-                    Text(error!, style: const TextStyle(color: Colors.red)),
-                ],
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: content,
+                      minLines: 4,
+                      maxLines: 7,
+                      maxLength: 2000,
+                      decoration: InputDecoration(
+                        labelText: 'Mô tả vấn đề và cách tái hiện',
+                        alignLabelWithHint: true,
+                        hintText: role == AppRole.tenant
+                            ? 'Bạn đang ở màn hình nào? Đã thao tác gì và gặp vấn đề gì?'
+                            : null,
+                      ),
+                    ),
+                    if (error != null)
+                      Text(error!, style: const TextStyle(color: Colors.red)),
+                  ],
+                ),
               ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Hủy'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  try {
+                    AdminStore.instance.submitTicket(
+                      role,
+                      title.text,
+                      content.text,
+                    );
+                    Navigator.pop(context);
+                  } on ArgumentError catch (e) {
+                    setState(() => error = e.message.toString());
+                  }
+                },
+                child: const Text('Gửi yêu cầu'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Hủy'),
-            ),
-            FilledButton(
-              onPressed: () {
-                try {
-                  AdminStore.instance.submitTicket(
-                    role,
-                    title.text,
-                    content.text,
-                  );
-                  Navigator.pop(context);
-                } on ArgumentError catch (e) {
-                  setState(() => error = e.message.toString());
-                }
-              },
-              child: const Text('Gửi yêu cầu'),
-            ),
-          ],
         ),
       ),
     );
@@ -139,6 +166,123 @@ class SupportTicketsPage extends StatelessWidget {
       final tickets = AdminStore.instance.tickets
           .where((t) => role == AppRole.admin || t.role == role)
           .toList();
+      if (role == AppRole.tenant) {
+        return TenantFeatureFrame(
+          artwork: TenantFeatureArtwork.help,
+          title: 'Yêu cầu hỗ trợ',
+          subtitle: 'Theo dõi yêu cầu của bạn và phản hồi từ quản trị viên.',
+          children: [
+            TenantSurface(
+              child: Row(
+                children: [
+                  const TenantDetailIcon(Icons.support_agent_rounded, size: 46),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Cùng bạn giải quyết vấn đề',
+                          style: TextStyle(
+                            color: tenantInk,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          '${tickets.where((ticket) => !ticket.closed).length} yêu cầu đang mở',
+                          style: const TextStyle(
+                            color: tenantMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => _compose(context),
+              icon: const Icon(Icons.add_comment_outlined),
+              label: const Text('Gửi yêu cầu hỗ trợ'),
+            ),
+            const SizedBox(height: 24),
+            const TenantSectionHeading('Yêu cầu và phản hồi'),
+            if (tickets.isEmpty)
+              const TenantEmptyState(
+                icon: Icons.forum_outlined,
+                title: 'Chưa có yêu cầu hỗ trợ.',
+                subtitle: 'Gửi mô tả khi bạn cần quản trị viên hỗ trợ thao tác trong ứng dụng.',
+              ),
+            for (final ticket in tickets)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: TenantSurface(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ticket.title,
+                        style: const TextStyle(
+                          color: tenantInk,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          TenantStatusPill(
+                            ticket.closed ? 'Đã giải quyết' : 'Đang mở',
+                            color: ticket.closed
+                                ? tenantGreenDark
+                                : const Color(0xFFA77720),
+                          ),
+                          Text(
+                            landlordDate(ticket.createdAt),
+                            style: const TextStyle(
+                              color: tenantMuted,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const TenantThinDivider(),
+                      Text(
+                        ticket.content,
+                        style: const TextStyle(
+                          color: tenantInk,
+                          fontSize: 12,
+                          height: 1.7,
+                        ),
+                      ),
+                      if (ticket.reply.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        TenantDetailNote(
+                          'Phản hồi từ quản trị viên\n${ticket.reply}',
+                          icon: Icons.support_agent_outlined,
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 14),
+                        const TenantDetailNote(
+                          'Yêu cầu đã được ghi nhận. Phản hồi sẽ hiển thị tại đây.',
+                          icon: Icons.mark_chat_unread_outlined,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      }
       return LandlordPageFrame(
         children: [
           LandlordPageTitle(

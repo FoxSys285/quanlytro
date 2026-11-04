@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../tenant_ui.dart';
+import '../../tenant_detail_ui.dart';
 import '../../../landlord/landlord_demo_store.dart';
 import '../../../landlord/finance/landlord_finance_models.dart';
 import '../../../shared/rental/tenant_session.dart';
@@ -141,117 +142,136 @@ class _TenantPaymentInstructionsSheetState
             payment.invoiceId == invoice.id &&
             payment.status == LandlordPaymentStatus.pending,
       );
-      return TenantBottomSheetSurface(
-        child: Form(
-          key: _form,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const TenantSheetHandle(),
-              const Text(
-                'Thanh toán hóa đơn',
-                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
-              ),
-              Text('${landlordMonth(invoice.period)} · ${invoice.id}'),
-              const SizedBox(height: 15),
-              TenantSurface(
-                child: Column(
-                  children: [
-                    TenantDataRow(
-                      label: 'Còn phải trả',
-                      value: formatTenantMoney(invoice.remaining),
-                      emphasized: true,
-                    ),
-                    if (_method == 'Chuyển khoản') ...[
-                      TenantDataRow(
-                        label: 'Ngân hàng nhận tiền hiện tại',
-                        value: account!.bankName,
-                      ),
-                      TenantDataRow(
-                        label: 'Chủ tài khoản',
-                        value: account.accountName,
-                      ),
-                      TenantDataRow(
-                        label: 'Số tài khoản',
-                        value: account.accountNumber,
-                      ),
-                      TenantDataRow(label: 'Nội dung', value: invoice.id),
-                    ],
-                    if (_method == 'Tiền mặt')
-                      TenantDataRow(
-                        label: 'Địa điểm',
-                        value: lease.cashPaymentLocation,
-                      ),
-                  ],
-                ),
-              ),
-              if (methods.isEmpty)
+      return TenantDetailTheme(
+        child: TenantBottomSheetSurface(
+          child: Form(
+            key: _form,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const TenantSheetHandle(),
                 const Text(
-                  'Chủ trọ chưa thiết lập phương thức nhận tiền khả dụng.',
+                  'Thanh toán hóa đơn',
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
                 ),
-              if (methods.isNotEmpty)
-                DropdownButtonFormField<String>(
-                  key: ValueKey(_method),
-                  initialValue: _method,
-                  decoration: const InputDecoration(labelText: 'Phương thức'),
-                  items: [
-                    for (final method in methods)
-                      DropdownMenuItem(value: method, child: Text(method)),
-                  ],
-                  onChanged: (value) => setState(() => _method = value),
+                const SizedBox(height: 6),
+                Text(
+                  '${landlordMonth(invoice.period)} · ${invoice.id}',
+                  style: const TextStyle(color: tenantMuted, fontSize: 12),
                 ),
-              TextFormField(
-                controller: _amount,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Số tiền đã trả (đ)',
+                const SizedBox(height: 15),
+                TenantSurface(
+                  child: Column(
+                    children: [
+                      TenantDetailRow(
+                        label: 'Còn phải trả',
+                        value: formatTenantMoney(invoice.remaining),
+                        emphasized: true,
+                      ),
+                      if (_method == 'Chuyển khoản') ...[
+                        TenantDetailRow(
+                          label: 'Ngân hàng nhận tiền hiện tại',
+                          value: account!.bankName,
+                        ),
+                        TenantDetailRow(
+                          label: 'Chủ tài khoản',
+                          value: account.accountName,
+                        ),
+                        TenantDetailRow(
+                          label: 'Số tài khoản',
+                          value: account.accountNumber,
+                        ),
+                        TenantDetailRow(label: 'Nội dung', value: invoice.id),
+                      ],
+                      if (_method == 'Tiền mặt')
+                        TenantDetailRow(
+                          label: 'Địa điểm',
+                          value: lease.cashPaymentLocation,
+                        ),
+                    ],
+                  ),
                 ),
-                validator: (value) {
-                  final amount = int.tryParse(value?.trim() ?? '');
-                  return amount == null ||
-                          amount <= 0 ||
-                          amount > invoice.remaining
-                      ? 'Số tiền phải lớn hơn 0 và không vượt khoản còn phải trả.'
-                      : null;
-                },
-              ),
-              TextFormField(
-                controller: _reference,
-                decoration: const InputDecoration(
-                  labelText: 'Mã giao dịch / ghi chú trả tiền',
+                const SizedBox(height: 16),
+                if (methods.isEmpty)
+                  const Text(
+                    'Chủ trọ chưa thiết lập phương thức nhận tiền khả dụng.',
+                  ),
+                if (methods.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    key: ValueKey(_method),
+                    initialValue: _method,
+                    decoration: const InputDecoration(
+                      labelText: 'Phương thức',
+                      prefixIcon: Icon(Icons.payments_outlined),
+                    ),
+                    items: [
+                      for (final method in methods)
+                        DropdownMenuItem(value: method, child: Text(method)),
+                    ],
+                    onChanged: (value) => setState(() => _method = value),
+                  ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _amount,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Số tiền đã trả (đ)',
+                    prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                  ),
+                  validator: (value) {
+                    final amount = int.tryParse(value?.trim() ?? '');
+                    return amount == null ||
+                            amount <= 0 ||
+                            amount > invoice.remaining
+                        ? 'Số tiền phải lớn hơn 0 và không vượt khoản còn phải trả.'
+                        : null;
+                  },
                 ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Nhập tham chiếu để chủ trọ đối chiếu.'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _pickProof,
-                icon: const Icon(Icons.upload_file_outlined),
-                label: Text(_proofName ?? 'Chọn ảnh minh chứng'),
-              ),
-              if (_proof != null)
-                Image.memory(
-                  _proof!,
-                  height: 130,
-                  errorBuilder: (_, _, _) => const Text('Không đọc được ảnh.'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _reference,
+                  decoration: const InputDecoration(
+                    labelText: 'Mã giao dịch / ghi chú trả tiền',
+                    prefixIcon: Icon(Icons.notes_rounded),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Nhập tham chiếu để chủ trọ đối chiếu.'
+                      : null,
                 ),
-              if (_error != null)
-                Text(_error!, style: const TextStyle(color: Colors.red)),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed:
-                    methods.isEmpty ||
-                        pending ||
-                        invoice.cancelled ||
-                        invoice.remaining == 0
-                    ? null
-                    : _submit,
-                child: Text(
-                  pending ? 'Đang chờ chủ trọ duyệt' : 'Gửi thanh toán',
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _pickProof,
+                  icon: const Icon(Icons.upload_file_outlined),
+                  label: Text(_proofName ?? 'Chọn ảnh minh chứng'),
                 ),
-              ),
-            ],
+                if (_proof != null)
+                  Image.memory(
+                    _proof!,
+                    height: 130,
+                    errorBuilder: (_, _, _) =>
+                        const Text('Không đọc được ảnh.'),
+                  ),
+                if (_error != null)
+                  Text(_error!, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed:
+                        methods.isEmpty ||
+                            pending ||
+                            invoice.cancelled ||
+                            invoice.remaining == 0
+                        ? null
+                        : _submit,
+                    child: Text(
+                      pending ? 'Đang chờ chủ trọ duyệt' : 'Gửi thanh toán',
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

@@ -37,7 +37,8 @@ void main() {
   testWidgets('Tenant menu opens the real viewing page', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: TenantLayout()));
     await tester.tap(find.byTooltip('Mở danh mục chức năng'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Lịch xem phòng'));
     await tester.pumpAndSettle();
     expect(find.byType(TenantViewingsPage), findsOneWidget);

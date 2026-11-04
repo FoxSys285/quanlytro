@@ -6,6 +6,18 @@ import 'package:quanlytro/layouts/role_layout.dart';
 class _Gateway implements AccountGateway {
   bool deny = false;
   int signedOut = 0;
+  String? registeredEmail;
+  String? resetEmail;
+  @override
+  Future<void> register(String email, String password) async {
+    registeredEmail = email;
+  }
+
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    resetEmail = email;
+  }
+
   @override
   Future<FirebaseAccountSession> signIn(String email, String password) async {
     if (deny) throw ArgumentError('Invalid cloud credentials');

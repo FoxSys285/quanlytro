@@ -72,7 +72,10 @@ void main() {
             body: PageStorage(
               bucket: bucket,
               child: visible
-                  ? const TenantDiscoveryPage(tenantId: 'filter-test')
+                  ? const TenantDiscoveryPage(
+                      tenantId: 'filter-test',
+                      resultsOnly: true,
+                    )
                   : const SizedBox(),
             ),
           ),

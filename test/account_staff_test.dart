@@ -34,7 +34,8 @@ void main() {
           ),
         );
         await tester.tap(find.byTooltip('Mở danh mục chức năng'));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
         expect(find.text('Hồ sơ cá nhân'), findsNothing);
         expect(find.text('Thông báo ứng dụng'), findsNothing);
         final settingsTile = find.widgetWithText(ListTile, 'Cài đặt');
@@ -42,20 +43,40 @@ void main() {
         await tester.tap(settingsTile);
         await tester.pumpAndSettle();
         expect(find.byType(AccountSettingsPage), findsOneWidget);
+        await tester.ensureVisible(find.text('Hồ sơ cá nhân'));
         await tester.tap(find.text('Hồ sơ cá nhân'));
         await tester.pumpAndSettle();
         expect(find.byType(AccountProfilePage), findsOneWidget);
-        await tester.pageBack();
+        if (role == AppRole.tenant) {
+          await tester.tap(find.byTooltip('Quay lại').last);
+        } else {
+          await tester.pageBack();
+        }
         await tester.pumpAndSettle();
         expect(find.byType(AccountSettingsPage), findsOneWidget);
+        await tester.ensureVisible(find.text('Thông báo ứng dụng'));
         await tester.tap(find.text('Thông báo ứng dụng'));
         await tester.pumpAndSettle();
         expect(find.byType(NotificationSettingsPage), findsOneWidget);
         await tester.tap(find.byType(Switch));
         await tester.pumpAndSettle();
         expect(AccountStore.instance.notificationsEnabled(role), isFalse);
-        await tester.pageBack();
+        if (role == AppRole.tenant) {
+          await tester.tap(find.byTooltip('Quay lại').last);
+        } else {
+          await tester.pageBack();
+        }
         await tester.pumpAndSettle();
+        if (role == AppRole.tenant) {
+          await tester.tap(find.byTooltip('Quay lại'));
+          await tester.pump(const Duration(milliseconds: 350));
+          await tester.tap(find.byIcon(Icons.notifications_none_rounded).last);
+          await tester.pumpAndSettle();
+          expect(find.byType(TenantAnnouncementsPage), findsOneWidget);
+          expect(find.byType(NotificationSettingsPage), findsNothing);
+          expect(tester.takeException(), isNull);
+          continue;
+        }
         await tester.tap(find.byTooltip('Tài khoản'));
         await tester.pumpAndSettle();
         expect(find.text('Hồ sơ'), findsNothing);
@@ -220,6 +241,9 @@ void main() {
           await tester.tap(find.text('Lưu thay đổi'));
           await tester.pumpAndSettle();
           expect(accounts.profile(role).name, 'Hồ sơ đã sửa');
+          ScaffoldMessenger.of(tester.element(find.byType(AccountProfilePage)))
+              .hideCurrentSnackBar();
+          await tester.pumpAndSettle();
           await tester.ensureVisible(find.text('Chỉnh sửa hồ sơ'));
           await tester.tap(find.text('Chỉnh sửa hồ sơ'));
           await tester.pumpAndSettle();

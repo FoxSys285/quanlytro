@@ -42,6 +42,8 @@ class FirebaseAccountSession {
 
 abstract interface class AccountGateway {
   Future<FirebaseAccountSession> signIn(String email, String password);
+  Future<void> register(String email, String password);
+  Future<void> requestPasswordReset(String email);
   Future<void> signOut();
   Future<void> changePassword(String current, String password);
 }
@@ -54,6 +56,34 @@ class FirebaseAccountGateway implements AccountGateway {
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+
+  @override
+  Future<void> register(String email, String password) async {
+    if (_auth.currentUser != null) {
+      throw ArgumentError('Vui lòng đăng xuất trước khi tạo tài khoản mới.');
+    }
+    try {
+      await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      // Creating an Auth identity never provisions a role or opens private data.
+      await _auth.signOut();
+    } on FirebaseAuthException catch (error) {
+      throw ArgumentError(_message(error.code));
+    }
+  }
+
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (error) {
+      // Use the same confirmation for known and unknown addresses.
+      if (error.code == 'user-not-found') return;
+      throw ArgumentError(_message(error.code));
+    }
+  }
 
   @override
   Future<FirebaseAccountSession> signIn(String email, String password) async {
@@ -102,6 +132,9 @@ class FirebaseAccountGateway implements AccountGateway {
   }
 
   static String _message(String code) => switch (code) {
+    'email-already-in-use' =>
+      'Email này đã được đăng ký. Hãy đăng nhập hoặc khôi phục mật khẩu.',
+    'invalid-email' => 'Địa chỉ email chưa hợp lệ.',
     'operation-not-allowed' =>
       'Email/Password chưa được bật trên Firebase Console.',
     'network-request-failed' => 'Không có kết nối mạng. Vui lòng thử lại.',

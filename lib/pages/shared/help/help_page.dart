@@ -5,6 +5,9 @@ import '../../../layouts/role_layout.dart';
 import '../../landlord/landlord_ui.dart';
 import 'help_content.dart';
 import 'support_tickets_page.dart';
+import '../../tenant/tenant_detail_ui.dart';
+import '../../tenant/tenant_feature_ui.dart';
+import '../../tenant/tenant_ui.dart';
 
 class HelpPage extends StatefulWidget {
   const HelpPage({super.key, required this.role});
@@ -38,6 +41,46 @@ class _HelpPageState extends State<HelpPage> {
   }
 
   void _showGuide(HelpArticle article) {
+    if (_isTenant) {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        constraints: const BoxConstraints(maxWidth: 640),
+        builder: (context) => TenantDetailTheme(
+          child: TenantBottomSheetSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const TenantSheetHandle(),
+                TenantFormHeading(
+                  icon: Icons.auto_stories_rounded,
+                  title: article.question,
+                  subtitle: article.category,
+                ),
+                const SizedBox(height: 18),
+                TenantSurface(
+                  child: Text(
+                    article.answer,
+                    style: const TextStyle(
+                      color: tenantInk,
+                      fontSize: 13,
+                      height: 1.8,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Đã hiểu'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -104,6 +147,8 @@ class _HelpPageState extends State<HelpPage> {
       return (_category == 'Tất cả' || article.category == _category) &&
           text.contains(query);
     }).toList();
+
+    if (_isTenant) return _tenantHelp(articles, categories, filtered);
 
     return LandlordPageFrame(
       children: [
@@ -403,6 +448,232 @@ class _HelpPageState extends State<HelpPage> {
       ],
     );
   }
+
+  Widget _tenantHelp(
+    List<HelpArticle> articles,
+    List<String> categories,
+    List<HelpArticle> filtered,
+  ) => TenantFeatureFrame(
+    artwork: TenantFeatureArtwork.help,
+    title: 'Bạn cần trợ giúp gì?',
+    subtitle: 'Hướng dẫn từ tìm phòng đến cuộc sống ở trọ, luôn sẵn sàng để bạn xem lại.',
+    children: [
+      TenantSurface(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'DÀNH CHO NGƯỜI THUÊ',
+              style: TextStyle(
+                color: tenantGreenDark,
+                fontSize: 10,
+                letterSpacing: 0.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Tìm hướng dẫn, câu hỏi…',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Xóa tìm kiếm',
+                        onPressed: () => setState(_searchController.clear),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 22),
+      const TenantSectionHeading('Hướng dẫn nhanh'),
+      LayoutBuilder(
+        builder: (context, constraints) => Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final index in [0, 2])
+              SizedBox(
+                width: constraints.maxWidth >= 600
+                    ? (constraints.maxWidth - 12) / 2
+                    : constraints.maxWidth,
+                child: TenantSurface(
+                  padding: EdgeInsets.zero,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () => _showGuide(articles[index]),
+                    child: Padding(
+                      padding: const EdgeInsets.all(15),
+                      child: Row(
+                        children: [
+                          TenantDetailIcon(
+                            index == 0
+                                ? Icons.home_work_outlined
+                                : Icons.receipt_long_outlined,
+                            size: 45,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  index == 0
+                                      ? 'Tìm chỗ ở phù hợp'
+                                      : 'Thanh toán tiền phòng',
+                                  style: const TextStyle(
+                                    color: tenantInk,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Xem hướng dẫn từng bước',
+                                  style: TextStyle(
+                                    color: tenantMuted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: tenantGreenDark,
+                            size: 21,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 24),
+      const TenantSectionHeading('Câu hỏi thường gặp'),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final category in categories)
+            ChoiceChip(
+              label: Text(category),
+              selected: _category == category,
+              onSelected: (_) => setState(() => _category = category),
+            ),
+        ],
+      ),
+      const SizedBox(height: 14),
+      Text(
+        '${filtered.length} câu hỏi',
+        style: const TextStyle(color: tenantMuted, fontSize: 12),
+      ),
+      const SizedBox(height: 12),
+      if (filtered.isEmpty)
+        TenantSurface(
+          child: Column(
+            children: [
+              const TenantEmptyState(
+                icon: Icons.search_off_rounded,
+                title: 'Chưa tìm thấy hướng dẫn phù hợp',
+                subtitle: 'Thử từ khóa khác hoặc xem tất cả chủ đề.',
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  _category = 'Tất cả';
+                  _searchController.clear();
+                }),
+                child: const Text('Xem tất cả câu hỏi'),
+              ),
+            ],
+          ),
+        )
+      else
+        for (final article in filtered)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: TenantSurface(
+              padding: EdgeInsets.zero,
+              child: ExpansionTile(
+                key: ValueKey('tenant-${article.question}'),
+                iconColor: tenantGreenDark,
+                collapsedIconColor: tenantMuted,
+                shape: const Border(),
+                collapsedShape: const Border(),
+                tilePadding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 5,
+                ),
+                childrenPadding: const EdgeInsets.fromLTRB(15, 0, 15, 17),
+                title: Text(
+                  article.question,
+                  style: const TextStyle(
+                    color: tenantInk,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
+                  ),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(
+                    article.category,
+                    style: const TextStyle(
+                      color: tenantGreenDark,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    article.answer,
+                    style: const TextStyle(
+                      color: tenantMuted,
+                      fontSize: 12,
+                      height: 1.8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      const SizedBox(height: 14),
+      const TenantFeatureBanner(
+        icon: Icons.support_agent_rounded,
+        title: 'Cần hỗ trợ thêm?',
+        subtitle: 'Gửi yêu cầu để theo dõi phản hồi từ quản trị viên. Với vấn đề về phòng, hãy trao đổi với chủ trọ hoặc gửi báo cáo sự cố.',
+      ),
+      const SizedBox(height: 14),
+      FilledButton.icon(
+        onPressed: () => Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) => const TenantSubpageScaffold(
+              title: 'Yêu cầu hỗ trợ',
+              child: SupportTicketsPage(role: AppRole.tenant),
+            ),
+          ),
+        ),
+        icon: const Icon(Icons.add_comment_outlined, size: 20),
+        label: const Text('Yêu cầu và phản hồi hỗ trợ'),
+      ),
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: _copyIssueTemplate,
+        icon: const Icon(Icons.copy_outlined, size: 18),
+        label: const Text('Sao chép mẫu mô tả'),
+      ),
+    ],
+  );
 }
 
 class _SectionTitle extends StatelessWidget {

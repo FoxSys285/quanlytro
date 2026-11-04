@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../shared/viewings/models/room_viewing.dart';
 import '../../shared/viewings/viewing_store.dart';
 import '../tenant_ui.dart';
+import '../tenant_feature_ui.dart';
 import 'components/tenant_viewing_card.dart';
 
 class TenantViewingsPage extends StatefulWidget {
@@ -39,19 +40,18 @@ class _TenantViewingsPageState extends State<TenantViewingsPage> {
                 ),
           )
           .toList();
-      return TenantPageFrame(
+      return TenantFeatureFrame(
+        artwork: TenantFeatureArtwork.viewings,
+        title: 'Lịch xem phòng',
+        subtitle: 'Các phòng bạn đã đặt lịch, xếp từ sớm đến muộn.',
         children: [
-          const TenantPageTitle(
-            title: 'Lịch xem phòng',
-            subtitle: 'Các phòng bạn đã đặt lịch, xếp từ sớm đến muộn.',
-          ),
           TextField(
             onChanged: (value) => setState(() => _query = value),
             decoration: InputDecoration(
               hintText: 'Tìm phòng hoặc địa chỉ',
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search, color: tenantGreenDark),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: const Color(0xFFF4F9F6),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: tenantLine),
@@ -100,6 +100,12 @@ class _TenantViewingsPageState extends State<TenantViewingsPage> {
             ),
           for (final viewing in viewings)
             TenantViewingCard(key: ValueKey(viewing.id), viewing: viewing),
+          const SizedBox(height: 6),
+          const TenantFeatureBanner(
+            icon: Icons.event_available_rounded,
+            title: 'Chuẩn bị cho buổi xem phòng',
+            subtitle: 'Kiểm tra thời gian và địa chỉ; lịch hẹn có hiệu lực khi chủ trọ xác nhận.',
+          ),
         ],
       );
     },

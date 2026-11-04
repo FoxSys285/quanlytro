@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../pages/shared/widgets/app_brand.dart' as brand;
+
 enum AppRole { tenant, landlord, admin }
 
 extension AppRoleLabel on AppRole {
@@ -70,7 +72,26 @@ typedef RoleBottomNavigationBuilder = Widget Function(
   ValueChanged<int> onDestinationSelected,
 );
 
+typedef RoleTopBarBuilder = Widget Function(
+  BuildContext context,
+  RoleDestination destination,
+  VoidCallback onOpenDrawer,
+  ValueChanged<String> onSelectDestination,
+  VoidCallback onBack,
+);
+
 class RoleLayoutShell extends StatefulWidget {
+  /// Opens a destination inside the existing role shell when one is present.
+  static bool navigateTo(BuildContext context, String destinationId) {
+    final shell = context.findAncestorStateOfType<_RoleLayoutShellState>();
+    if (shell == null ||
+        !shell.widget.destinations.any((item) => item.id == destinationId)) {
+      return false;
+    }
+    shell._selectDestination(destinationId);
+    return true;
+  }
+
   const RoleLayoutShell({
     super.key,
     required this.role,
@@ -80,13 +101,14 @@ class RoleLayoutShell extends StatefulWidget {
     required this.destinations,
     required this.tabs,
     required this.initialDestinationId,
-    this.appName = 'Ứng dụng thuê trọ',
+    this.appName = brand.appName,
     this.showMoreTab = true,
     this.pageBuilder,
     this.onPreviewRoleSelected,
     this.onLogout,
     this.notificationsEnabled = true,
     this.topBar,
+    this.topBarBuilder,
     this.hideAppBarOnDestination,
     this.hideAppBarOnDestinations,
     this.bottomNavigationBuilder,
@@ -106,6 +128,7 @@ class RoleLayoutShell extends StatefulWidget {
   final VoidCallback? onLogout;
   final bool notificationsEnabled;
   final Widget? topBar;
+  final RoleTopBarBuilder? topBarBuilder;
   final String? hideAppBarOnDestination;
   final Set<String>? hideAppBarOnDestinations;
   final RoleBottomNavigationBuilder? bottomNavigationBuilder;
@@ -121,6 +144,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
   final _selectedDrawerItemKey = GlobalKey();
   late String _selectedDestinationId = widget.initialDestinationId;
   late int _selectedTabIndex = _tabIndexFor(widget.initialDestinationId);
+  String? _previousDestinationId;
 
   @override
   void dispose() {
@@ -160,11 +184,19 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
       return;
     }
 
+    if (id != _selectedDestinationId) {
+      _previousDestinationId = _selectedDestinationId;
+    }
     setState(() {
       _selectedDestinationId = id;
       // Highlight the drawer shortcut when available for secondary destinations.
       _selectedTabIndex = _tabIndexFor(id);
     });
+  }
+
+  void _goBackToPreviousDestination() {
+    final previous = _previousDestinationId ?? widget.initialDestinationId;
+    _selectDestination(previous);
   }
 
   void _onTabSelected(int index) {
@@ -201,6 +233,15 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
   @override
   Widget build(BuildContext context) {
     final destination = _selectedDestination;
+    final topBar =
+        widget.topBarBuilder?.call(
+          context,
+          destination,
+          () => _scaffoldKey.currentState?.openDrawer(),
+          _selectDestination,
+          _goBackToPreviousDestination,
+        ) ??
+        widget.topBar;
     final page =
         widget.pageBuilder?.call(context, destination) ??
         _LayoutPlaceholder(
@@ -378,7 +419,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         top: false,
         child: Column(
           children: [
-            ?widget.topBar,
+            ?topBar,
             Expanded(child: page),
           ],
         ),
@@ -386,7 +427,11 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
       bottomNavigationBar:
           widget.bottomNavigationBuilder?.call(
             context,
-            _selectedTabIndex,
+            widget.tabs.any(
+                  (tab) => tab.destinationId == _selectedDestinationId,
+                )
+                ? _selectedTabIndex
+                : -1,
             _onTabSelected,
           ) ??
           NavigationBar(
@@ -605,19 +650,7 @@ class _DrawerHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: accentColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.home_work_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
+              const brand.AppLogo(size: 36),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
