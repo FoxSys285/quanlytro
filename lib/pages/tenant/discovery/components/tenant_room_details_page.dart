@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../landlord/landlord_demo_store.dart';
 import '../../../shared/media/room_photo_gallery.dart';
+import '../../../shared/media/room_photo.dart';
 import '../../conversations/tenant_danhsachtinnhan_page.dart';
 import '../../tenant_ui.dart';
 import '../models/tenant_room_listing.dart';
@@ -117,7 +118,7 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
                           ),
                           const SizedBox(height: 7),
                           Text(
-                            formatTenantMoney(room.price) + '/tháng',
+                            '${formatTenantMoney(room.price)}/tháng',
                             style: const TextStyle(
                               color: Color(0xFF08783B),
                               fontSize: 24,
@@ -191,7 +192,7 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
               onPageChanged: (index) => setState(() => _photoIndex = index),
               itemBuilder: (context, index) => RoomPhotoImage(
                 photo: photos[index],
-                label: 'Ảnh phòng ' + widget.room.name,
+                label: 'Ảnh phòng ${widget.room.name}',
               ),
             ),
           Positioned(
@@ -249,9 +250,7 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      (_photoIndex + 1).toString() +
-                          '/' +
-                          photos.length.toString(),
+                      '${_photoIndex + 1}/${photos.length}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -321,7 +320,7 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
             clipBehavior: Clip.antiAlias,
             child: RoomPhotoImage(
               photo: photos[index],
-              label: 'Ảnh thu nhỏ ' + (index + 1).toString(),
+              label: 'Ảnh thu nhỏ ${index + 1}',
             ),
           ),
         ),
@@ -335,7 +334,7 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
       (Icons.bed_rounded, room.roomType),
       (
         Icons.groups_rounded,
-        room.capacity == null ? 'Chưa rõ' : room.capacity.toString() + ' người',
+        room.capacity == null ? 'Chưa rõ' : '${room.capacity} người',
       ),
       (
         Icons.location_on_outlined,
@@ -638,7 +637,7 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
 
   Future<void> _share() async {
     await Clipboard.setData(
-      ClipboardData(text: widget.room.name + '\n' + widget.room.address),
+      ClipboardData(text: '${widget.room.name}\n${widget.room.address}'),
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

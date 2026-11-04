@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../tenant_ui.dart';
 import '../../shared/media/room_photo_gallery.dart';
+import '../../shared/widgets/list_pagination.dart';
 import 'components/tenant_room_card.dart';
 import 'models/tenant_room_listing.dart';
 import 'tenant_favorites_store.dart';
@@ -224,8 +225,8 @@ class TenantDiscoveryHome extends StatelessWidget {
                   'Kết quả tìm kiếm',
                   trailing: Text(
                     remote
-                        ? 'Trang ' + (currentPage + 1).toString()
-                        : localRooms.length.toString() + ' phòng',
+                        ? 'Trang ${currentPage + 1}'
+                        : '${localRooms.length} phòng',
                     style: const TextStyle(color: tenantMuted, fontSize: 12),
                   ),
                 ),
@@ -325,7 +326,7 @@ class TenantDiscoveryHome extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('Trang ' + (currentPage + 1).toString()),
+                      child: Text('Trang ${currentPage + 1}'),
                     ),
                     IconButton.outlined(
                       tooltip: 'Trang tiếp theo',
@@ -879,7 +880,7 @@ class TenantDiscoveryHome extends StatelessWidget {
                       else
                         RoomPhotoImage(
                           photo: photos.first,
-                          label: 'Ảnh phòng ' + room.name,
+                          label: 'Ảnh phòng ${room.name}',
                         ),
                       if (!compact && badge != null)
                         Positioned(
@@ -941,9 +942,7 @@ class TenantDiscoveryHome extends StatelessWidget {
                               borderRadius: BorderRadius.circular(22),
                             ),
                             child: Text(
-                              formatTenantMoney(room.price)
-                                      .replaceAll(' ', '') +
-                                  '/tháng',
+                              '${formatTenantMoney(room.price).replaceAll(' ', '')}/tháng',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -1089,7 +1088,7 @@ class TenantDiscoveryHome extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        entry.value.length.toString() + ' tin đăng',
+                        '${entry.value.length} tin đăng',
                         style: const TextStyle(
                           color: Color(0xFF5F7567),
                           fontSize: 10,
