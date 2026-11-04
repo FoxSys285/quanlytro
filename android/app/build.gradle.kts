@@ -15,7 +15,9 @@ if (localPropertiesFile.exists()) {
         localProperties.load(input)
     }
 }
-val googleMapsApiKey = localProperties.getProperty("GOOGLE_MAPS_API_KEY", "")
+val googleMapsApiKey = localProperties.getProperty("GOOGLE_MAPS_API_KEY", "").ifBlank {
+    "AIzaSyBRftbOlLWHE6egJTX1duxfbB-LIuV0EQI"
+}
 
 extensions.configure<ApplicationExtension> {
     namespace = "com.example.quanlytro"

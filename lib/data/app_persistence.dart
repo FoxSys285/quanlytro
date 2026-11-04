@@ -33,6 +33,7 @@ class AppPersistence {
   bool _restoring = false;
   bool _dirty = false;
   bool _remoteChanged = false;
+  bool _initialSyncCompleted = false;
   Timer? _refreshTimer;
   StreamSubscription<void>? _remoteSubscription;
   final refreshing = ValueNotifier<bool>(false);
@@ -44,6 +45,7 @@ class AppPersistence {
   /// sau đó tải và đồng bộ dữ liệu từ Firestore trong nền mà không làm treo hoặc văng ứng dụng.
   Future<void> initializeAsync() async {
     _restoring = true;
+    _initialSyncCompleted = false;
     try {
       await LocalAuth.instance.initialize(null);
       AdminStore.instance.restore({
@@ -86,9 +88,10 @@ class AppPersistence {
       _listen(AccountStore.instance);
       _listen(LandlordStaffStore.instance);
       _listen(TenantFavoritesStore.changes);
-      _listen(LocalAuth.instance);
+      if (!cloudMode) _listen(LocalAuth.instance);
       _listen(AdminStore.instance);
       current = this;
+      error.value = null;
       saveStatus.value = 'Đang đồng bộ dữ liệu từ Firebase…';
     } finally {
       _restoring = false;
@@ -145,6 +148,7 @@ class AppPersistence {
           _listen(announcements);
         }
         _dirty = false;
+        _initialSyncCompleted = true;
         cloudConfirmed = true;
         error.value = null;
         saveStatus.value = 'Đã đồng bộ dữ liệu từ Firebase';
@@ -163,7 +167,10 @@ class AppPersistence {
     } catch (failure) {
       debugPrint('Background cloud sync warning: $failure');
       if (!_disposed) {
-        saveStatus.value = 'Đang dùng dữ liệu tạm · Chưa đồng bộ hết từ Firebase';
+        _initialSyncCompleted = true;
+        error.value = null;
+        saveStatus.value =
+            'Đang dùng dữ liệu tạm · Chưa đồng bộ hết từ Firebase';
       }
     } finally {
       if (!_disposed) {
@@ -244,8 +251,9 @@ class AppPersistence {
     _listen(accounts);
     _listen(staff);
     _listen(TenantFavoritesStore.changes);
-    _listen(LocalAuth.instance);
+    if (!cloudMode) _listen(LocalAuth.instance);
     _listen(AdminStore.instance);
+    _initialSyncCompleted = true;
     current = this;
     if (cloudMode && repository is RentalChangeSource) {
       _remoteSubscription = (repository as RentalChangeSource).changes.listen(
@@ -278,13 +286,15 @@ class AppPersistence {
   };
 
   void save() {
-    if (_disposed || _restoring) return;
+    if (_disposed || _restoring || (cloudMode && !_initialSyncCompleted)) {
+      return;
+    }
     _dirty = true;
     if (_scheduled) return;
     _scheduled = true;
     scheduleMicrotask(() {
       _scheduled = false;
-      if (_disposed) return;
+      if (_disposed || (cloudMode && !_initialSyncCompleted)) return;
       for (final store in RentalPortfolio.instance.stores) {
         _listen(AnnouncementStore.forRental(store));
       }
@@ -336,7 +346,9 @@ class AppPersistence {
 
   /// Không thay bản chỉnh sửa chưa lưu bằng dữ liệu thiết bị khác.
   Future<void> refresh({bool discardUnsaved = false}) async {
-    if (_disposed || !cloudMode || refreshing.value) return;
+    if (_disposed || !cloudMode || !_initialSyncCompleted || refreshing.value) {
+      return;
+    }
     _pending = _pending.then((_) async {
       if (_disposed || _scheduled || (_dirty && !discardUnsaved)) return;
       if (discardUnsaved) _remoteFingerprint = null;
@@ -399,9 +411,8 @@ class AppPersistence {
         LocalAuth.instance.isCloudMode &&
         LocalAuth.instance.role != AppRole.admin &&
         failure is FirebaseException &&
-        (failure.code == 'permission-denied' ||
-            failure.code == 'unauthenticated')) {
-      // Không tiếp tục hiển thị dữ liệu riêng sau khi admin thu hồi quyền.
+        failure.code == 'unauthenticated') {
+      // Chỉ tự động đăng xuất khi phiên xác thực Firebase không còn hợp lệ.
       scheduleMicrotask(() => unawaited(LocalAuth.instance.signOut()));
     }
   }
