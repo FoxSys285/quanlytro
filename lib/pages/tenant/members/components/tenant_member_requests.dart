@@ -38,27 +38,40 @@ class TenantMemberRequests extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: full
-              ? null
-              : () async {
-                  final sent = await showDialog<bool>(
-                    context: context,
-                    builder: (_) =>
-                        _MemberRequestEditor(store: store, tenantId: tenantId),
-                  );
-                  if (sent == true && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Đã gửi yêu cầu thêm thành viên cho chủ trọ.',
-                        ),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: full
+                ? null
+                : () async {
+                    final sent = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => _MemberRequestEditor(
+                        store: store,
+                        tenantId: tenantId,
                       ),
                     );
-                  }
-                },
-          icon: const Icon(Icons.person_add_alt_outlined),
-          label: const Text('Thêm thành viên'),
+                    if (sent == true && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Đã gửi yêu cầu thêm thành viên cho chủ trọ.',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+            icon: const Icon(Icons.person_add_alt_outlined),
+            label: const Text('Yêu cầu thêm thành viên'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: tenantGreenDark,
+              side: const BorderSide(color: tenantGreen),
+              minimumSize: const Size.fromHeight(45),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
         ),
         Text(
           full

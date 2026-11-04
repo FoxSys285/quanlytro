@@ -96,6 +96,7 @@ class RoleLayoutShell extends StatefulWidget {
     this.topBar,
     this.useSidebar = false,
     this.hideAppBarOnDestination,
+    this.hideAppBarOnDestinations,
     this.bottomNavigationBuilder,
   });
 
@@ -115,6 +116,7 @@ class RoleLayoutShell extends StatefulWidget {
   final Widget? topBar;
   final bool useSidebar;
   final String? hideAppBarOnDestination;
+  final Set<String>? hideAppBarOnDestinations;
   final RoleBottomNavigationBuilder? bottomNavigationBuilder;
 
   @override
@@ -239,6 +241,8 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
       key: _scaffoldKey,
       backgroundColor: widget.role == AppRole.admin
           ? const Color(0xFFF5F6FB)
+          : widget.role == AppRole.tenant
+          ? const Color(0xFFFCFCFC)
           : const Color(0xFFF5F7FA),
       onDrawerChanged: _onDrawerChanged,
       drawer: _RoleDrawer(
@@ -257,10 +261,19 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         onPreviewRoleSelected: widget.onPreviewRoleSelected,
         onLogout: _showLogoutMessage,
       ),
-      appBar: _selectedDestinationId == widget.hideAppBarOnDestination
+      appBar:
+          _selectedDestinationId == widget.hideAppBarOnDestination ||
+              (widget.hideAppBarOnDestinations?.contains(
+                    _selectedDestinationId,
+                  ) ??
+                  false)
           ? null
           : AppBar(
-              backgroundColor: console ? const Color(0xFF1D2E50) : Colors.white,
+              backgroundColor: console
+                  ? const Color(0xFF1D2E50)
+                  : widget.role == AppRole.tenant
+                  ? const Color(0xFFFCFCFC)
+                  : Colors.white,
               foregroundColor: console ? consoleInk : null,
               iconTheme: console ? IconThemeData(color: consoleInk) : null,
               surfaceTintColor: Colors.transparent,

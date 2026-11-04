@@ -11,12 +11,14 @@ import 'tenant_favorites_store.dart';
 class TenantDiscoveryHome extends StatelessWidget {
   const TenantDiscoveryHome({
     super.key,
+    required this.resultsOnly,
     required this.localRooms,
     required this.visibleRooms,
     required this.remote,
     required this.loading,
     required this.hasError,
     required this.offline,
+    required this.profileName,
     required this.query,
     required this.sort,
     required this.selectedCity,
@@ -30,6 +32,7 @@ class TenantDiscoveryHome extends StatelessWidget {
     required this.onSearchChanged,
     required this.onSearchClear,
     required this.onFilter,
+    required this.onOpenSearch,
     required this.onFavorites,
     required this.onFavoriteToggle,
     required this.onRoomTap,
@@ -45,12 +48,14 @@ class TenantDiscoveryHome extends StatelessWidget {
     required this.onDeals,
   });
 
+  final bool resultsOnly;
   final List<TenantRoomListing> localRooms;
   final List<TenantRoomListing> visibleRooms;
   final bool remote;
   final bool loading;
   final bool hasError;
   final bool offline;
+  final String profileName;
   final String query;
   final String sort;
   final String? selectedCity;
@@ -64,6 +69,7 @@ class TenantDiscoveryHome extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onSearchClear;
   final VoidCallback onFilter;
+  final VoidCallback onOpenSearch;
   final VoidCallback onFavorites;
   final ValueChanged<TenantRoomListing> onFavoriteToggle;
   final ValueChanged<TenantRoomListing> onRoomTap;
@@ -80,6 +86,8 @@ class TenantDiscoveryHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (resultsOnly) return _resultsPage(context);
+
     final homeRooms = remote
         ? visibleRooms
         : (visibleRooms.isNotEmpty
@@ -155,21 +163,16 @@ class TenantDiscoveryHome extends StatelessWidget {
                 icon: Icons.local_fire_department_rounded,
                 color: const Color(0xFFF04F3E),
                 title: 'Nhà trọ nổi bật',
-                onSeeAll: onNearby,
+                onSeeAll: onOpenSearch,
               ),
               const SizedBox(height: 11),
               _roomCarousel(context, homeRooms, badge: '🔥 Hot'),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _safetyBanner(context),
-              ),
               const SizedBox(height: 22),
               _sectionHeading(
                 icon: Icons.sell_rounded,
                 color: const Color(0xFF08A94F),
                 title: 'NHÀ TRỌ GIÁ TỐT',
-                onSeeAll: onDeals,
+                onSeeAll: onOpenSearch,
               ),
               const SizedBox(height: 11),
               _roomCarousel(
@@ -182,7 +185,7 @@ class TenantDiscoveryHome extends StatelessWidget {
                 icon: Icons.map_rounded,
                 color: const Color(0xFF315F55),
                 title: 'Khám phá theo khu vực',
-                onSeeAll: onFilter,
+                onSeeAll: onOpenSearch,
               ),
               const SizedBox(height: 11),
               _areaCarousel(areas),
@@ -191,7 +194,7 @@ class TenantDiscoveryHome extends StatelessWidget {
                 icon: Icons.verified_user_rounded,
                 color: const Color(0xFF0B8950),
                 title: 'NHÀ TRỌ ĐÁNG TIN CẬY',
-                onSeeAll: onFilter,
+                onSeeAll: onOpenSearch,
               ),
               const Padding(
                 padding: EdgeInsets.fromLTRB(19, 3, 18, 10),
@@ -210,7 +213,7 @@ class TenantDiscoveryHome extends StatelessWidget {
                 icon: Icons.location_on_rounded,
                 color: const Color(0xFF315F55),
                 title: 'Nhà trọ gần bạn',
-                onSeeAll: onNearby,
+                onSeeAll: onOpenSearch,
               ),
               const SizedBox(height: 11),
               _roomCarousel(
@@ -218,11 +221,69 @@ class TenantDiscoveryHome extends StatelessWidget {
                 nearbyRooms.take(6).toList(),
                 compact: true,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _safetyBanner(context),
+              ),
+              const SizedBox(height: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _resultsPage(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: ColoredBox(
+        color: const Color(0xFFFCFCFC),
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(12, topInset + 5, 18, 12),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Quay lại khám phá',
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Danh sách phòng trọ',
+                        style: TextStyle(
+                          color: Color(0xFF202332),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _searchBar(context),
+              ),
+              if (activeFilters != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 9, 18, 0),
+                  child: activeFilters!,
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 19, 18, 8),
                 child: TenantSectionHeading(
-                  'Kết quả tìm kiếm',
+                  'Danh sách phòng',
                   trailing: Text(
                     remote
                         ? 'Trang ${currentPage + 1}'
@@ -286,34 +347,7 @@ class TenantDiscoveryHome extends StatelessWidget {
                   ),
                 )
               else
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final columns = constraints.maxWidth >= 680 ? 2 : 1;
-                      final width =
-                          (constraints.maxWidth - (columns - 1) * 16) / columns;
-                      return Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
-                        children: [
-                          for (final room in visibleRooms)
-                            SizedBox(
-                              width: width,
-                              child: TenantRoomCard(
-                                room: room,
-                                isFavorite: TenantFavoritesStore.contains(
-                                  room.id,
-                                ),
-                                onFavoriteToggle: () => onFavoriteToggle(room),
-                                onTap: () => onRoomTap(room),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
+                _roomGrid(context),
               const SizedBox(height: 12),
               if (remote && !loading && !hasError)
                 Row(
@@ -366,6 +400,32 @@ class TenantDiscoveryHome extends StatelessWidget {
     );
   }
 
+  Widget _roomGrid(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 18),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 680 ? 2 : 1;
+        final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: [
+            for (final room in visibleRooms)
+              SizedBox(
+                width: width,
+                child: TenantRoomCard(
+                  room: room,
+                  isFavorite: TenantFavoritesStore.contains(room.id),
+                  onFavoriteToggle: () => onFavoriteToggle(room),
+                  onTap: () => onRoomTap(room),
+                ),
+              ),
+          ],
+        );
+      },
+    ),
+  );
+
   Widget _hero(BuildContext context) {
     final topInset = MediaQuery.paddingOf(context).top;
     return SizedBox(
@@ -399,6 +459,8 @@ class TenantDiscoveryHome extends StatelessWidget {
             right: 18,
             child: Row(
               children: [
+                TenantProfileAvatar(name: profileName, radius: 19),
+                const SizedBox(width: 7),
                 Expanded(
                   child: Material(
                     color: Colors.white.withValues(alpha: 0.87),
@@ -586,12 +648,22 @@ class TenantDiscoveryHome extends StatelessWidget {
     child: Row(
       children: [
         const SizedBox(width: 13),
-        const Icon(Icons.search_rounded, color: Color(0xFF5C6070), size: 27),
+        IconButton(
+          tooltip: 'Tìm nhà trọ',
+          onPressed: resultsOnly ? null : onOpenSearch,
+          icon: const Icon(
+            Icons.search_rounded,
+            color: Color(0xFF5C6070),
+            size: 27,
+          ),
+        ),
         const SizedBox(width: 9),
         Expanded(
           child: TextField(
             controller: searchController,
-            onChanged: onSearchChanged,
+            readOnly: !resultsOnly,
+            onTap: resultsOnly ? null : onOpenSearch,
+            onChanged: resultsOnly ? onSearchChanged : null,
             style: const TextStyle(color: Color(0xFF222433), fontSize: 14),
             decoration: InputDecoration(
               hintText: 'Tìm kiếm nhà trọ, khu vực...',

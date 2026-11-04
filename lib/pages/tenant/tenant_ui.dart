@@ -1,37 +1,77 @@
 import 'package:flutter/material.dart';
 
-const tenantGreen = Color(0xFF16836F);
-const tenantGreenDark = Color(0xFF106B5A);
-const tenantInk = Color(0xFF1B2935);
-const tenantMuted = Color(0xFF74818C);
-const tenantLine = Color(0xFFE7ECEF);
-const tenantCanvas = Color(0xFFF5F7F8);
+const tenantGreen = Color(0xFF08A94F);
+const tenantGreenDark = Color(0xFF08783B);
+const tenantInk = Color(0xFF202332);
+const tenantMuted = Color(0xFF676B78);
+const tenantLine = Color(0xFFE8ECEB);
+const tenantCanvas = Color(0xFFFCFCFC);
 
 class TenantPageFrame extends StatelessWidget {
-  const TenantPageFrame({super.key, required this.children});
+  const TenantPageFrame({super.key, required this.children, this.padding});
 
   final List<Widget> children;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            constraints.maxWidth < 600 ? 18 : 32,
-            22,
-            constraints.maxWidth < 600 ? 18 : 32,
-            32,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 920),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: children,
+    return ColoredBox(
+      color: tenantCanvas,
+      child: SafeArea(
+        top: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding:
+                padding ??
+                EdgeInsets.fromLTRB(
+                  constraints.maxWidth < 600 ? 18 : 32,
+                  22,
+                  constraints.maxWidth < 600 ? 18 : 32,
+                  32,
+                ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 920),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: children,
+                ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class TenantProfileAvatar extends StatelessWidget {
+  const TenantProfileAvatar({super.key, required this.name, this.radius = 20});
+
+  final String name;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final words = name.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty);
+    final parts = words.toList();
+    final initials = parts.isEmpty
+        ? 'U'
+        : parts.length == 1
+        ? parts.first[0].toUpperCase()
+        : '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.white,
+      child: CircleAvatar(
+        radius: radius - 2,
+        backgroundColor: const Color(0xFFE0F3E7),
+        child: Text(
+          initials,
+          style: TextStyle(
+            color: tenantGreenDark,
+            fontSize: radius * 0.55,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -405,4 +445,3 @@ class TenantSheetHandle extends StatelessWidget {
 extension TenantIterableNumX on Iterable<int> {
   int get sum => fold(0, (a, b) => a + b);
 }
-
