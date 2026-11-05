@@ -28,6 +28,39 @@ class ScopedFirestoreRentalRepository
   final _localBaseline = <String, Map<String, dynamic>>{};
   Map<String, Map<String, dynamic>>? _lastReadSnapshot;
 
+  static List<List<String>> tenantPropertyGroups(
+    Iterable<Map<String, dynamic>> records,
+  ) {
+    final ids =
+        records
+            .where((record) => record['archived'] != true)
+            .map((record) => record['propertyId'])
+            .whereType<String>()
+            .where((id) => id.isNotEmpty && !id.contains('/'))
+            .toSet()
+            .toList()
+          ..sort();
+    return [
+      for (var i = 0; i < ids.length; i += 10)
+        ids.sublist(i, (i + 10).clamp(0, ids.length)),
+    ];
+  }
+
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _tenantProperties(
+    QuerySnapshot<Map<String, dynamic>> records,
+  ) async {
+    final groups = tenantPropertyGroups(records.docs.map((doc) => doc.data()));
+    final snapshots = await Future.wait(
+      groups.map(
+        (ids) => _firestore
+            .collection('rental_properties')
+            .where(FieldPath.documentId, whereIn: ids)
+            .get(const GetOptions(source: Source.server)),
+      ),
+    );
+    return [for (final snapshot in snapshots) ...snapshot.docs];
+  }
+
   @override
   Stream<void> get changes => Stream<void>.multi((controller) {
     Query<Map<String, dynamic>> properties = _firestore.collection(
@@ -49,29 +82,67 @@ class ScopedFirestoreRentalRepository
       tickets = tickets.where('accountUid', isEqualTo: session.uid);
     }
     final subscriptions = <StreamSubscription<dynamic>>[];
-    void watch(Stream<dynamic> stream) {
-      subscriptions.add(
-        stream
-            .skip(1)
-            .listen(
-              (_) {
-                if (!controller.isClosed) controller.add(null);
-              },
-              onError: (Object error) {
-                debugPrint('Firestore stream warning: $error');
-                if (error is FirebaseException &&
-                    error.code == 'permission-denied' &&
-                    session.role == AppRole.admin) {
-                  return;
-                }
-                if (!controller.isClosed) controller.addError(error);
-              },
-            ),
-      );
+    StreamSubscription<dynamic> watch(Stream<dynamic> stream) {
+      final subscription = stream
+          .skip(1)
+          .listen(
+            (_) {
+              if (!controller.isClosed) controller.add(null);
+            },
+            onError: (Object error) {
+              debugPrint('Firestore stream warning: $error');
+              if (error is FirebaseException &&
+                  error.code == 'permission-denied' &&
+                  session.role == AppRole.admin) {
+                return;
+              }
+              if (!controller.isClosed) controller.addError(error);
+            },
+          );
+      subscriptions.add(subscription);
+      return subscription;
     }
 
-    watch(properties.snapshots());
-    watch(records.snapshots());
+    if (session.role == AppRole.tenant) {
+      var previousGroups = '';
+      var firstRecords = true;
+      final propertySubscriptions = <StreamSubscription<dynamic>>[];
+      subscriptions.add(
+        records.snapshots().listen(
+          (snapshot) {
+            final groups = tenantPropertyGroups(
+              snapshot.docs.map((doc) => doc.data()),
+            );
+            final key = groups.map((ids) => ids.join('|')).join(';');
+            if (key != previousGroups) {
+              previousGroups = key;
+              for (final subscription in propertySubscriptions) {
+                unawaited(subscription.cancel());
+              }
+              propertySubscriptions.clear();
+              for (final ids in groups) {
+                propertySubscriptions.add(
+                  watch(
+                    _firestore
+                        .collection('rental_properties')
+                        .where(FieldPath.documentId, whereIn: ids)
+                        .snapshots(),
+                  ),
+                );
+              }
+            }
+            if (!firstRecords && !controller.isClosed) controller.add(null);
+            firstRecords = false;
+          },
+          onError: (Object error) {
+            if (!controller.isClosed) controller.addError(error);
+          },
+        ),
+      );
+    } else {
+      watch(properties.snapshots());
+      watch(records.snapshots());
+    }
     watch(tickets.snapshots());
     watch(_firestore.doc('user_state/${session.uid}').snapshots());
     watch(_firestore.doc('public_settings/viewings').snapshots());
@@ -117,9 +188,13 @@ class ScopedFirestoreRentalRepository
       tickets = tickets.where('accountUid', isEqualTo: session.uid);
     }
 
+    final recordRequest = records.get(server);
+    final propertyRequest = session.role == AppRole.tenant
+        ? recordRequest.then(_tenantProperties)
+        : properties.get(server).then((snapshot) => snapshot.docs);
     final futures = <Future<dynamic>>[
-      properties.get(server),
-      records.get(server),
+      propertyRequest,
+      recordRequest,
       _firestore.collection('user_state').doc(session.uid).get(server),
       tickets.get(server),
       _firestore.doc('public_settings/viewings').get(server),
@@ -129,7 +204,8 @@ class ScopedFirestoreRentalRepository
         _firestore.doc('management/${session.uid}').get(server),
     ];
     final results = await Future.wait(futures);
-    final propSnap = results[0] as QuerySnapshot<Map<String, dynamic>>;
+    final propertyDocs =
+        results[0] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
     final recordSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
     final own = results[2] as DocumentSnapshot<Map<String, dynamic>>;
     final savedTickets = results[3] as QuerySnapshot<Map<String, dynamic>>;
@@ -143,7 +219,7 @@ class ScopedFirestoreRentalRepository
     _baseline.clear();
     _owners.clear();
     _ticketAuthors.clear();
-    for (final doc in propSnap.docs) {
+    for (final doc in propertyDocs) {
       final data = doc.data();
       _baseline[doc.reference.path] = data;
       final ownerUid = data['ownerUid'] as String?;
@@ -276,6 +352,10 @@ class ScopedFirestoreRentalRepository
       snapshot['admin']!['acceptingViewings'] = viewingSettings
           .data()!['acceptingViewings'];
     }
+    restoreCloudPropertyVerification(
+      snapshot['admin']!,
+      propertyDocs.map((document) => document.data()),
+    );
     snapshot['admin']!['tickets'] = [
       for (final doc in savedTickets.docs)
         if (doc.data()['data'] != null) doc.data()['data'],
@@ -308,6 +388,9 @@ class ScopedFirestoreRentalRepository
       for (final entry in encoded.entries) {
         if (entry.key.startsWith('rental_properties/')) {
           entry.value['published'] = _baseline[entry.key]?['published'] ?? true;
+          entry.value['verified'] = _baseline[entry.key]?['verified'] ?? false;
+          entry.value['verificationProof'] =
+              _baseline[entry.key]?['verificationProof'] ?? '';
         } else if (entry.key.startsWith('public_rooms/')) {
           final property =
               _baseline['rental_properties/${entry.value['propertyId']}'];
@@ -396,6 +479,9 @@ class ScopedFirestoreRentalRepository
       documents,
       uploadPropertyMedia: session.role != AppRole.tenant,
     );
+    if (session.role == AppRole.tenant) {
+      await _prepareTenantRequestTargets(prepared);
+    }
     final encoded = _encode(prepared);
     final changed = encoded.entries
         .where(
@@ -444,6 +530,62 @@ class ScopedFirestoreRentalRepository
     });
     _baseline.addAll(committed);
     _localBaseline.addAll(encoded);
+  }
+
+  /// A new chat/viewing can target a property not rented by this tenant. Load
+  /// just that property when saving the request, rather than preloading the
+  /// entire public portfolio at sign-in. The temporary store is never published.
+  Future<void> _prepareTenantRequestTargets(
+    Map<String, Map<String, dynamic>> documents,
+  ) async {
+    final stores = documents['portfolio']?['properties'] as List?;
+    if (stores == null) return;
+    final loaded = {
+      for (final store in stores) (store['property'] as Map)['id'],
+    };
+    final targets = <String>{
+      for (final kind in ['conversations', 'viewings'])
+        for (final row in documents[kind]?['records'] as List? ?? [])
+          if (row['propertyId'] is String) row['propertyId'] as String,
+    }..removeAll(loaded);
+    for (final id in targets) {
+      if (id.isEmpty || id.contains('/')) {
+        throw ArgumentError('Mã nhà trọ chưa hợp lệ.');
+      }
+      final path = 'rental_properties/$id';
+      var property = _baseline[path];
+      if (property == null) {
+        final document = await _firestore
+            .doc(path)
+            .get(const GetOptions(source: Source.server));
+        property = document.data();
+        if (property == null) {
+          throw ArgumentError('Nhà trọ này không còn tồn tại.');
+        }
+        _baseline[path] = property;
+      }
+      final owner = property['ownerUid'];
+      if (owner is! String || property['data'] is! Map) {
+        throw ArgumentError(
+          'Chưa tải được thông tin chủ trọ. Vui lòng thử lại.',
+        );
+      }
+      _owners[id] = owner;
+      stores.add({
+        ...Map<String, dynamic>.from(property['data'] as Map),
+        for (final kind in [
+          'leases',
+          'invoices',
+          'payments',
+          'members',
+          'incidents',
+          'readings',
+          'paymentAccounts',
+        ])
+          kind: <dynamic>[],
+        'counters': List.filled(7, 1),
+      });
+    }
   }
 
   @override

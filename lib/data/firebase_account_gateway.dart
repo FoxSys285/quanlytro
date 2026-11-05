@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../layouts/role_layout.dart';
+import 'auth_validation.dart';
+import 'account_provider.dart';
 
 class FirebaseAccountSession {
   const FirebaseAccountSession({
@@ -10,6 +16,8 @@ class FirebaseAccountSession {
     this.tenantId,
     this.email = '',
     this.displayName = '',
+    this.phoneNumber = '',
+    this.phoneIsSynthetic = false,
   });
 
   final String uid;
@@ -17,6 +25,8 @@ class FirebaseAccountSession {
   final String? tenantId;
   final String email;
   final String displayName;
+  final String phoneNumber;
+  final bool phoneIsSynthetic;
 
   factory FirebaseAccountSession.fromProfile(
     String uid,
@@ -48,6 +58,8 @@ class FirebaseAccountSession {
       tenantId: tenantId as String?,
       email: profile['email'] as String? ?? authEmail,
       displayName: profile['displayName'] as String? ?? '',
+      phoneNumber: profile['phoneNumber'] as String? ?? '',
+      phoneIsSynthetic: profile['phoneIsSynthetic'] == true,
     );
   }
 }
@@ -66,28 +78,29 @@ abstract interface class AccountRegistrationGateway {
     String password, {
     required String displayName,
     required AppRole requestedRole,
+    required String phoneNumber,
   });
 }
 
 /// Firebase authentication with role-limited, Rules-validated self-registration.
 class FirebaseAccountGateway
-    implements AccountGateway, AccountRegistrationGateway {
+    implements
+        AccountGateway,
+        AccountRegistrationGateway,
+        AccountProviderGateway {
   FirebaseAccountGateway({FirebaseAuth? auth, FirebaseFirestore? firestore})
     : _auth = auth ?? FirebaseAuth.instance,
       _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  Future<void>? _googleInitialization;
 
   @override
   Future<void> register(String email, String password) async {
-    await registerAccount(
-      email,
-      password,
-      displayName: email.split('@').first,
-      requestedRole: AppRole.tenant,
+    throw ArgumentError(
+      'Vui lòng đăng ký bằng biểu mẫu có họ tên và số điện thoại.',
     );
-    await _auth.signOut();
   }
 
   @override
@@ -96,10 +109,13 @@ class FirebaseAccountGateway
     String password, {
     required String displayName,
     required AppRole requestedRole,
+    required String phoneNumber,
   }) async {
     if (_auth.currentUser != null) {
       throw ArgumentError('Vui lòng đăng xuất trước khi tạo tài khoản mới.');
     }
+    final phoneError = validateAccountPhone(phoneNumber);
+    if (phoneError != null) throw ArgumentError(phoneError);
     if (![AppRole.landlord, AppRole.tenant].contains(requestedRole)) {
       throw ArgumentError(
         'Chỉ hỗ trợ đăng ký tài khoản chủ trọ hoặc người thuê.',
@@ -121,6 +137,7 @@ class FirebaseAccountGateway
         email: user.email ?? email,
         displayName: name,
         role: requestedRole,
+        phoneNumber: normalizeVietnamesePhone(phoneNumber),
       );
       await _firestore.collection('users').doc(user.uid).set(profile);
       return FirebaseAccountSession.fromProfile(
@@ -143,11 +160,17 @@ class FirebaseAccountGateway
     required String email,
     required String displayName,
     required AppRole role,
+    String phoneNumber = '',
   }) => {
     'email': email,
     'displayName': displayName,
     'role': role.name,
     'disabled': false,
+    if (phoneNumber.isNotEmpty) ...{
+      'phoneNumber': phoneNumber,
+      'phoneVerified': false,
+      'phoneIsSynthetic': false,
+    },
     if (role == AppRole.tenant) 'tenantId': 'tenant-$uid',
     'createdAt': FieldValue.serverTimestamp(),
   };
@@ -172,56 +195,331 @@ class FirebaseAccountGateway
       );
       final user = result.user;
       if (user == null) throw ArgumentError('Không thể xác thực tài khoản.');
-      final profile = await _firestore
-          .collection('users')
+      return (await _sessionForUser(user))!;
+    } catch (error) {
+      await _auth.signOut();
+      throw _friendlyError(error);
+    }
+  }
+
+  Future<FirebaseAccountSession?> _sessionForUser(
+    User user, {
+    bool allowNewProfile = false,
+  }) async {
+    final profile = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .get(const GetOptions(source: Source.server));
+    var profileData = profile.data();
+    if (profileData == null) {
+      // Existing signups from the former approval flow can activate their
+      // own landlord/tenant profile from their immutable self-owned request.
+      final legacyRequest = await _firestore
+          .collection('account_requests')
           .doc(user.uid)
           .get(const GetOptions(source: Source.server));
-      var profileData = profile.data();
-      if (profileData == null) {
-        // Existing signups from the former approval flow can activate their
-        // own landlord/tenant profile from their immutable self-owned request.
-        final legacyRequest = await _firestore
-            .collection('account_requests')
-            .doc(user.uid)
-            .get(const GetOptions(source: Source.server));
-        final request = legacyRequest.data();
-        final requestedRole = request?['requestedRole'];
-        final requestedEmail = request?['email'];
-        final requestDisplayName = request?['displayName'];
-        if (request != null &&
-            request['status'] == 'pending' &&
-            (requestedRole == AppRole.landlord.name ||
-                requestedRole == AppRole.tenant.name) &&
-            requestedEmail is String &&
-            requestedEmail.trim().toLowerCase() ==
-                (user.email ?? '').trim().toLowerCase()) {
-          final role = AppRole.values.byName(requestedRole as String);
-          profileData = _newProfile(
-            uid: user.uid,
-            email: user.email ?? requestedEmail,
-            displayName: requestDisplayName is String
-                ? requestDisplayName.trim()
-                : '',
-            role: role,
-          );
-          await _firestore.collection('users').doc(user.uid).set(profileData);
-        }
+      final request = legacyRequest.data();
+      final requestedRole = request?['requestedRole'];
+      final requestedEmail = request?['email'];
+      final requestDisplayName = request?['displayName'];
+      if (request != null &&
+          request['status'] == 'pending' &&
+          (requestedRole == AppRole.landlord.name ||
+              requestedRole == AppRole.tenant.name) &&
+          requestedEmail is String &&
+          requestedEmail.trim().toLowerCase() ==
+              (user.email ?? '').trim().toLowerCase()) {
+        final role = AppRole.values.byName(requestedRole as String);
+        profileData = _newProfile(
+          uid: user.uid,
+          email: user.email ?? requestedEmail,
+          displayName: requestDisplayName is String
+              ? requestDisplayName.trim()
+              : '',
+          role: role,
+        );
+        await _firestore.collection('users').doc(user.uid).set(profileData);
       }
+    }
+    if (profileData == null && allowNewProfile) return null;
+    return FirebaseAccountSession.fromProfile(
+      user.uid,
+      profileData,
+      authEmail: user.email ?? '',
+    );
+  }
+
+  @override
+  ProviderAccountIdentity? get pendingIdentity {
+    final user = _auth.currentUser;
+    return user == null
+        ? null
+        : ProviderAccountIdentity(
+            email: user.email ?? '',
+            displayName: user.displayName ?? '',
+            phoneNumber: user.phoneNumber ?? '',
+          );
+  }
+
+  @override
+  Future<FirebaseAccountSession?> signInWithGoogle() async {
+    try {
+      UserCredential result;
+      if (kIsWeb) {
+        result = await _auth.signInWithPopup(
+          GoogleAuthProvider()
+            ..setCustomParameters({'prompt': 'select_account'}),
+        );
+      } else {
+        if (![
+          TargetPlatform.android,
+          TargetPlatform.iOS,
+          TargetPlatform.macOS,
+        ].contains(defaultTargetPlatform)) {
+          throw ArgumentError(
+            'Đăng nhập Google khả dụng trên Android và trình duyệt web.',
+          );
+        }
+        try {
+          await (_googleInitialization ??= GoogleSignIn.instance.initialize());
+        } catch (_) {
+          _googleInitialization = null;
+          rethrow;
+        }
+        final account = await GoogleSignIn.instance.authenticate();
+        final token = account.authentication.idToken;
+        if (token == null) {
+          throw ArgumentError(
+            'Chưa lấy được xác thực Google. Vui lòng thử lại.',
+          );
+        }
+        result = await _auth.signInWithCredential(
+          GoogleAuthProvider.credential(idToken: token),
+        );
+      }
+      if (result.user == null) {
+        throw ArgumentError('Không thể xác thực tài khoản Google.');
+      }
+      return await _sessionForUser(result.user!, allowNewProfile: true);
+    } on GoogleSignInException catch (error) {
+      if (error.code == GoogleSignInExceptionCode.canceled) {
+        throw const AccountSignInCancelled();
+      }
+      throw ArgumentError(
+        'Chưa thể đăng nhập Google. Vui lòng thử lại hoặc dùng email.',
+      );
+    } on FirebaseAuthException catch (error) {
+      if ([
+        'popup-closed-by-user',
+        'cancelled-popup-request',
+      ].contains(error.code)) {
+        throw const AccountSignInCancelled();
+      }
+      throw _friendlyError(error);
+    } catch (error) {
+      throw _friendlyError(error);
+    }
+  }
+
+  @override
+  Future<PhoneCodeChallenge> requestPhoneCode(
+    String phoneNumber, {
+    int? resendToken,
+    bool linkToCurrentUser = false,
+  }) async {
+    final validation = validateAccountPhone(phoneNumber);
+    if (validation != null) throw ArgumentError(validation);
+    final phone = normalizeVietnamesePhone(phoneNumber);
+    final linkingUser = linkToCurrentUser ? _auth.currentUser : null;
+    if (linkToCurrentUser && linkingUser == null) {
+      throw ArgumentError(
+        'Vui lòng đăng nhập bằng email trước khi liên kết số điện thoại.',
+      );
+    }
+    try {
+      if (kIsWeb) {
+        final confirmation = linkingUser == null
+            ? await _auth.signInWithPhoneNumber(phone)
+            : await linkingUser.linkWithPhoneNumber(phone);
+        return PhoneCodeChallenge(
+          confirm: (code) async {
+            try {
+              final result = await confirmation.confirm(code);
+              return await _finishPhoneUser(
+                result.user!,
+                phone,
+                linkingUser?.uid,
+              );
+            } catch (error) {
+              throw _friendlyError(error);
+            }
+          },
+        );
+      }
+      if (![
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+      ].contains(defaultTargetPlatform)) {
+        throw ArgumentError(
+          'Đăng nhập bằng SMS khả dụng trên Android và trình duyệt web.',
+        );
+      }
+      final completer = Completer<PhoneCodeChallenge>();
+      PhoneCodeChallenge challenge(
+        String id,
+        int? token, [
+        PhoneAuthCredential? automatic,
+      ]) => PhoneCodeChallenge(
+        resendToken: token,
+        automaticallyVerified: automatic != null,
+        confirm: (code) async {
+          try {
+            if (linkingUser != null &&
+                _auth.currentUser?.uid != linkingUser.uid) {
+              throw ArgumentError(
+                'Phiên đăng nhập đã thay đổi. Vui lòng thử lại.',
+              );
+            }
+            final credential =
+                automatic ??
+                PhoneAuthProvider.credential(verificationId: id, smsCode: code);
+            User? verifiedUser;
+            if (linkingUser == null) {
+              verifiedUser = (await _auth.signInWithCredential(credential))
+                  .user;
+            } else if (linkingUser.phoneNumber == null) {
+              verifiedUser = (await linkingUser.linkWithCredential(credential))
+                  .user;
+            } else {
+              await linkingUser.updatePhoneNumber(credential);
+              verifiedUser = _auth.currentUser;
+            }
+            if (verifiedUser == null) {
+              throw ArgumentError('Không thể xác thực số điện thoại.');
+            }
+            return await _finishPhoneUser(
+              verifiedUser,
+              phone,
+              linkingUser?.uid,
+            );
+          } catch (error) {
+            throw _friendlyError(error);
+          }
+        },
+      );
+      unawaited(
+        _auth
+            .verifyPhoneNumber(
+              phoneNumber: phone,
+              forceResendingToken: resendToken,
+              verificationCompleted: (credential) {
+                if (!completer.isCompleted) {
+                  completer.complete(challenge('', null, credential));
+                }
+              },
+              verificationFailed: (error) {
+                if (!completer.isCompleted) {
+                  completer.completeError(_friendlyError(error));
+                }
+              },
+              codeSent: (id, token) {
+                if (!completer.isCompleted) {
+                  completer.complete(challenge(id, token));
+                }
+              },
+              codeAutoRetrievalTimeout: (id) {
+                if (!completer.isCompleted) {
+                  completer.complete(challenge(id, null));
+                }
+              },
+            )
+            .catchError((Object error) {
+              if (!completer.isCompleted) {
+                completer.completeError(_friendlyError(error));
+              }
+            }),
+      );
+      return await completer.future.timeout(
+        const Duration(seconds: 90),
+        onTimeout: () =>
+            throw ArgumentError('Gửi mã xác thực quá lâu. Vui lòng thử lại.'),
+      );
+    } catch (error) {
+      throw _friendlyError(error);
+    }
+  }
+
+  Future<FirebaseAccountSession?> _finishPhoneUser(
+    User user,
+    String phone,
+    String? linkingUid,
+  ) async {
+    if (linkingUid != null) {
+      if (user.uid != linkingUid) {
+        throw ArgumentError('Phiên đăng nhập đã thay đổi.');
+      }
+      await user.getIdToken(true);
+      await _firestore.collection('users').doc(user.uid).update({
+        'phoneNumber': phone,
+        'phoneVerified': true,
+        'phoneIsSynthetic': false,
+      });
+    }
+    return _sessionForUser(user, allowNewProfile: linkingUid == null);
+  }
+
+  @override
+  Future<FirebaseAccountSession> completeProviderRegistration({
+    required String displayName,
+    required String phoneNumber,
+    required AppRole requestedRole,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw ArgumentError('Vui lòng đăng nhập lại.');
+    final phoneError = validateAccountPhone(phoneNumber);
+    if (phoneError != null) throw ArgumentError(phoneError);
+    final name = displayName.trim();
+    if (name.isEmpty ||
+        name.length > 100 ||
+        ![AppRole.landlord, AppRole.tenant].contains(requestedRole)) {
+      throw ArgumentError(
+        'Vui lòng nhập họ tên và chọn chủ trọ hoặc người thuê.',
+      );
+    }
+    try {
+      final ref = _firestore.collection('users').doc(user.uid);
+      final profile = _newProfile(
+        uid: user.uid,
+        email: user.email ?? '',
+        displayName: name,
+        role: requestedRole,
+        phoneNumber: normalizeVietnamesePhone(phoneNumber),
+      );
+      profile['phoneVerified'] = user.phoneNumber == profile['phoneNumber'];
+      final saved = await _firestore.runTransaction((transaction) async {
+        final existing = await transaction.get(ref);
+        if (existing.exists) return existing.data()!;
+        transaction.set(ref, profile);
+        return profile;
+      });
       return FirebaseAccountSession.fromProfile(
         user.uid,
-        profileData,
+        saved,
         authEmail: user.email ?? '',
       );
     } catch (error) {
-      await _auth.signOut();
-      if (error is ArgumentError) rethrow;
-      if (error is FirebaseAuthException) {
-        throw ArgumentError(_message(error.code));
-      }
-      throw ArgumentError(
-        'Không thể kiểm tra quyền tài khoản. Vui lòng kiểm tra mạng và thử lại.',
-      );
+      throw _friendlyError(error);
     }
+  }
+
+  static ArgumentError _friendlyError(Object error) {
+    if (error is ArgumentError) return error;
+    if (error is FirebaseAuthException) {
+      return ArgumentError(_message(error.code));
+    }
+    return ArgumentError(
+      'Chưa thể xác thực tài khoản. Vui lòng kiểm tra mạng và thử lại.',
+    );
   }
 
   @override
@@ -247,8 +545,19 @@ class FirebaseAccountGateway
     'email-already-in-use' =>
       'Email này đã được đăng ký. Hãy đăng nhập hoặc khôi phục mật khẩu.',
     'invalid-email' => 'Địa chỉ email chưa hợp lệ.',
-    'operation-not-allowed' =>
-      'Email/Password chưa được bật trên Firebase Console.',
+    'operation-not-allowed' => 'Phương thức đăng nhập này chưa được bật. Vui lòng dùng email hoặc thử lại sau.',
+    'invalid-phone-number' => 'Số điện thoại chưa hợp lệ.',
+    'invalid-verification-code' => 'Mã OTP không đúng. Vui lòng nhập lại.',
+    'session-expired' => 'Mã OTP đã hết hạn. Vui lòng gửi lại mã.',
+    'quota-exceeded' =>
+      'Tạm hết lượt gửi SMS. Vui lòng thử lại sau hoặc dùng email.',
+    'credential-already-in-use' =>
+      'Số điện thoại đã liên kết với tài khoản khác.',
+    'account-exists-with-different-credential' =>
+      'Email này đã có tài khoản. Hãy đăng nhập bằng phương thức đã đăng ký.',
+    'invalid-app-credential' ||
+    'missing-client-identifier' ||
+    'app-not-authorized' => 'Chưa thể xác minh ứng dụng để gửi SMS. Vui lòng dùng email và thử lại sau.',
     'network-request-failed' => 'Không có kết nối mạng. Vui lòng thử lại.',
     'too-many-requests' => 'Đã thử quá nhiều lần. Vui lòng thử lại sau.',
     'weak-password' => 'Mật khẩu chưa đủ mạnh.',

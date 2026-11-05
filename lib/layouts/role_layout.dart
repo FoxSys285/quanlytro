@@ -119,6 +119,7 @@ class RoleLayoutShell extends StatefulWidget {
     this.hideAppBarOnDestinations,
     this.hideTopBarOnDestinations,
     this.bottomNavigationBuilder,
+    this.retainedDestinationIds = const {},
   });
 
   final AppRole role;
@@ -142,6 +143,7 @@ class RoleLayoutShell extends StatefulWidget {
   final Set<String>? hideAppBarOnDestinations;
   final Set<String>? hideTopBarOnDestinations;
   final RoleBottomNavigationBuilder? bottomNavigationBuilder;
+  final Set<String> retainedDestinationIds;
 
   @override
   State<RoleLayoutShell> createState() => _RoleLayoutShellState();
@@ -155,6 +157,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
   late String _selectedDestinationId = widget.initialDestinationId;
   late int _selectedTabIndex = _tabIndexFor(widget.initialDestinationId);
   String? _previousDestinationId;
+  final _visitedRetainedDestinations = <String>{};
 
   @override
   void dispose() {
@@ -287,7 +290,41 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           destination: destination,
           accentColor: widget.accentColor,
         );
-    final content = console
+    if (widget.retainedDestinationIds.contains(destination.id)) {
+      _visitedRetainedDestinations.add(destination.id);
+    }
+    final retained = widget.destinations
+        .where(
+          (item) =>
+              _visitedRetainedDestinations.contains(item.id) &&
+              widget.retainedDestinationIds.contains(item.id),
+        )
+        .toList();
+    final retainedIndex = retained.indexWhere(
+      (item) => item.id == destination.id,
+    );
+    final content = retained.isNotEmpty
+        ? IndexedStack(
+            index: retainedIndex < 0 ? retained.length : retainedIndex,
+            children: [
+              for (final item in retained)
+                TickerMode(
+                  key: ValueKey('retained-${item.id}'),
+                  enabled: item.id == destination.id,
+                  child: item.id == destination.id
+                      ? page
+                      : widget.pageBuilder?.call(context, item) ??
+                            _LayoutPlaceholder(
+                              role: widget.role,
+                              destination: item,
+                              accentColor: widget.accentColor,
+                            ),
+                ),
+              if (retainedIndex < 0)
+                KeyedSubtree(key: ValueKey(destination.id), child: page),
+            ],
+          )
+        : console
         ? AnimatedSwitcher(
             duration: MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero

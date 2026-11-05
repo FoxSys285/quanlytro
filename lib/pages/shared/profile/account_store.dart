@@ -12,7 +12,8 @@ class AccountStore extends ChangeNotifier {
   AccountStore({required LandlordDemoStore rental})
     : _fallbackRental = rental,
       _portfolio = RentalPortfolio.instance,
-      _portfolioBacked = RentalPortfolio.instance.stores.contains(rental) ||
+      _portfolioBacked =
+          RentalPortfolio.instance.stores.contains(rental) ||
           identical(RentalPortfolio.instance.active, rental) {
     if (_portfolioBacked) {
       _portfolio.addListener(notifyListeners);
@@ -70,6 +71,7 @@ class AccountStore extends ChangeNotifier {
 
   ContactDetails profile(AppRole role) {
     final saved = _contacts[role];
+    final authSession = LocalAuth.instance.session;
     if (role == AppRole.admin) {
       return saved ??
           const ContactDetails(name: 'Quản trị viên', phone: '', email: '');
@@ -77,15 +79,18 @@ class AccountStore extends ChangeNotifier {
     if (role == AppRole.landlord) {
       final property = rental.property;
       return ContactDetails(
-        name: property.ownerName,
-        phone: property.phone,
-        email: saved?.email ?? 'nguyenvanan@example.com',
+        name: property.ownerName.isNotEmpty
+            ? property.ownerName
+            : saved?.name ?? authSession?.displayName ?? '',
+        phone: property.phone.isNotEmpty
+            ? property.phone
+            : saved?.phone ?? authSession?.phoneNumber ?? '',
+        email: saved?.email ?? authSession?.email ?? 'nguyenvanan@example.com',
         address: saved?.address ?? property.address,
       );
     }
     final cloudTenant = TenantSession.authenticatedTenantId != null;
     if (cloudTenant && saved != null) return saved;
-    final authSession = LocalAuth.instance.session;
     final members = rental.members
         .where((member) => member.tenantId == TenantSession.currentTenantId)
         .toList();
@@ -97,9 +102,13 @@ class AccountStore extends ChangeNotifier {
                     : TenantSession.name)
           : members.first.name,
       phone: members.isEmpty
-          ? saved?.phone ?? (cloudTenant ? '' : TenantSession.phone)
+          ? saved?.phone ??
+                (cloudTenant
+                    ? authSession?.phoneNumber ?? ''
+                    : TenantSession.phone)
           : members.first.phone,
-      email: saved?.email ??
+      email:
+          saved?.email ??
           (cloudTenant ? authSession?.email ?? '' : 'minhanh@example.com'),
       address:
           saved?.address ?? (cloudTenant ? '' : 'Bình Thạnh, TP. Hồ Chí Minh'),
@@ -118,6 +127,9 @@ class AccountStore extends ChangeNotifier {
           address: property.address,
           ownerName: contact.name,
           phone: contact.phone,
+          phoneIsSynthetic:
+              property.phoneIsSynthetic &&
+              property.phone.trim() == contact.phone.trim(),
           description: property.description,
           imageUrl: property.imageUrl,
           imageBytes: property.imageBytes,

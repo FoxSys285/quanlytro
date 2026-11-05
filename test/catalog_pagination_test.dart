@@ -6,6 +6,7 @@ import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
 import 'package:quanlytro/pages/landlord/properties/models/landlord_property.dart';
 import 'package:quanlytro/pages/landlord/rooms/landlord_rooms_page.dart';
 import 'package:quanlytro/pages/landlord/rooms/components/landlord_room_button.dart';
+import 'package:quanlytro/pages/shared/media/room_photo.dart';
 import 'package:quanlytro/pages/shared/media/room_photo_gallery.dart';
 import 'package:quanlytro/pages/shared/widgets/list_pagination.dart';
 import 'package:quanlytro/pages/tenant/discovery/tenant_discovery_page.dart';
@@ -49,6 +50,14 @@ void main() {
         floors: 3,
         roomsPerFloor: 6,
       );
+      for (final type in store.roomTypes) {
+        store.saveRoomType(
+          type.name,
+          id: type.id,
+          monthlyRent: type.monthlyRent,
+          photos: const [RoomPhoto.studio],
+        );
+      }
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(body: LandlordRoomsPage(store: store)),
@@ -57,6 +66,23 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LandlordRoomButton), findsNWidgets(12));
       expect(find.byType(RoomPhotoImage), findsNWidgets(12));
+      await tester.ensureVisible(find.byTooltip('Trang cuối'));
+      expect(
+        find.descendant(
+          of: find.byTooltip('Trang cuối'),
+          matching: find.text('2'),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byTooltip('Trang cuối'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LandlordRoomButton), findsNWidgets(6));
+      expect(find.text('Trang 2 / 2'), findsOneWidget);
+      await tester.ensureVisible(find.byTooltip('Trang đầu'));
+      await tester.tap(find.byTooltip('Trang đầu'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LandlordRoomButton), findsNWidgets(12));
+      expect(find.text('Trang 1 / 2'), findsOneWidget);
       await tester.ensureVisible(find.byTooltip('Trang tiếp theo'));
       await tester.tap(find.byTooltip('Trang tiếp theo'));
       await tester.pumpAndSettle();

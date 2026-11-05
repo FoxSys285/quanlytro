@@ -71,6 +71,7 @@ class TenantLayout extends StatelessWidget {
         contextLabel: contextLabel,
         accentColor: const Color(0xFF08A94F),
         initialDestinationId: 'discovery',
+        retainedDestinationIds: const {'discovery'},
         showMoreTab: false,
         hideAppBarOnDestinations: const {
           'discovery',

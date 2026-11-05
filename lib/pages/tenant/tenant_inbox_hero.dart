@@ -35,7 +35,7 @@ class TenantInboxPageFrame extends StatelessWidget {
       statusBarBrightness: Brightness.light,
     ),
     child: TenantDetailTheme(
-      child: ColoredBox(
+      child: Material(
         color: tenantCanvas,
         child: SafeArea(
           top: false,

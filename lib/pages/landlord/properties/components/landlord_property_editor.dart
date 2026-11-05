@@ -118,6 +118,9 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
         address: _address.text.trim(),
         ownerName: _owner.text.trim(),
         phone: _phone.text.trim(),
+        phoneIsSynthetic:
+            widget.property.phoneIsSynthetic &&
+            _phone.text.trim() == widget.property.phone.trim(),
         description: _description.text.trim(),
         imageUrl: _imageUrl,
         imageBytes: _imageBytes,

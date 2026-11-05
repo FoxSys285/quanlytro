@@ -137,7 +137,7 @@ void main() {
     },
   );
 
-  testWidgets('Nearby waits for GPS then opens results with location filters', (
+  testWidgets('Room shortcut opens the room list without requesting GPS', (
     tester,
   ) async {
     final location = _Location();
@@ -153,24 +153,13 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final nearby = find.text('Nhà trọ\ngần tôi');
+    final nearby = find.byKey(const ValueKey('discovery-category-rooms'));
     await tester.ensureVisible(nearby);
     await tester.tap(nearby);
-    await tester.pump();
-    await tester.tap(nearby);
-    expect(location.calls, 1);
-    expect(catalog.queries.last.city, isNull);
-    location.result.complete(
-      const TenantAreaSelection(
-        city: 'Hồ Chí Minh',
-        ward: 'Phường 25',
-        latitude: 10.8,
-        longitude: 106.7,
-      ),
-    );
     await tester.pumpAndSettle();
-    expect(catalog.queries.last.city, 'Hồ Chí Minh');
-    expect(catalog.queries.last.ward, 'Phường 25');
+    expect(location.calls, 0);
+    expect(catalog.queries.last.city, isNull);
+    expect(catalog.queries.last.ward, isNull);
     expect(catalog.queries.last.sort, 'default');
     expect(
       tester
@@ -181,6 +170,54 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets(
+    'Location shortcut confirms a Google Maps point and opens filtered rooms',
+    (tester) async {
+      final location = _PointLocation();
+      final catalog = _Catalog();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TenantDiscoveryPage(
+              catalogSource: catalog,
+              locationService: location,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final shortcut = find.byKey(
+        const ValueKey('discovery-category-location'),
+      );
+      await tester.ensureVisible(shortcut);
+      await tester.tap(shortcut);
+      await tester.pumpAndSettle();
+      expect(find.text('Chọn vị trí'), findsOneWidget);
+      tester.widget<GoogleMap>(find.byType(GoogleMap)).onLongPress!(
+        const LatLng(10.8, 106.7),
+      );
+      await tester.pump();
+      expect(catalog.queries, hasLength(1));
+      location.requests.single.complete(
+        const TenantAreaSelection(
+          city: 'Hồ Chí Minh',
+          ward: 'Phường 25',
+          latitude: 10.8,
+          longitude: 106.7,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('search-selected-map-area')));
+      await tester.pumpAndSettle();
+      expect(find.text('Danh sách phòng trọ'), findsOneWidget);
+      expect(find.text('Chọn vị trí'), findsNothing);
+      expect(catalog.queries.last.city, 'Hồ Chí Minh');
+      expect(catalog.queries.last.ward, 'Phường 25');
+      expect(find.text('Phường 25 · Hồ Chí Minh'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('GPS denial keeps existing filters and shows a useful message', (
     tester,

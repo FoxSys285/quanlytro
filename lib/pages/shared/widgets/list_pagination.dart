@@ -8,12 +8,14 @@ class ListPagination extends StatelessWidget {
     required this.page,
     required this.pageSize,
     required this.onChanged,
+    this.showBoundaryPages = false,
   });
 
   final int total;
   final int page;
   final int pageSize;
   final ValueChanged<int> onChanged;
+  final bool showBoundaryPages;
 
   static int lastPage(int total, int pageSize) =>
       total == 0 ? 0 : (total - 1) ~/ pageSize;
@@ -35,6 +37,18 @@ class ListPagination extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                if (showBoundaryPages)
+                  Tooltip(
+                    message: 'Trang đầu',
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(40, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      onPressed: current == 0 ? null : () => onChanged(0),
+                      child: const Text('1'),
+                    ),
+                  ),
                 IconButton.outlined(
                   tooltip: 'Trang trước',
                   onPressed: current == 0 ? null : () => onChanged(current - 1),
@@ -56,6 +70,18 @@ class ListPagination extends StatelessWidget {
                       : () => onChanged(current + 1),
                   icon: const Icon(Icons.chevron_right),
                 ),
+                if (showBoundaryPages)
+                  Tooltip(
+                    message: 'Trang cuối',
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(40, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      onPressed: current == last ? null : () => onChanged(last),
+                      child: Text('${last + 1}'),
+                    ),
+                  ),
               ],
             ),
         ],

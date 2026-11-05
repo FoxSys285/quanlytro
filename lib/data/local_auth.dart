@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../layouts/role_layout.dart';
 import 'auth_validation.dart';
 import 'firebase_account_gateway.dart';
+import 'account_provider.dart';
 
 /// Local demo accounts, or Firebase accounts when explicitly configured.
 class LocalAuth extends ChangeNotifier {
@@ -18,6 +19,105 @@ class LocalAuth extends ChangeNotifier {
   FirebaseAccountSession? get session => _session;
   bool get isCloudMode => _gateway != null;
   Future<void> _closing = Future.value();
+
+  AccountProviderGateway get _providers {
+    final gateway = _gateway;
+    if (gateway is AccountProviderGateway) {
+      return gateway as AccountProviderGateway;
+    }
+    throw ArgumentError(
+      'Đăng nhập Google và SMS cần kết nối Firebase. Vui lòng dùng email.',
+    );
+  }
+
+  ProviderAccountIdentity? get pendingIdentity =>
+      _role == null && _gateway is AccountProviderGateway
+      ? (_gateway as AccountProviderGateway).pendingIdentity
+      : null;
+
+  Future<bool> _acceptProviderSession(FirebaseAccountSession? session) async {
+    if (session == null) return false;
+    await _onSignedIn!(session);
+    _session = session;
+    _role = session.role;
+    notifyListeners();
+    return true;
+  }
+
+  Future<bool> signInWithGoogle() async {
+    await _closing;
+    if (_role != null) await signOut();
+    try {
+      return await _acceptProviderSession(await _providers.signInWithGoogle());
+    } catch (_) {
+      await signOut();
+      rethrow;
+    }
+  }
+
+  Future<PhoneCodeChallenge> requestPhoneCode(
+    String phoneNumber, {
+    int? resendToken,
+    bool linkToCurrentUser = false,
+  }) async {
+    final error = validateAccountPhone(phoneNumber);
+    if (error != null) throw ArgumentError(error);
+    await _closing;
+    if (linkToCurrentUser && _role == null) {
+      throw ArgumentError(
+        'Vui lòng đăng nhập trước khi liên kết số điện thoại.',
+      );
+    }
+    if (!linkToCurrentUser && _role != null) await signOut();
+    return _providers.requestPhoneCode(
+      normalizeVietnamesePhone(phoneNumber),
+      resendToken: resendToken,
+      linkToCurrentUser: linkToCurrentUser,
+    );
+  }
+
+  Future<bool> confirmPhoneCode(
+    PhoneCodeChallenge challenge,
+    String code, {
+    bool linkToCurrentUser = false,
+  }) async {
+    if (linkToCurrentUser) {
+      final uid = _session?.uid;
+      if (uid == null) throw ArgumentError('Vui lòng đăng nhập lại.');
+      final session = await challenge.confirm(code);
+      if (session == null || session.uid != uid || _session?.uid != uid) {
+        throw ArgumentError('Phiên đăng nhập đã thay đổi. Vui lòng thử lại.');
+      }
+      _session = session;
+      notifyListeners();
+      return true;
+    }
+    try {
+      return await _acceptProviderSession(await challenge.confirm(code));
+    } catch (_) {
+      await signOut();
+      rethrow;
+    }
+  }
+
+  Future<void> completeProviderRegistration({
+    required String displayName,
+    required String phoneNumber,
+    required AppRole requestedRole,
+  }) async {
+    // Form/network failures preserve the pending identity for another attempt.
+    final session = await _providers.completeProviderRegistration(
+      displayName: displayName,
+      phoneNumber: phoneNumber,
+      requestedRole: requestedRole,
+    );
+    try {
+      await _acceptProviderSession(session);
+    } catch (_) {
+      await signOut();
+      rethrow;
+    }
+  }
 
   void configureFirebase({
     required AccountGateway gateway,
@@ -135,10 +235,13 @@ class LocalAuth extends ChangeNotifier {
     String email,
     String password, {
     String displayName = '',
+    String phoneNumber = '',
     AppRole requestedRole = AppRole.tenant,
   }) async {
     final error =
-        validateAccountEmail(email) ?? validateAccountPassword(password);
+        validateAccountEmail(email) ??
+        validateAccountPhone(phoneNumber) ??
+        validateAccountPassword(password);
     if (error != null) throw ArgumentError(error);
     await _closing;
     if (_role != null) {
@@ -156,6 +259,7 @@ class LocalAuth extends ChangeNotifier {
         email.trim().toLowerCase(),
         password,
         displayName: displayName,
+        phoneNumber: normalizeVietnamesePhone(phoneNumber),
         requestedRole: requestedRole,
       );
       try {

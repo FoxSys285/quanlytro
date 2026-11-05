@@ -103,18 +103,16 @@ class TenantConversation {
   }
 
   // Bộ nhớ tạm lưu các adapter cuộc trò chuyện đã tạo
-  static final _adapters = <String, TenantConversation>{};
+  static final _adapters = Expando<TenantConversation>();
+
+  factory TenantConversation.forSource(LandlordConversation source) =>
+      _adapters[source] ??= TenantConversation.shared(source);
 
   // Danh sách cuộc trò chuyện mẫu lấy từ kho dữ liệu dùng chung (sử dụng LINQ map)
   static List<TenantConversation> get demoConversations => ConversationStore
       .instance
       .forTenant(TenantSession.currentTenantId)
-      .map(
-        (source) => _adapters.putIfAbsent(
-          source.id,
-          () => TenantConversation.shared(source),
-        ),
-      )
+      .map(TenantConversation.forSource)
       .toList();
 
   // Hàm gửi tin nhắn mới

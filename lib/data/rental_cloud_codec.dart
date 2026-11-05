@@ -1,5 +1,44 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
+String propertyVerificationProof(Map<String, dynamic> store) => sha256
+    .convert(
+      utf8.encode(
+        cloudFingerprint({
+          'property': store['property'],
+          'rooms': store['rooms'],
+          'types': store['roomTypes'],
+        }),
+      ),
+    )
+    .toString();
+
+/// Property documents carry the approval used by public catalogue readers.
+/// Restore the same state for landlord/tenant sessions and stale admin caches.
+void restoreCloudPropertyVerification(
+  Map<String, dynamic> admin,
+  Iterable<Map<String, dynamic>> documents,
+) {
+  final flags = Map<String, bool>.from(admin['verified'] as Map? ?? {});
+  final proofs = Map<String, String>.from(
+    admin['verificationProofs'] as Map? ?? {},
+  );
+  for (final document in documents) {
+    final data = document['data'];
+    if (data is! Map || data['property'] is! Map) continue;
+    final id = data['property']['id'];
+    if (id is! String) continue;
+    final proof = document['verificationProof'] as String? ?? '';
+    flags[id] =
+        document['verified'] == true &&
+        proof == propertyVerificationProof(Map<String, dynamic>.from(data));
+    proofs[id] = proof;
+  }
+  admin['verified'] = flags;
+  admin['verificationProofs'] = proofs;
+}
+
 /// Các document nhỏ dùng chung cho bước chuyển dữ liệu và repository Firebase.
 Map<String, Map<String, dynamic>> encodeCloudDocuments(
   Map<String, Map<String, dynamic>> snapshot, {
@@ -17,6 +56,10 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
       throw ArgumentError('Chưa cấp chủ sở hữu cho nhà trọ $id.');
     }
     final leases = (store['leases'] as List).cast<Map>();
+    final proof = propertyVerificationProof(store);
+    final verified =
+        snapshot['admin']?['verified']?[id] == true &&
+        snapshot['admin']?['verificationProofs']?[id] == proof;
     final tenants = leases.map((l) => l['tenantId'] as String).toSet().toList();
     void record(
       String kind,
@@ -38,6 +81,8 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
     output['rental_properties/$id'] = {
       'ownerUid': owner,
       'published': !hidden.contains(id),
+      'verified': verified,
+      'verificationProof': verified ? proof : '',
       'data': {
         'property': property,
         'rooms': store['rooms'],

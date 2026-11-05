@@ -9,7 +9,7 @@ File: [MAU_THU_THAP_NHA_TRO.xlsx](../artifacts/MAU_THU_THAP_NHA_TRO.xlsx).
 - `NhaTro.propertyId` là mã nhà duy nhất. Các sheet còn lại nối bằng `propertyId`.
 - `NhaTro.ownerUid` phải là UID thật của Firebase Authentication, có hồ sơ `users/{uid}` với `role: landlord`, `disabled: false`.
 - `LoaiPhong.roomTypeId` duy nhất trong một nhà. `PhongTro.roomTypeId` phải trỏ đúng loại của cùng nhà. Giá tháng/album ảnh đặt theo loại, không lặp lại từng phòng.
-- `PhongTro.code` duy nhất trong nhà. Diện tích 6–500 m², tầng 1–30, sức chứa 1–20, đều là số nguyên theo model hiện tại.
+- `PhongTro.code` duy nhất trong nhà, cho phép dấu chấm như `P.101`, `P.201`, `P.1001`. Các ID liên kết vẫn chỉ dùng chữ/số không dấu, `_`, `-`. Diện tích 6–500 m², tầng 1–30, sức chứa 1–20, đều là số nguyên theo model hiện tại.
 - `DichVu.id` duy nhất trong nhà. Mỗi nhà phải có `electricity`, `water` đang hoạt động. `basis`: `Theo chỉ số`, `Theo phòng`, `Theo người`, `Cố định`.
 - Tiền nhập số nguyên VNĐ; không gõ dấu phân cách. Điện thoại/ID để dạng Text để giữ số 0 đầu. URL ảnh phải là HTTPS; nhiều ảnh/tiện ích ngăn bằng `|`, tối đa 12 ảnh mỗi loại.
 

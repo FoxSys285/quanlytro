@@ -1,5 +1,7 @@
 # Bộ 60 nhà trọ tham khảo cho đồ án
 
+> Bộ 60 nhà trọ này đã được người dùng yêu cầu xóa và thay bằng [bộ 680 nhà cho đủ 34 tỉnh/thành](VIETNAM_34_CATALOGUE.md). Nội dung dưới đây lưu lại cách tạo bộ trước, không phải bộ nhập liệu hiện hành.
+
 File kết quả: `artifacts/DU_LIEU_60_NHA_TRO.xlsx`. Mẫu gốc `artifacts/MAU_THU_THAP_NHA_TRO.xlsx` được giữ nguyên. Workbook kết quả có mật khẩu tài khoản thử nghiệm nên đã được loại khỏi Git. Không chia sẻ công khai workbook này.
 
 Danh mục lấy các trường giá, diện tích, đường/phường và ảnh từ API tin đăng công khai Nhà Tốt. Sheet `NguonDuLieu` ghi từng mã tin, URL, endpoint thu thập và thời điểm lấy dữ liệu. Chia đều 20 mục miền Bắc, 20 miền Trung/Tây Nguyên và 20 miền Nam; bao phủ Hà Nội, Hải Phòng, Huế, Đà Nẵng, Khánh Hòa, Đắk Lắk, Lâm Đồng, TP. Hồ Chí Minh, Cần Thơ, Đồng Nai và An Giang theo nhãn nguồn.
@@ -19,7 +21,7 @@ Các collection được thêm:
 - `public_rooms`: 60 phòng đại diện, có giá/diện tích/album và nhãn dữ liệu mẫu.
 - `rental_records`: 60 document `settings`, chưa có dữ liệu người thuê.
 
-Tổng cộng 60 tài khoản Authentication và 240 document Firestore mới. Mật khẩu do Firebase Authentication xử lý. Tất cả document mới có `isDemo: true`, `importBatch: nt60-v1`. Các document danh mục còn có nguồn tham khảo và cờ chưa xác minh quyền sở hữu/tình trạng còn phòng.
+Tổng cộng 60 tài khoản Authentication và 240 document Firestore mới. Mật khẩu do Firebase Authentication xử lý. Tất cả document mới có `isDemo: true`, `importBatch: nt60-v1`. Các document danh mục còn có nguồn tham khảo và cờ chưa xác minh quyền sở hữu/tình trạng còn phòng. Tên nhà trọ hiển thị không có tiền tố `[MẪU]`; thông tin nguồn và trạng thái xác minh vẫn được giữ riêng trong dữ liệu.
 
 Công cụ `tool/collect_nationwide_rentals.py` giữ kế hoạch, mật khẩu, nhật ký tạo Auth và bản sao lưu riêng trong `.local-backups/nationwide-rentals/`, đã được Git bỏ qua. `tool/with_firebase_cli.cjs` sử dụng phiên Firebase CLI sẵn có, giữ token trong bộ nhớ/biến môi trường tiến trình con; không in token.
 

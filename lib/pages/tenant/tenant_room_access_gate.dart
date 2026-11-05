@@ -63,7 +63,7 @@ class TenantRoomAccessGate extends StatelessWidget {
                     icon: Icons.person_add_alt_1_rounded,
                     title: 'Bạn chưa được thêm vào phòng trọ',
                     subtitle:
-                        'Hãy gửi mã người thuê $tenantId cho chủ trọ để họ tạo hợp đồng và liên kết bạn với phòng. Khi được thêm, mục “$title” sẽ hiển thị thông tin.',
+                        'Vào trang khám phá để tìm trọ phù hợp với tài chính, sở thích nhé!',
                   ),
                 ],
               ),

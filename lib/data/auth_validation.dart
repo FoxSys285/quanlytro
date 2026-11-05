@@ -17,3 +17,25 @@ String? validateAccountPassword(String? value) {
   }
   return null;
 }
+
+/// Canonical Firebase/E.164 representation of a Vietnamese mobile number.
+String normalizeVietnamesePhone(String value) {
+  var phone = value.trim().replaceAll(RegExp(r'[\s().-]'), '');
+  if (phone.startsWith('0')) {
+    phone = '+84${phone.substring(1)}';
+  } else if (phone.startsWith('84')) {
+    phone = '+$phone';
+  }
+  return phone;
+}
+
+String? validateAccountPhone(String? value) {
+  if (value == null || value.trim().isEmpty) {
+    return 'Vui lòng nhập số điện thoại.';
+  }
+  if (!RegExp(r'^\+84[35789][0-9]{8}$')
+      .hasMatch(normalizeVietnamesePhone(value))) {
+    return 'Nhập số di động Việt Nam hợp lệ (10 số hoặc +84).';
+  }
+  return null;
+}

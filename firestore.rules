@@ -11,6 +11,15 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['data']) &&
         request.resource.data.archived == false;
     }
+    function validPhoneContact(data) {
+      return (!data.keys().hasAny(['phoneNumber']) ||
+          (data.phoneNumber is string && data.phoneNumber.matches('^\\+84[35789][0-9]{8}$'))) &&
+        (!data.keys().hasAny(['phoneIsSynthetic']) || data.phoneIsSynthetic == false) &&
+        (!data.keys().hasAny(['phoneVerified']) ||
+          (data.phoneVerified is bool &&
+            (data.phoneVerified == false ||
+              data.phoneNumber == request.auth.token.get('phone_number', ''))));
+    }
     match /users/{uid} {
       // Users can read their own role record to distinguish pending/disabled accounts.
       allow read: if request.auth != null &&
@@ -19,12 +28,14 @@ service cloud.firestore {
       // assigned by a client; tenant IDs are fixed to the authenticated UID.
       allow create: if request.auth != null && uid == request.auth.uid &&
         request.resource.data.keys().hasOnly([
-          'email', 'displayName', 'role', 'disabled', 'tenantId', 'createdAt'
+          'email', 'displayName', 'role', 'disabled', 'tenantId', 'createdAt',
+          'phoneNumber', 'phoneVerified', 'phoneIsSynthetic'
         ]) &&
         request.resource.data.keys().hasAll([
           'email', 'displayName', 'role', 'disabled', 'createdAt'
         ]) &&
-        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.email == request.auth.token.get('email', '') &&
+        validPhoneContact(request.resource.data) &&
         request.resource.data.displayName is string &&
         request.resource.data.displayName.size() > 0 &&
         request.resource.data.displayName.size() <= 100 &&
@@ -36,9 +47,15 @@ service cloud.firestore {
           (request.resource.data.role == 'landlord' &&
             !request.resource.data.keys().hasAny(['tenantId'])));
       allow delete: if false;
-      allow update: if admin() && uid != request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disabled']) &&
-        request.resource.data.disabled is bool;
+      allow update: if (admin() && uid != request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disabled']) &&
+          request.resource.data.disabled is bool) ||
+        (active() && uid == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'phoneNumber', 'phoneVerified', 'phoneIsSynthetic'
+          ]) && validPhoneContact(request.resource.data) &&
+          request.resource.data.phoneVerified == true &&
+          request.resource.data.phoneNumber == request.auth.token.get('phone_number', ''));
     }
     match /account_requests/{uid} {
       // Legacy signup requests are read once to activate accounts created by
@@ -84,8 +101,12 @@ service cloud.firestore {
       // can create only the one property document assigned to their account.
       allow create: if admin() ||
         (request.auth != null && id == request.auth.uid &&
-          owner(request.resource.data));
+          owner(request.resource.data) &&
+          request.resource.data.get('verified', false) == false &&
+          request.resource.data.get('verificationProof', '') == '');
       allow update: if admin() || (owner(resource.data) && request.resource.data.ownerUid == resource.data.ownerUid &&
+        request.resource.data.get('verified', false) == resource.data.get('verified', false) &&
+        request.resource.data.get('verificationProof', '') == resource.data.get('verificationProof', '') &&
         request.resource.data.get('published', true) == resource.data.get('published', true));
       allow delete: if false;
     }

@@ -268,7 +268,7 @@ def build_workbook():
                     'truongGiaLap', 'luuY'])
     for item in plan['items']:
         pid, uid = item['propertyId'], item['ownerUid']
-        name = f"[MẪU] Nhà trọ {item['street']} · {item['city']}"
+        name = f"Nhà trọ {item['street']} · {item['city']}"
         address = ', '.join(v for v in [item['street'], item['ward'], item['district'], item['city']] if v)
         description = (
             '[DỮ LIỆU THỬ NGHIỆM] Mỗi nhà là một hồ sơ tham khảo từ một tin phòng trọ công khai, '
@@ -498,6 +498,60 @@ def apply_cloud():
     print('ATOMIC_FIRESTORE_COMMIT_OK', len(writes), flush=True)
 
 
+def clean_property_names(apply=False):
+    """Remove the display prefix only; preserve provenance and all other fields."""
+    from copy import deepcopy
+
+    plan = read_plan()
+    project, _ = project_config()
+    base = f'https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents'
+    owners = {item['propertyId']: item['ownerUid'] for item in plan['items']}
+    existing = {}
+    for collection in ['rental_properties', 'public_rooms']:
+        existing.update(list_collection(base, collection))
+    writes, expected, backup = [], {}, {}
+    for path, doc in existing.items():
+        data = {key: decode_wire(value) for key, value in doc['fields'].items()}
+        is_property = path.startswith('rental_properties/')
+        pid = path.split('/')[1] if is_property else data.get('propertyId')
+        if pid not in owners:
+            continue
+        if data.get('importBatch') != 'nt60-v1' or data.get('ownerUid') != owners[pid]:
+            raise ValueError('Refusing to change a document outside the original import: ' + path)
+        old_name = data['data']['property']['name'] if is_property else data['name']
+        if not old_name.startswith('[MẪU] '):
+            continue
+        new_name = old_name.removeprefix('[MẪU] ')
+        after = deepcopy(data)
+        if is_property:
+            after['data']['property']['name'] = new_name
+            patch = {'data': {'property': {'name': new_name}}}
+            field = 'data.property.name'
+        else:
+            after['name'] = new_name
+            patch = {'name': new_name}
+            field = 'name'
+        writes.append({'update': {'name': doc['name'], 'fields': {
+            key: wire_value(value) for key, value in patch.items()}},
+            'updateMask': {'fieldPaths': [field]},
+            'currentDocument': {'updateTime': doc['updateTime']}})
+        backup[path], expected[path] = doc, after
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+    dump(WORK / f'before-clean-names-{stamp}.json', backup)
+    print('PROPERTY_NAME_UPDATES', len(writes), 'APPLY' if apply else 'PREVIEW_ONLY', flush=True)
+    if not apply or not writes:
+        return
+    cloud('POST', base + ':commit', {'writes': writes})
+    actual = {}
+    for collection in ['rental_properties', 'public_rooms']:
+        actual.update(list_collection(base, collection))
+    for path, after in expected.items():
+        found = {key: decode_wire(value) for key, value in actual[path]['fields'].items()}
+        if found != after:
+            raise ValueError('Name update read-back mismatch: ' + path)
+    print('PROPERTY_NAMES_UPDATED_AND_VERIFIED', len(expected))
+
+
 def verify_cloud():
     plan = read_plan()
     project, key = project_config()
@@ -571,7 +625,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     actions = {'probe': probe, 'collect': collect, 'collect-regions': collect_regions,
                'prepare': prepare, 'check-photos': check_photos, 'build': build_workbook, 'export': export,
-               'cloud-preview': preview_cloud, 'cloud-apply': apply_cloud, 'cloud-verify': verify_cloud}
+               'cloud-preview': preview_cloud, 'cloud-apply': apply_cloud, 'cloud-verify': verify_cloud,
+               'clean-property-names-preview': clean_property_names,
+               'clean-property-names-apply': lambda: clean_property_names(apply=True)}
     parser.add_argument('action', choices=actions)
     args = parser.parse_args()
     actions[args.action]()

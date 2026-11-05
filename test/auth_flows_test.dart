@@ -2,15 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/data/firebase_account_gateway.dart';
 import 'package:quanlytro/data/local_auth.dart';
+import 'package:quanlytro/layouts/role_layout.dart';
 import 'package:quanlytro/pages/shared/auth/forgot_password_page.dart';
 import 'package:quanlytro/pages/shared/auth/register_page.dart';
 
-class _Gateway extends Fake implements AccountGateway {
+class _Gateway extends Fake
+    implements AccountGateway, AccountRegistrationGateway {
   int registrations = 0;
   int resets = 0;
   String? email;
   String? password;
   String? failure;
+  String? phone;
+  AppRole? requestedRole;
+
+  @override
+  Future<FirebaseAccountSession> registerAccount(
+    String email,
+    String password, {
+    required String displayName,
+    required AppRole requestedRole,
+    required String phoneNumber,
+  }) async {
+    await register(email, password);
+    phone = phoneNumber;
+    this.requestedRole = requestedRole;
+    return FirebaseAccountSession(
+      uid: 'new-user',
+      role: requestedRole,
+      tenantId: requestedRole == AppRole.tenant ? 'tenant-new-user' : null,
+      displayName: displayName,
+      phoneNumber: phoneNumber,
+      email: email,
+    );
+  }
 
   @override
   Future<void> register(String email, String password) async {
@@ -31,8 +56,7 @@ class _Gateway extends Fake implements AccountGateway {
 LocalAuth _cloudAuth(_Gateway gateway) => LocalAuth()
   ..configureFirebase(
     gateway: gateway,
-    onSignedIn: (_) async =>
-        fail('Registration and recovery must not open private data'),
+    onSignedIn: (_) async {},
     onSignedOut: () async {},
   );
 
@@ -48,9 +72,11 @@ Future<void> _fillRegistration(
   String confirmation = 'Secret123',
 }) async {
   for (final entry in [
-    (0, ' NEW@Example.com '),
-    (1, 'Secret123'),
-    (2, confirmation),
+    (0, 'Nguyễn Văn An'),
+    (1, ' NEW@Example.com '),
+    (2, '0912 345 678'),
+    (3, 'Secret123'),
+    (4, confirmation),
   ]) {
     final field = find.byType(TextFormField).at(entry.$1);
     await tester.ensureVisible(field);
@@ -61,7 +87,7 @@ Future<void> _fillRegistration(
 
 void main() {
   testWidgets(
-    'Registration validates confirmation and consent before creating an unprivileged account',
+    'Registration validates confirmation and consent, then opens the tenant account with phone',
     (tester) async {
       final gateway = _Gateway();
       final auth = _cloudAuth(gateway);
@@ -81,15 +107,14 @@ void main() {
         findsOneWidget,
       );
       expect(gateway.registrations, 0);
-      await _tap(tester, find.byType(CheckboxListTile));
+      await _tap(tester, find.byType(CheckboxListTile).last);
       await _tap(tester, submit);
       expect(gateway.registrations, 1);
       expect(gateway.email, 'new@example.com');
       expect(gateway.password, 'Secret123');
-      expect(auth.role, isNull);
-      expect(auth.session, isNull);
-      expect(find.text('Đã tạo tài khoản'), findsOneWidget);
-      expect(find.textContaining('cấp vai trò'), findsOneWidget);
+      expect(gateway.phone, '+84912345678');
+      expect(auth.role, AppRole.tenant);
+      expect(auth.session?.phoneNumber, '+84912345678');
       expect(tester.takeException(), isNull);
     },
   );
@@ -102,13 +127,13 @@ void main() {
     addTearDown(auth.dispose);
     await tester.pumpWidget(MaterialApp(home: RegisterPage(auth: auth)));
     await _fillRegistration(tester);
-    await _tap(tester, find.byType(CheckboxListTile));
+    await _tap(tester, find.byType(CheckboxListTile).last);
     await _tap(tester, find.widgetWithText(FilledButton, 'Đăng ký tài khoản'));
     expect(find.text('Email này đã được đăng ký.'), findsOneWidget);
     expect(find.text('Đã tạo tài khoản'), findsNothing);
     expect(
       tester
-          .widget<TextFormField>(find.byType(TextFormField).first)
+          .widget<TextFormField>(find.byType(TextFormField).at(1))
           .controller!
           .text,
       ' NEW@Example.com ',

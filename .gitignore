@@ -25,6 +25,7 @@ migrate_working_dir/
 .continue/
 /.local-backups/
 /artifacts/DU_LIEU_60_NHA_TRO.xlsx
+/artifacts/DU_LIEU_680_NHA_TRO_34_TINH.xlsx
 /.mcp.json
 /AGENTS.md
 /CLAUDE.md

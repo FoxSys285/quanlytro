@@ -59,7 +59,10 @@ void main() {
       await tester.ensureVisible(login);
       await tester.tap(login);
       await tester.pumpAndSettle();
-      expect(find.text('Vui lòng nhập email và mật khẩu.'), findsOneWidget);
+      expect(
+        find.text('Vui lòng nhập email hoặc số điện thoại.'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
   }
@@ -76,7 +79,7 @@ void main() {
     expect(find.byType(RegisterPage), findsOneWidget);
     expect(
       tester
-          .widget<TextFormField>(find.byType(TextFormField).first)
+          .widget<TextFormField>(find.byType(TextFormField).at(1))
           .controller!
           .text,
       'hello@example.com',

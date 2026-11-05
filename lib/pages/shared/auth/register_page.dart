@@ -19,6 +19,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
   late final _email = TextEditingController(text: widget.initialEmail);
+  final _phone = TextEditingController();
   final _password = TextEditingController();
   final _confirmation = TextEditingController();
   LocalAuth get _auth => widget.auth ?? LocalAuth.instance;
@@ -31,6 +32,7 @@ class _RegisterPageState extends State<RegisterPage> {
   void dispose() {
     _name.dispose();
     _email.dispose();
+    _phone.dispose();
     _password.dispose();
     _confirmation.dispose();
     super.dispose();
@@ -55,6 +57,7 @@ class _RegisterPageState extends State<RegisterPage> {
         _email.text,
         _password.text,
         displayName: _name.text,
+        phoneNumber: _phone.text,
         requestedRole: _requestedRole,
       );
       if (!mounted) return;
@@ -138,6 +141,24 @@ class _RegisterPageState extends State<RegisterPage> {
               validator: validateAccountEmail,
               enabled: !_busy,
               autofillHints: const [AutofillHints.email],
+            ),
+            const SizedBox(height: 16),
+            AuthFlowField(
+              controller: _phone,
+              label: 'Số điện thoại',
+              hint: 'Ví dụ: 0912 345 678',
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+              validator: validateAccountPhone,
+              enabled: !_busy,
+              autofillHints: const [AutofillHints.telephoneNumberNational],
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Sau khi đăng ký, vào Cài đặt → Liên kết số điện thoại để xác minh OTP và bật đăng nhập bằng số điện thoại.',
+                style: TextStyle(color: authMuted, fontSize: 11, height: 1.5),
+              ),
             ),
             const SizedBox(height: 16),
             AuthFlowField(

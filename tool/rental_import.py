@@ -45,7 +45,7 @@ GUIDE = [
     ['1. Điền dữ liệu', 'Điền 4 sheet NhaTro, LoaiPhong, PhongTro, DichVu từ hàng 2. Không đổi tên cột.'],
     ['2. Khóa liên kết', 'propertyId giống nhau giữa 4 sheet; roomTypeId của phòng phải có trong LoaiPhong cùng nhà.'],
     ['3. Chủ sở hữu', 'ownerUid là UID thật trong Firebase Authentication; users/{uid} phải có role=landlord, disabled=false.'],
-    ['4. Mã định danh', 'propertyId / roomTypeId / code / id: chữ không dấu, số, dấu gạch ngang hoặc gạch dưới; không dùng khoảng trắng.'],
+    ['4. Mã định danh', 'propertyId / roomTypeId / id: chữ không dấu, số, dấu gạch ngang hoặc gạch dưới. Mã phòng cho phép thêm dấu chấm, ví dụ P.101, P.1001. Không dùng khoảng trắng.'],
     ['5. Số tiền / diện tích', 'Nhập số nguyên: VNĐ không dấu chấm/phẩy. monthlyRent 0–1000000000; area 6–500 m²; floor 1–30; capacity 1–20.'],
     ['6. Ảnh / tiện ích', 'Các URL ảnh HTTPS và tiện ích phân cách bằng |. Tối đa 12 ảnh/loại. Ảnh cùng loại phòng dùng chung album.'],
     ['7. Dịch vụ bắt buộc', 'Mỗi nhà cần electricity và water. Điện: kWh / Theo chỉ số. Nước: m3 / Theo chỉ số hoặc tháng / Theo phòng.'],
@@ -179,8 +179,10 @@ def text(row, key, optional=False):
 
 def identifier(row, key):
     value = text(row, key)
-    if not re.fullmatch(r'[A-Za-z0-9_-]{1,100}', value):
-        raise ValueError(f"{row['_row']}: {key} chỉ gồm chữ không dấu, số, _ hoặc -; tối đa 100 ký tự")
+    pattern = r'[A-Za-z0-9_-][A-Za-z0-9_.-]{0,99}' if key == 'code' else r'[A-Za-z0-9_-]{1,100}'
+    if not re.fullmatch(pattern, value) or (key == 'code' and '..' in value):
+        allowed = 'chữ không dấu, số, _, -, dấu chấm trong mã phòng' if key == 'code' else 'chữ không dấu, số, _ hoặc -'
+        raise ValueError(f"{row['_row']}: {key} chỉ gồm {allowed}; tối đa 100 ký tự")
     return value
 
 

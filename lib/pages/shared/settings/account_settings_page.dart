@@ -6,6 +6,9 @@ import '../notifications/notification_settings_page.dart';
 import '../profile/account_profile_page.dart';
 import '../auth/change_password_page.dart';
 import '../../../data/local_auth.dart';
+import '../../../data/app_persistence.dart';
+import '../auth/phone_login_page.dart';
+import '../profile/contact_details.dart';
 import '../../tenant/tenant_detail_ui.dart';
 import '../../tenant/tenant_ui.dart';
 import '../../tenant/tenant_feature_ui.dart';
@@ -20,6 +23,67 @@ class AccountSettingsPage extends StatelessWidget {
 
   final AppRole role;
   final bool showPageTitle;
+
+  Future<void> _linkPhone(BuildContext context) async {
+    final auth = LocalAuth.instance;
+    final session = auth.session;
+    final result = await Navigator.of(context).push<PhoneLoginResult>(
+      MaterialPageRoute(
+        builder: (_) => PhoneLoginPage(
+          linkToCurrentUser: true,
+          initialPhone: session?.phoneIsSynthetic == true
+              ? ''
+              : session?.phoneNumber ?? '',
+        ),
+      ),
+    );
+    if (result != PhoneLoginResult.linked || !context.mounted) return;
+    final updated = auth.session;
+    if (updated == null) return;
+    try {
+      final contact = AccountStore.instance.profile(role);
+      AccountStore.instance.saveProfile(
+        role,
+        ContactDetails(
+          name: contact.name,
+          phone: updated.phoneNumber,
+          email: contact.email,
+          address: contact.address,
+        ),
+      );
+      await AppPersistence.current?.saveChanges();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Đã liên kết. Bạn có thể đăng nhập bằng số điện thoại và OTP.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Đã liên kết số đăng nhập. Thông tin liên hệ đang chờ đồng bộ.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _phoneOption(BuildContext context) => ListTile(
+    leading: const Icon(
+      Icons.phonelink_lock_outlined,
+      color: Color(0xFF009B65),
+    ),
+    title: const Text('Liên kết số điện thoại'),
+    subtitle: const Text('Xác minh OTP để đăng nhập vào cùng tài khoản'),
+    trailing: const Icon(Icons.chevron_right_rounded),
+    onTap: () => _linkPhone(context),
+  );
 
   void _open(BuildContext context, String title, Widget page) {
     Navigator.of(context).push(
@@ -51,6 +115,11 @@ class AccountSettingsPage extends StatelessWidget {
           padding: EdgeInsets.zero,
           child: Column(
             children: [
+              if (LocalAuth.instance.isCloudMode &&
+                  LocalAuth.instance.session != null) ...[
+                _phoneOption(context),
+                const Divider(height: 1),
+              ],
               if (LocalAuth.instance.role != null) ...[
                 ListTile(
                   leading: Icon(Icons.lock_outline, color: color),
@@ -142,6 +211,11 @@ class AccountSettingsPage extends StatelessWidget {
         padding: EdgeInsets.zero,
         child: Column(
           children: [
+            if (LocalAuth.instance.isCloudMode &&
+                LocalAuth.instance.session != null) ...[
+              _phoneOption(context),
+              const Divider(height: 1, indent: 70, endIndent: 16),
+            ],
             _tenantOption(
               context,
               Icons.person_outline_rounded,

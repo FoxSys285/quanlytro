@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/app_persistence.dart';
+import '../../../data/local_auth.dart';
 import '../landlord_demo_store.dart';
 import 'models/landlord_property.dart';
 
@@ -19,14 +20,10 @@ class LandlordOnboardingPage extends StatelessWidget {
   final VoidCallback? onRetry;
 
   Future<void> _createProperty(BuildContext context) async {
-    final draft = await showDialog<({
-      LandlordProperty property,
-      int floors,
-      int roomsPerFloor,
-    })>(
-      context: context,
-      builder: (_) => const _CreatePropertyDialog(),
-    );
+    final draft =
+        await showDialog<
+          ({LandlordProperty property, int floors, int roomsPerFloor})
+        >(context: context, builder: (_) => const _CreatePropertyDialog());
     if (draft == null || !context.mounted) return;
     try {
       RentalPortfolio.instance.add(
@@ -46,9 +43,8 @@ class LandlordOnboardingPage extends StatelessWidget {
         );
       }
     } on ArgumentError catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message.toString())),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message.toString())));
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -111,7 +107,10 @@ class LandlordOnboardingPage extends StatelessWidget {
                             ? 'Cần tải dữ liệu trước khi tạo nhà mới để tránh ghi đè thay đổi khác. Kiểm tra kết nối và thử lại.'
                             : 'Tài khoản này chưa được gán nhà trọ. Thông tin bạn tạo sẽ được lưu lên Firebase và dùng chung cho các chức năng phòng, hợp đồng, hóa đơn và người thuê.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(height: 1.55, color: Color(0xFF667585)),
+                        style: TextStyle(
+                          height: 1.55,
+                          color: Color(0xFF667585),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       if (loading)
@@ -159,8 +158,14 @@ class _CreatePropertyDialogState extends State<_CreatePropertyDialog> {
   final _address = TextEditingController();
   final _ward = TextEditingController();
   final _city = TextEditingController(text: 'TP. Hồ Chí Minh');
-  final _owner = TextEditingController();
-  final _phone = TextEditingController();
+  final _owner = TextEditingController(
+    text: LocalAuth.instance.session?.displayName ?? '',
+  );
+  final _phone = TextEditingController(
+    text: LocalAuth.instance.session?.phoneIsSynthetic == true
+        ? ''
+        : LocalAuth.instance.session?.phoneNumber ?? '',
+  );
   final _description = TextEditingController();
   final _floors = TextEditingController(text: '1');
   final _roomsPerFloor = TextEditingController(text: '1');
@@ -203,23 +208,20 @@ class _CreatePropertyDialogState extends State<_CreatePropertyDialog> {
       return;
     }
     final now = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
-    Navigator.pop(
-      context,
-      (
-        property: LandlordProperty(
-          id: 'p-$now',
-          name: _name.text.trim(),
-          address: _address.text.trim(),
-          ownerName: _owner.text.trim(),
-          phone: phone,
-          description: _description.text.trim(),
-          city: _city.text.trim(),
-          ward: _ward.text.trim(),
-        ),
-        floors: int.parse(_floors.text),
-        roomsPerFloor: int.parse(_roomsPerFloor.text),
+    Navigator.pop(context, (
+      property: LandlordProperty(
+        id: 'p-$now',
+        name: _name.text.trim(),
+        address: _address.text.trim(),
+        ownerName: _owner.text.trim(),
+        phone: phone,
+        description: _description.text.trim(),
+        city: _city.text.trim(),
+        ward: _ward.text.trim(),
       ),
-    );
+      floors: int.parse(_floors.text),
+      roomsPerFloor: int.parse(_roomsPerFloor.text),
+    ));
   }
 
   @override

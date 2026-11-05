@@ -82,6 +82,7 @@ class _LandlordDanhSachTinNhanPageState
       // Duyệt qua từng cuộc trò chuyện bằng vòng lặp for cơ bản
       for (int i = 0; i < danhSachHoiThoai.length; i++) {
         final hoiThoai = danhSachHoiThoai[i];
+        final lastMessage = hoiThoai.messages.lastOrNull;
 
         // Nếu có tin nhắn chưa đọc thì in đậm tiêu đề
         FontWeight doDamTieuDe;
@@ -94,7 +95,7 @@ class _LandlordDanhSachTinNhanPageState
         // Tạo cột hiển thị thời gian và chấm đỏ số tin chưa đọc ở bên phải
         final List<Widget> cotBenPhai = [
           Text(
-            hoiThoai.lastMessage.time,
+            lastMessage?.time ?? '',
             style: TextStyle(
               color: LandlordPalette.of(context).muted,
               fontSize: 11,
@@ -139,7 +140,7 @@ class _LandlordDanhSachTinNhanPageState
                 style: TextStyle(fontWeight: doDamTieuDe),
               ),
               subtitle: Text(
-                hoiThoai.lastMessage.text,
+                lastMessage?.text ?? 'Chưa có tin nhắn',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

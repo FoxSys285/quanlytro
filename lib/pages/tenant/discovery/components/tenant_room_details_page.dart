@@ -2,10 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../data/local_auth.dart';
+import '../../../../data/property_catalog.dart';
+
+import '../../../../layouts/role_layout.dart';
 import '../../../landlord/landlord_demo_store.dart';
+import '../../../landlord/properties/models/landlord_property.dart';
+import '../../../shared/conversations/conversation_store.dart';
+import '../../../shared/profile/account_store.dart';
+import '../../../shared/rental/tenant_session.dart';
 import '../../../shared/media/room_photo_gallery.dart';
 import '../../../shared/media/room_photo.dart';
-import '../../conversations/tenant_danhsachtinnhan_page.dart';
+import '../../conversations/models/tenant_cuoctrochuyen.dart';
+import '../../conversations/tenant_tinnhan_page.dart';
 import '../../tenant_ui.dart';
 import '../models/tenant_room_listing.dart';
 
@@ -16,12 +25,14 @@ class TenantRoomDetailsPage extends StatefulWidget {
     required this.onBook,
     required this.isFavorite,
     required this.onFavoriteToggle,
+    this.propertyLoader,
   });
 
   final TenantRoomListing room;
   final VoidCallback onBook;
   final bool isFavorite;
   final VoidCallback onFavoriteToggle;
+  final Future<LandlordProperty?> Function(String propertyId)? propertyLoader;
 
   @override
   State<TenantRoomDetailsPage> createState() => _TenantRoomDetailsPageState();
@@ -33,6 +44,32 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
   int _photoIndex = 0;
   bool _expandedDescription = false;
   bool _highlightsCollapsed = false;
+  LandlordProperty? _loadedProperty;
+  LandlordProperty? get _ownerProperty =>
+      RentalPortfolio.instance.byId(widget.room.propertyId)?.property ??
+      _loadedProperty;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_ownerProperty == null &&
+        (widget.propertyLoader != null || LocalAuth.instance.isCloudMode)) {
+      _loadOwner();
+    }
+  }
+
+  Future<void> _loadOwner() async {
+    try {
+      final property = widget.propertyLoader != null
+          ? await widget.propertyLoader!(widget.room.propertyId)
+          : (await FirestoreTenantPropertyCatalogSource().fetchProperty(
+              widget.room.propertyId,
+            ))?.property;
+      if (mounted) setState(() => _loadedProperty = property);
+    } catch (_) {
+      // Room content remains usable if the optional owner contact cannot load.
+    }
+  }
 
   @override
   void dispose() {
@@ -44,10 +81,11 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
   Widget build(BuildContext context) {
     final room = widget.room;
     final photos = room.gallery;
-    final ownerStore = RentalPortfolio.instance.byId(room.propertyId);
-    final owner = ownerStore?.property;
+    final owner = _ownerProperty;
     final ownerName = owner?.ownerName ?? 'Chủ nhà';
-    final ownerPhone = owner?.phone ?? '';
+    final ownerPhone = owner?.phoneIsSynthetic == true
+        ? ''
+        : owner?.phone ?? '';
     final address = [
       room.address,
       room.ward,
@@ -461,12 +499,14 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
           children: [
             Icon(Icons.description_rounded, color: tenantGreenDark, size: 22),
             SizedBox(width: 8),
-            Text(
-              'Mô tả chi tiết',
-              style: TextStyle(
-                color: tenantInk,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
+            Expanded(
+              child: Text(
+                'Mô tả chi tiết',
+                style: TextStyle(
+                  color: tenantInk,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -583,18 +623,22 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
           Expanded(
             flex: 1,
             child: OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (_) => const TenantDanhSachTinNhanPage(),
-                ),
-              ),
+              onPressed: _openConversation,
               icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-              label: const Text('Nhắn tin'),
+              label: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text('Nhắn tin', maxLines: 1, softWrap: false),
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: tenantGreenDark,
                 backgroundColor: const Color(0xFFF1F8F3),
                 side: BorderSide.none,
                 minimumSize: const Size.fromHeight(54),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
                 ),
@@ -625,6 +669,27 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
       ),
     ),
   );
+
+  void _openConversation() {
+    final room = widget.room;
+    final owner = _ownerProperty;
+    final source = ConversationStore.instance.forRoom(
+      propertyId: room.propertyId,
+      roomId: room.roomCode ?? room.id,
+      roomName: room.name,
+      landlordName: owner?.ownerName ?? 'Chủ trọ',
+      propertyName: owner?.name ?? room.name,
+      tenantId: TenantSession.currentTenantId,
+      tenantName: AccountStore.instance.profile(AppRole.tenant).name,
+    );
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TenantTinNhanPage(
+          conversation: TenantConversation.forSource(source),
+        ),
+      ),
+    );
+  }
 
   Future<void> _callOwner(BuildContext context, String phone) async {
     final number = phone.replaceAll(RegExp(r'[^0-9+]'), '');

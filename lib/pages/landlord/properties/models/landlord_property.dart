@@ -7,6 +7,7 @@ class LandlordProperty {
     required this.address,
     required this.ownerName,
     required this.phone,
+    this.phoneIsSynthetic = false,
     required this.description,
     this.amenities = const [],
     this.imageUrl = '',
@@ -21,6 +22,7 @@ class LandlordProperty {
   final String address;
   final String ownerName;
   final String phone;
+  final bool phoneIsSynthetic;
   final String description;
   final List<String> amenities;
   final String imageUrl;
@@ -35,6 +37,7 @@ class LandlordProperty {
     'address': address,
     'ownerName': ownerName,
     'phone': phone,
+    if (phoneIsSynthetic) 'phoneIsSynthetic': true,
     'description': description,
     'amenities': amenities,
     'imageUrl': imageUrl,
@@ -51,6 +54,7 @@ class LandlordProperty {
         address: map['address'] as String,
         ownerName: map['ownerName'] as String,
         phone: map['phone'] as String,
+        phoneIsSynthetic: map['phoneIsSynthetic'] == true,
         description: map['description'] as String,
         amenities: List<String>.from(map['amenities'] as List? ?? const []),
         imageUrl: map['imageUrl'] as String,

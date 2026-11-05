@@ -785,6 +785,7 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
                 total: matches.length,
                 page: page,
                 pageSize: _pageSize,
+                showBoundaryPages: true,
                 onChanged: (value) => setState(() => _page = value),
               ),
               const SizedBox(height: 102),

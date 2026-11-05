@@ -2,17 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../data/local_auth.dart';
+import '../../../data/account_provider.dart';
+import '../../../data/auth_validation.dart';
 import '../../../layouts/role_layout.dart';
 import 'forgot_password_page.dart';
 import 'login_artwork.dart';
 import 'register_page.dart';
+import 'phone_login_page.dart';
+import 'provider_registration_page.dart';
 
 const _green = Color(0xFF009B65);
 const _ink = Color(0xFF25283F);
 const _muted = Color(0xFF596078);
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, this.auth});
+  final LocalAuth? auth;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -26,6 +31,9 @@ class _LoginPageState extends State<LoginPage> {
   bool _busy = false;
   bool _obscure = true;
   String? _error;
+  LocalAuth get _auth => widget.auth ?? LocalAuth.instance;
+  bool get _usingPhone =>
+      _email.text.trim().isNotEmpty && !_email.text.contains('@');
 
   @override
   void initState() {
@@ -47,8 +55,21 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _login() async {
     if (_busy) return;
-    if (_email.text.trim().isEmpty || _password.text.isEmpty) {
-      setState(() => _error = 'Vui lòng nhập email và mật khẩu.');
+    if (_usingPhone) {
+      final error = validateAccountPhone(_email.text);
+      if (error != null) {
+        setState(() => _error = error);
+        return;
+      }
+      await _phoneLogin(initialPhone: _email.text);
+      return;
+    }
+    if (_email.text.trim().isEmpty) {
+      setState(() => _error = 'Vui lòng nhập email hoặc số điện thoại.');
+      return;
+    }
+    if (_password.text.isEmpty) {
+      setState(() => _error = 'Vui lòng nhập mật khẩu.');
       return;
     }
     FocusScope.of(context).unfocus();
@@ -57,12 +78,73 @@ class _LoginPageState extends State<LoginPage> {
       _error = null;
     });
     try {
-      await LocalAuth.instance.signIn(_email.text, _password.text);
+      await _auth.signIn(_email.text, _password.text);
       if (mounted) TextInput.finishAutofillContext();
     } on ArgumentError catch (e) {
       if (mounted) setState(() => _error = e.message.toString());
     } catch (e) {
       if (mounted) setState(() => _error = 'Đăng nhập không thành công: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _completeProviderProfile() async {
+    if (!mounted) return;
+    final complete = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => ProviderRegistrationPage(auth: _auth)),
+    );
+    if (complete != true && _auth.role == null) await _auth.signOut();
+  }
+
+  Future<void> _googleLogin() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final signedIn = await _auth.signInWithGoogle();
+      if (!signedIn && mounted) await _completeProviderProfile();
+    } on AccountSignInCancelled {
+      // Closing the account chooser leaves the login page ready to retry.
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = error is ArgumentError
+              ? error.message.toString()
+              : 'Chưa thể đăng nhập Google. Vui lòng thử lại.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _phoneLogin({String initialPhone = ''}) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final result = await Navigator.of(context).push<PhoneLoginResult>(
+        MaterialPageRoute(
+          builder: (_) =>
+              PhoneLoginPage(auth: _auth, initialPhone: initialPhone),
+        ),
+      );
+      if (result == PhoneLoginResult.needsProfile && mounted) {
+        await _completeProviderProfile();
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = error is ArgumentError
+              ? error.message.toString()
+              : 'Chưa thể đăng nhập bằng số điện thoại.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -209,10 +291,17 @@ class _LoginPageState extends State<LoginPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _field(
-            label: 'Email',
-            hint: 'Nhập email của bạn',
+            label: 'Email hoặc số điện thoại',
+            hint: 'Email hoặc số điện thoại',
             icon: Icons.mail_outline_rounded,
             controller: _email,
+          ),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, top: 8),
+            child: Text(
+              'Email dùng mật khẩu. Số điện thoại dùng mã OTP qua SMS.',
+              style: TextStyle(color: _muted, fontSize: 11, height: 1.5),
+            ),
           ),
           const SizedBox(height: 18),
           _field(
@@ -228,7 +317,10 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: _busy
                   ? null
                   : () => _openAuthPage(
-                      ForgotPasswordPage(initialEmail: _email.text.trim()),
+                      ForgotPasswordPage(
+                        initialEmail: _usingPhone ? '' : _email.text.trim(),
+                        auth: widget.auth,
+                      ),
                     ),
               style: TextButton.styleFrom(
                 foregroundColor: _green,
@@ -296,20 +388,20 @@ class _LoginPageState extends State<LoginPage> {
                         color: Colors.white,
                       ),
                     )
-                  : const Row(
+                  : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Flexible(
                           child: Text(
-                            'Đăng nhập',
-                            style: TextStyle(
+                            _usingPhone ? 'Nhận mã OTP' : 'Đăng nhập',
+                            style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        SizedBox(width: 10),
-                        Icon(Icons.arrow_forward_rounded, size: 21),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.arrow_forward_rounded, size: 21),
                       ],
                     ),
             ),
@@ -327,7 +419,10 @@ class _LoginPageState extends State<LoginPage> {
                 onPressed: _busy
                     ? null
                     : () => _openAuthPage(
-                        RegisterPage(initialEmail: _email.text.trim()),
+                        RegisterPage(
+                          initialEmail: _usingPhone ? '' : _email.text.trim(),
+                          auth: widget.auth,
+                        ),
                       ),
                 style: TextButton.styleFrom(foregroundColor: _green),
                 child: const Text(
@@ -368,6 +463,7 @@ class _LoginPageState extends State<LoginPage> {
                   size: Size(21, 21),
                   painter: GoogleMarkPainter(),
                 ),
+                _googleLogin,
               ),
               const SizedBox(width: 10),
               _provider(
@@ -377,11 +473,15 @@ class _LoginPageState extends State<LoginPage> {
                   size: 22,
                   color: Color(0xFF1A5949),
                 ),
+                () => _phoneLogin(),
               ),
             ],
           ),
           const SizedBox(height: 20),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 12,
+            runSpacing: 6,
             children: [
               const Text(
                 'Điền nhanh tài khoản',
@@ -391,9 +491,8 @@ class _LoginPageState extends State<LoginPage> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const Spacer(),
               Text(
-                LocalAuth.instance.isCloudMode ? 'Firebase Cloud' : 'Bản nội bộ',
+                _auth.isCloudMode ? 'Firebase Cloud' : 'Bản nội bộ',
                 style: const TextStyle(color: _muted, fontSize: 11),
               ),
             ],
@@ -401,7 +500,7 @@ class _LoginPageState extends State<LoginPage> {
           const SizedBox(height: 8),
           LayoutBuilder(
             builder: (context, constraints) {
-              final isCloud = LocalAuth.instance.isCloudMode;
+              final isCloud = _auth.isCloudMode;
               final accounts = isCloud
                   ? [
                       (
@@ -437,7 +536,11 @@ class _LoginPageState extends State<LoginPage> {
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       avatar: Icon(acc.role.icon, size: 16, color: _green),
                       label: Text(acc.label),
-                      labelStyle: const TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w600),
+                      labelStyle: const TextStyle(
+                        color: _ink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                       backgroundColor: const Color(0xFFEAF9F0),
                       side: const BorderSide(color: Color(0xFFBFEDD4)),
                       shape: RoundedRectangleBorder(
@@ -451,7 +554,9 @@ class _LoginPageState extends State<LoginPage> {
                           ? null
                           : () => setState(() {
                               _email.text = acc.email;
-                              _password.text = isCloud ? 'Test123456' : 'Tro@2026';
+                              _password.text = isCloud
+                                  ? 'Test123456'
+                                  : 'Tro@2026';
                               _error = null;
                             }),
                     ),
@@ -487,7 +592,8 @@ class _LoginPageState extends State<LoginPage> {
       obscureText: password && _obscure,
       keyboardType: password
           ? TextInputType.visiblePassword
-          : TextInputType.emailAddress,
+          : TextInputType.text,
+      onChanged: password ? null : (_) => setState(() {}),
       textInputAction: password ? TextInputAction.done : TextInputAction.next,
       autofillHints: [
         password ? AutofillHints.password : AutofillHints.username,
@@ -535,7 +641,9 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: _busy
                         ? null
                         : () async {
-                            final data = await Clipboard.getData(Clipboard.kTextPlain);
+                            final data = await Clipboard.getData(
+                              Clipboard.kTextPlain,
+                            );
                             if (data?.text != null && data!.text!.isNotEmpty) {
                               setState(() {
                                 controller.text = data.text!;
@@ -565,12 +673,15 @@ class _LoginPageState extends State<LoginPage> {
                 ],
               )
             : IconButton(
-                tooltip: 'Dán email từ clipboard',
+                tooltip: 'Dán email hoặc số điện thoại',
                 onPressed: _busy
                     ? null
                     : () async {
-                        final data = await Clipboard.getData(Clipboard.kTextPlain);
-                        if (data?.text != null && data!.text!.trim().isNotEmpty) {
+                        final data = await Clipboard.getData(
+                          Clipboard.kTextPlain,
+                        );
+                        if (data?.text != null &&
+                            data!.text!.trim().isNotEmpty) {
                           setState(() {
                             controller.text = data.text!.trim();
                             _error = null;
@@ -587,14 +698,13 @@ class _LoginPageState extends State<LoginPage> {
     ),
   );
 
-  Widget _provider(String label, Widget icon) => Expanded(
+  Widget _provider(
+    String label,
+    Widget icon,
+    VoidCallback onPressed,
+  ) => Expanded(
     child: OutlinedButton(
-      onPressed: _busy
-          ? null
-          : () => _showInfo(
-              'Đăng nhập bằng $label',
-              'Phương thức này chưa được hỗ trợ trong phiên bản hiện tại. Bạn có thể đăng nhập bằng email và mật khẩu.',
-            ),
+      onPressed: _busy ? null : onPressed,
       style: OutlinedButton.styleFrom(
         foregroundColor: _ink,
         backgroundColor: const Color(0xFFFCFCFE),

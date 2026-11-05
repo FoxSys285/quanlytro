@@ -205,6 +205,42 @@ class ConversationStore extends ChangeNotifier {
       _records.where((item) => item.tenantId == id).toList();
   List<LandlordConversation> forProperty(String id) =>
       _records.where((item) => item.propertyId == id).toList();
+
+  LandlordConversation forRoom({
+    required String propertyId,
+    required String roomId,
+    required String roomName,
+    required String landlordName,
+    required String propertyName,
+    required String tenantId,
+    required String tenantName,
+  }) {
+    final id =
+        'room:${Uri.encodeComponent(propertyId)}:'
+        '${Uri.encodeComponent(tenantId)}:${Uri.encodeComponent(roomId)}';
+    for (final conversation in _records) {
+      if (conversation.propertyId == propertyId &&
+          conversation.tenantId == tenantId &&
+          (conversation.id == id ||
+              (conversation.id.startsWith('viewing:') &&
+                  conversation.room == roomName))) {
+        return conversation;
+      }
+    }
+    return getOrCreate(
+      LandlordConversation(
+        id: id,
+        propertyId: propertyId,
+        tenantId: tenantId,
+        tenantName: tenantName,
+        landlordName: landlordName,
+        propertyName: propertyName,
+        room: roomName,
+        messages: [],
+      ),
+    );
+  }
+
   LandlordConversation getOrCreate(LandlordConversation conversation) {
     for (final item in _records) {
       if (item.id == conversation.id) return item;

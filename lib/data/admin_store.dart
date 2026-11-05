@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
 import '../layouts/role_layout.dart';
@@ -95,17 +92,11 @@ class AdminStore extends ChangeNotifier {
     record('Cập nhật liên hệ người thuê ${member.tenantId} tại $propertyId');
   }
 
-  static String _proof(LandlordDemoStore store) => sha256
-      .convert(
-        utf8.encode(
-          cloudFingerprint({
-            'property': store.property.toMap(),
-            'rooms': store.catalog.map((r) => r.toMap()).toList(),
-            'types': store.roomTypes.map((r) => r.toMap()).toList(),
-          }),
-        ),
-      )
-      .toString();
+  static String _proof(LandlordDemoStore store) => propertyVerificationProof({
+    'property': store.property.toMap(),
+    'rooms': store.catalog.map((r) => r.toMap()).toList(),
+    'roomTypes': store.roomTypes.map((r) => r.toMap()).toList(),
+  });
 
   static List<String> verificationIssues(LandlordDemoStore store) {
     final p = store.property;

@@ -29,7 +29,25 @@ def valid_rows():
 
 
 class RentalImportTest(unittest.TestCase):
-    def test_private_admin_sign_in_rejects_other_roles_disabled_and_wrong_uid(self):
+    def test_dotted_room_codes_preserve_floor_numbering_without_relaxing_other_ids(self):
+        rows = valid_rows()
+        rows['PhongTro'][0].update(code='P.101', floor=1)
+        rows['PhongTro'].append({**rows['PhongTro'][0], 'code': 'P.1001', 'floor': 10})
+        snapshot, _ = module.build_snapshot(rows)
+        rooms = snapshot['portfolio']['properties'][0]['rooms']
+        self.assertEqual([(r['code'], r['floor']) for r in rooms], [('P.101', 1), ('P.1001', 10)])
+        for code in ['../P101', 'P..101', 'P/101', 'P:101']:
+            bad = copy.deepcopy(rows)
+            bad['PhongTro'][0]['code'] = code
+            with self.subTest(code=code), self.assertRaises(ValueError):
+                module.build_snapshot(bad)
+        for field in ['propertyId', 'roomTypeId', 'id']:
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                module.identifier({'_row': 'test', field: 'bad.id'}, field)
+
+    @patch.object(publisher, 'BASE', 'https://firestore.googleapis.com/v1/projects/auth-unit-test/databases/(default)/documents')
+    @patch.object(Path, 'read_text', return_value="FirebaseOptions web = FirebaseOptions(apiKey: 'public-test-key', projectId: 'auth-unit-test');")
+    def test_private_admin_sign_in_rejects_other_roles_disabled_and_wrong_uid(self, _read_config):
         account = {'localId': 'admin-test', 'idToken': 'fake-id-token', 'email': 'admin@example.com'}
         base_profile = {'name': publisher.BASE.split('/v1/')[1] + '/users/admin-test',
                         'fields': {'role': {'stringValue': 'admin'}, 'disabled': {'booleanValue': False}}}
@@ -73,7 +91,11 @@ class RentalImportTest(unittest.TestCase):
             self.assertEqual(snapshot['portfolio']['properties'][0]['leases'], [])
             source, output = Path(temp) / 'input.json', Path(temp) / 'cloud.json'
             source.write_text(json.dumps({'snapshot': snapshot, 'owners': owners}), encoding='utf-8')
-            subprocess.run([module.shutil.which('dart'), 'run', 'tool/rental_import_codec.dart', str(source), str(output)], cwd=ROOT, check=True)
+            dart = module.shutil.which('dart')
+            direct = Path(dart).parent / 'cache/dart-sdk/bin/dart.exe'
+            if direct.is_file():
+                dart = str(direct)
+            subprocess.run([dart, '--packages=.dart_tool/package_config.json', 'tool/rental_import_codec.dart', str(source), str(output)], cwd=ROOT, check=True)
             cloud = json.loads(output.read_text(encoding='utf-8'))
             publisher.validate_create_source(cloud)
             self.assertEqual(cloud['rental_properties/nha-001']['ownerUid'], 'owner-test-uid')

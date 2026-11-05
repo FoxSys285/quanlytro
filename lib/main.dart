@@ -15,6 +15,7 @@ import 'data/local_auth.dart';
 import 'data/firebase_account_gateway.dart';
 import 'data/scoped_firestore_repository.dart';
 import 'data/discovery_catalog.dart';
+import 'data/property_catalog.dart';
 import 'pages/tenant/discovery/tenant_discovery_page.dart';
 import 'pages/shared/rental/tenant_session.dart';
 import 'pages/shared/auth/login_page.dart';
@@ -48,6 +49,8 @@ Future<void> main() async {
   AppPersistence? persistence;
   try {
     TenantDiscoveryPage.activeCatalogSource = FirestoreTenantCatalogSource();
+    TenantDiscoveryPage.activePropertyCatalogSource =
+        FirestoreTenantPropertyCatalogSource();
     const cloudAuth = bool.fromEnvironment(
       'USE_FIREBASE_AUTH',
       defaultValue: true,

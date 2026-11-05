@@ -62,6 +62,7 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
           address: '',
           ownerName: _portfolio.active.property.ownerName,
           phone: _portfolio.active.property.phone,
+          phoneIsSynthetic: _portfolio.active.property.phoneIsSynthetic,
           description: '',
         ),
       ),

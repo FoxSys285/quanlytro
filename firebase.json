@@ -1,1 +1,39 @@
-{"firestore":{"rules":"firestore.rules"},"storage":{"rules":"storage.rules"},"emulators":{"firestore":{"port":8080},"ui":{"enabled":false},"singleProjectMode":true},"flutter":{"platforms":{"android":{"default":{"projectId":"tropremium-d14ac","appId":"1:101615894901:android:c787816bed575035ad533c","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"tropremium-d14ac","configurations":{"android":"1:101615894901:android:c787816bed575035ad533c","web":"1:101615894901:web:527074f9f82dba1dad533c","windows":"1:101615894901:web:3ce4efd32ca7f9a7ad533c"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "tropremium-d14ac",
+          "appId": "1:101615894901:android:c787816bed575035ad533c",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "tropremium-d14ac",
+          "configurations": {
+            "android": "1:101615894901:android:c787816bed575035ad533c",
+            "web": "1:101615894901:web:527074f9f82dba1dad533c",
+            "windows": "1:101615894901:web:3ce4efd32ca7f9a7ad533c"
+          }
+        }
+      }
+    }
+  }
+}
