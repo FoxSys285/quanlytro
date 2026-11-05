@@ -137,6 +137,9 @@ class AccountStore extends ChangeNotifier {
           amenities: property.amenities,
           city: property.city,
           ward: property.ward,
+          verificationDocuments: property.verificationDocuments,
+          verificationSubmittedAt: property.verificationSubmittedAt,
+          verificationIsOwner: property.verificationIsOwner,
         ),
       );
     } else if (role == AppRole.tenant &&

@@ -12,6 +12,9 @@ import '../pages/landlord/landlord_theme.dart';
 import '../pages/landlord/announcements/landlord_announcements_page.dart';
 import '../pages/landlord/properties/landlord_properties_page.dart';
 import '../pages/landlord/rooms/landlord_rooms_page.dart';
+import '../pages/landlord/dashboard/landlord_tongquan_page.dart';
+import '../pages/landlord/billing/landlord_billing_page.dart';
+import '../pages/landlord/conversations/landlord_danhsachtinnhan_page.dart';
 import 'landlord_navigation.dart';
 import '../pages/shared/profile/account_store.dart';
 import '../pages/landlord/landlord_page_router.dart';
@@ -90,19 +93,35 @@ class _LandlordLayoutState extends State<LandlordLayout> {
         ]),
         builder: (context, _) {
           final active = LandlordDemoStore.activeInstance;
+          final displayName =
+              widget.displayName ??
+              (active.property.ownerName.trim().isNotEmpty
+                  ? active.property.ownerName
+                  : LocalAuth.instance.session?.displayName ?? 'Chủ trọ');
           return RoleLayoutShell(
-            key: ValueKey(active.property.id),
             role: AppRole.landlord,
-            hideAppBarOnDestinations: const {'rooms', 'announcements'},
-            hideTopBarOnDestinations: const {'rooms', 'announcements'},
+            hideAppBarOnDestinations: const {
+              'dashboard',
+              'properties',
+              'billing',
+              'conversations',
+              'rooms',
+              'announcements',
+              'room_types',
+            },
+            hideTopBarOnDestinations: const {
+              'room_types',
+              'rooms',
+              'announcements',
+              'properties',
+              'dashboard',
+              'billing',
+              'conversations',
+            },
             notificationsEnabled: AccountStore.instance.notificationsEnabled(
               AppRole.landlord,
             ),
-            displayName:
-                widget.displayName ??
-                (active.property.ownerName.trim().isNotEmpty
-                    ? active.property.ownerName
-                    : LocalAuth.instance.session?.displayName ?? 'Chủ trọ'),
+            displayName: displayName,
             contextLabel:
                 widget.contextLabel ??
                 (active.property.name.trim().isNotEmpty
@@ -154,6 +173,20 @@ class _LandlordLayoutState extends State<LandlordLayout> {
                       showHeader: true,
                       dark: _dark,
                       onToggleTheme: _toggleTheme,
+                    );
+                  }
+                  if (destination.id == 'properties') {
+                    return LandlordPropertiesPage(profileName: displayName);
+                  }
+                  if (destination.id == 'dashboard') {
+                    return LandlordTongQuanPage(profileName: displayName);
+                  }
+                  if (destination.id == 'billing') {
+                    return LandlordBillingPage(profileName: displayName);
+                  }
+                  if (destination.id == 'conversations') {
+                    return LandlordDanhSachTinNhanPage(
+                      profileName: displayName,
                     );
                   }
                   if (destination.id == 'announcements') {

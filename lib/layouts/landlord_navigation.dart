@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../pages/landlord/landlord_demo_store.dart';
 import '../pages/landlord/landlord_theme.dart';
-import '../pages/shared/announcements/announcement_store.dart';
 import 'role_layout.dart';
 
 const landlordTabs = [
@@ -13,10 +11,10 @@ const landlordTabs = [
     destinationId: 'dashboard',
   ),
   RoleTab(
-    label: 'Phòng',
-    icon: Icons.meeting_room_outlined,
-    selectedIcon: Icons.meeting_room_rounded,
-    destinationId: 'rooms',
+    label: 'Nhà trọ',
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home_rounded,
+    destinationId: 'properties',
   ),
   RoleTab(
     label: 'Thu chi',
@@ -29,12 +27,6 @@ const landlordTabs = [
     icon: Icons.forum_outlined,
     selectedIcon: Icons.forum_rounded,
     destinationId: 'conversations',
-  ),
-  RoleTab(
-    label: 'Thông báo',
-    icon: Icons.notifications_none_rounded,
-    selectedIcon: Icons.notifications_rounded,
-    destinationId: 'announcements',
   ),
 ];
 
@@ -49,8 +41,7 @@ int landlordTabIndex(String destinationId) => switch (destinationId) {
   'members' => 1,
   'billing' || 'payments' || 'payment_accounts' => 2,
   'conversations' => 3,
-  'announcements' || 'incidents' || 'staff' => 4,
-  _ => 0,
+  _ => -1,
 };
 
 class LandlordBottomNavigation extends StatelessWidget {
@@ -66,43 +57,42 @@ class LandlordBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = LandlordPalette.of(context);
-    final announcements = AnnouncementStore.forRental(
-      LandlordDemoStore.activeInstance,
-    );
-    return ListenableBuilder(
-      listenable: announcements,
-      builder: (context, _) => Container(
-        decoration: BoxDecoration(
-          color: palette.surface,
-          boxShadow: [
-            BoxShadow(
-              color: palette.ink.withValues(alpha: 0.07),
-              blurRadius: 16,
-              offset: const Offset(0, -5),
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: dark ? palette.canvas : const Color(0xFFF1F4FF),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+          padding: const EdgeInsets.fromLTRB(7, 5, 7, 2),
+          decoration: BoxDecoration(
+            color: palette.surface.withValues(alpha: 0.94),
+            borderRadius: BorderRadius.circular(40),
+            border: Border.all(
+              color: dark ? palette.line : Colors.white,
+              width: 1.2,
             ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(4, 7, 4, 3),
-            child: Row(
-              children: [
-                for (var index = 0; index < landlordTabs.length; index++)
-                  Expanded(
-                    child: _NavigationItem(
-                      tab: landlordTabs[index],
-                      selected: index == selectedIndex,
-                      badge: index == 4
-                          ? announcements.inbox
-                                .where((item) => !item.isRead)
-                                .length
-                          : 0,
-                      onTap: () => onSelected(index),
-                    ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x295C7EB9),
+                blurRadius: 24,
+                offset: Offset(0, 9),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              for (var index = 0; index < landlordTabs.length; index++)
+                Expanded(
+                  child: _NavigationItem(
+                    tab: landlordTabs[index],
+                    selected: index == selectedIndex,
+                    onTap: () => onSelected(index),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
       ),
@@ -114,19 +104,17 @@ class _NavigationItem extends StatelessWidget {
   const _NavigationItem({
     required this.tab,
     required this.selected,
-    required this.badge,
     required this.onTap,
   });
 
   final RoleTab tab;
   final bool selected;
-  final int badge;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = LandlordPalette.of(context);
-    final color = selected ? palette.primary : palette.muted;
+    final color = selected ? const Color(0xFF0866FF) : const Color(0xFF7886A8);
     return Semantics(
       button: true,
       selected: selected,
@@ -135,44 +123,24 @@ class _NavigationItem extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(
-                    selected ? tab.selectedIcon : tab.icon,
-                    color: color,
-                    size: 23,
-                  ),
-                  if (badge > 0)
-                    Positioned(
-                      right: -10,
-                      top: -7,
-                      child: Container(
-                        constraints: const BoxConstraints(
-                          minWidth: 15,
-                          minHeight: 15,
-                        ),
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8475B),
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: Text(
-                          badge > 99 ? '99+' : '$badge',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 75,
+                height: 31,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? palette.primarySoft : Colors.transparent,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Icon(
+                  selected ? tab.selectedIcon : tab.icon,
+                  color: color,
+                  size: 25,
+                ),
               ),
               const SizedBox(height: 3),
               Text(
@@ -181,16 +149,18 @@ class _NavigationItem extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: color,
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 4),
               Container(
-                width: 24,
+                width: selected ? 18 : 0,
                 height: 3,
                 decoration: BoxDecoration(
-                  color: selected ? palette.primary : Colors.transparent,
+                  color: selected
+                      ? const Color(0xFF0866FF)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -202,7 +172,7 @@ class _NavigationItem extends StatelessWidget {
   }
 }
 
-/// Keeps the five owner tabs visible while a detail page is open.
+/// Keeps the four owner tabs visible while a detail page is open.
 class LandlordNavigation {
   static Future<T?> push<T>(
     BuildContext context, {

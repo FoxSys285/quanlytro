@@ -7,6 +7,7 @@ import '../../shared/viewings/components/viewing_status_badge.dart';
 import '../../shared/viewings/viewing_store.dart';
 import '../conversations/landlord_tinnhan_page.dart';
 import '../landlord_demo_store.dart';
+import '../landlord_ui.dart';
 import 'components/landlord_viewing_card.dart';
 import 'data/viewing_conversation_store.dart';
 import 'models/landlord_viewing.dart';
@@ -134,100 +135,81 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
         final day = DateTime(date.year, date.month, date.day);
         (groups[day] ??= []).add(viewing);
       }
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 960),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Lịch xem phòng',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Người thuê đã đặt lịch tại nhà trọ của bạn. Lịch được xếp từ sớm đến muộn.',
-                ),
-                const SizedBox(height: 18),
-                TextField(
-                  onChanged: (value) => setState(() => _query = value),
-                  decoration: InputDecoration(
-                    hintText:
-                        'Tìm người đặt, số điện thoại, phòng hoặc nhu cầu',
-                    prefixIcon: Icon(Icons.search),
-                    filled: true,
-                    fillColor: LandlordPalette.of(context).surface,
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Tất cả'),
-                      selected: _status == null,
-                      onSelected: (_) => setState(() => _status = null),
-                    ),
-                    for (final status in ViewingStatus.values)
-                      ChoiceChip(
-                        label: Text(status.label),
-                        selected: _status == status,
-                        onSelected: (selected) =>
-                            setState(() => _status = selected ? status : null),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  '${ordered.length} lịch hẹn',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 10),
-                if (ordered.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Center(
-                      child: Text('Không có lịch xem phòng phù hợp.'),
-                    ),
-                  ),
-                for (final entry in groups.entries) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      viewingDateLabel(entry.key),
-                      style: const TextStyle(
-                        color: Color(0xFF3769D6),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  for (final viewing in entry.value)
-                    LandlordViewingCard(
-                      key: ValueKey(viewing.id),
-                      viewing: viewing,
-                      onConfirm: viewing.status == ViewingStatus.pending
-                          ? () => _confirm(viewing)
-                          : null,
-                      onCancel: viewing.status != ViewingStatus.cancelled
-                          ? () => _cancel(viewing)
-                          : null,
-                      onMessage: () => _message(viewing),
-                    ),
-                ],
-                if (widget.viewings == null && widget.store == null)
-                  const Text(
-                    'Tên, số điện thoại và nhu cầu trên trang là dữ liệu mẫu.',
-                    style: TextStyle(color: Colors.blueGrey, fontSize: 12),
-                  ),
-              ],
+      final palette = LandlordPalette.of(context);
+      return LandlordPageFrame(
+        children: [
+          const LandlordPageTitle(
+            title: 'Lịch xem phòng',
+            subtitle: 'Theo dõi lịch hẹn của người thuê tại nhà trọ của bạn.',
+          ),
+          TextField(
+            onChanged: (value) => setState(() => _query = value),
+            decoration: InputDecoration(
+              hintText: 'Tìm người đặt, số điện thoại, phòng hoặc nhu cầu',
+              prefixIcon: const Icon(Icons.search_rounded),
             ),
           ),
-        ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Tất cả'),
+                selected: _status == null,
+                onSelected: (_) => setState(() => _status = null),
+              ),
+              for (final status in ViewingStatus.values)
+                ChoiceChip(
+                  label: Text(status.label),
+                  selected: _status == status,
+                  onSelected: (selected) =>
+                      setState(() => _status = selected ? status : null),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            '${ordered.length} lịch hẹn',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+          if (ordered.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(child: Text('Không có lịch xem phòng phù hợp.')),
+            ),
+          for (final entry in groups.entries) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                viewingDateLabel(entry.key),
+                style: TextStyle(
+                  color: palette.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            for (final viewing in entry.value)
+              LandlordViewingCard(
+                key: ValueKey(viewing.id),
+                viewing: viewing,
+                onConfirm: viewing.status == ViewingStatus.pending
+                    ? () => _confirm(viewing)
+                    : null,
+                onCancel: viewing.status != ViewingStatus.cancelled
+                    ? () => _cancel(viewing)
+                    : null,
+                onMessage: () => _message(viewing),
+              ),
+          ],
+          if (widget.viewings == null && widget.store == null)
+            Text(
+              'Tên, số điện thoại và nhu cầu trên trang là dữ liệu mẫu.',
+              style: TextStyle(color: palette.muted, fontSize: 12),
+            ),
+        ],
       );
     },
   );

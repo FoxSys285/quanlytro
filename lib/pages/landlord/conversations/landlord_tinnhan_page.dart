@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_theme.dart';
+import '../landlord_glass.dart';
 
-import '../landlord_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
 import 'models/landlord_cuoctrochuyen.dart';
 
@@ -79,67 +79,82 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
     return Scaffold(
       backgroundColor: LandlordPalette.of(context).canvas,
       appBar: AppBar(
-        backgroundColor: LandlordPalette.of(context).surface,
+        backgroundColor: LandlordPalette.of(context).surface
+            .withValues(alpha: 0.9),
         surfaceTintColor: Colors.transparent,
         title: Text(
           '${widget.conversation.tenantName} · ${widget.conversation.room}',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
-      body: Column(
-        children: [
-          // Danh sách các tin nhắn cuộn lên xuống
-          Expanded(
-            child: ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.all(14),
-              itemCount: danhSachTinNhan.length,
-              itemBuilder: (context, index) {
-                final tinNhan = danhSachTinNhan[index];
-                return _BongBongTinNhan(message: tinNhan);
-              },
-            ),
-          ),
-          // Khung nhập tin nhắn và nút gửi ở đáy màn hình
-          SafeArea(
-            top: false,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-              color: LandlordPalette.of(context).surface,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      minLines: 1,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: 'Nhập tin nhắn...',
-                        filled: true,
-                        fillColor: LandlordPalette.of(context).canvas,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
+      body: PropertyPortfolioBackdrop(
+        child: Column(
+          children: [
+            // Danh sách các tin nhắn cuộn lên xuống
+            Expanded(
+              child: danhSachTinNhan.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'Bắt đầu cuộc trò chuyện với người thuê.',
+                          textAlign: TextAlign.center,
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide.none,
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scroll,
+                      padding: const EdgeInsets.all(14),
+                      itemCount: danhSachTinNhan.length,
+                      itemBuilder: (context, index) {
+                        final tinNhan = danhSachTinNhan[index];
+                        return _BongBongTinNhan(message: tinNhan);
+                      },
+                    ),
+            ),
+            // Khung nhập tin nhắn và nút gửi ở đáy màn hình
+            SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                color: LandlordPalette.of(context).surface,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        minLines: 1,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          hintText: 'Nhập tin nhắn...',
+                          filled: true,
+                          fillColor: LandlordPalette.of(context).canvas,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  IconButton.filled(
-                    tooltip: 'Gửi tin nhắn',
-                    onPressed: _guiTinNhan,
-                    style: IconButton.styleFrom(backgroundColor: landlordBlue),
-                    icon: Icon(Icons.send_rounded, size: 18),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    IconButton.filled(
+                      tooltip: 'Gửi tin nhắn',
+                      onPressed: _guiTinNhan,
+                      style: IconButton.styleFrom(
+                        backgroundColor: propertyBlue,
+                      ),
+                      icon: Icon(Icons.send_rounded, size: 18),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -165,7 +180,7 @@ class _BongBongTinNhan extends StatelessWidget {
     // Phân loại: Tin của chủ trọ nằm bên phải nền xanh, tin của người thuê nằm bên trái nền trắng
     if (laTinNhanChuTro) {
       canLe = Alignment.centerRight;
-      mauNen = landlordBlue;
+      mauNen = propertyBlue;
       vien = null;
       mauChu = Colors.white;
       mauThoiGian = Colors.white70;
@@ -185,7 +200,19 @@ class _BongBongTinNhan extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           color: mauNen,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(laTinNhanChuTro ? 18 : 5),
+            bottomRight: Radius.circular(laTinNhanChuTro ? 5 : 18),
+          ),
+          gradient: laTinNhanChuTro
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF279FFF), propertyBlue],
+                )
+              : null,
           border: vien,
         ),
         child: Column(

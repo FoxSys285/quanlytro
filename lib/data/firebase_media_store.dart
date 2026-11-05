@@ -57,6 +57,29 @@ class FirebaseMediaStore {
       }
       store['roomTypes'] = roomTypes;
 
+      final verificationDocuments =
+          (property['verificationDocuments'] as List? ?? [])
+              .map((row) => Map<String, dynamic>.from(row as Map))
+              .toList();
+      for (final document in verificationDocuments) {
+        final files = (document['files'] as List? ?? [])
+            .map((row) => Map<String, dynamic>.from(row as Map))
+            .toList();
+        for (final file in files) {
+          final bytes = file['bytes'];
+          if (!uploadPropertyMedia || bytes is! List || bytes.isEmpty) continue;
+          file['storagePath'] = await uploadVerificationImage(
+            List<int>.from(bytes),
+            propertyId: propertyId,
+            documentId: document['id'] as String,
+          );
+          file['bytes'] = null;
+        }
+        document['files'] = files;
+      }
+      property['verificationDocuments'] = verificationDocuments;
+      store['property'] = property;
+
       final payments = (store['payments'] as List? ?? [])
           .map((row) => Map<String, dynamic>.from(row as Map))
           .toList();
@@ -69,12 +92,14 @@ class FirebaseMediaStore {
             invoiceId.isEmpty ||
             paymentId == null ||
             paymentId.isEmpty) {
-          throw ArgumentError('Chứng từ thanh toán thiếu mã hóa đơn hoặc khoản thu.');
+          throw ArgumentError(
+            'Chứng từ thanh toán thiếu mã hóa đơn hoặc khoản thu.',
+          );
         }
         payment['proofUrl'] = await uploadImage(
           List<int>.from(proof),
           'payment-proofs/${_segment(propertyId)}/${_segment(invoiceId)}/'
-              '${_segment(paymentId)}',
+          '${_segment(paymentId)}',
         );
         payment['proofBytes'] = null;
       }
@@ -117,7 +142,48 @@ class FirebaseMediaStore {
       _downloadUrls[key] = url;
       return url;
     } on FirebaseException catch (error) {
-      throw StateError('Không tải được ảnh lên Firebase Storage: ${error.code}.');
+      throw StateError(
+        'Không tải được ảnh lên Firebase Storage: ${error.code}.',
+      );
+    }
+  }
+
+  /// Uploads identity and ownership evidence to a private path. The caller
+  /// stores the path, never a public download URL, in Firestore.
+  Future<String> uploadVerificationImage(
+    List<int> bytes, {
+    required String propertyId,
+    required String documentId,
+  }) async {
+    if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
+      throw ArgumentError('Mỗi ảnh minh chứng cần có dung lượng tối đa 10 MB.');
+    }
+    final content = Uint8List.fromList(bytes);
+    final contentType = _contentType(content);
+    if (!contentType.startsWith('image/')) {
+      throw ArgumentError('Ảnh minh chứng cần là JPG, PNG, WebP hoặc GIF.');
+    }
+    final hash = sha256.convert(content).toString();
+    final key =
+        'verification-proofs/${_segment(propertyId)}/'
+        '${_segment(documentId)}/$hash';
+    try {
+      final reference = _storage.ref(key);
+      try {
+        await reference.getMetadata();
+        return key;
+      } on FirebaseException catch (error) {
+        if (error.code != 'object-not-found') rethrow;
+      }
+      await reference.putData(
+        content,
+        SettableMetadata(contentType: contentType),
+      );
+      return key;
+    } on FirebaseException catch (error) {
+      throw StateError(
+        'Không tải được ảnh minh chứng lên Firebase Storage: ${error.code}.',
+      );
     }
   }
 

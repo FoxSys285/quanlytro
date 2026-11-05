@@ -196,10 +196,9 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         'members',
       };
       const financePages = {'payments', 'payment_accounts'};
-      const noticePages = {'incidents', 'staff'};
       if (roomPages.contains(id)) return 1;
       if (financePages.contains(id)) return 2;
-      if (noticePages.contains(id)) return 4;
+      return -1;
     }
     return widget.showMoreTab ? widget.tabs.length : 0;
   }
@@ -358,6 +357,9 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         onDestinationSelected: _selectDestination,
         onPreviewRoleSelected: widget.onPreviewRoleSelected,
         onLogout: _showLogoutMessage,
+        themeAction: widget.role == AppRole.landlord
+            ? widget.themeAction
+            : null,
       ),
       appBar:
           _selectedDestinationId == widget.hideAppBarOnDestination ||
@@ -651,6 +653,7 @@ class _RoleDrawer extends StatelessWidget {
     required this.onDestinationSelected,
     required this.onPreviewRoleSelected,
     required this.onLogout,
+    this.themeAction,
   });
 
   final AppRole role;
@@ -667,6 +670,7 @@ class _RoleDrawer extends StatelessWidget {
   final ValueChanged<String> onDestinationSelected;
   final ValueChanged<AppRole>? onPreviewRoleSelected;
   final VoidCallback onLogout;
+  final Widget? themeAction;
 
   @override
   Widget build(BuildContext context) {
@@ -775,6 +779,13 @@ class _RoleDrawer extends StatelessWidget {
                   trailing: const Icon(Icons.unfold_more_rounded, size: 18),
                   dense: true,
                 ),
+              ),
+            if (themeAction != null)
+              ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Giao diện sáng / tối'),
+                trailing: themeAction,
+                dense: true,
               ),
             ListTile(
               leading: const Icon(

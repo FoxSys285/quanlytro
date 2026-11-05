@@ -845,6 +845,52 @@ extension RentalStorePersistence on LandlordDemoStore {
     _changed();
   }
 
+  void createRoomsForFloorPlan(
+    Map<int, int> roomCounts, {
+    required String roomTypeId,
+  }) {
+    if (_rooms.isNotEmpty) {
+      throw ArgumentError(
+        'Nhà trọ đã có phòng; hãy chỉnh sửa từng phòng trong sơ đồ.',
+      );
+    }
+    if (!_roomTypes.any((type) => type.id == roomTypeId) ||
+        roomCounts.isEmpty ||
+        roomCounts.entries.any(
+          (entry) =>
+              entry.key < 1 ||
+              entry.key > 30 ||
+              entry.value < 1 ||
+              entry.value > 50,
+        )) {
+      throw ArgumentError('Kiểm tra số tầng, số phòng và loại phòng mặc định.');
+    }
+    final total = roomCounts.values.fold<int>(0, (sum, count) => sum + count);
+    if (total > 350) {
+      throw ArgumentError('Mỗi nhà trọ có thể tạo tối đa 350 phòng.');
+    }
+    for (final floor in roomCounts.keys.toList()..sort()) {
+      for (var number = 1; number <= roomCounts[floor]!; number++) {
+        final code = '$floor${number.toString().padLeft(2, '0')}';
+        _rooms.add(
+          LandlordRoom(
+            code: code,
+            floor: floor,
+            roomTypeId: roomTypeId,
+            area: 20,
+            capacity: 2,
+          ),
+        );
+      }
+    }
+    _rooms.sort(
+      (a, b) => a.floor == b.floor
+          ? a.code.compareTo(b.code)
+          : a.floor.compareTo(b.floor),
+    );
+    _changed();
+  }
+
   void deleteRoom(String code) {
     if (_leases.any((l) => canonicalRoom(l.room) == canonicalRoom(code))) {
       throw ArgumentError('Phòng đã có hợp đồng; không thể xóa lịch sử.');

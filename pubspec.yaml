@@ -89,6 +89,11 @@ flutter:
     - assets/images/tenant_help_hero.png
     - assets/images/tenant_messages_hero.png
     - assets/images/tenant_announcements_hero.png
+    - assets/images/landlord_home_hero.png
+    - assets/images/landlord_properties_hero.png
+    - assets/images/landlord_property_house.png
+    - assets/images/landlord_finance_hero.png
+    - assets/images/landlord_messages_hero.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

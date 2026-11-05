@@ -3,9 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../layouts/landlord_navigation.dart';
-import '../../../layouts/role_layout.dart';
-import '../../shared/rental/room_image_gallery.dart';
-import '../../shared/widgets/google_maps_actions.dart';
 import '../../shared/widgets/list_pagination.dart';
 import '../billing/landlord_billing_page.dart';
 import '../announcements/landlord_announcements_page.dart';
@@ -13,15 +10,17 @@ import '../finance/landlord_finance_models.dart';
 import '../incidents/landlord_yeucausuachua_page.dart';
 import '../incidents/models/landlord_suco.dart';
 import '../landlord_demo_store.dart';
-import '../landlord_compact_header.dart';
+import '../landlord_glass.dart';
 import '../landlord_theme.dart';
 import '../landlord_ui.dart';
 import '../leases/landlord_leases_page.dart';
 import '../meter_readings/landlord_chisodiennuoc_page.dart';
+import '../room_types/landlord_room_types_page.dart';
 import '../viewings/landlord_viewings_page.dart';
 import 'components/landlord_room_button.dart';
-import 'components/landlord_room_card.dart';
 import 'components/landlord_room_editor.dart';
+import 'landlord_floor_plan_page.dart';
+import 'landlord_room_detail_page.dart';
 import 'models/landlord_room.dart';
 
 enum _RoomFilter { all, vacant, occupied, unpaid, expiring, maintenance }
@@ -33,11 +32,13 @@ class LandlordRoomsPage extends StatefulWidget {
     super.key,
     this.store,
     this.showHeader = false,
+    this.embedded = false,
     this.dark = false,
     this.onToggleTheme,
   });
   final LandlordDemoStore? store;
   final bool showHeader;
+  final bool embedded;
   final bool dark;
   final VoidCallback? onToggleTheme;
 
@@ -105,6 +106,8 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
       LandlordViewingsPage() => 'viewings',
       LandlordYeuCauSuaChuaPage() => 'incidents',
       LandlordAnnouncementsPage() => 'announcements',
+      LandlordRoomTypesPage() => 'room_types',
+      LandlordFloorPlanSetupPage() || LandlordFloorPlanPage() => 'rooms',
       _ => 'rooms',
     };
     LandlordNavigation.push<void>(
@@ -129,94 +132,10 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
   }
 
   void _showRoom(String code) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => ListenableBuilder(
-        listenable: _store,
-        builder: (context, _) {
-          final details = _store.roomDetails.firstWhere(
-            (item) => item.room.code == code,
-          );
-          final lease = details.lease;
-          return SafeArea(
-            child: SizedBox(
-              height: MediaQuery.sizeOf(context).height * 0.82,
-              child: ListView(
-                padding: const EdgeInsets.all(18),
-                children: [
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Chi tiết phòng',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Đóng chi tiết',
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  RoomImageGallery(images: details.type?.images ?? const []),
-                  const SizedBox(height: 12),
-                  LandlordRoomCard(
-                    details: details,
-                    onEdit: () {
-                      Navigator.pop(context);
-                      _edit(details.room);
-                    },
-                    onDelete: _canDelete(details.room)
-                        ? () {
-                            Navigator.pop(context);
-                            _delete(details.room);
-                          }
-                        : null,
-                  ),
-                  Text(
-                    _store.property.name,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  Text(_store.property.address),
-                  GoogleMapsActions(address: _store.property.address),
-                  const SizedBox(height: 12),
-                  Text(_store.property.description),
-                  if (lease != null) ...[
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Hợp đồng & người thuê',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text('Mã hợp đồng: ${lease.id}'),
-                    Text('Liên hệ: ${lease.phone}'),
-                    Text(
-                      'Thời hạn: ${landlordDate(lease.startDate)} – ${landlordDate(lease.endDate)}',
-                    ),
-                    Text('Đặt cọc: ${formatLandlordMoney(lease.deposit)}'),
-                    Text('Thanh toán: ngày ${lease.dueDay} hằng tháng'),
-                    for (final member in _store.membersForLease(lease.id))
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.person_outline),
-                        title: Text(member.name),
-                        subtitle: Text(member.phone),
-                      ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+    LandlordNavigation.push<void>(
+      context,
+      page: LandlordRoomDetailPage(store: _store, roomCode: code),
+      destinationId: 'rooms',
     );
   }
 
@@ -412,6 +331,19 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
     }
   }
 
+  Widget _frame(List<Widget> children) => widget.embedded
+      ? Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        )
+      : LandlordGlassPage(
+          title: 'Danh sách phòng trọ',
+          subtitle: _store.property.name,
+          kicker: 'QUẢN LÝ KHÔNG GIAN',
+          store: _store,
+          children: children,
+        );
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _store,
@@ -434,6 +366,64 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
       final vacantCount = all
           .where((item) => item.status == LandlordRoomStatus.vacant)
           .length;
+      if (all.isEmpty) {
+        final needsTypes = _store.roomTypes.isEmpty;
+        return _frame([
+          const LandlordGlassSection(
+            title: 'Phòng trọ',
+            subtitle: 'Thiết lập không gian cho thuê của bạn',
+          ),
+          LandlordGlassCard(
+            child: Column(
+              children: [
+                Icon(
+                  needsTypes ? Icons.category_outlined : Icons.stairs_rounded,
+                  color: propertyBlue,
+                  size: 36,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  needsTypes ? 'Thêm loại phòng trước' : 'Chưa có sơ đồ phòng',
+                  style: TextStyle(
+                    color: palette.ink,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  needsTypes
+                      ? 'Tạo loại phòng và giá thuê trước khi thiết lập từng tầng.'
+                      : 'Khai báo số phòng cho mỗi tầng hoặc thêm từng phòng.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: palette.muted, height: 1.5),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: needsTypes
+                      ? () => _openPage(
+                          'Loại phòng',
+                          LandlordRoomTypesPage(store: _store),
+                        )
+                      : () => _openPage(
+                          'Thiết lập tầng và phòng',
+                          LandlordFloorPlanSetupPage(store: _store),
+                        ),
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(
+                    needsTypes ? 'Thêm loại phòng' : 'Thiết lập tầng và phòng',
+                  ),
+                ),
+                if (!needsTypes)
+                  TextButton(
+                    onPressed: () => _edit(),
+                    child: const Text('Thêm phòng mới'),
+                  ),
+              ],
+            ),
+          ),
+        ]);
+      }
       final normalized = _query.trim().toLowerCase();
       final matches = all.where((details) {
         final haystack =
@@ -485,490 +475,313 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
       );
       final visible = matches.skip(page * _pageSize).take(_pageSize).toList();
 
-      return Stack(
-        children: [
-          LandlordPageFrame(
-            children: [
-              if (widget.showHeader) ...[
-                LandlordCompactHeader(
-                  store: _store,
-                  dark: widget.dark,
-                  onToggleTheme: widget.onToggleTheme,
-                  onNotifications: () {
-                    if (!RoleLayoutShell.tryNavigateTo(
-                      context,
-                      'announcements',
-                    )) {
-                      _openPage('Thông báo', const LandlordAnnouncementsPage());
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-              ],
-              _RoomsHero(
-                propertyName: _store.property.name,
-                address: _store.property.address,
-                onAdd: () => _edit(),
-                onSearch: () => _searchFocus.requestFocus(),
+      return _frame([
+        LandlordGlassSection(
+          title: 'Phòng trọ',
+          subtitle: 'Tìm kiếm và quản lý phòng của nhà trọ',
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              onPressed: () => _edit(),
+              style: FilledButton.styleFrom(
+                backgroundColor: propertyBlue,
+                foregroundColor: Colors.white,
               ),
-              const SizedBox(height: 13),
-              _RoomsKpis(
-                total: all.length,
-                occupied: occupiedCount,
-                vacant: vacantCount,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Thêm phòng mới'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () =>
+                  _openPage('Sơ đồ tầng', LandlordFloorPlanPage(store: _store)),
+              icon: const Icon(Icons.grid_view_rounded, size: 17),
+              label: const Text('Sơ đồ tầng'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _openPage(
+                'Chỉ số điện nước',
+                const LandlordChiSoDienNuocPage(),
               ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _searchController,
-                focusNode: _searchFocus,
-                onChanged: (value) => setState(() {
-                  _query = value;
-                  _page = 0;
-                }),
+              icon: const Icon(Icons.edit_note_rounded, size: 18),
+              label: const Text('Ghi điện nước'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _copyList(matches),
+              icon: const Icon(Icons.content_copy_rounded, size: 16),
+              label: const Text('Sao chép DS'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _RoomsKpis(
+          total: all.length,
+          occupied: occupiedCount,
+          vacant: vacantCount,
+        ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _searchController,
+          focusNode: _searchFocus,
+          onChanged: (value) => setState(() {
+            _query = value;
+            _page = 0;
+          }),
+          decoration: InputDecoration(
+            hintText: 'Tìm mã phòng, tên khách, số điện thoại',
+            hintStyle: TextStyle(color: palette.muted, fontSize: 12),
+            prefixIcon: Icon(Icons.search_rounded, color: palette.muted),
+            suffixIcon: _query.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Xóa tìm kiếm',
+                    onPressed: () => setState(() {
+                      _query = '';
+                      _page = 0;
+                      _searchController.clear();
+                    }),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                  ),
+            filled: true,
+            fillColor: palette.surface.withValues(alpha: 0.85),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(28)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(28),
+              borderSide: BorderSide(color: palette.line),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+          ),
+        ),
+        const SizedBox(height: 9),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                key: ValueKey('${_store.property.id}:$_floor'),
+                initialValue: _floor,
+                isExpanded: true,
                 decoration: InputDecoration(
-                  hintText: 'Tìm mã phòng, tên khách, số điện thoại',
-                  hintStyle: TextStyle(color: palette.muted, fontSize: 12),
-                  prefixIcon: Icon(Icons.search_rounded, color: palette.muted),
-                  suffixIcon: _query.isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: 'Xóa tìm kiếm',
-                          onPressed: () => setState(() {
-                            _query = '';
-                            _page = 0;
-                            _searchController.clear();
-                          }),
-                          icon: const Icon(Icons.close_rounded, size: 18),
-                        ),
+                  prefixIcon: Icon(
+                    Icons.layers_outlined,
+                    size: 18,
+                    color: palette.primary,
+                  ),
                   filled: true,
                   fillColor: palette.surface,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: palette.line),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
+                    horizontal: 8,
+                    vertical: 10,
                   ),
+                  isDense: true,
                 ),
-              ),
-              const SizedBox(height: 9),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      key: ValueKey('${_store.property.id}:$_floor'),
-                      initialValue: _floor,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(
-                          Icons.layers_outlined,
-                          size: 18,
-                          color: palette.primary,
-                        ),
-                        filled: true,
-                        fillColor: palette.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: palette.line),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 10,
-                        ),
-                        isDense: true,
-                      ),
-                      items: [
-                        const DropdownMenuItem<int>(
-                          child: Text('Tất cả các tầng'),
-                        ),
-                        for (final floor in floors)
-                          DropdownMenuItem(
-                            value: floor,
-                            child: Text('Tầng $floor'),
-                          ),
-                      ],
-                      onChanged: (value) => setState(() {
-                        _floor = value;
-                        _page = 0;
-                      }),
-                    ),
-                  ),
-                  const SizedBox(width: 9),
-                  _ViewToggle(
-                    grid: _grid,
-                    onList: () => setState(() => _grid = false),
-                    onGrid: () => setState(() => _grid = true),
-                  ),
+                items: [
+                  const DropdownMenuItem<int>(child: Text('Tất cả các tầng')),
+                  for (final floor in floors)
+                    DropdownMenuItem(value: floor, child: Text('Tầng $floor')),
                 ],
+                onChanged: (value) => setState(() {
+                  _floor = value;
+                  _page = 0;
+                }),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 37,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
+            ),
+            const SizedBox(width: 9),
+            _ViewToggle(
+              grid: _grid,
+              onList: () => setState(() => _grid = false),
+              onGrid: () => setState(() => _grid = true),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 37,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _FilterPill(
+                label: 'Tất cả (${all.length})',
+                selected: _filter == _RoomFilter.all,
+                onTap: () => setState(() {
+                  _filter = _RoomFilter.all;
+                  _page = 0;
+                }),
+              ),
+              _FilterPill(
+                label: 'Phòng trống ($vacantCount)',
+                selected: _filter == _RoomFilter.vacant,
+                onTap: () => setState(() {
+                  _filter = _RoomFilter.vacant;
+                  _page = 0;
+                }),
+              ),
+              _FilterPill(
+                label: 'Đang thuê ($occupiedCount)',
+                selected: _filter == _RoomFilter.occupied,
+                onTap: () => setState(() {
+                  _filter = _RoomFilter.occupied;
+                  _page = 0;
+                }),
+              ),
+              _FilterPill(
+                label: 'Chưa đóng tiền',
+                selected: _filter == _RoomFilter.unpaid,
+                onTap: () => setState(() {
+                  _filter = _RoomFilter.unpaid;
+                  _page = 0;
+                }),
+              ),
+              _FilterPill(
+                label: 'Sắp hết hạn',
+                selected: _filter == _RoomFilter.expiring,
+                onTap: () => setState(() {
+                  _filter = _RoomFilter.expiring;
+                  _page = 0;
+                }),
+              ),
+              _FilterPill(
+                label: 'Đang sửa chữa',
+                selected: _filter == _RoomFilter.maintenance,
+                onTap: () => setState(() {
+                  _filter = _RoomFilter.maintenance;
+                  _page = 0;
+                }),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Hiển thị ${matches.length} phòng · ${_store.property.name}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: palette.muted, fontSize: 11),
+              ),
+            ),
+            PopupMenuButton<_RoomSort>(
+              tooltip: 'Sắp xếp phòng',
+              onSelected: (value) => setState(() {
+                _sort = value;
+                _page = 0;
+              }),
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: _RoomSort.code,
+                  child: Text('Theo mã phòng'),
+                ),
+                PopupMenuItem(
+                  value: _RoomSort.priceLow,
+                  child: Text('Giá thấp trước'),
+                ),
+                PopupMenuItem(
+                  value: _RoomSort.priceHigh,
+                  child: Text('Giá cao trước'),
+                ),
+                PopupMenuItem(
+                  value: _RoomSort.attention,
+                  child: Text('Cần chú ý trước'),
+                ),
+              ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _FilterPill(
-                      label: 'Tất cả (${all.length})',
-                      selected: _filter == _RoomFilter.all,
-                      onTap: () => setState(() {
-                        _filter = _RoomFilter.all;
-                        _page = 0;
-                      }),
+                    Text(
+                      'Sắp xếp',
+                      style: TextStyle(
+                        color: palette.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    _FilterPill(
-                      label: 'Phòng trống ($vacantCount)',
-                      selected: _filter == _RoomFilter.vacant,
-                      onTap: () => setState(() {
-                        _filter = _RoomFilter.vacant;
-                        _page = 0;
-                      }),
-                    ),
-                    _FilterPill(
-                      label: 'Đang thuê ($occupiedCount)',
-                      selected: _filter == _RoomFilter.occupied,
-                      onTap: () => setState(() {
-                        _filter = _RoomFilter.occupied;
-                        _page = 0;
-                      }),
-                    ),
-                    _FilterPill(
-                      label: 'Chưa đóng tiền',
-                      selected: _filter == _RoomFilter.unpaid,
-                      onTap: () => setState(() {
-                        _filter = _RoomFilter.unpaid;
-                        _page = 0;
-                      }),
-                    ),
-                    _FilterPill(
-                      label: 'Sắp hết hạn',
-                      selected: _filter == _RoomFilter.expiring,
-                      onTap: () => setState(() {
-                        _filter = _RoomFilter.expiring;
-                        _page = 0;
-                      }),
-                    ),
-                    _FilterPill(
-                      label: 'Đang sửa chữa',
-                      selected: _filter == _RoomFilter.maintenance,
-                      onTap: () => setState(() {
-                        _filter = _RoomFilter.maintenance;
-                        _page = 0;
-                      }),
+                    Icon(
+                      Icons.unfold_more_rounded,
+                      size: 16,
+                      color: palette.primary,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Hiển thị ${matches.length} phòng · ${_store.property.name}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: palette.muted, fontSize: 11),
-                    ),
-                  ),
-                  PopupMenuButton<_RoomSort>(
-                    tooltip: 'Sắp xếp phòng',
-                    onSelected: (value) => setState(() {
-                      _sort = value;
-                      _page = 0;
-                    }),
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: _RoomSort.code,
-                        child: Text('Theo mã phòng'),
-                      ),
-                      PopupMenuItem(
-                        value: _RoomSort.priceLow,
-                        child: Text('Giá thấp trước'),
-                      ),
-                      PopupMenuItem(
-                        value: _RoomSort.priceHigh,
-                        child: Text('Giá cao trước'),
-                      ),
-                      PopupMenuItem(
-                        value: _RoomSort.attention,
-                        child: Text('Cần chú ý trước'),
-                      ),
-                    ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        if (matches.isEmpty)
+          const LandlordEmptyState(
+            message: 'Không có phòng phù hợp với bộ lọc.',
+          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = _grid
+                ? (constraints.maxWidth < 650 ? 2 : 3)
+                : (constraints.maxWidth < 700 ? 1 : 2);
+            const spacing = 11.0;
+            final width =
+                (constraints.maxWidth - spacing * (columns - 1)) / columns;
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [
+                for (final details in visible)
+                  SizedBox(
+                    width: width,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Sắp xếp',
-                            style: TextStyle(
-                              color: palette.primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Icon(
-                            Icons.unfold_more_rounded,
-                            size: 16,
-                            color: palette.primary,
-                          ),
-                        ],
+                      padding: const EdgeInsets.only(bottom: 11),
+                      child: Builder(
+                        builder: (context) {
+                          final invoice = _invoiceFor(details);
+                          final incident = _incidentFor(details);
+                          final highlight = _highlight(
+                            details,
+                            invoice,
+                            incident,
+                          );
+                          return LandlordRoomButton(
+                            key: ValueKey(details.room.code),
+                            details: details,
+                            highlight: highlight,
+                            invoice: invoice,
+                            incident: incident,
+                            compact: _grid,
+                            actions: _actionsFor(details, highlight),
+                            onTap: () => _showRoom(details.room.code),
+                            onEdit: () => _edit(details.room),
+                            onDelete: _canDelete(details.room)
+                                ? () => _delete(details.room)
+                                : null,
+                          );
+                        },
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 7),
-              if (matches.isEmpty)
-                const LandlordEmptyState(
-                  message: 'Không có phòng phù hợp với bộ lọc.',
-                ),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns = _grid
-                      ? (constraints.maxWidth < 650 ? 2 : 3)
-                      : (constraints.maxWidth < 700 ? 1 : 2);
-                  const spacing = 11.0;
-                  final width =
-                      (constraints.maxWidth - spacing * (columns - 1)) /
-                      columns;
-                  return Wrap(
-                    spacing: spacing,
-                    runSpacing: spacing,
-                    children: [
-                      for (final details in visible)
-                        SizedBox(
-                          width: width,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 11),
-                            child: Builder(
-                              builder: (context) {
-                                final invoice = _invoiceFor(details);
-                                final incident = _incidentFor(details);
-                                final highlight = _highlight(
-                                  details,
-                                  invoice,
-                                  incident,
-                                );
-                                return LandlordRoomButton(
-                                  key: ValueKey(details.room.code),
-                                  details: details,
-                                  highlight: highlight,
-                                  invoice: invoice,
-                                  incident: incident,
-                                  compact: _grid,
-                                  actions: _actionsFor(details, highlight),
-                                  onTap: () => _showRoom(details.room.code),
-                                  onEdit: () => _edit(details.room),
-                                  onDelete: _canDelete(details.room)
-                                      ? () => _delete(details.room)
-                                      : null,
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-              ListPagination(
-                total: matches.length,
-                page: page,
-                pageSize: _pageSize,
-                showBoundaryPages: true,
-                onChanged: (value) => setState(() => _page = value),
-              ),
-              const SizedBox(height: 102),
-            ],
-          ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 14,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 450),
-                child: _RoomActionDock(
-                  onAdd: () => _edit(),
-                  onMeters: () => _openPage(
-                    'Chỉ số điện nước',
-                    const LandlordChiSoDienNuocPage(),
-                  ),
-                  onCopy: () => _copyList(matches),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
+              ],
+            );
+          },
+        ),
+        ListPagination(
+          total: matches.length,
+          page: page,
+          pageSize: _pageSize,
+          showBoundaryPages: true,
+          onChanged: (value) => setState(() => _page = value),
+        ),
+      ]);
     },
-  );
-}
-
-class _RoomsHero extends StatelessWidget {
-  const _RoomsHero({
-    required this.propertyName,
-    required this.address,
-    required this.onAdd,
-    required this.onSearch,
-  });
-  final String propertyName;
-  final String address;
-  final VoidCallback onAdd;
-  final VoidCallback onSearch;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFF1D4ED8), Color(0xFF2A60D6), Color(0xFF183B96)],
-      ),
-      borderRadius: BorderRadius.circular(18),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x281D4ED8),
-          blurRadius: 18,
-          offset: Offset(0, 8),
-        ),
-      ],
-    ),
-    child: Stack(
-      children: [
-        Positioned(
-          right: -20,
-          top: -42,
-          child: Container(
-            width: 168,
-            height: 168,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0x22FFFFFF), width: 34),
-            ),
-          ),
-        ),
-        Positioned(
-          right: 22,
-          bottom: 10,
-          child: Wrap(
-            spacing: 14,
-            runSpacing: 11,
-            children: [
-              for (var i = 0; i < 12; i++)
-                const CircleAvatar(
-                  radius: 2,
-                  backgroundColor: Color(0x33FFFFFF),
-                ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(17),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0x28FFFFFF),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  '▣  QUẢN LÝ KHÔNG GIAN',
-                  style: TextStyle(
-                    color: Color(0xFFDBEAFE),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Danh sách phòng trọ',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 23,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.location_on_outlined,
-                    color: Color(0xFFD7E5FF),
-                    size: 14,
-                  ),
-                  const SizedBox(width: 3),
-                  Expanded(
-                    child: Text(
-                      '$propertyName · $address',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFE1EBFF),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  FilledButton.icon(
-                    onPressed: onAdd,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF1D4ED8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      minimumSize: const Size(0, 40),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text(
-                      'Thêm phòng mới',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'Tìm phòng',
-                    onPressed: onSearch,
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0x33FFFFFF),
-                      foregroundColor: Colors.white,
-                    ),
-                    icon: const Icon(Icons.search_rounded, size: 19),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
   );
 }
 
@@ -988,9 +801,13 @@ class _RoomsKpis extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: palette.surface,
-        border: Border.all(color: palette.line),
-        borderRadius: BorderRadius.circular(16),
+        color: palette.surface.withValues(alpha: 0.85),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? palette.line
+              : Colors.white,
+        ),
+        borderRadius: BorderRadius.circular(21),
       ),
       child: Row(
         children: [
@@ -1101,7 +918,7 @@ class _ViewToggle extends StatelessWidget {
       decoration: BoxDecoration(
         color: palette.surface,
         border: Border.all(color: palette.line),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1154,9 +971,11 @@ class _FilterPill extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 7),
       child: Material(
-        color: selected ? palette.primary : palette.surface,
+        color: selected
+            ? propertyBlue
+            : palette.surface.withValues(alpha: 0.85),
         shape: StadiumBorder(
-          side: BorderSide(color: selected ? palette.primary : palette.line),
+          side: BorderSide(color: selected ? propertyBlue : palette.line),
         ),
         child: InkWell(
           onTap: onTap,
@@ -1178,104 +997,4 @@ class _FilterPill extends StatelessWidget {
       ),
     );
   }
-}
-
-class _RoomActionDock extends StatelessWidget {
-  const _RoomActionDock({
-    required this.onAdd,
-    required this.onMeters,
-    required this.onCopy,
-  });
-  final VoidCallback onAdd;
-  final VoidCallback onMeters;
-  final VoidCallback onCopy;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(5),
-    decoration: BoxDecoration(
-      color: const Color(0xFF27364D),
-      borderRadius: BorderRadius.circular(30),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x3B16243B),
-          blurRadius: 19,
-          offset: Offset(0, 8),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        _DockAction(
-          label: 'Thêm phòng',
-          icon: Icons.add_home_rounded,
-          selected: true,
-          onTap: onAdd,
-        ),
-        _DockAction(
-          label: 'Ghi điện nước',
-          icon: Icons.edit_note_rounded,
-          selected: false,
-          onTap: onMeters,
-        ),
-        _DockAction(
-          label: 'Sao chép DS',
-          icon: Icons.copy_rounded,
-          selected: false,
-          onTap: onCopy,
-        ),
-      ],
-    ),
-  );
-}
-
-class _DockAction extends StatelessWidget {
-  const _DockAction({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: Material(
-      color: selected ? const Color(0xFF2563EB) : Colors.transparent,
-      borderRadius: BorderRadius.circular(25),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(25),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                color: selected ? Colors.white : const Color(0xFFC9D4E5),
-                size: 16,
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: selected ? Colors.white : const Color(0xFFC9D4E5),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
 }

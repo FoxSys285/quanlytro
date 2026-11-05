@@ -1,1174 +1,607 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/admin_store.dart';
 import '../../../layouts/landlord_navigation.dart';
-import '../../../layouts/role_layout.dart';
 import '../../shared/conversations/conversation_store.dart';
-import '../../shared/rental/lease_member.dart';
-import '../../shared/viewings/models/room_viewing.dart';
 import '../../shared/viewings/viewing_store.dart';
 import '../announcements/landlord_announcements_page.dart';
 import '../billing/landlord_billing_page.dart';
 import '../conversations/landlord_danhsachtinnhan_page.dart';
 import '../finance/landlord_finance_models.dart';
+import '../finance/landlord_room_balance.dart';
+import '../finance/landlord_room_balance_card.dart';
+import '../incidents/components/landlord_incident_glass_card.dart';
 import '../incidents/landlord_yeucausuachua_page.dart';
 import '../incidents/models/landlord_suco.dart';
 import '../landlord_demo_store.dart';
+import '../landlord_glass.dart';
 import '../landlord_theme.dart';
 import '../landlord_ui.dart';
 import '../leases/landlord_leases_page.dart';
 import '../members/landlord_nguoithue_page.dart';
 import '../meter_readings/landlord_chisodiennuoc_page.dart';
 import '../payments/landlord_payments_page.dart';
+import '../properties/landlord_properties_page.dart';
+import '../properties/landlord_verification_page.dart';
+import '../room_types/landlord_room_types_page.dart';
+import '../rooms/landlord_floor_plan_page.dart';
 import '../rooms/landlord_rooms_page.dart';
 import '../rooms/models/landlord_room.dart';
 import '../services/landlord_dichvubanggia_page.dart';
 import '../viewings/landlord_viewings_page.dart';
 
 class LandlordTongQuanPage extends StatelessWidget {
-  const LandlordTongQuanPage({super.key});
-
-  static void _openPage(BuildContext context, String title, Widget page) {
-    final destination = switch (page) {
-      LandlordRoomsPage() => 'rooms',
-      LandlordBillingPage() => 'billing',
-      LandlordYeuCauSuaChuaPage() => 'incidents',
-      LandlordViewingsPage() => 'viewings',
-      LandlordPaymentsPage() => 'payments',
-      LandlordDanhSachTinNhanPage() => 'conversations',
-      LandlordChiSoDienNuocPage() => 'meter_readings',
-      LandlordNguoiThuePage() => 'members',
-      LandlordLeasesPage() => 'leases',
-      LandlordDichVuBangGiaPage() => 'services',
-      LandlordAnnouncementsPage() => 'announcements',
-      _ => 'dashboard',
-    };
-    if (RoleLayoutShell.tryNavigateTo(context, destination)) return;
-    LandlordNavigation.push<void>(
-      context,
-      title: title,
-      page: page,
-      destinationId: destination,
-    );
-  }
-
-  static String _greeting(int hour) {
-    if (hour < 11) return 'Chào buổi sáng';
-    if (hour < 18) return 'Chào buổi chiều';
-    return 'Chào buổi tối';
-  }
+  const LandlordTongQuanPage({super.key, this.profileName});
+  final String? profileName;
 
   @override
-  Widget build(BuildContext context) {
-    final store = LandlordDemoStore.activeInstance;
-    final conversations = ConversationStore.instance;
-    final viewings = ViewingStore.instance;
-
-    return ListenableBuilder(
-      listenable: Listenable.merge([
-        store,
-        RentalPortfolio.instance,
-        conversations,
-        viewings,
-      ]),
-      builder: (context, _) {
-        final palette = LandlordPalette.of(context);
-        if (RentalPortfolio.instance.stores.isEmpty) {
-          return LandlordPageFrame(
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(28),
-                decoration: BoxDecoration(
-                  color: palette.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: palette.line),
-                ),
-                child: Column(
-                  children: [
-                    const CircleAvatar(
-                      radius: 34,
-                      child: Icon(Icons.apartment_rounded, size: 34),
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([
+      RentalPortfolio.instance,
+      AdminStore.instance,
+      ConversationStore.instance,
+      ViewingStore.instance,
+    ]),
+    builder: (context, _) {
+      final portfolio = RentalPortfolio.instance;
+      final store = portfolio.active;
+      final palette = LandlordPalette.of(context);
+      final now = DateTime.now();
+      final rooms = portfolio.stores.expand((s) => s.roomDetails).toList();
+      final occupied = rooms
+          .where((r) => r.status == LandlordRoomStatus.occupied)
+          .length;
+      final vacant = rooms
+          .where((r) => r.status == LandlordRoomStatus.vacant)
+          .length;
+      final unpaid =
+          landlordRoomBalances(
+              store,
+              now,
+            ).where((b) => b.remaining > 0).toList()
+            ..sort((a, b) => b.remaining.compareTo(a.remaining));
+      final incidents = [...store.incidents]
+        ..sort((a, b) {
+          final rankA =
+              (a.status == IncidentStatus.closed ? 10 : 0) + (a.urgent ? 0 : 1);
+          final rankB =
+              (b.status == IncidentStatus.closed ? 10 : 0) + (b.urgent ? 0 : 1);
+          return rankA.compareTo(rankB);
+        });
+      final monthly = store.invoices.where(
+        (i) =>
+            !i.cancelled &&
+            i.period.year == now.year &&
+            i.period.month == now.month,
+      );
+      final paid = monthly.fold<int>(0, (sum, i) => sum + i.paidAmount);
+      final due = monthly.fold<int>(0, (sum, i) => sum + i.total);
+      final pendingPayments = store.payments
+          .where((p) => p.status == LandlordPaymentStatus.pending)
+          .length;
+      final unread = ConversationStore.instance
+          .forProperty(store.property.id)
+          .fold<int>(0, (sum, c) => sum + c.unread);
+      final verified = AdminStore.instance.isVerified(store.property.id);
+      return LandlordGlassPage(
+        title: 'Tổng quan nhà trọ',
+        kicker: 'KHÔNG GIAN CHỦ TRỌ',
+        subtitle: portfolio.stores.isEmpty
+            ? 'Bắt đầu quản lý nhà trọ của bạn.'
+            : 'Theo dõi hoạt động · ${store.property.name}',
+        profileName: profileName,
+        children: [
+          PropertyPortfolioSummary(
+            properties: portfolio.stores.length,
+            rooms: rooms.length,
+            occupied: occupied,
+            vacant: vacant,
+          ),
+          const SizedBox(height: 22),
+          if (portfolio.stores.isEmpty) ...[
+            LandlordGlassCard(
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.add_home_work_rounded,
+                    size: 36,
+                    color: propertyBlue,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Chưa có nhà trọ nào',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Tạo hồ sơ nhà trọ, thêm loại phòng và thiết lập sơ đồ tầng.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => _open(
+                      context,
+                      'properties',
+                      'Nhà trọ',
+                      const LandlordPropertiesPage(),
                     ),
-                    const SizedBox(height: 18),
-                    const Text(
-                      'Chưa có nhà trọ nào',
-                      textAlign: TextAlign.center,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Tạo phòng trọ'),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            LandlordGlassCard(
+              onTap: () => LandlordNavigation.push<void>(
+                context,
+                page: LandlordVerificationPage(store: store),
+                title: 'Xác minh nhà trọ',
+                destinationId: 'properties',
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    verified ? Icons.verified_rounded : Icons.shield_outlined,
+                    color: verified ? const Color(0xFF17A374) : propertyBlue,
+                    size: 30,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          verified
+                              ? 'Nhà trọ đã xác minh'
+                              : 'Hoàn thiện hồ sơ nhà trọ',
+                          style: TextStyle(
+                            color: palette.ink,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          verified
+                              ? 'Hồ sơ đã được quản trị viên duyệt.'
+                              : AdminStore.instance
+                                    .reviewNote(store.property.id)
+                                    .isNotEmpty
+                              ? 'Quản trị viên yêu cầu bổ sung hồ sơ.'
+                              : store.property.verificationSubmittedAt == null
+                              ? 'Gửi thông tin để xác minh nhà trọ.'
+                              : 'Hồ sơ đang chờ quản trị viên xét duyệt.',
+                          style: TextStyle(color: palette.muted, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: propertyBlue),
+                ],
+              ),
+            ),
+            if (store.roomTypes.isEmpty || store.catalog.isEmpty) ...[
+              const SizedBox(height: 14),
+              LandlordGlassCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      store.roomTypes.isEmpty
+                          ? 'Thêm loại phòng'
+                          : 'Thiết lập tầng và số phòng',
                       style: TextStyle(
-                        fontSize: 23,
+                        color: palette.ink,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Tạo nhà trọ để bắt đầu quản lý và đăng các phòng cho thuê.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(height: 1.5, color: Colors.blueGrey),
+                    Text(
+                      'Khai báo giá thuê, tiện nghi và số phòng cho từng tầng.',
+                      style: TextStyle(color: palette.muted),
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 14),
                     FilledButton.icon(
-                      onPressed: () =>
-                          RoleLayoutShell.tryNavigateTo(context, 'properties'),
-                      icon: const Icon(Icons.add_home_work_outlined),
-                      label: const Text('Tạo phòng trọ'),
+                      icon: const Icon(Icons.add_rounded),
+                      label: Text(
+                        store.roomTypes.isEmpty
+                            ? 'Thêm loại phòng'
+                            : 'Thiết lập sơ đồ tầng',
+                      ),
+                      onPressed: () {
+                        if (store.roomTypes.isEmpty) {
+                          _open(
+                            context,
+                            'room_types',
+                            'Loại phòng',
+                            const LandlordRoomTypesPage(),
+                          );
+                        } else {
+                          LandlordNavigation.push<void>(
+                            context,
+                            page: LandlordFloorPlanSetupPage(store: store),
+                            title: 'Thiết lập tầng và phòng',
+                            destinationId: 'rooms',
+                          );
+                        }
+                      },
                     ),
                   ],
                 ),
               ),
             ],
-          );
-        }
-        final now = DateTime.now();
-        final rooms = store.roomDetails;
-        final occupied = rooms
-            .where((room) => room.status == LandlordRoomStatus.occupied)
-            .length;
-        final currentInvoices = store.invoices.where(
-          (invoice) =>
-              !invoice.cancelled &&
-              invoice.period.year == now.year &&
-              invoice.period.month == now.month,
-        );
-        final due = currentInvoices.map((invoice) => invoice.total).sum;
-        final paid = currentInvoices.map((invoice) => invoice.paidAmount).sum;
-        final collectionRate = due == 0 ? 0.0 : (paid / due).clamp(0.0, 1.0);
-        final unpaidInvoices = store.invoices
-            .where(
-              (invoice) =>
-                  !invoice.cancelled &&
-                  (invoice.status == LandlordInvoiceStatus.unpaid ||
-                      invoice.status == LandlordInvoiceStatus.overdue),
-            )
-            .length;
-        final newIncidents = store.incidents
-            .where((incident) => incident.status == IncidentStatus.newly)
-            .length;
-        final upcomingViewings = viewings.records
-            .where(
-              (viewing) =>
-                  viewing.propertyId == store.property.id &&
-                  (viewing.status == ViewingStatus.pending ||
-                      viewing.status == ViewingStatus.confirmed),
-            )
-            .length;
-        final pendingPayments = store.payments
-            .where((payment) => payment.status == LandlordPaymentStatus.pending)
-            .length;
-        final unreadMessages = conversations.conversations
-            .where(
-              (conversation) => conversation.propertyId == store.property.id,
-            )
-            .map((conversation) => conversation.unread)
-            .sum;
-        final period = DateTime(now.year, now.month);
-        final missingReadings = store.activeLeases.where((lease) {
-          final reading = store.readingForRoom(lease.room, period);
-          return reading == null || !reading.isDone;
-        }).length;
-        final pendingMembers = store.members.where((member) {
-          final lease = store.leaseById(member.leaseId);
-          return member.status == LeaseMemberStatus.pending &&
-              lease != null &&
-              lease.isCurrent;
-        }).length;
-        final expiringLeases = store.activeLeases.where((lease) {
-          final days = lease.endDate.difference(now).inDays;
-          return days >= 0 && days <= 30;
-        }).length;
-
-        final tasks = <_DashboardTask>[
-          _DashboardTask(
-            icon: Icons.receipt_long_rounded,
-            title: 'Hóa đơn chưa thanh toán',
-            subtitle: '$unpaidInvoices hóa đơn đang chờ thu',
-            count: unpaidInvoices,
-            color: const Color(0xFFE76B52),
-            onTap: () =>
-                _openPage(context, 'Hóa đơn', const LandlordBillingPage()),
-          ),
-          _DashboardTask(
-            icon: Icons.handyman_rounded,
-            title: 'Yêu cầu sửa chữa mới',
-            subtitle: '$newIncidents sự cố cần xem xét',
-            count: newIncidents,
-            color: const Color(0xFFD48A28),
-            onTap: () => _openPage(
-              context,
-              'Yêu cầu sửa chữa',
-              const LandlordYeuCauSuaChuaPage(),
-            ),
-          ),
-          _DashboardTask(
-            icon: Icons.calendar_month_rounded,
-            title: 'Lịch xem phòng',
-            subtitle: '$upcomingViewings lịch hẹn cần chuẩn bị',
-            count: upcomingViewings,
-            color: const Color(0xFF4A70CE),
-            onTap: () => _openPage(
-              context,
-              'Lịch xem phòng',
-              const LandlordViewingsPage(),
-            ),
-          ),
-          _DashboardTask(
-            icon: Icons.fact_check_rounded,
-            title: 'Thanh toán chờ duyệt',
-            subtitle: '$pendingPayments khoản cần kiểm tra',
-            count: pendingPayments,
-            color: const Color(0xFF279B91),
-            onTap: () => _openPage(
-              context,
-              'Duyệt thanh toán',
-              const LandlordPaymentsPage(),
-            ),
-          ),
-          _DashboardTask(
-            icon: Icons.chat_bubble_rounded,
-            title: 'Tin nhắn chưa đọc',
-            subtitle: '$unreadMessages tin nhắn từ người thuê',
-            count: unreadMessages,
-            color: const Color(0xFF665CC6),
-            onTap: () => _openPage(
-              context,
-              'Tin nhắn',
-              const LandlordDanhSachTinNhanPage(),
-            ),
-          ),
-          _DashboardTask(
-            icon: Icons.bolt_rounded,
-            title: 'Chỉ số điện nước',
-            subtitle: '$missingReadings phòng chưa ghi chỉ số tháng này',
-            count: missingReadings,
-            color: const Color(0xFFD48A28),
-            onTap: () => _openPage(
-              context,
-              'Chỉ số điện nước',
-              const LandlordChiSoDienNuocPage(),
-            ),
-          ),
-          _DashboardTask(
-            icon: Icons.person_add_alt_1_rounded,
-            title: 'Thành viên chờ duyệt',
-            subtitle: '$pendingMembers yêu cầu thêm người vào phòng',
-            count: pendingMembers,
-            color: const Color(0xFF665CC6),
-            onTap: () =>
-                _openPage(context, 'Người thuê', const LandlordNguoiThuePage()),
-          ),
-          _DashboardTask(
-            icon: Icons.description_rounded,
-            title: 'Hợp đồng sắp hết hạn',
-            subtitle: '$expiringLeases hợp đồng còn tối đa 30 ngày',
-            count: expiringLeases,
-            color: const Color(0xFF4A70CE),
-            onTap: () =>
-                _openPage(context, 'Hợp đồng thuê', const LandlordLeasesPage()),
-          ),
-        ];
-
-        return LandlordPageFrame(
-          children: [
-            _DashboardWelcome(
-              greeting: _greeting(now.hour),
-              ownerName: store.property.ownerName,
-              propertyName: store.property.name,
-            ),
-            const SizedBox(height: 17),
-            _DashboardOverviewCard(
-              month: now.month,
-              year: now.year,
-              paid: paid,
-              due: due,
-              occupied: occupied,
-              totalRooms: rooms.length,
-              collectionRate: collectionRate,
-              onRooms: () =>
-                  _openPage(context, 'Phòng trọ', const LandlordRoomsPage()),
-            ),
             const SizedBox(height: 24),
-            const _DashboardSectionTitle(
-              eyebrow: 'LỐI TẮT QUẢN LÝ',
+            const LandlordGlassSection(
               title: 'Thao tác nhanh',
-              subtitle: 'Những việc bạn thường dùng mỗi ngày',
+              subtitle: 'Lối tắt quản lý nhà trọ mỗi ngày',
             ),
-            const SizedBox(height: 15),
             LayoutBuilder(
               builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 720 ? 4 : 2;
-                const spacing = 11.0;
+                final columns = constraints.maxWidth >= 700 ? 4 : 2;
                 final width =
-                    (constraints.maxWidth - spacing * (columns - 1)) / columns;
+                    (constraints.maxWidth - 10 * (columns - 1)) / columns;
+                final actions = <(IconData, String, String, VoidCallback)>[
+                  (
+                    Icons.meeting_room_rounded,
+                    'Phòng',
+                    '${store.catalog.length} phòng',
+                    () => _open(
+                      context,
+                      'rooms',
+                      'Phòng trọ',
+                      const LandlordRoomsPage(),
+                    ),
+                  ),
+                  (
+                    Icons.receipt_long_rounded,
+                    'Lập hóa đơn',
+                    '${unpaid.length} phòng còn nợ',
+                    () => _open(
+                      context,
+                      'billing',
+                      'Thu chi',
+                      const LandlordBillingPage(),
+                    ),
+                  ),
+                  (
+                    Icons.bolt_rounded,
+                    'Ghi điện nước',
+                    'Cập nhật chỉ số',
+                    () => _open(
+                      context,
+                      'meter_readings',
+                      'Chỉ số điện nước',
+                      const LandlordChiSoDienNuocPage(),
+                    ),
+                  ),
+                  (
+                    Icons.forum_rounded,
+                    'Tin nhắn',
+                    '$unread tin chưa đọc',
+                    () => _open(
+                      context,
+                      'conversations',
+                      'Tin nhắn',
+                      const LandlordDanhSachTinNhanPage(),
+                    ),
+                  ),
+                  (
+                    Icons.calendar_month_rounded,
+                    'Lịch xem phòng',
+                    'Quản lý lịch hẹn',
+                    () => _open(
+                      context,
+                      'viewings',
+                      'Lịch xem phòng',
+                      const LandlordViewingsPage(),
+                    ),
+                  ),
+                  (
+                    Icons.fact_check_rounded,
+                    'Duyệt thanh toán',
+                    '$pendingPayments khoản chờ duyệt',
+                    () => _open(
+                      context,
+                      'payments',
+                      'Duyệt thanh toán',
+                      const LandlordPaymentsPage(),
+                    ),
+                  ),
+                  (
+                    Icons.people_alt_rounded,
+                    'Người thuê',
+                    'Thành viên & yêu cầu',
+                    () => _open(
+                      context,
+                      'members',
+                      'Người thuê',
+                      const LandlordNguoiThuePage(),
+                    ),
+                  ),
+                  (
+                    Icons.description_rounded,
+                    'Hợp đồng',
+                    '${store.activeLeases.length} đang có hiệu lực',
+                    () => _open(
+                      context,
+                      'leases',
+                      'Hợp đồng',
+                      const LandlordLeasesPage(),
+                    ),
+                  ),
+                ];
                 return Wrap(
-                  spacing: spacing,
-                  runSpacing: spacing,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: [
-                    SizedBox(
-                      width: width,
-                      child: _DashboardQuickCard(
-                        icon: Icons.meeting_room_rounded,
-                        title: 'Phòng trọ',
-                        subtitle: '${rooms.length} phòng đang quản lý',
-                        color: palette.primary,
-                        onTap: () => _openPage(
-                          context,
-                          'Phòng trọ',
-                          const LandlordRoomsPage(),
+                    for (final (icon, title, subtitle, action) in actions)
+                      SizedBox(
+                        width: width,
+                        child: _Shortcut(
+                          icon: icon,
+                          title: title,
+                          subtitle: subtitle,
+                          onTap: action,
                         ),
                       ),
-                    ),
-                    SizedBox(
-                      width: width,
-                      child: _DashboardQuickCard(
-                        icon: Icons.receipt_long_rounded,
-                        title: 'Hóa đơn',
-                        subtitle: '$unpaidInvoices khoản cần thu',
-                        color: const Color(0xFF248F89),
-                        onTap: () => _openPage(
-                          context,
-                          'Hóa đơn',
-                          const LandlordBillingPage(),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: width,
-                      child: _DashboardQuickCard(
-                        icon: Icons.bolt_rounded,
-                        title: 'Điện nước',
-                        subtitle: '$missingReadings phòng chưa chốt',
-                        color: const Color(0xFF695CC8),
-                        onTap: () => _openPage(
-                          context,
-                          'Chỉ số điện nước',
-                          const LandlordChiSoDienNuocPage(),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: width,
-                      child: _DashboardQuickCard(
-                        icon: Icons.calendar_month_rounded,
-                        title: 'Lịch xem',
-                        subtitle: '$upcomingViewings lịch sắp tới',
-                        color: const Color(0xFFD18729),
-                        onTap: () => _openPage(
-                          context,
-                          'Lịch xem phòng',
-                          const LandlordViewingsPage(),
-                        ),
-                      ),
-                    ),
                   ],
                 );
               },
             ),
-            const SizedBox(height: 29),
-            _DashboardSectionTitle(
-              eyebrow: 'ƯU TIÊN HÔM NAY',
-              title: 'Cần xử lý',
-              subtitle: 'Tập trung vào các mục đang chờ',
-              count: tasks.where((task) => task.count > 0).length,
+            const SizedBox(height: 24),
+            LandlordGlassSection(
+              title: 'Báo cáo sự cố',
+              subtitle:
+                  '${incidents.where((i) => i.status != IncidentStatus.closed).length} yêu cầu đang theo dõi',
+              trailing: TextButton(
+                onPressed: () => _open(
+                  context,
+                  'incidents',
+                  'Yêu cầu sửa chữa',
+                  const LandlordYeuCauSuaChuaPage(),
+                ),
+                child: const Text('Xem tất cả'),
+              ),
             ),
-            const SizedBox(height: 15),
-            _DashboardTaskQueue(tasks: tasks),
-            const SizedBox(height: 29),
-            const _DashboardSectionTitle(
-              eyebrow: 'VẬN HÀNH NHÀ TRỌ',
-              title: 'Công cụ khác',
-              subtitle: 'Cập nhật dịch vụ và thông tin gửi người thuê',
+            if (incidents.isEmpty)
+              const LandlordGlassCard(
+                child: Text('Chưa có báo cáo sự cố từ người thuê.'),
+              ),
+            for (final incident in incidents.take(3))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: LandlordIncidentGlassCard(
+                  incident: incident,
+                  store: store,
+                ),
+              ),
+            const SizedBox(height: 24),
+            LandlordGlassSection(
+              title: 'Phòng chưa đóng tiền',
+              subtitle:
+                  '${unpaid.length} phòng · ${formatLandlordMoney(unpaid.fold<int>(0, (sum, b) => sum + b.remaining))} còn phải thu',
+              trailing: TextButton(
+                onPressed: () => _open(
+                  context,
+                  'billing',
+                  'Thu chi',
+                  const LandlordBillingPage(),
+                ),
+                child: const Text('Xem tất cả'),
+              ),
             ),
-            const SizedBox(height: 15),
-            _DashboardUtilityCard(
+            if (unpaid.isEmpty)
+              const LandlordGlassCard(
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle_rounded, color: Color(0xFF17A374)),
+                    SizedBox(width: 10),
+                    Expanded(child: Text('Không có phòng còn nợ tiền trọ.')),
+                  ],
+                ),
+              ),
+            for (final balance in unpaid.take(4))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: LandlordRoomBalanceCard(
+                  balance: balance,
+                  onTap: () => LandlordNavigation.push<void>(
+                    context,
+                    page: LandlordBillingPage(
+                      initialRoom: balance.details.room.code,
+                    ),
+                    destinationId: 'billing',
+                    title: 'Thu chi',
+                  ),
+                ),
+              ),
+            const SizedBox(height: 24),
+            LandlordGlassSection(
+              title: 'Thu tiền tháng ${now.month}/${now.year}',
+              subtitle: 'Khoản đã thu được tính sau khi xác nhận thanh toán',
+            ),
+            LandlordBluePanel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Đã thu trong tháng',
+                    style: TextStyle(color: Color(0xFFDDEBFF), fontSize: 12),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    formatLandlordMoney(paid),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tổng cần thu: ${formatLandlordMoney(due)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFDDEBFF),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: due == 0 ? 0 : (paid / due).clamp(0, 1),
+                      minHeight: 6,
+                      color: const Color(0xFF9BE8FF),
+                      backgroundColor: Colors.white24,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(foregroundColor: Colors.white),
+                    onPressed: () => _open(
+                      context,
+                      'rooms',
+                      'Phòng trọ',
+                      const LandlordRoomsPage(),
+                    ),
+                    icon: const Icon(Icons.grid_view_rounded),
+                    label: const Text('Xem & quản lý phòng trọ'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const LandlordGlassSection(title: 'Công cụ khác'),
+            _Utility(
               icon: Icons.tune_rounded,
               title: 'Dịch vụ & bảng giá',
               subtitle: '${store.services.length} dịch vụ đang áp dụng',
-              onTap: () => _openPage(
+              onTap: () => _open(
                 context,
+                'services',
                 'Dịch vụ & bảng giá',
                 const LandlordDichVuBangGiaPage(),
               ),
             ),
             const SizedBox(height: 10),
-            _DashboardUtilityCard(
+            _Utility(
               icon: Icons.campaign_rounded,
               title: 'Gửi thông báo',
               subtitle: 'Nội quy, bảo trì và thông tin mới',
-              onTap: () => _openPage(
+              onTap: () => _open(
                 context,
+                'announcements',
                 'Thông báo',
                 const LandlordAnnouncementsPage(),
               ),
             ),
           ],
-        );
-      },
-    );
-  }
+        ],
+      );
+    },
+  );
+
+  void _open(
+    BuildContext context,
+    String destination,
+    String title,
+    Widget page,
+  ) => openLandlordDestination(context, destination, title, page);
 }
 
-class _DashboardWelcome extends StatelessWidget {
-  const _DashboardWelcome({
-    required this.greeting,
-    required this.ownerName,
-    required this.propertyName,
+class _Shortcut extends StatelessWidget {
+  const _Shortcut({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
   });
-
-  final String greeting;
-  final String ownerName;
-  final String propertyName;
-
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) {
-    final palette = LandlordPalette.of(context);
-    return Row(
+  Widget build(BuildContext context) => LandlordGlassCard(
+    onTap: onTap,
+    padding: const EdgeInsets.all(14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF78D9FF), propertyBlue],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: Colors.white, size: 22),
+        ),
+        const SizedBox(height: 13),
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: LandlordPalette.of(context).ink,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: LandlordPalette.of(context).muted,
+            fontSize: 10,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _Utility extends StatelessWidget {
+  const _Utility({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => LandlordGlassCard(
+    onTap: onTap,
+    child: Row(
+      children: [
+        Icon(icon, color: propertyBlue),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 4),
               Text(
-                '$greeting, $ownerName',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                subtitle,
                 style: TextStyle(
-                  color: palette.ink,
-                  fontSize: 23,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.65,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Tổng quan vận hành · $propertyName',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: palette.muted, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: palette.primarySoft,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: palette.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'Chủ trọ',
-                style: TextStyle(
-                  color: palette.primary,
+                  color: LandlordPalette.of(context).muted,
                   fontSize: 11,
-                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
         ),
+        const Icon(Icons.chevron_right_rounded, color: propertyBlue),
       ],
-    );
-  }
-}
-
-class _DashboardOverviewCard extends StatelessWidget {
-  const _DashboardOverviewCard({
-    required this.month,
-    required this.year,
-    required this.paid,
-    required this.due,
-    required this.occupied,
-    required this.totalRooms,
-    required this.collectionRate,
-    required this.onRooms,
-  });
-
-  final int month;
-  final int year;
-  final int paid;
-  final int due;
-  final int occupied;
-  final int totalRooms;
-  final double collectionRate;
-  final VoidCallback onRooms;
-
-  @override
-  Widget build(BuildContext context) {
-    final occupancyRate = totalRooms == 0
-        ? 0
-        : (occupied * 100 / totalRooms).round();
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF142F70), Color(0xFF315FCA), Color(0xFF233F9A)],
-        ),
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2A315FC9),
-            blurRadius: 22,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -105,
-            right: -85,
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0x33FFFFFF), width: 35),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 48,
-            right: -112,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0x10FFFFFF),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0x2BFFFFFF),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.auto_awesome_rounded,
-                            color: Color(0xFFB6E7FF),
-                            size: 15,
-                          ),
-                          SizedBox(width: 5),
-                          Text(
-                            'TỔNG QUAN',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'THÁNG $month/$year',
-                      style: const TextStyle(
-                        color: Color(0xFFD8E6FF),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Đã thu trong tháng',
-                  style: TextStyle(color: Color(0xFFD8E6FF), fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                SizedBox(
-                  width: double.infinity,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      formatLandlordMoney(paid),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -1.3,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  due == 0
-                      ? 'Chưa có hóa đơn trong tháng này'
-                      : 'Tổng cần thu: ${formatLandlordMoney(due)}',
-                  style: const TextStyle(
-                    color: Color(0xFFD8E6FF),
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _DashboardHeroMetric(
-                        icon: Icons.door_front_door_rounded,
-                        value: '$occupancyRate%',
-                        label: '$occupied/$totalRooms phòng đang thuê',
-                        progress: totalRooms == 0 ? 0 : occupied / totalRooms,
-                      ),
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: _DashboardHeroMetric(
-                        icon: Icons.trending_up_rounded,
-                        value: '${(collectionRate * 100).round()}%',
-                        label: 'Tiến độ thu',
-                        progress: collectionRate,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  child: InkWell(
-                    onTap: onRooms,
-                    borderRadius: BorderRadius.circular(16),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 15,
-                        vertical: 11,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.grid_view_rounded,
-                            color: Color(0xFF254CBA),
-                            size: 19,
-                          ),
-                          SizedBox(width: 9),
-                          Expanded(
-                            child: Text(
-                              'Xem & quản lý phòng trọ',
-                              style: TextStyle(
-                                color: Color(0xFF2144A8),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            color: Color(0xFF254CBA),
-                            size: 18,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DashboardHeroMetric extends StatelessWidget {
-  const _DashboardHeroMetric({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.progress,
-  });
-
-  final IconData icon;
-  final String value;
-  final String label;
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(11, 10, 11, 11),
-      decoration: BoxDecoration(
-        color: const Color(0x28FFFFFF),
-        border: Border.all(color: const Color(0x30FFFFFF)),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: const Color(0xFFBFE8FF), size: 16),
-              const Spacer(),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 4,
-              backgroundColor: const Color(0x55FFFFFF),
-              color: const Color(0xFF9CE5F4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DashboardSectionTitle extends StatelessWidget {
-  const _DashboardSectionTitle({
-    required this.eyebrow,
-    required this.title,
-    required this.subtitle,
-    this.count,
-  });
-
-  final String eyebrow;
-  final String title;
-  final String subtitle;
-  final int? count;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = LandlordPalette.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          eyebrow,
-          style: TextStyle(
-            color: palette.primary,
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: palette.ink,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
-            if (count != null && count! > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF422F36)
-                      : const Color(0xFFFDEBE7),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Text(
-                  '$count việc',
-                  style: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFFFFAF9F)
-                        : const Color(0xFFB64A38),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 3),
-        Text(subtitle, style: TextStyle(color: palette.muted, fontSize: 12)),
-      ],
-    );
-  }
-}
-
-class _DashboardQuickCard extends StatelessWidget {
-  const _DashboardQuickCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = LandlordPalette.of(context);
-    return Container(
-      height: 124,
-      decoration: BoxDecoration(
-        color: palette.surface,
-        border: Border.all(color: palette.line),
-        borderRadius: BorderRadius.circular(19),
-        boxShadow: [
-          BoxShadow(
-            color: palette.ink.withValues(alpha: 0.035),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(19),
-          child: Padding(
-            padding: const EdgeInsets.all(13),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 39,
-                      height: 39,
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(icon, color: color, size: 21),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.north_east_rounded,
-                      color: palette.muted,
-                      size: 17,
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: palette.ink,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: palette.muted, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DashboardTask {
-  const _DashboardTask({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.count,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final int count;
-  final Color color;
-  final VoidCallback onTap;
-}
-
-class _DashboardTaskQueue extends StatefulWidget {
-  const _DashboardTaskQueue({required this.tasks});
-
-  final List<_DashboardTask> tasks;
-
-  @override
-  State<_DashboardTaskQueue> createState() => _DashboardTaskQueueState();
-}
-
-class _DashboardTaskQueueState extends State<_DashboardTaskQueue> {
-  bool expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = LandlordPalette.of(context);
-    final pending = widget.tasks.where((task) => task.count > 0).toList();
-    final visible = expanded ? pending : pending.take(3).toList();
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.surface,
-        border: Border.all(color: palette.line),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: pending.isEmpty
-          ? Padding(
-              padding: const EdgeInsets.all(22),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: palette.primary,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Mọi việc đã được xử lý. Nhà trọ đang vận hành ổn định.',
-                      style: TextStyle(color: palette.ink, fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : Column(
-              children: [
-                for (var index = 0; index < visible.length; index++) ...[
-                  if (index > 0)
-                    Divider(height: 1, indent: 62, color: palette.line),
-                  _DashboardTaskRow(task: visible[index]),
-                ],
-                if (pending.length > 3) ...[
-                  Divider(height: 1, color: palette.line),
-                  TextButton.icon(
-                    onPressed: () => setState(() => expanded = !expanded),
-                    icon: Icon(
-                      expanded
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      size: 19,
-                    ),
-                    label: Text(
-                      expanded
-                          ? 'Thu gọn'
-                          : 'Xem thêm ${pending.length - 3} mục',
-                    ),
-                  ),
-                ],
-              ],
-            ),
-    );
-  }
-}
-
-class _DashboardTaskRow extends StatelessWidget {
-  const _DashboardTaskRow({required this.task});
-
-  final _DashboardTask task;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = LandlordPalette.of(context);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: task.onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          child: Row(
-            children: [
-              Container(
-                width: 37,
-                height: 37,
-                decoration: BoxDecoration(
-                  color: task.color.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(task.icon, color: task.color, size: 19),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: palette.ink,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      task.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: palette.muted, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 7),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-                decoration: BoxDecoration(
-                  color: task.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${task.count}',
-                  style: TextStyle(
-                    color: task.color,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 3),
-              Icon(Icons.chevron_right_rounded, color: palette.muted, size: 18),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DashboardUtilityCard extends StatelessWidget {
-  const _DashboardUtilityCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = LandlordPalette.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.surface,
-        border: Border.all(color: palette.line),
-        borderRadius: BorderRadius.circular(17),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(17),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: palette.primarySoft,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: palette.primary, size: 21),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: palette.ink,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: palette.muted, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  color: palette.primary,
-                  size: 18,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }

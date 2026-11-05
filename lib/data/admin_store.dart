@@ -61,7 +61,6 @@ class AdminStore extends ChangeNotifier {
     final store = _portfolio.byId(id);
     return store != null &&
         _verified[id] == true &&
-        verificationIssues(store).isEmpty &&
         _verificationProofs[id] == _proof(store);
   }
 
@@ -100,6 +99,16 @@ class AdminStore extends ChangeNotifier {
 
   static List<String> verificationIssues(LandlordDemoStore store) {
     final p = store.property;
+    final verificationFiles = {
+      for (final document in p.verificationDocuments)
+        document.id: document.files
+            .where(
+              (file) =>
+                  file.bytes?.isNotEmpty == true ||
+                  (file.storagePath ?? '').isNotEmpty,
+            )
+            .length,
+    };
     return [
       if (p.name.trim().isEmpty) 'Tên nhà trọ',
       if (p.address.trim().isEmpty ||
@@ -123,6 +132,13 @@ class AdminStore extends ChangeNotifier {
             ),
       ))
         'Diện tích, sức chứa và giá thuê từng phòng',
+      if (p.verificationSubmittedAt == null) 'Hồ sơ giấy tờ xác minh',
+      if ((verificationFiles['portrait'] ?? 0) == 0) 'Ảnh chân dung chủ trọ',
+      if ((verificationFiles['identity'] ?? 0) == 0) 'CCCD / thẻ căn cước',
+      if ((verificationFiles['ownership'] ?? 0) == 0) 'Sổ đỏ / sổ hồng',
+      if (!p.verificationIsOwner &&
+          (verificationFiles['authorization'] ?? 0) == 0)
+        'Giấy ủy quyền cho thuê nhà',
     ];
   }
 

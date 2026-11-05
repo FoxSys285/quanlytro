@@ -267,6 +267,12 @@ class ScopedFirestoreRentalRepository
       final data = Map<String, dynamic>.from(rawData);
       if (kind == 'settings') {
         store.addAll(data);
+      } else if (kind == 'verification') {
+        final property = Map<String, dynamic>.from(store['property'] as Map);
+        property['verificationDocuments'] = data['documents'] as List? ?? [];
+        property['verificationSubmittedAt'] = data['submittedAt'];
+        property['verificationIsOwner'] = data['isOwner'] != false;
+        store['property'] = property;
       } else if (kind == 'messages') {
         messages.add(data);
       } else if (kind == 'tenantAnnouncements' &&

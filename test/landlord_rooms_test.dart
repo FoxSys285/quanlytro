@@ -44,6 +44,7 @@ void main() {
 
   testWidgets('Landlord rooms tab opens the room list', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LandlordLayout()));
+    await tester.ensureVisible(find.text('Phòng'));
     await tester.tap(find.text('Phòng'));
     await tester.pumpAndSettle();
     expect(find.byType(LandlordRoomsPage), findsOneWidget);
@@ -83,7 +84,7 @@ void main() {
       await tester.tap(find.byType(LandlordRoomButton));
       await tester.pumpAndSettle();
       expect(find.text('4.400.000 đ / tháng'), findsOneWidget);
-      await tester.tap(find.byTooltip('Đóng chi tiết'));
+      await tester.tap(find.byTooltip('Quay lại'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), '');
       await tester.pumpAndSettle();

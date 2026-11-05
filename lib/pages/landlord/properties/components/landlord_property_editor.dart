@@ -104,7 +104,7 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Color(0xFF3769D6), width: 1.5),
+      borderSide: const BorderSide(color: Color(0xFF1679BC), width: 1.5),
     ),
   );
 
@@ -128,6 +128,9 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
         amenities: _amenities.toList(),
         city: _city.text.trim(),
         ward: _ward.text.trim(),
+        verificationDocuments: widget.property.verificationDocuments,
+        verificationSubmittedAt: widget.property.verificationSubmittedAt,
+        verificationIsOwner: widget.property.verificationIsOwner,
       ),
     );
   }
@@ -159,7 +162,7 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                   ),
                   child: const Icon(
                     Icons.edit_note_rounded,
-                    color: Color(0xFF3769D6),
+                    color: Color(0xFF1679BC),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -418,7 +421,7 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                 FilledButton.icon(
                   onPressed: _picking ? null : _save,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF3769D6),
+                    backgroundColor: const Color(0xFF1679BC),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 18,
                       vertical: 14,

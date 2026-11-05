@@ -6,7 +6,10 @@ String propertyVerificationProof(Map<String, dynamic> store) => sha256
     .convert(
       utf8.encode(
         cloudFingerprint({
-          'property': store['property'],
+          'property': Map<String, dynamic>.from(store['property'] as Map)
+            ..remove('verificationDocuments')
+            ..remove('verificationSubmittedAt')
+            ..remove('verificationIsOwner'),
           'rooms': store['rooms'],
           'types': store['roomTypes'],
         }),
@@ -60,6 +63,10 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
     final verified =
         snapshot['admin']?['verified']?[id] == true &&
         snapshot['admin']?['verificationProofs']?[id] == proof;
+    final publicProperty = Map<String, dynamic>.from(property)
+      ..remove('verificationDocuments')
+      ..remove('verificationSubmittedAt')
+      ..remove('verificationIsOwner');
     final tenants = leases.map((l) => l['tenantId'] as String).toSet().toList();
     void record(
       String kind,
@@ -84,7 +91,7 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
       'verified': verified,
       'verificationProof': verified ? proof : '',
       'data': {
-        'property': property,
+        'property': publicProperty,
         'rooms': store['rooms'],
         'roomTypes': store['roomTypes'],
         'services': store['services'],
@@ -94,6 +101,14 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
       'counters': store['counters'],
       'paymentAccounts': store['paymentAccounts'],
     }, tenants);
+    if (property['verificationSubmittedAt'] != null ||
+        (property['verificationDocuments'] as List? ?? const []).isNotEmpty) {
+      record('verification', id, {
+        'submittedAt': property['verificationSubmittedAt'],
+        'isOwner': property['verificationIsOwner'] != false,
+        'documents': property['verificationDocuments'] ?? const [],
+      }, const []);
+    }
     final readersForLease = <String, List<String>>{};
     for (final lease in leases) {
       readersForLease[lease['id'] as String] = [lease['tenantId'] as String];

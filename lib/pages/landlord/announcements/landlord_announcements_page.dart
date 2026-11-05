@@ -470,12 +470,12 @@ class _AnnouncementHero extends StatelessWidget {
       gradient: const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF1F50D5), Color(0xFF2869E9), Color(0xFF4C90FA)],
+        colors: [Color(0xFF0C5C91), Color(0xFF1682C4), Color(0xFF54A9D8)],
       ),
       borderRadius: BorderRadius.circular(19),
       boxShadow: const [
         BoxShadow(
-          color: Color(0x301E58D8),
+          color: Color(0x301682C4),
           blurRadius: 18,
           offset: Offset(0, 8),
         ),

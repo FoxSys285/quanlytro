@@ -5,7 +5,9 @@ import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
 import 'package:quanlytro/pages/landlord/properties/landlord_properties_page.dart';
 
 void main() {
-  testWidgets('Landlord owns a single property', (tester) async {
+  testWidgets('Landlord opens the redesigned property portfolio', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: LandlordLayout()));
     await tester.tap(find.byTooltip('Mở danh mục chức năng'));
     await tester.pumpAndSettle();
@@ -15,8 +17,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(LandlordPropertiesPage), findsOneWidget);
     expect(find.text('Nhà Nâu'), findsNothing);
-    expect(find.text('Danh sách nhà trọ'), findsNothing);
-    expect(find.text('Thông tin nhà trọ'), findsOneWidget);
+    expect(find.text('Danh sách nhà trọ'), findsOneWidget);
+    expect(find.text('Thêm nhà trọ'), findsOneWidget);
+    expect(find.text('Tìm tên hoặc địa chỉ nhà trọ'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

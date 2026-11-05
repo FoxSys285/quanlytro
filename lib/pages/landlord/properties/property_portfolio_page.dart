@@ -2,25 +2,44 @@ import 'package:flutter/material.dart';
 
 import '../../../data/admin_store.dart';
 import '../../../data/app_persistence.dart';
+import '../../../data/local_auth.dart';
+import '../../../layouts/role_layout.dart';
+import '../../shared/settings/account_settings_page.dart';
 import '../landlord_theme.dart';
 
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
 import '../rooms/models/landlord_room.dart';
+import 'landlord_property_detail_page.dart';
 import 'components/landlord_property_editor.dart';
+import 'components/property_portfolio_visuals.dart';
 import 'components/landlord_property_image.dart';
 import 'models/landlord_property.dart';
 
 class PropertyPortfolioPage extends StatefulWidget {
-  const PropertyPortfolioPage({super.key});
+  const PropertyPortfolioPage({super.key, this.profileName});
+  final String? profileName;
   @override
   State<PropertyPortfolioPage> createState() => _PropertyPortfolioPageState();
 }
 
 class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
   String _query = '';
+  String _filter = 'Tất cả';
   bool _saving = false;
+  String? _selectedPropertyId;
   RentalPortfolio get _portfolio => RentalPortfolio.instance;
+
+  void _openProperty(LandlordDemoStore store) {
+    _portfolio.select(store.property.id);
+    setState(() => _selectedPropertyId = store.property.id);
+  }
+
+  Widget _propertyDetail(LandlordDemoStore store) => LandlordPropertyDetailPage(
+    store: store,
+    onBack: () => setState(() => _selectedPropertyId = null),
+    onEdit: () => _edit(store),
+  );
 
   Future<void> _save(String message) async {
     setState(() => _saving = true);
@@ -52,22 +71,57 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
   }
 
   Future<void> _add() async {
+    final session = LocalAuth.instance.session;
+    if (LocalAuth.instance.isCloudMode && session == null) {
+      showLandlordMessage(
+        context,
+        'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.',
+      );
+      return;
+    }
     final property = await showDialog<LandlordProperty>(
       context: context,
       builder: (_) => LandlordPropertyEditor(
         creating: true,
         property: LandlordProperty(
-          id: 'property-${DateTime.now().microsecondsSinceEpoch}',
+          id: _portfolio.stores.isEmpty && session != null
+              ? session.uid
+              : 'property-${DateTime.now().microsecondsSinceEpoch}',
           name: '',
           address: '',
-          ownerName: _portfolio.active.property.ownerName,
-          phone: _portfolio.active.property.phone,
-          phoneIsSynthetic: _portfolio.active.property.phoneIsSynthetic,
+          ownerName:
+              session?.displayName ??
+              (_portfolio.stores.isEmpty
+                  ? widget.profileName ?? ''
+                  : _portfolio.active.property.ownerName),
+          phone: _portfolio.stores.isEmpty
+              ? ''
+              : _portfolio.active.property.phone,
+          phoneIsSynthetic:
+              _portfolio.stores.isNotEmpty &&
+              _portfolio.active.property.phoneIsSynthetic,
           description: '',
+          city: _portfolio.stores.isEmpty
+              ? ''
+              : _portfolio.active.property.city,
+          ward: _portfolio.stores.isEmpty
+              ? ''
+              : _portfolio.active.property.ward,
         ),
       ),
     );
     if (!mounted || property == null) return;
+    if (_portfolio.stores.isEmpty) {
+      try {
+        _portfolio.createSingleProperty(property);
+        await _save(
+          'Đã tạo nhà trọ. Hãy thêm loại phòng và phòng trọ của bạn.',
+        );
+      } on ArgumentError catch (error) {
+        if (mounted) showLandlordMessage(context, error.message.toString());
+      }
+      return;
+    }
     var floors = 3;
     var rooms = 6;
     final confirmed = await showDialog<bool>(
@@ -164,105 +218,237 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([_portfolio, AdminStore.instance]),
     builder: (context, _) {
-      final stores = _portfolio.stores
-          .where(
-            (s) => '${s.property.name} ${s.property.address}'
-                .toLowerCase()
-                .contains(_query.toLowerCase()),
-          )
-          .toList();
-      final roomCount = _portfolio.stores.fold<int>(
-        0,
-        (sum, s) => sum + s.catalog.length,
-      );
-      final occupied = _portfolio.stores.fold<int>(
-        0,
-        (sum, s) =>
-            sum +
-            s.roomDetails
-                .where((r) => r.status == LandlordRoomStatus.occupied)
-                .length,
-      );
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1120),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LandlordPageTitle(
-                  title: 'Danh sách nhà trọ',
-                  subtitle: 'Quản lý thông tin, quy mô và tình trạng cho thuê.',
-                ),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF173C76), Color(0xFF3769D6)],
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Wrap(
-                    spacing: 32,
-                    runSpacing: 18,
-                    children: [
-                      _metric('${_portfolio.stores.length}', 'Nhà trọ'),
-                      _metric('$roomCount', 'Tổng số phòng'),
-                      _metric('$occupied', 'Phòng đang thuê'),
-                      _metric('${roomCount - occupied}', 'Phòng còn lại'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+      final selectedStore = _selectedPropertyId == null
+          ? null
+          : _portfolio.byId(_selectedPropertyId!);
+      if (selectedStore != null) return _propertyDetail(selectedStore);
+      final stores = _portfolio.stores.where((store) {
+        final matchesSearch = '${store.property.name} ${store.property.address}'
+            .toLowerCase()
+            .contains(_query.toLowerCase());
+        final hasOccupiedRoom = store.roomDetails.any(
+          (room) => room.status == LandlordRoomStatus.occupied,
+        );
+        final hasVacantRoom = store.roomDetails.any(
+          (room) => room.status == LandlordRoomStatus.vacant,
+        );
+        final matchesFilter = switch (_filter) {
+          'Đang thuê' => hasOccupiedRoom,
+          'Còn phòng' => hasVacantRoom,
+          _ => true,
+        };
+        return matchesSearch && matchesFilter;
+      }).toList();
+      final profileName =
+          widget.profileName ??
+          LocalAuth.instance.session?.displayName ??
+          (_portfolio.active.property.ownerName.trim().isEmpty
+              ? 'Chủ trọ'
+              : _portfolio.active.property.ownerName);
+      final palette = LandlordPalette.of(context);
+      final dark = Theme.of(context).brightness == Brightness.dark;
+      return PropertyPortfolioBackdrop(
+        child: SafeArea(
+          bottom: false,
+          child: SingleChildScrollView(
+            key: const PageStorageKey('landlord-property-portfolio'),
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 18),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SizedBox(
-                      width: 320,
-                      child: TextField(
-                        onChanged: (v) => setState(() => _query = v),
-                        decoration: const InputDecoration(
-                          hintText: 'Tìm tên hoặc địa chỉ nhà trọ',
-                          prefixIcon: Icon(Icons.search),
+                    PropertyProfileHeader(
+                      name: profileName,
+                      onMenu: () => Scaffold.of(context).openDrawer(),
+                      onActiveProperty: () {
+                        if (_portfolio.stores.isNotEmpty) {
+                          _openProperty(_portfolio.active);
+                        } else {
+                          _add();
+                        }
+                      },
+                      onSettings: () {
+                        if (!RoleLayoutShell.navigateTo(context, 'settings')) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const Scaffold(
+                                body: AccountSettingsPage(
+                                  role: AppRole.landlord,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    PropertyPortfolioIntro(
+                      onTap: () => Scaffold.of(context).openDrawer(),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(30),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x155D6FE8),
+                                  blurRadius: 22,
+                                  offset: Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: TextField(
+                              onChanged: (value) =>
+                                  setState(() => _query = value),
+                              style: TextStyle(
+                                color: palette.ink,
+                                fontSize: 12,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Tìm tên hoặc địa chỉ nhà trọ',
+                                hintStyle: const TextStyle(
+                                  color: propertyMuted,
+                                  fontSize: 12,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.search_rounded,
+                                  color: Color(0xFF7180A4),
+                                  size: 25,
+                                ),
+                                prefixIconConstraints: const BoxConstraints(
+                                  minWidth: 48,
+                                ),
+                                isDense: true,
+                                filled: true,
+                                fillColor: palette.surface.withValues(
+                                  alpha: dark ? 0.9 : 0.76,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 13,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: const BorderSide(
+                                    color: Color(0x70FFFFFF),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: const BorderSide(
+                                    color: propertyBlue,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        PopupMenuButton<String>(
+                          tooltip: 'Lọc nhà trọ',
+                          initialValue: _filter,
+                          onSelected: (value) =>
+                              setState(() => _filter = value),
+                          itemBuilder: (_) => [
+                            for (final filter in const [
+                              'Tất cả',
+                              'Đang thuê',
+                              'Còn phòng',
+                            ])
+                              CheckedPopupMenuItem(
+                                value: filter,
+                                checked: _filter == filter,
+                                child: Text(filter),
+                              ),
+                          ],
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: dark
+                                    ? [palette.surface, palette.surfaceAlt]
+                                    : [
+                                        const Color(0xFFF1F7FF),
+                                        const Color(0xFFCDE1FF),
+                                      ],
+                              ),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.85),
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x125D6FE8),
+                                  blurRadius: 15,
+                                  offset: Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.tune_rounded,
+                              color: _filter == 'Tất cả'
+                                  ? const Color(0xFF4278B9)
+                                  : propertyBlue,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_filter != 'Tất cả')
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: InputChip(
+                          label: Text(_filter),
+                          onDeleted: () => setState(() => _filter = 'Tất cả'),
                         ),
                       ),
+                    const SizedBox(height: 14),
+                    Center(
+                      child: PropertyAddButton(onTap: _saving ? null : _add),
                     ),
-                    FilledButton.icon(
-                      onPressed: _saving ? null : _add,
-                      icon: Icon(Icons.add),
-                      label: Text('Thêm nhà trọ'),
+                    const SizedBox(height: 18),
+                    if (stores.isEmpty)
+                      LandlordEmptyState(
+                        message: _portfolio.stores.isEmpty
+                            ? 'Chưa có nhà trọ. Thêm nhà trọ để bắt đầu quản lý.'
+                            : 'Không tìm thấy nhà trọ phù hợp.',
+                      ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final columns = constraints.maxWidth >= 960
+                            ? 3
+                            : constraints.maxWidth >= 640
+                            ? 2
+                            : 1;
+                        final width =
+                            (constraints.maxWidth - (columns - 1) * 16) /
+                            columns;
+                        return Wrap(
+                          spacing: 16,
+                          runSpacing: 18,
+                          children: [
+                            for (final store in stores)
+                              SizedBox(width: width, child: _card(store)),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                if (stores.isEmpty)
-                  const LandlordEmptyState(
-                    message: 'Không tìm thấy nhà trọ phù hợp.',
-                  ),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final columns = constraints.maxWidth >= 960
-                        ? 3
-                        : constraints.maxWidth >= 640
-                        ? 2
-                        : 1;
-                    final width =
-                        (constraints.maxWidth - (columns - 1) * 16) / columns;
-                    return Wrap(
-                      spacing: 16,
-                      runSpacing: 6,
-                      children: [
-                        for (final store in stores)
-                          SizedBox(width: width, child: _card(store)),
-                      ],
-                    );
-                  },
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -270,127 +456,169 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
     },
   );
 
-  Widget _metric(String value, String label) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(
-        value,
-        style: TextStyle(
-          fontSize: 28,
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      Text(label, style: TextStyle(color: Color(0xFFD6E5FF))),
-    ],
-  );
-
   Widget _card(LandlordDemoStore store) {
-    final p = store.property;
-    final floors = store.catalog.map((r) => r.floor).toSet().length;
-    final vacant = store.roomDetails
-        .where((r) => r.status == LandlordRoomStatus.vacant)
-        .length;
-    final selected = p.id == _portfolio.active.property.id;
-    return LandlordCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LandlordPropertyImage(
-            url: p.imageUrl,
-            bytes: p.imageBytes,
-            height: 130,
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  p.name,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: LandlordPalette.of(context).ink,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (AdminStore.instance.reviewNote(p.id).isNotEmpty) ...[
-                  Text(
-                    'Yêu cầu từ quản trị viên: ${AdminStore.instance.reviewNote(p.id)}',
-                    style: const TextStyle(color: Color(0xFF9B651A)),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Text(
-                  p.address,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: LandlordPalette.of(context).muted,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    Chip(
-                      label: Text(
-                        '$floors tầng · ${store.catalog.length} phòng',
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    Chip(
-                      label: Text('${store.roomTypes.length} loại'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    LandlordStatusPill(
-                      '$vacant phòng trống',
-                      color: const Color(0xFF16836F),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '${p.ownerName}\n${p.phone}',
-                  style: TextStyle(height: 1.6),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.tonalIcon(
-                        onPressed: () => _portfolio.select(p.id),
-                        icon: Icon(
-                          selected
-                              ? Icons.check_circle_outline
-                              : Icons.open_in_new,
-                          size: 18,
-                        ),
-                        label: Text(selected ? 'Đang quản lý' : 'Quản lý'),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Sửa ${p.name}',
-                      onPressed: _saving ? null : () => _edit(store),
-                      icon: Icon(Icons.edit_outlined),
-                    ),
-                    if (store.leases.isEmpty)
-                      IconButton(
-                        tooltip: 'Xóa ${p.name}',
-                        onPressed: _saving ? null : () => _delete(store),
-                        icon: Icon(Icons.delete_outline),
-                      ),
-                  ],
-                ),
-              ],
-            ),
+    final property = store.property;
+    final palette = LandlordPalette.of(context);
+    final illustrative =
+        property.imageBytes == null && property.imageUrl.isEmpty;
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: palette.surface.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x255D7BBA),
+            blurRadius: 23,
+            offset: Offset(0, 10),
           ),
         ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _openProperty(store),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  LandlordPropertyImage(
+                    url: property.imageUrl,
+                    bytes: property.imageBytes,
+                    height: 138,
+                    borderRadius: 19,
+                    showIllustrationLabel: false,
+                  ),
+                  Positioned(
+                    top: 14,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xAA473626),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.image_outlined,
+                            color: Colors.white,
+                            size: 13,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            illustrative ? 'Ảnh minh họa' : 'Ảnh nhà trọ',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 6, 9, 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            property.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: palette.ink,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            property.address,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: propertyMuted,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 32,
+                      height: 34,
+                      child: PopupMenuButton<String>(
+                        tooltip: 'Tùy chọn nhà trọ',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 130),
+                        icon: Icon(
+                          Icons.more_horiz_rounded,
+                          color: palette.muted,
+                          size: 20,
+                        ),
+                        onSelected: (value) =>
+                            value == 'edit' ? _edit(store) : _delete(store),
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Chỉnh sửa'),
+                          ),
+                          if (store.leases.isEmpty)
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Xóa nhà trọ'),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: palette.primarySoft,
+                      ),
+                      child: IconButton(
+                        tooltip: 'Xem phòng',
+                        padding: EdgeInsets.zero,
+                        onPressed: () => _openProperty(store),
+                        icon: const Icon(
+                          Icons.chevron_right_rounded,
+                          color: propertyBlue,
+                          size: 26,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (AdminStore.instance.reviewNote(property.id).isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                  child: Text(
+                    'Yêu cầu từ quản trị viên: ${AdminStore.instance.reviewNote(property.id)}',
+                    style: const TextStyle(
+                      color: Color(0xFF9B651A),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

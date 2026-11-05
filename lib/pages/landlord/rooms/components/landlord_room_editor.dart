@@ -97,9 +97,8 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
                 controller: _code,
                 maxLength: 20,
                 decoration: const InputDecoration(
-                  labelText: 'Mã phòng',
-                  helperText:
-                      'Mã duy nhất trong nhà trọ, ví dụ: 101 hoặc A.101',
+                  labelText: 'Tên / mã phòng',
+                  helperText: 'Tên hiển thị duy nhất, ví dụ: 101 hoặc A.101',
                 ),
                 validator: (v) =>
                     (v ?? '').trim().isEmpty ? 'Nhập mã phòng.' : null,

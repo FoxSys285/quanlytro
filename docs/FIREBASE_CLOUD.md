@@ -24,13 +24,19 @@ Tài khoản đầu tiên có quyền admin phải được tạo thủ công b�
 
 Sau khi deploy Rules, người dùng có thể tự đăng ký bằng email và chọn vai trò Người thuê; tích checkbox **Đăng ký với tài khoản chủ trọ** để đăng ký vai trò Chủ trọ. Firestore Rules chỉ cho tài khoản tự tạo hồ sơ của chính mình với một trong hai vai trò này; client không thể tự cấp quyền admin. Hồ sơ người thuê nhận mã `tenant-{uid}` để chia sẻ với Chủ trọ khi lập hợp đồng. Không cần admin duyệt tài khoản; admin vẫn duyệt xác minh nhà trọ trước khi tin đăng được công khai. Chủ trọ chưa có nhà được mở màn hình tạo hồ sơ đầu tiên; nhà và phòng mới lưu theo `ownerUid` Firebase.
 
-Chỉ cần deploy Firestore Rules để bật đăng ký và đồng bộ hồ sơ. Nếu bật Firebase Storage sau này, cấu hình bucket và Storage Rules riêng; xem [Firebase Storage setup](https://firebase.google.com/docs/storage/flutter/start) và [Firebase pricing plans](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans).
+Firestore Rules cho phép đăng ký và đồng bộ hồ sơ. Tải ảnh nhà, ảnh phòng và giấy tờ xác minh cần Firebase Storage đã bật cùng Storage Rules; xem [Firebase Storage setup](https://firebase.google.com/docs/storage/flutter/start) và [Firebase pricing plans](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans).
 
 ```powershell
 firebase deploy --only firestore:rules --project tropremium-d14ac
 ```
 
-Ảnh nhà và loại phòng được đọc công khai để hiển thị tin đăng. Ảnh minh chứng thanh toán được giới hạn cho admin, chủ nhà và người thuê có hóa đơn liên quan. Mỗi ảnh tối đa 10 MB; Firestore chỉ lưu URL/thông tin tham chiếu, còn tệp nằm trong Storage.
+Để bật tải ảnh và giấy tờ xác minh, deploy Storage Rules riêng:
+
+```powershell
+firebase deploy --only storage --project tropremium-d14ac
+```
+
+Ảnh nhà và loại phòng được đọc công khai để hiển thị tin đăng. Ảnh minh chứng thanh toán chỉ admin, chủ nhà và người thuê có hóa đơn liên quan mới đọc được. Ảnh CCCD, sổ nhà và giấy ủy quyền nằm trong `verification-proofs/`; chỉ admin và chủ của nhà đó có quyền đọc. Mỗi ảnh tối đa 10 MB; Firestore lưu đường dẫn tham chiếu, tệp nằm trong Storage.
 
 Để chuyển bộ dữ liệu mẫu có sẵn, vẫn dùng UID admin/landlord/tenant trong `.dart_tool/demo_data/provisioning.json` như bên dưới. Sao chép **UID**, không gửi mật khẩu vào chat hay đưa vào mã nguồn.
 

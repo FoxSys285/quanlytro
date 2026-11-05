@@ -1,9 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../data/admin_store.dart';
 import '../../data/local_auth.dart';
 import '../../layouts/role_layout.dart';
 import '../landlord/landlord_demo_store.dart';
+import '../landlord/properties/models/landlord_property.dart';
 import '../landlord/finance/landlord_finance_models.dart';
 import 'admin_ui.dart';
 import 'admin_dashboard.dart';
@@ -245,6 +249,38 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
               ),
             ],
           ),
+          if (verification && p.verificationDocuments.isNotEmpty) ...[
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              leading: const Icon(Icons.folder_open_outlined),
+              title: const Text(
+                'Giấy tờ xác minh',
+                style: TextStyle(fontSize: 14),
+              ),
+              subtitle: Text(
+                'Đã nhận ${p.verificationDocuments.fold<int>(0, (sum, document) => sum + document.files.length)} ảnh minh chứng',
+              ),
+              children: [
+                for (final document in p.verificationDocuments)
+                  for (final file in document.files)
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 8, right: 4),
+                      leading: const Icon(
+                        Icons.image_outlined,
+                        color: adminBlue,
+                      ),
+                      title: Text(
+                        file.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(_verificationDocumentName(document.id)),
+                      trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                      onTap: () => _previewVerificationFile(context, file),
+                    ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           if (verification) ...[
             Text(
@@ -270,7 +306,7 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
                 ),
             ] else
               const Text(
-                'Đủ các thông tin cơ bản. Kiểm tra ảnh và liên hệ chủ trọ trước khi xác minh.',
+                'Đủ thông tin và giấy tờ. Mở từng ảnh minh chứng để đối chiếu trước khi duyệt.',
                 style: TextStyle(color: adminGreen),
               ),
             if (admin.reviewNote(p.id).isNotEmpty)
@@ -295,7 +331,7 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
                             verified
                                 ? 'Thu hồi xác minh?'
                                 : 'Xác minh thông tin nhà trọ?',
-                            '${p.name}\n${verified ? 'Nhà trọ sẽ trở về trạng thái cần kiểm tra.' : 'Xác nhận đã kiểm tra thông tin cơ bản và ảnh. Đây không phải xác minh giấy tờ pháp lý.'}',
+                            '${p.name}\n${verified ? 'Nhà trọ sẽ trở về trạng thái cần kiểm tra.' : 'Xác nhận đã đối chiếu thông tin chủ trọ, giấy tờ tùy thân và giấy tờ về quyền cho thuê.'}',
                           )) {
                             return;
                           }
@@ -339,7 +375,7 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Xác minh mức độ đầy đủ thông tin. Dự án chưa có hồ sơ giấy tờ sở hữu để xác minh pháp lý.',
+              'Dấu xác minh thể hiện kết quả đối chiếu trong ứng dụng, không thay thế xác nhận của cơ quan nhà nước.',
               style: TextStyle(fontSize: 12, color: adminMuted),
             ),
           ] else
@@ -374,4 +410,53 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
       ),
     );
   }
+
+  Future<void> _previewVerificationFile(
+    BuildContext context,
+    PropertyVerificationFile file,
+  ) async {
+    Uint8List? bytes = file.bytes;
+    if (bytes == null && (file.storagePath ?? '').isNotEmpty) {
+      try {
+        bytes = await FirebaseStorage.instance
+            .ref(file.storagePath!)
+            .getData(10 * 1024 * 1024);
+      } catch (_) {
+        if (context.mounted) {
+          adminMessage(
+            context,
+            'Không tải được ảnh minh chứng. Kiểm tra quyền Storage.',
+          );
+        }
+        return;
+      }
+    }
+    if (!context.mounted || bytes == null) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620, maxHeight: 620),
+          child: InteractiveViewer(
+            child: Image.memory(bytes!, fit: BoxFit.contain),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _verificationDocumentName(String id) => switch (id) {
+    'portrait' => 'Ảnh chân dung chủ trọ',
+    'identity' => 'CCCD / thẻ căn cước',
+    'ownership' => 'Sổ đỏ / sổ hồng',
+    'authorization' => 'Giấy ủy quyền cho thuê nhà',
+    _ => 'Giấy tờ xác minh',
+  };
 }

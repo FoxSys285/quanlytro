@@ -9,15 +9,19 @@ class LandlordPropertyImage extends StatelessWidget {
     this.bytes,
     this.height = 240,
     this.semanticLabel = 'Ảnh nhà trọ',
+    this.borderRadius = 18,
+    this.showIllustrationLabel = true,
   });
   final String url;
   final Uint8List? bytes;
   final double height;
   final String semanticLabel;
+  final double borderRadius;
+  final bool showIllustrationLabel;
 
   @override
   Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(18),
+    borderRadius: BorderRadius.circular(borderRadius),
     child: SizedBox(
       height: height,
       width: double.infinity,
@@ -48,23 +52,24 @@ class LandlordPropertyImage extends StatelessWidget {
                   semanticLabel: 'Nội thất phòng · ảnh minh họa',
                   errorBuilder: (_, _, _) => _placeholder(),
                 ),
-                const Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.all(Radius.circular(6)),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(6),
-                      child: Text(
-                        'Ảnh minh họa',
-                        style: TextStyle(color: Colors.white, fontSize: 10),
+                if (showIllustrationLabel)
+                  const Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.all(Radius.circular(6)),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(6),
+                        child: Text(
+                          'Ảnh minh họa',
+                          style: TextStyle(color: Colors.white, fontSize: 10),
+                        ),
                       ),
                     ),
                   ),
-                ),
               ],
             )
           : Image.network(
@@ -93,7 +98,7 @@ class LandlordPropertyImage extends StatelessWidget {
         Icon(
           Icons.apartment_rounded,
           size: height < 180 ? 48 : 100,
-          color: Color(0xFF3769D6),
+          color: Color(0xFF1679BC),
         ),
         const SizedBox(height: 12),
         Text(

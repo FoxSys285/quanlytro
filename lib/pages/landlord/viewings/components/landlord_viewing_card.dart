@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../landlord_theme.dart';
 
 import '../../../shared/viewings/components/viewing_status_badge.dart';
@@ -53,7 +54,7 @@ class LandlordViewingCard extends StatelessWidget {
                   child: Text(
                     time,
                     style: const TextStyle(
-                      color: Color(0xFF3769D6),
+                      color: Color(0xFF1679BC),
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                     ),
@@ -110,7 +111,7 @@ class LandlordViewingCard extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: onConfirm,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF3769D6),
+                    backgroundColor: const Color(0xFF1679BC),
                   ),
                   icon: const Icon(Icons.check_circle_outline, size: 18),
                   label: const Text('Xác nhận lịch'),
@@ -178,7 +179,7 @@ class _Information extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Icon(icon, size: 20, color: const Color(0xFF3769D6)),
+      Icon(icon, size: 20, color: const Color(0xFF1679BC)),
       const SizedBox(width: 10),
       Expanded(
         child: Column(

@@ -123,16 +123,24 @@ class LandlordRoomButton extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [_color, _color, palette.surface, palette.surface],
-            stops: const [0, 0.01, 0.01, 1],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              palette.surface.withValues(alpha: 0.95),
+              _color.withValues(alpha: 0.07),
+            ],
           ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: palette.line),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? palette.line
+                : Colors.white,
+          ),
           boxShadow: [
             BoxShadow(
-              color: palette.ink.withValues(alpha: 0.045),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
+              color: const Color(0x18577EBA),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
             ),
           ],
         ),

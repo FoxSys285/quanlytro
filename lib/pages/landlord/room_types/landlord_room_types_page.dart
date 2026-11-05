@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_theme.dart';
+import '../landlord_glass.dart';
 
 import 'components/room_type_editor.dart';
-import '../landlord_ui.dart';
 import '../../shared/media/room_photo_gallery.dart';
-import '../../shared/widgets/rental_section_banner.dart';
 
 import '../landlord_demo_store.dart';
 import 'models/landlord_room_type.dart';
@@ -14,7 +13,13 @@ import '../../shared/media/room_photo.dart';
 import 'services/room_type_photo_picker.dart';
 
 class LandlordRoomTypesPage extends StatelessWidget {
-  const LandlordRoomTypesPage({super.key, this.store, this.imagePicker});
+  const LandlordRoomTypesPage({
+    super.key,
+    this.store,
+    this.imagePicker,
+    this.embedded = false,
+  });
+  final bool embedded;
   final Future<SelectedPropertyImage?> Function()? imagePicker;
   final LandlordDemoStore? store;
   LandlordDemoStore get _store => store ?? LandlordDemoStore.activeInstance;
@@ -68,83 +73,67 @@ class LandlordRoomTypesPage extends StatelessWidget {
     }
   }
 
+  Widget _frame(List<Widget> children) => embedded
+      ? Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        )
+      : LandlordGlassPage(
+          title: 'Loại phòng',
+          subtitle: _store.property.name,
+          kicker: 'QUẢN LÝ LOẠI PHÒNG',
+          store: _store,
+          children: children,
+        );
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _store,
-    builder: (context, _) => LandlordPageFrame(
-      children: [
-        RentalSectionBanner(
-          eyebrow: 'BỘ SƯU TẬP KHÔNG GIAN',
-          title: 'Loại phòng',
-          subtitle:
-              '${_store.property.name} · Mỗi loại phòng, một phong cách riêng.',
-          footer: Text(
-            '${_store.roomTypes.length} loại phòng  ·  ${_store.catalog.length} phòng đang quản lý',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+    builder: (context, _) => _frame([
+      LandlordGlassSection(
+        title: 'Loại phòng',
+        subtitle:
+            '${_store.roomTypes.length} loại phòng · ${_store.catalog.length} phòng đang quản lý',
+      ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: FilledButton.icon(
+          onPressed: () => _edit(context),
+          style: FilledButton.styleFrom(
+            backgroundColor: propertyBlue,
+            foregroundColor: Colors.white,
           ),
-          action: FilledButton.icon(
-            onPressed: () => _edit(context),
-            style: FilledButton.styleFrom(
-              backgroundColor: LandlordPalette.of(context).surface,
-              foregroundColor: const Color(0xFF244C87),
-            ),
-            icon: Icon(Icons.add, size: 19),
-            label: Text('Thêm loại phòng'),
-          ),
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: const Text('Thêm loại phòng'),
         ),
-        const SizedBox(height: 22),
-        Row(
-          children: [
-            Icon(
-              Icons.collections_bookmark_outlined,
-              size: 19,
-              color: landlordBlue,
-            ),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Không gian của bạn',
-                style: TextStyle(
-                  color: LandlordPalette.of(context).ink,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
+      ),
+      const SizedBox(height: 12),
+      Text(
+        'Chạm vào ảnh để xem album. Chỉnh sửa để thêm ảnh và chọn ảnh bìa.',
+        style: TextStyle(
+          color: LandlordPalette.of(context).muted,
+          fontSize: 12,
+          height: 1.5,
         ),
-        const SizedBox(height: 7),
-        Text(
-          'Chạm vào ảnh để xem album. Chỉnh sửa để thêm ảnh và chọn ảnh bìa.',
-          style: TextStyle(
-            color: LandlordPalette.of(context).muted,
-            fontSize: 12,
-            height: 1.5,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_store.roomTypes.isEmpty)
-          const LandlordEmptyState(message: 'Chưa có loại phòng.'),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 620 ? 2 : 1;
-            final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
-            return Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                for (final type in _store.roomTypes)
-                  SizedBox(width: width, child: _typeCard(context, type)),
-              ],
-            );
-          },
-        ),
-      ],
-    ),
+      ),
+      const SizedBox(height: 16),
+      if (_store.roomTypes.isEmpty)
+        const LandlordGlassCard(child: Text('Chưa có loại phòng.')),
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 620 ? 2 : 1;
+          final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
+          return Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              for (final type in _store.roomTypes)
+                SizedBox(width: width, child: _typeCard(context, type)),
+            ],
+          );
+        },
+      ),
+    ]),
   );
 
   Widget _typeCard(BuildContext context, LandlordRoomType type) {
@@ -155,14 +144,25 @@ class LandlordRoomTypesPage extends StatelessWidget {
       key: ValueKey(type.id),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: LandlordPalette.of(context).surface,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            LandlordPalette.of(context).surface.withValues(alpha: 0.95),
+            LandlordPalette.of(context).surface.withValues(alpha: 0.7),
+          ],
+        ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: LandlordPalette.of(context).line),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? LandlordPalette.of(context).line
+              : Colors.white,
+        ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x07172B42),
-            blurRadius: 18,
-            offset: Offset(0, 5),
+            color: Color(0x18577EBA),
+            blurRadius: 22,
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -209,7 +209,7 @@ class LandlordRoomTypesPage extends StatelessWidget {
               child: Text(
                 formatRoomTypePrice(type.monthlyRent),
                 style: TextStyle(
-                  color: landlordBlue,
+                  color: propertyBlue,
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                 ),
@@ -220,13 +220,23 @@ class LandlordRoomTypesPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 7),
             child: Row(
               children: [
-                TextButton.icon(
-                  onPressed: () => _edit(context, type),
-                  icon: Icon(Icons.edit_outlined, size: 16),
-                  label: Text('Chỉnh sửa'),
-                  style: TextButton.styleFrom(foregroundColor: landlordBlue),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => _edit(context, type),
+                      icon: Icon(Icons.edit_outlined, size: 16),
+                      label: Text(
+                        'Chỉnh sửa',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: propertyBlue,
+                      ),
+                    ),
+                  ),
                 ),
-                const Spacer(),
                 IconButton(
                   tooltip: 'Sửa ${type.name}',
                   onPressed: () => _edit(context, type),

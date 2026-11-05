@@ -31,6 +31,14 @@ service firebase.storage {
         request.resource.contentType.matches('image/.*');
     }
 
+    match /verification-proofs/{propertyId}/{documentId}/{fileName} {
+      allow read: if admin() || owner(propertyId);
+      allow create: if (admin() || owner(propertyId)) &&
+        request.resource.size <= 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+      allow update, delete: if false;
+    }
+
     match /payment-proofs/{propertyId}/{invoiceId}/{filePath=**} {
       allow read: if admin() || owner(propertyId) || tenant(invoice(propertyId, invoiceId));
       allow create: if (admin() || owner(propertyId) || tenant(invoice(propertyId, invoiceId))) &&
