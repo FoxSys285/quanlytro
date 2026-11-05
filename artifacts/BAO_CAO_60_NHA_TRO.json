@@ -1,0 +1,34 @@
+{
+  "project": "tropremium-d14ac",
+  "verifiedAt": "2026-11-05T11:15:55.011597+00:00",
+  "properties": 60,
+  "roomTypes": 60,
+  "rooms": 60,
+  "landlordAccounts": 60,
+  "serviceRows": 120,
+  "verifiedDocuments": 240,
+  "verifiedPasswordSignIns": 60,
+  "originalDocumentsPreserved": 4,
+  "passwordsStoredInFirestore": false,
+  "byZone": {
+    "Bắc": 20,
+    "Trung": 20,
+    "Nam": 20
+  },
+  "byCity": {
+    "Hà Nội": 16,
+    "Hải Phòng": 4,
+    "Huế": 4,
+    "Đà Nẵng": 5,
+    "Khánh Hòa": 3,
+    "Đắk Lắk": 4,
+    "Lâm Đồng": 4,
+    "TP. Hồ Chí Minh": 8,
+    "Cần Thơ": 6,
+    "Đồng Nai": 4,
+    "An Giang": 2
+  },
+  "demoAccounts": true,
+  "realOwnershipVerified": false,
+  "realAvailabilityVerified": false
+}
