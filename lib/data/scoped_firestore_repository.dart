@@ -39,9 +39,6 @@ class ScopedFirestoreRentalRepository
     Query<Map<String, dynamic>> tickets = _firestore.collection(
       'support_tickets',
     );
-    Query<Map<String, dynamic>> records = _firestore.collection(
-      'rental_records',
-    );
     if (session.role == AppRole.landlord) {
       properties = properties.where('ownerUid', isEqualTo: session.uid);
       records = records.where('ownerUid', isEqualTo: session.uid);
