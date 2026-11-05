@@ -14,9 +14,13 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        return ios;
+        throw UnsupportedError(
+          'Firebase has not been configured for iOS in this project.',
+        );
       case TargetPlatform.macOS:
-        return macos;
+        throw UnsupportedError(
+          'Firebase has not been configured for macOS in this project.',
+        );
       case TargetPlatform.windows:
         return windows;
       case TargetPlatform.linux:
@@ -32,42 +36,31 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBRftbOlLWHE6egJTX1duxfbB-LIuV0EQI',
-    appId: '1:697572692789:web:placeholder',
-    messagingSenderId: '697572692789',
-    projectId: 'doantro-caf4b',
-    storageBucket: 'doantro-caf4b.firebasestorage.app',
+    apiKey: 'AIzaSyB5HbQCBPfkXV36xAGfMBOshij5cByIpA0',
+    appId: '1:101615894901:web:527074f9f82dba1dad533c',
+    messagingSenderId: '101615894901',
+    projectId: 'tropremium-d14ac',
+    authDomain: 'tropremium-d14ac.firebaseapp.com',
+    storageBucket: 'tropremium-d14ac.firebasestorage.app',
+    measurementId: 'G-7X5DVLT60L',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBRftbOlLWHE6egJTX1duxfbB-LIuV0EQI',
-    appId: '1:697572692789:android:cc57a39a96f8f4d2ac727c',
-    messagingSenderId: '697572692789',
-    projectId: 'doantro-caf4b',
-    storageBucket: 'doantro-caf4b.firebasestorage.app',
-  );
-
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBRftbOlLWHE6egJTX1duxfbB-LIuV0EQI',
-    appId: '1:697572692789:ios:placeholder',
-    messagingSenderId: '697572692789',
-    projectId: 'doantro-caf4b',
-    storageBucket: 'doantro-caf4b.firebasestorage.app',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBRftbOlLWHE6egJTX1duxfbB-LIuV0EQI',
-    appId: '1:697572692789:ios:placeholder',
-    messagingSenderId: '697572692789',
-    projectId: 'doantro-caf4b',
-    storageBucket: 'doantro-caf4b.firebasestorage.app',
+    apiKey: 'AIzaSyClzdlaSlp_cl1OpiMw42OJIuDyJkDDmx4',
+    appId: '1:101615894901:android:c787816bed575035ad533c',
+    messagingSenderId: '101615894901',
+    projectId: 'tropremium-d14ac',
+    storageBucket: 'tropremium-d14ac.firebasestorage.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBRftbOlLWHE6egJTX1duxfbB-LIuV0EQI',
-    appId: '1:697572692789:web:placeholder',
-    messagingSenderId: '697572692789',
-    projectId: 'doantro-caf4b',
-    storageBucket: 'doantro-caf4b.firebasestorage.app',
+    apiKey: 'AIzaSyB5HbQCBPfkXV36xAGfMBOshij5cByIpA0',
+    appId: '1:101615894901:web:3ce4efd32ca7f9a7ad533c',
+    messagingSenderId: '101615894901',
+    projectId: 'tropremium-d14ac',
+    authDomain: 'tropremium-d14ac.firebaseapp.com',
+    storageBucket: 'tropremium-d14ac.firebasestorage.app',
+    measurementId: 'G-CWLKQZKKT1',
   );
+
 }

@@ -106,6 +106,7 @@ class TenantDiscoveryHome extends StatelessWidget {
         : (visibleRooms.isNotEmpty
               ? visibleRooms
               : localRooms.take(8).toList());
+    final noListings = remote && !loading && !hasError && homeRooms.isEmpty;
     final goodPriceRooms = [...homeRooms]
       ..sort((a, b) => a.price.compareTo(b.price));
     final nearbyRooms = [...homeRooms]
@@ -151,29 +152,40 @@ class TenantDiscoveryHome extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                 child: _quickCategories(context),
               ),
-              const SizedBox(height: 21),
-              _sectionHeading(
-                icon: Icons.local_fire_department_rounded,
-                color: const Color(0xFFF04F3E),
-                title: 'Nhà trọ nổi bật',
-                onSeeAll: onOpenSearch,
-              ),
-              const SizedBox(height: 11),
-              _roomCarousel(context, homeRooms, badge: '🔥 Hot'),
-              const SizedBox(height: 22),
-              _sectionHeading(
-                icon: Icons.sell_rounded,
-                color: const Color(0xFF08A94F),
-                title: 'NHÀ TRỌ GIÁ TỐT',
-                onSeeAll: onOpenSearch,
-              ),
-              const SizedBox(height: 11),
-              _roomCarousel(
-                context,
-                goodPriceRooms.take(6).toList(),
-                badge: 'Giá tốt',
-              ),
-              const SizedBox(height: 22),
+              if (noListings)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(18, 20, 18, 8),
+                  child: TenantEmptyState(
+                    icon: Icons.home_work_outlined,
+                    title: 'Chưa có nhà trọ nào',
+                    subtitle: 'Hiện chưa có nhà trọ được đăng. Vui lòng quay lại sau.',
+                  ),
+                ),
+              if (!noListings) ...[
+                const SizedBox(height: 21),
+                _sectionHeading(
+                  icon: Icons.local_fire_department_rounded,
+                  color: const Color(0xFFF04F3E),
+                  title: 'Nhà trọ nổi bật',
+                  onSeeAll: onOpenSearch,
+                ),
+                const SizedBox(height: 11),
+                _roomCarousel(context, homeRooms, badge: '🔥 Hot'),
+                const SizedBox(height: 22),
+                _sectionHeading(
+                  icon: Icons.sell_rounded,
+                  color: const Color(0xFF08A94F),
+                  title: 'NHÀ TRỌ GIÁ TỐT',
+                  onSeeAll: onOpenSearch,
+                ),
+                const SizedBox(height: 11),
+                _roomCarousel(
+                  context,
+                  goodPriceRooms.take(6).toList(),
+                  badge: 'Giá tốt',
+                ),
+                const SizedBox(height: 22),
+              ],
               _sectionHeading(
                 icon: Icons.location_on_rounded,
                 color: const Color(0xFF315F55),
@@ -192,38 +204,40 @@ class TenantDiscoveryHome extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 22),
-              _sectionHeading(
-                icon: Icons.verified_user_rounded,
-                color: const Color(0xFF0B8950),
-                title: 'NHÀ TRỌ ĐÁNG TIN CẬY',
-                onSeeAll: onOpenSearch,
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(19, 3, 18, 10),
-                child: Text(
-                  'Tin đăng có thông tin chủ trọ và tiện ích rõ ràng',
-                  style: TextStyle(color: tenantMuted, fontSize: 10),
+              if (!noListings) ...[
+                _sectionHeading(
+                  icon: Icons.verified_user_rounded,
+                  color: const Color(0xFF0B8950),
+                  title: 'NHÀ TRỌ ĐÁNG TIN CẬY',
+                  onSeeAll: onOpenSearch,
                 ),
-              ),
-              _roomCarousel(
-                context,
-                trustedRooms.take(6).toList(),
-                badge: '✓ Tin rõ ràng',
-              ),
-              const SizedBox(height: 22),
-              _sectionHeading(
-                icon: Icons.location_on_rounded,
-                color: const Color(0xFF315F55),
-                title: 'Nhà trọ gần bạn',
-                onSeeAll: onOpenSearch,
-              ),
-              const SizedBox(height: 11),
-              _roomCarousel(
-                context,
-                nearbyRooms.take(6).toList(),
-                compact: true,
-              ),
-              const SizedBox(height: 22),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(19, 3, 18, 10),
+                  child: Text(
+                    'Tin đăng có thông tin chủ trọ và tiện ích rõ ràng',
+                    style: TextStyle(color: tenantMuted, fontSize: 10),
+                  ),
+                ),
+                _roomCarousel(
+                  context,
+                  trustedRooms.take(6).toList(),
+                  badge: '✓ Tin rõ ràng',
+                ),
+                const SizedBox(height: 22),
+                _sectionHeading(
+                  icon: Icons.location_on_rounded,
+                  color: const Color(0xFF315F55),
+                  title: 'Nhà trọ gần bạn',
+                  onSeeAll: onOpenSearch,
+                ),
+                const SizedBox(height: 11),
+                _roomCarousel(
+                  context,
+                  nearbyRooms.take(6).toList(),
+                  compact: true,
+                ),
+                const SizedBox(height: 22),
+              ],
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _safetyBanner(context),
@@ -363,12 +377,18 @@ class TenantDiscoveryHome extends StatelessWidget {
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (visibleRooms.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 18),
                   child: TenantEmptyState(
-                    icon: Icons.search_off_rounded,
-                    title: 'Chưa tìm thấy phòng phù hợp',
-                    subtitle: 'Thử đổi từ khóa hoặc bộ lọc nhé.',
+                    icon: Icons.home_work_outlined,
+                    title:
+                        remote && query.trim().isEmpty && activeFilterCount == 0
+                        ? 'Chưa có nhà trọ nào'
+                        : 'Chưa tìm thấy phòng phù hợp',
+                    subtitle:
+                        remote && query.trim().isEmpty && activeFilterCount == 0
+                        ? 'Hiện chưa có nhà trọ được đăng. Vui lòng quay lại sau.'
+                        : 'Thử đổi từ khóa hoặc bộ lọc nhé.',
                   ),
                 )
               else

@@ -98,6 +98,12 @@ class AccountProfilePage extends StatelessWidget {
                   _tenantLine(Icons.email_outlined, 'Email', contact.email),
                   const TenantThinDivider(),
                   _tenantLine(
+                    Icons.link_rounded,
+                    'Mã liên kết để chủ trọ lập hợp đồng',
+                    TenantSession.currentTenantId,
+                  ),
+                  const TenantThinDivider(),
+                  _tenantLine(
                     Icons.location_on_outlined,
                     'Địa chỉ liên hệ',
                     contact.address,

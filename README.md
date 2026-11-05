@@ -13,7 +13,7 @@ SQLite hỗ trợ Android, iOS và máy tính Windows/Linux/macOS. Trình duyệ
 
 ## Tài khoản và phân quyền
 
-Tài khoản thật được tạo trong Firebase Authentication; quyền lấy từ `users/{uid}`. Người thuê nối qua `tenantId` đến hợp đồng, hóa đơn và yêu cầu của chính mình. Client không tự cấp vai trò. Xem [thiết lập Firebase](docs/FIREBASE_CLOUD.md) và [kết quả kiểm tra 3 role](docs/ROLE_SYNC_AUDIT.md).
+Tài khoản thật được tạo trong Firebase Authentication; quyền lấy từ `users/{uid}` trên server. Người đăng ký chọn Chủ trọ hoặc Người thuê; yêu cầu xuất hiện trong **Quản trị viên → Người dùng & tài khoản → Yêu cầu**. Chỉ backend mới cấp role. Hồ sơ Người thuê nhận mã `tenant-{uid}` để Chủ trọ liên kết khi lập hợp đồng. Chủ trọ chưa có nhà sẽ được hướng dẫn tạo hồ sơ đầu tiên; dữ liệu được lưu Firestore theo UID/owner/tenant. Xem [thiết lập Firebase](docs/FIREBASE_CLOUD.md) và [kết quả kiểm tra 3 role](docs/ROLE_SYNC_AUDIT.md).
 
 Thông tin dưới đây chỉ áp dụng bản cũ chạy chủ động với `--dart-define=USE_FIREBASE_AUTH=false`, cần dữ liệu SQLite có sẵn. Không dùng bản này sau khi Rules đã khóa collection cũ.
 
@@ -31,7 +31,7 @@ Dữ liệu hiện có gồm **10 nhà trọ, 454 phòng**. Ứng dụng tải d
 
 - Chủ trọ: chuyển nhà đang quản lý; thêm/sửa nhà và phòng; quản lý loại phòng, dịch vụ, hợp đồng, thành viên, chỉ số điện nước, hóa đơn, thanh toán, tài khoản nhận tiền, sự cố, nhân viên và thông báo.
 - Người thuê mẫu Minh Anh: tìm/lọc phòng theo khu vực, giá, diện tích, điện nước; yêu thích và đặt lịch; xem hợp đồng/hóa đơn; gửi thanh toán; đề nghị thêm thành viên; báo và xác nhận sự cố; nhắn tin và gửi hỗ trợ.
-- Quản trị viên: thống kê, xem hồ sơ người thuê, khóa/mở tài khoản cục bộ, đánh dấu xác minh nhà trọ, ẩn/hiện tin đăng, phản hồi hỗ trợ, xem nhật ký quản trị và bật/tắt tiếp nhận lịch xem phòng.
+- Quản trị viên: thống kê, duyệt yêu cầu đăng ký, khóa/mở tài khoản, xem hồ sơ người thuê, xác minh nhà trọ, ẩn/hiện tin đăng, phản hồi hỗ trợ, xem nhật ký quản trị và bật/tắt tiếp nhận lịch xem phòng.
 - Loại phòng có album tối đa 12 ảnh: chọn nhiều ảnh từ thư viện, đặt ảnh bìa hoặc xóa ảnh trong **Loại phòng → Chỉnh sửa**. Các phòng cùng loại tự dùng chung album ở danh sách phòng của chủ trọ, mục khám phá và chi tiết của người thuê. Đổi loại phòng sẽ đổi album tương ứng; giá hợp đồng vẫn giữ nguyên.
 - Ảnh mẫu gồm 101 WebP đi kèm app (khoảng 2,21 MiB), trong đó 83 ảnh lấy từ 28 album qua endpoint JSON Nhà Tốt/Chợ Tốt. Loại phòng ở từng nhà dùng các album khác nhau, 2–3 ảnh/album. Ảnh tự chọn và album đã xóa hết được giữ nguyên. [Nguồn ảnh và cách cập nhật qua API](docs/ROOM_PHOTO_SOURCES.md).
 - Tìm trọ hỗ trợ sắp xếp giá/diện tích tăng giảm, lọc diện tích nhập số và tiện ích; giữ bộ lọc khi quay lại. Màn chi tiết phòng/nhà trọ có nút mở Google Maps và sao chép URL tìm địa chỉ, không cần API key.

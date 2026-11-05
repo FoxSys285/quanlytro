@@ -44,7 +44,7 @@ pages/
 
 Các màn hình người thuê đang được triển khai trong `tenant/`; tiện ích giao diện dùng chung của nhóm màn hình nằm trong `tenant_ui.dart`.
 
-Thông báo, thành viên, hợp đồng, hóa đơn, thanh toán, sự cố và hội thoại dùng dữ liệu chung giữa Chủ trọ và Người thuê. `LandlordDemoStore` là nguồn dữ liệu nghiệp vụ hiện có; `shared/announcements/` lưu thông báo/người nhận/trạng thái đọc, `shared/conversations/` lưu hội thoại chung. Mẫu Người thuê hiện tại là Minh Anh (`tenant-demo`), liên kết với hợp đồng HD-2026-0302 qua ID, không lọc cố định theo tên hay phòng.
+Thông báo, thành viên, hợp đồng, hóa đơn, thanh toán, sự cố và hội thoại dùng dữ liệu chung giữa Chủ trọ và Người thuê. `LandlordDemoStore` giữ model nghiệp vụ cho giao diện; `AppPersistence` và `ScopedFirestoreRentalRepository` mã hóa/lưu Firestore, còn Rules giới hạn theo UID chủ trọ hoặc `tenantId`. `shared/announcements/` lưu thông báo/người nhận/trạng thái đọc, `shared/conversations/` lưu hội thoại chung. `tenant-demo` là ID dữ liệu chuyển mẫu; tài khoản thật lấy `tenantId` từ hồ sơ Firebase.
 
 Phạm vi từng màn hình và luồng nghiệp vụ được mô tả trong `docs/THIET_KE_NGHIEP_VU.md`.
 
@@ -59,10 +59,10 @@ Vai trò chủ trọ hiện dùng dữ liệu mẫu của một nhà trọ Mây 
 
 Hai trang lịch dùng chung `shared/viewings/viewing_store.dart`. Chủ trọ chỉ thấy lịch của Mây House (`may`); Người thuê chỉ thấy lịch của ID phiên mình. Trạng thái đổi bên Chủ trọ hiển thị bên Người thuê. Hội thoại từ lịch xem dùng cùng danh sách tin ở hai vai trò. Thay ID phiên và các store bằng phiên đăng nhập/repository khi có backend.
 
-Thông tin, ảnh và giá đã chỉnh sửa được giữ khi chuyển trang trong phiên chạy hiện tại. Dữ liệu chưa lưu vào cơ sở dữ liệu và sẽ trở về mẫu khi khởi động lại ứng dụng.
+Khi Firebase Auth bật, thay đổi được lưu vào Firestore qua `AppPersistence`; snapshot listener tải thay đổi từ thiết bị khác. SQLite/cache chỉ dùng theo UID ở nền tảng native. Dữ liệu đăng nhập thật không được thay bằng dữ liệu mẫu khi tải cloud lỗi.
 
-Hồ sơ và tùy chọn thông báo dùng chung các trang trong `shared/profile/` và `shared/notifications/`, với dữ liệu riêng cho từng vai trò ở `AccountStore`. Tắt thông báo thay đổi tùy chọn và biểu tượng chuông; lịch sử thông báo vẫn được giữ. Chưa kết nối dịch vụ push hoặc quyền thông báo hệ điều hành. Hồ sơ chỉnh được tên, số điện thoại, email, địa chỉ liên hệ; tên/số điện thoại đồng bộ với liên hệ chủ trọ hoặc người thuê trong dữ liệu mẫu. `landlord/staff/` hiển thị danh sách liên hệ nhân viên và thêm/sửa/xóa. Các thay đổi mới này cũng chỉ lưu trong phiên chạy.
+Hồ sơ và tùy chọn thông báo dùng chung các trang trong `shared/profile/` và `shared/notifications/`, với dữ liệu riêng cho từng role ở `AccountStore`. Tắt thông báo thay đổi tùy chọn và biểu tượng chuông; lịch sử thông báo vẫn được giữ. Push notification và quyền thông báo hệ điều hành chưa được kết nối. Hồ sơ liên hệ đồng bộ vào dữ liệu nhà trọ/người thuê đang được cấp quyền. `landlord/staff/` lưu danh sách liên hệ nhân viên trong dữ liệu quản lý của chủ trọ.
 
-Danh mục phòng mẫu dùng chung giữa danh sách phòng và bộ chọn người nhận tại `LandlordDemoStore.roomCatalog`. Phòng 101 liên kết với mã A.101 của hợp đồng mẫu; A.302 và B.105 giữ mã như các hợp đồng hiện có. Giá và trạng thái trên danh sách phòng cập nhật theo loại phòng/hợp đồng trong phiên chạy.
+Danh mục mẫu chỉ dùng trong chế độ demo/migration. Phòng thật và tin khám phá lấy từ document nhà/phòng; tenant yêu thích và lịch xem nối bằng ID phòng ổn định.
 
 Chi tiết đối chiếu trường, quy tắc giữ lịch sử và các bước kiểm tra nằm tại `docs/DONG_BO_CHU_TRO_NGUOI_THUE.md`.

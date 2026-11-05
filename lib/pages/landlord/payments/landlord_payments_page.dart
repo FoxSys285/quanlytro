@@ -485,15 +485,23 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
             _infoRow('Phương thức', widget.payment.method),
             const SizedBox(height: 8),
             _infoRow('Tham chiếu giao dịch', widget.payment.reference),
-            if (widget.payment.proofBytes != null) ...[
+            if (widget.payment.proofBytes != null ||
+                (widget.payment.proofUrl?.isNotEmpty ?? false)) ...[
               const SizedBox(height: 12),
               Text(widget.payment.proofName ?? 'Minh chứng thanh toán'),
-              Image.memory(
-                Uint8List.fromList(widget.payment.proofBytes!),
-                height: 180,
-                errorBuilder: (_, _, _) =>
-                    Text('Không đọc được ảnh minh chứng.'),
-              ),
+              widget.payment.proofBytes != null
+                  ? Image.memory(
+                      Uint8List.fromList(widget.payment.proofBytes!),
+                      height: 180,
+                      errorBuilder: (_, _, _) =>
+                          Text('Không đọc được ảnh minh chứng.'),
+                    )
+                  : Image.network(
+                      widget.payment.proofUrl!,
+                      height: 180,
+                      errorBuilder: (_, _, _) =>
+                          Text('Không tải được ảnh minh chứng.'),
+                    ),
             ],
             const SizedBox(height: 13),
             TextField(

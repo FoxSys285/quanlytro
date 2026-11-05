@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../data/admin_store.dart';
 import '../../../data/app_persistence.dart';
+import '../../../data/admin_store.dart';
+import '../../../data/local_auth.dart';
 import '../landlord_theme.dart';
 
 import '../landlord_demo_store.dart';
@@ -15,6 +16,109 @@ class LandlordPropertiesPage extends StatelessWidget {
   const LandlordPropertiesPage({super.key, this.store});
   final LandlordDemoStore? store;
   LandlordDemoStore get _store => store ?? LandlordDemoStore.activeInstance;
+
+  Future<void> _createProperty(BuildContext context) async {
+    final portfolio = RentalPortfolio.instance;
+    if (portfolio.stores.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mỗi chủ trọ chỉ được quản lý một nhà trọ.'),
+        ),
+      );
+      return;
+    }
+    final session = LocalAuth.instance.session;
+    if (LocalAuth.instance.isCloudMode && session == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.'),
+        ),
+      );
+      return;
+    }
+    final draft = LandlordProperty(
+      id: session?.uid ?? 'property-${DateTime.now().microsecondsSinceEpoch}',
+      name: '',
+      address: '',
+      ownerName: session?.displayName ?? '',
+      phone: '',
+      description: '',
+      city: '',
+      ward: '',
+    );
+    final property = await showDialog<LandlordProperty>(
+      context: context,
+      builder: (_) => LandlordPropertyEditor(property: draft, creating: true),
+    );
+    if (property == null || !context.mounted) return;
+    try {
+      portfolio.createSingleProperty(property);
+      await AppPersistence.current?.flush();
+      if (!context.mounted) return;
+      final saveError = AppPersistence.current?.error.value;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            saveError ??
+                'Đã tạo nhà trọ. Hãy thêm loại phòng và phòng trọ của bạn.',
+          ),
+        ),
+      );
+    } on ArgumentError catch (error) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message.toString())));
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Chưa lưu được nhà trọ. Hãy kiểm tra kết nối Firebase rồi thử lại.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _emptyPortfolio(BuildContext context) => SingleChildScrollView(
+    padding: const EdgeInsets.all(20),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircleAvatar(
+                  radius: 34,
+                  child: Icon(Icons.apartment_rounded, size: 34),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Chưa có nhà trọ nào',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Tạo nhà trọ để bắt đầu quản lý thông tin, loại phòng và phòng cho thuê.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(height: 1.5, color: Colors.blueGrey),
+                ),
+                const SizedBox(height: 22),
+                FilledButton.icon(
+                  onPressed: () => _createProperty(context),
+                  icon: const Icon(Icons.add_home_work_outlined),
+                  label: const Text('Tạo phòng trọ'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 
   Future<void> _edit(BuildContext context) async {
     final result = await showDialog<LandlordProperty>(
@@ -48,7 +152,18 @@ class LandlordPropertiesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (store == null) {
-      return const PropertyPortfolioPage();
+      if (RentalPortfolio.instance.stores.isNotEmpty) {
+        return const PropertyPortfolioPage();
+      }
+      return ListenableBuilder(
+        listenable: RentalPortfolio.instance,
+        builder: (context, _) {
+          if (RentalPortfolio.instance.stores.isEmpty) {
+            return _emptyPortfolio(context);
+          }
+          return const PropertyPortfolioPage();
+        },
+      );
     }
     return ListenableBuilder(
       listenable: Listenable.merge([_store, AdminStore.instance]),
@@ -146,7 +261,7 @@ class LandlordPropertiesPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Thông tin và hình ảnh được lưu trên thiết bị.',
+                    'Thông tin nhà trọ được lưu trên Firebase và đồng bộ theo quyền chủ sở hữu.',
                     style: TextStyle(fontSize: 12, color: Colors.blueGrey),
                   ),
                 ],

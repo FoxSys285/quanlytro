@@ -18,6 +18,40 @@ part 'rental_portfolio.dart';
 /// The historical name is retained for existing landlord screens.
 class LandlordDemoStore extends ChangeNotifier {
   LandlordDemoStore.demo();
+  factory LandlordDemoStore.empty() {
+    final store = LandlordDemoStore.demo();
+    final data = store.toMap()
+      ..['property'] = const LandlordProperty(
+        id: '',
+        name: '',
+        address: '',
+        ownerName: '',
+        phone: '',
+        description: '',
+        city: '',
+        ward: '',
+      ).toMap()
+      ..['rooms'] = <dynamic>[]
+      ..['roomTypes'] = <dynamic>[]
+      ..['leases'] = <dynamic>[]
+      ..['invoices'] = <dynamic>[]
+      ..['payments'] = <dynamic>[]
+      ..['paymentAccounts'] = <dynamic>[]
+      ..['members'] = <dynamic>[]
+      ..['incidents'] = <dynamic>[]
+      ..['services'] = <dynamic>[]
+      ..['readings'] = <dynamic>[]
+      ..['counters'] = List<int>.filled(7, 1);
+    store.restore(data);
+    return store;
+  }
+
+  static LandlordDemoStore emptyForProperty(LandlordProperty property) {
+    final store = LandlordDemoStore.empty();
+    store._property = property;
+    return store;
+  }
+
   void _changed() => notifyListeners();
   static LandlordDemoStore instance = LandlordDemoStore.demo();
   static LandlordDemoStore get activeInstance =>

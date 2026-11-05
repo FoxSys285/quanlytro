@@ -337,5 +337,6 @@ class AdminStore extends ChangeNotifier {
         (map['logs'] as List).map((l) => Map<String, String>.from(l as Map)),
       );
     acceptingViewings = map['acceptingViewings'] as bool;
+    notifyListeners();
   }
 }

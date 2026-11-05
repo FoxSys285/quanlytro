@@ -28,13 +28,31 @@ class AnnouncementStore extends ChangeNotifier {
     instance = AnnouncementStore();
   }
 
-  static AnnouncementStore forRental(LandlordDemoStore rental) =>
-      rental == LandlordDemoStore.instance
-      ? instance
-      : _propertyStores.putIfAbsent(
-          rental.property.id,
-          () => AnnouncementStore(rental: rental),
+  static AnnouncementStore forRental(LandlordDemoStore rental) {
+    if (identical(rental, LandlordDemoStore.instance)) {
+      if (!identical(instance.rental, rental) ||
+          !identical(instance.viewings, ViewingStore.instance)) {
+        instance.dispose();
+        instance = AnnouncementStore(
+          rental: rental,
+          viewings: ViewingStore.instance,
         );
+      }
+      return instance;
+    }
+    final id = rental.property.id;
+    final existing = _propertyStores[id];
+    if (existing != null &&
+        (!identical(existing.rental, rental) ||
+            !identical(existing.viewings, ViewingStore.instance))) {
+      existing.dispose();
+      _propertyStores.remove(id);
+    }
+    return _propertyStores.putIfAbsent(
+      id,
+      () => AnnouncementStore(rental: rental),
+    );
+  }
   final LandlordDemoStore rental;
   final ViewingStore viewings;
   final _sent = <LandlordAnnouncement>[];
@@ -71,6 +89,7 @@ class AnnouncementStore extends ChangeNotifier {
       ..clear()
       ..addAll(List<String>.from(map['landlordRead'] as List));
     _nextId = map['nextId'] as int;
+    notifyListeners();
   }
 
   void _refresh() => notifyListeners();

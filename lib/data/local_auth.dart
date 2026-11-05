@@ -131,7 +131,12 @@ class LocalAuth extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> register(String email, String password) async {
+  Future<void> register(
+    String email,
+    String password, {
+    String displayName = '',
+    AppRole requestedRole = AppRole.tenant,
+  }) async {
     final error =
         validateAccountEmail(email) ?? validateAccountPassword(password);
     if (error != null) throw ArgumentError(error);
@@ -145,7 +150,32 @@ class LocalAuth extends ChangeNotifier {
         'Đăng ký qua email chưa khả dụng trong bản dùng thử. Bạn có thể dùng tài khoản mẫu hoặc liên hệ quản trị viên để được cấp tài khoản.',
       );
     }
-    await gateway.register(email.trim().toLowerCase(), password);
+    if (gateway is AccountRegistrationGateway) {
+      final registrationGateway = gateway as AccountRegistrationGateway;
+      final session = await registrationGateway.registerAccount(
+        email.trim().toLowerCase(),
+        password,
+        displayName: displayName,
+        requestedRole: requestedRole,
+      );
+      try {
+        await _onSignedIn!(session);
+        _session = session;
+        _role = session.role;
+        notifyListeners();
+      } catch (_) {
+        try {
+          await _onSignedOut!();
+        } finally {
+          await gateway.signOut();
+          _session = null;
+          _role = null;
+        }
+        rethrow;
+      }
+    } else {
+      await gateway.register(email.trim().toLowerCase(), password);
+    }
   }
 
   Future<void> requestPasswordReset(String email) async {

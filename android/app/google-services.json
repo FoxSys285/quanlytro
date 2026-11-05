@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "697572692789",
-    "project_id": "doantro-caf4b",
-    "storage_bucket": "doantro-caf4b.firebasestorage.app"
+    "project_number": "101615894901",
+    "project_id": "tropremium-d14ac",
+    "storage_bucket": "tropremium-d14ac.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:697572692789:android:cc57a39a96f8f4d2ac727c",
+        "mobilesdk_app_id": "1:101615894901:android:c787816bed575035ad533c",
         "android_client_info": {
           "package_name": "com.example.quanlytro"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBRftbOlLWHE6egJTX1duxfbB-LIuV0EQI"
+          "current_key": "AIzaSyClzdlaSlp_cl1OpiMw42OJIuDyJkDDmx4"
         }
       ],
       "services": {

@@ -34,15 +34,169 @@ class AppPersistence {
   bool _dirty = false;
   bool _remoteChanged = false;
   bool _initialSyncCompleted = false;
+  bool _initialSyncFailed = false;
   Timer? _refreshTimer;
   StreamSubscription<void>? _remoteSubscription;
   final refreshing = ValueNotifier<bool>(false);
   String? _remoteFingerprint;
   final _subscriptions = <Listenable>{};
   bool get isDisposed => _disposed;
+  bool get initialSyncCompleted => _initialSyncCompleted;
+  bool get initialSyncFailed => _initialSyncFailed;
 
-  // Wait for Firebase before exposing editable shared data.
-  Future<void> initializeAsync() => initialize();
+  /// Khởi tạo nhanh (bất đồng bộ) cho phiên đăng nhập Cloud để vào giao diện ngay lập tức,
+  /// sau đó tải và đồng bộ dữ liệu từ Firestore trong nền mà không làm treo hoặc văng ứng dụng.
+  Future<void> initializeAsync() async {
+    _restoring = true;
+    _initialSyncCompleted = false;
+    _initialSyncFailed = false;
+    refreshing.value = true;
+    try {
+      await LocalAuth.instance.initialize(null);
+      AdminStore.instance.restore({
+        'verified': <String, bool>{},
+        'hidden': <String>[],
+        'tickets': <dynamic>[],
+        'logs': <dynamic>[],
+        'acceptingViewings': true,
+      });
+      LandlordDemoStore.instance = LandlordDemoStore.empty();
+      RentalPortfolio.instance = RentalPortfolio([]);
+      LandlordDemoStore.instance = RentalPortfolio.instance.active;
+      ConversationStore.instance.dispose();
+      AccountStore.instance.dispose();
+      ViewingStore.instance.dispose();
+      ConversationStore.instance = ConversationStore();
+      AccountStore.instance = AccountStore(rental: LandlordDemoStore.instance);
+      ViewingStore.instance = ViewingStore(
+        [],
+        rental: LandlordDemoStore.instance,
+      );
+      AnnouncementStore.reset();
+      LandlordStaffStore.instance.restore({'nextId': 1, 'staff': <dynamic>[]});
+      TenantFavoritesStore.roomNames.clear();
+      for (final store in RentalPortfolio.instance.stores) {
+        final announcements = AnnouncementStore.forRental(store);
+        announcements.restore({
+          'sent': <dynamic>[],
+          'recipients': <String, dynamic>{},
+          'readByTenant': <String, dynamic>{},
+          'landlordRead': <String>[],
+          'nextId': 1,
+        });
+        _listen(announcements);
+      }
+      _listen(RentalPortfolio.instance);
+      _listen(ConversationStore.instance);
+      _listen(ViewingStore.instance);
+      _listen(AccountStore.instance);
+      _listen(LandlordStaffStore.instance);
+      _listen(TenantFavoritesStore.changes);
+      if (!cloudMode) _listen(LocalAuth.instance);
+      _listen(AdminStore.instance);
+      current = this;
+      error.value = null;
+      saveStatus.value = 'Đang đồng bộ dữ liệu từ Firebase…';
+    } finally {
+      _restoring = false;
+    }
+    unawaited(_syncFromCloudInBackground());
+  }
+
+  Future<void> _syncFromCloudInBackground() async {
+    if (_disposed) return;
+    refreshing.value = true;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (_disposed) return;
+      final data = await repository.readAll();
+      if (_disposed) return;
+      await Future<void>.delayed(Duration.zero);
+      if (_disposed) return;
+      _restoring = true;
+      try {
+        if (data['portfolio'] != null) {
+          RentalPortfolio.instance.restore(data['portfolio']!);
+          if (!RentalPortfolio.instance.stores.contains(
+            LandlordDemoStore.instance,
+          )) {
+            LandlordDemoStore.instance = RentalPortfolio.instance.active;
+          }
+          AccountStore.instance.rebindRental(LandlordDemoStore.instance);
+        }
+        if (data['admin'] != null) {
+          AdminStore.instance.restore(data['admin']!);
+        }
+        if (data['conversations'] != null) {
+          ConversationStore.instance.restore(data['conversations']!);
+        }
+        if (data['viewings'] != null) {
+          ViewingStore.instance.restore(data['viewings']!);
+        }
+        AccountStore.instance.restore(
+          data['accounts'] ?? {'contacts': {}, 'notifications': {}},
+        );
+        if (data['staff'] != null) {
+          LandlordStaffStore.instance.restore(data['staff']!);
+        }
+        TenantFavoritesStore.roomNames
+          ..clear()
+          ..addAll(
+            List<String>.from(data['favorites']?['ids'] as List? ?? []),
+          );
+        TenantFavoritesStore.changes.value++;
+        for (final store in RentalPortfolio.instance.stores) {
+          final announcements = AnnouncementStore.forRental(store);
+          final stored = data['announcements:${store.property.id}'];
+          if (stored != null) {
+            announcements.restore(stored);
+          }
+          _listen(announcements);
+        }
+        _dirty = false;
+        _initialSyncCompleted = true;
+        _initialSyncFailed = false;
+        cloudConfirmed = true;
+        error.value = null;
+        saveStatus.value = 'Đã đồng bộ dữ liệu từ Firebase';
+      } finally {
+        _restoring = false;
+      }
+      if (!_disposed && cloudMode && repository is RentalChangeSource) {
+        await _remoteSubscription?.cancel();
+        _remoteSubscription = (repository as RentalChangeSource).changes.listen(
+          (_) => _scheduleRefresh(),
+          onError: (Object failure) {
+            _closeRevokedSession(failure);
+            error.value =
+                'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối và quyền tài khoản.';
+          },
+        );
+      }
+    } catch (failure) {
+      debugPrint('Background cloud sync warning: $failure');
+      if (!_disposed) {
+        _closeRevokedSession(failure);
+        _initialSyncCompleted = false;
+        _initialSyncFailed = true;
+        error.value = null;
+        saveStatus.value =
+            'Chưa tải được dữ liệu Firebase · Thử kết nối lại';
+      }
+    } finally {
+      if (!_disposed) {
+        refreshing.value = false;
+      }
+    }
+  }
+
+  Future<void> retryInitialSync() async {
+    if (_disposed || _initialSyncCompleted) return;
+    _initialSyncFailed = false;
+    refreshing.value = true;
+    saveStatus.value = 'Đang thử đồng bộ lại dữ liệu Firebase…';
+    await _syncFromCloudInBackground();
+  }
 
   Future<void> initialize() async {
     final data = await repository.readAll();
@@ -92,6 +246,7 @@ class AppPersistence {
     TenantFavoritesStore.roomNames
       ..clear()
       ..addAll(List<String>.from(data['favorites']?['ids'] as List? ?? []));
+          TenantFavoritesStore.changes.value++;
     for (final store in RentalPortfolio.instance.stores) {
       final announcements = AnnouncementStore.forRental(store);
       final stored = data['announcements:${store.property.id}'];
@@ -234,6 +389,7 @@ class AppPersistence {
           )) {
             LandlordDemoStore.instance = RentalPortfolio.instance.active;
           }
+          AccountStore.instance.rebindRental(LandlordDemoStore.instance);
           AdminStore.instance.restore(data['admin']!);
           ConversationStore.instance.restore(data['conversations']!);
           ViewingStore.instance.restore(data['viewings']!);
@@ -275,10 +431,9 @@ class AppPersistence {
   void _closeRevokedSession(Object failure) {
     if (cloudMode &&
         LocalAuth.instance.isCloudMode &&
-        LocalAuth.instance.role != AppRole.admin &&
         failure is FirebaseException &&
-        failure.code == 'unauthenticated') {
-      // Chỉ tự động đăng xuất khi phiên xác thực Firebase không còn hợp lệ.
+        ['unauthenticated', 'permission-denied'].contains(failure.code)) {
+      // A revoked or denied profile must not keep showing private cached data.
       scheduleMicrotask(() => unawaited(LocalAuth.instance.signOut()));
     }
   }

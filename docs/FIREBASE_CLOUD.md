@@ -2,11 +2,37 @@
 
 Mặc định dùng Firebase thật: xác thực trước khi đọc dữ liệu riêng, vai trò lấy từ `users/{uid}` trên server; không đăng nhập bằng tài khoản demo khi Firebase từ chối. SQLite được tách theo UID; web dùng Firestore trực tiếp. Không tự tạo hay nâng vai trò từ ứng dụng. Cờ `--dart-define=USE_FIREBASE_AUTH=false` chỉ dành đối chiếu bản cũ trước khi khóa collection legacy.
 
+## Project hiện tại
+
+Project đích là `tropremium-d14ac`, đặt làm mặc định trong `.firebaserc`. FlutterFire đã đăng ký app Android (`com.example.quanlytro`), Web và Windows; cấu hình Android nằm ở `android/app/google-services.json`, cấu hình Dart ở `lib/firebase_options.dart`. Repo hiện chưa có target iOS/macOS.
+
+Project này bắt đầu trống. Bật Email/Password Authentication và tạo Firestore database trong Console. Storage có thể cấu hình sau. Tạo tài khoản admin đầu tiên trong Authentication, rồi tạo `users/{uid}` với `email`, `displayName`, `role: admin`, `disabled: false`; sau đó deploy Firestore Rules:
+
+```powershell
+firebase login
+firebase use tropremium-d14ac
+firebase deploy --only firestore:rules --project tropremium-d14ac
+```
+
+Để cấu hình lại app trên máy khác, chạy `flutterfire configure --project=tropremium-d14ac --platforms=android,web,windows --yes`. Vì project mới được chọn để bắt đầu sạch, bỏ qua các lệnh Python nhập bộ dữ liệu legacy ở phần 2.
+
 ## 1. Bật và tạo tài khoản
 
-Mở [Authentication của project](https://console.firebase.google.com/project/doantro-caf4b/authentication/providers) → Get started (nếu có) → Email/Password → bật công tắc đầu tiên → Save. Không cần bật Email link.
+Mở [Authentication của project](https://console.firebase.google.com/project/tropremium-d14ac/authentication/providers) → Get started (nếu có) → Email/Password → bật công tắc đầu tiên → Save. Không cần bật Email link.
 
-Trong Authentication → Users, tự tạo ba tài khoản: chủ trọ, người thuê và quản trị viên; tự chọn mật khẩu. Sao chép **UID**, không gửi mật khẩu vào chat hay đưa vào mã nguồn.
+Tài khoản đầu tiên có quyền admin phải được tạo thủ công bằng Firebase Authentication và hồ sơ `users/{uid}` trong Firebase Console/Admin SDK (`role: admin`, `disabled: false`). Đây là điểm tin cậy ban đầu; ứng dụng không cho phép người dùng tự cấp quyền admin.
+
+Sau khi deploy Rules, người dùng có thể tự đăng ký bằng email và chọn vai trò Người thuê; tích checkbox **Đăng ký với tài khoản chủ trọ** để đăng ký vai trò Chủ trọ. Firestore Rules chỉ cho tài khoản tự tạo hồ sơ của chính mình với một trong hai vai trò này; client không thể tự cấp quyền admin. Hồ sơ người thuê nhận mã `tenant-{uid}` để chia sẻ với Chủ trọ khi lập hợp đồng. Không cần admin duyệt tài khoản; admin vẫn duyệt xác minh nhà trọ trước khi tin đăng được công khai. Chủ trọ chưa có nhà được mở màn hình tạo hồ sơ đầu tiên; nhà và phòng mới lưu theo `ownerUid` Firebase.
+
+Chỉ cần deploy Firestore Rules để bật đăng ký và đồng bộ hồ sơ. Nếu bật Firebase Storage sau này, cấu hình bucket và Storage Rules riêng; xem [Firebase Storage setup](https://firebase.google.com/docs/storage/flutter/start) và [Firebase pricing plans](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans).
+
+```powershell
+firebase deploy --only firestore:rules --project tropremium-d14ac
+```
+
+Ảnh nhà và loại phòng được đọc công khai để hiển thị tin đăng. Ảnh minh chứng thanh toán được giới hạn cho admin, chủ nhà và người thuê có hóa đơn liên quan. Mỗi ảnh tối đa 10 MB; Firestore chỉ lưu URL/thông tin tham chiếu, còn tệp nằm trong Storage.
+
+Để chuyển bộ dữ liệu mẫu có sẵn, vẫn dùng UID admin/landlord/tenant trong `.dart_tool/demo_data/provisioning.json` như bên dưới. Sao chép **UID**, không gửi mật khẩu vào chat hay đưa vào mã nguồn.
 
 Tạo `.dart_tool/demo_data/provisioning.json` (chỉ UID, không có mật khẩu):
 
@@ -68,7 +94,7 @@ flutter run -d emulator-5554 --dart-define=USE_FIREBASE_AUTH=true
 Đăng nhập bằng từng tài khoản vừa tạo. Sau khi đã chuyển dữ liệu và xác nhận đăng nhập được, vào Firestore → Rules, thay nội dung bằng [firestore.rules](../firestore.rules) rồi Publish. Hoặc dùng Firebase CLI đã đăng nhập của chính m:
 
 ```powershell
-firebase deploy --only firestore:rules --project doantro-caf4b
+firebase deploy --only firestore:rules --project tropremium-d14ac
 ```
 
 Không publish Rules này trước khi hoàn tất tài khoản và dữ liệu: Rules sẽ chặn toàn bộ `app_documents` cũ, nên bản APK demo không còn đồng bộ được. Chỉ bản chạy với `USE_FIREBASE_AUTH=true` dùng các collection mới.

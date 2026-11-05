@@ -68,7 +68,7 @@ Firebase CLI chưa có credentials quản trị; lần deploy CLI bị từ ch�
 
 Chưa đăng nhập ba tài khoản trên thiết bị thật vì mật khẩu do người dùng giữ. Widget/test và Emulator không chứng minh độ mượt theo FPS hoặc trạng thái server production. Sau khi Publish Rules, cần chạy APK mới trên hai thiết bị: tenant gửi lịch xem/thanh toán/sự cố/tin nhắn, chủ trọ xử lý, tenant thấy kết quả; admin ẩn nhà và khóa tài khoản để kiểm tra phản ánh ở hai role còn lại.
 
-Khóa bằng `users.disabled` chặn quyền dữ liệu ứng dụng, không xóa tài khoản Firebase Auth hoặc thu hồi refresh token qua Admin SDK. Tài khoản chưa được cấp vai trò vẫn không vào dữ liệu riêng. Chủ trọ/admin hoàn toàn chưa có nhà chưa có màn onboarding rỗng; đợt chuyển hiện tại đã cấp 10 nhà cho chủ trọ được chỉ định.
+Khóa bằng `users.disabled` chặn quyền dữ liệu ứng dụng, không xóa tài khoản Firebase Auth hoặc thu hồi refresh token qua Admin SDK. Tài khoản chưa được cấp vai trò vẫn không vào dữ liệu riêng. Chủ trọ mới chưa có nhà được mở màn onboarding sau khi đồng bộ server thành công; bộ dữ liệu mẫu hiện có vẫn gán 10 nhà cho chủ trọ được chỉ định.
 
 Giao diện admin chung/dashboard của Anti được review và tích hợp cùng lượt hoàn thiện Users/Commission tiếp theo. Các thay đổi chat tenant/yêu thích và generated Windows được giữ riêng, không đưa vào commit giao diện admin.
 
@@ -81,3 +81,21 @@ Kiểm tra widget bao phủ 320/390/768/1440px; 320px có chữ 130%. Đã sửa
 Lượt cuối của phần giao diện: **18 test admin PASS**, gồm tìm kiếm/lọc, trạng thái rỗng, chỉnh hồ sơ, khóa/mở tài khoản, kiểm tra đối soát và render preview. Analyze toàn dự án sạch; APK cloud debug build thành công. Không chạy lại ghi dữ liệu production trong lượt giao diện này.
 
 Mẫu nhập và cách dùng: [DATA_IMPORT.md](DATA_IMPORT.md). Đối chiếu kỹ thuật: [Firestore listeners](https://firebase.google.com/docs/firestore/query-data/listen), [transactions](https://firebase.google.com/docs/firestore/manage-data/transactions), [Firebase Auth](https://firebase.google.com/docs/auth/flutter/password-auth).
+
+## Cập nhật luồng cấp quyền và onboarding
+
+- Đăng nhập chỉ chấp nhận hồ sơ `users/{uid}` đọc trực tiếp từ server; bỏ hồ sơ UID/role hard-code khi Firestore lỗi hoặc timeout.
+- Đăng ký tạo hồ sơ `users/{uid}` ngay bằng Firestore Rules giới hạn UID, email và vai trò; client chỉ được chọn `landlord` hoặc `tenant`, không thể tự tạo admin.
+- Người thuê được cấp mã `tenant-{uid}` ngay khi đăng ký để ghép vào hợp đồng. Tài khoản không cần admin duyệt; admin vẫn duyệt xác minh nhà trọ trước khi công khai tin.
+- Chủ trọ chưa có nhà được giữ ở màn onboarding đến khi tải xong dữ liệu server. Có thể tạo nhà/phòng đầu tiên và lưu qua cùng transaction Firestore.
+- Nếu đọc hoặc listener bị `permission-denied`/`unauthenticated`, ứng dụng đóng phiên để tránh tiếp tục hiển thị dữ liệu riêng đã cache.
+- Tên/email lúc đăng ký được dùng làm hồ sơ ban đầu; hồ sơ Người thuê cũng hiển thị mã liên kết do backend cấp để chia sẻ với Chủ trọ khi lập hợp đồng.
+- Ảnh nhà, album loại phòng và chứng từ thanh toán được chuyển lên Firebase Storage; Firestore chỉ giữ tham chiếu. Storage Rules tách ảnh tin đăng công khai khỏi chứng từ chỉ dành cho các role liên quan.
+
+Firestore Rules cho tự đăng ký đã được deploy lên `tropremium-d14ac`. Storage Rules chỉ cần deploy khi bật tính năng tải ảnh cloud; xem cấu hình project trong [FIREBASE_CLOUD.md](FIREBASE_CLOUD.md).
+
+## Chuyển sang project riêng
+
+- Project đích mới là `tropremium-d14ac`; FlutterFire đã đăng ký Android, Web và Windows, và `.firebaserc` dùng project này làm mặc định.
+- Project bắt đầu trống theo lựa chọn của người dùng; không chuyển Firestore documents hoặc Firebase Auth accounts từ project cũ.
+- Firestore Rules đã được deploy; Storage bucket/Rules vẫn để sau theo lựa chọn của người dùng. Tài khoản admin đầu tiên được bootstrap thủ công trong `users/{uid}` theo [FIREBASE_CLOUD.md](FIREBASE_CLOUD.md).

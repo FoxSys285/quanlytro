@@ -12,12 +12,48 @@ service cloud.firestore {
         request.resource.data.archived == false;
     }
     match /users/{uid} {
-      allow read: if active() && (uid == request.auth.uid || admin());
-      // Role/disabled/tenantId provisioned through Admin SDK, never self-assigned.
-      allow create, delete: if false;
+      // Users can read their own role record to distinguish pending/disabled accounts.
+      allow read: if request.auth != null &&
+        (uid == request.auth.uid || admin());
+      // Users can self-register only as landlord or tenant. Admin can never be
+      // assigned by a client; tenant IDs are fixed to the authenticated UID.
+      allow create: if request.auth != null && uid == request.auth.uid &&
+        request.resource.data.keys().hasOnly([
+          'email', 'displayName', 'role', 'disabled', 'tenantId', 'createdAt'
+        ]) &&
+        request.resource.data.keys().hasAll([
+          'email', 'displayName', 'role', 'disabled', 'createdAt'
+        ]) &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.displayName is string &&
+        request.resource.data.displayName.size() > 0 &&
+        request.resource.data.displayName.size() <= 100 &&
+        request.resource.data.role in ['landlord', 'tenant'] &&
+        request.resource.data.disabled == false &&
+        request.resource.data.createdAt == request.time &&
+        ((request.resource.data.role == 'tenant' &&
+            request.resource.data.tenantId == 'tenant-' + uid) ||
+          (request.resource.data.role == 'landlord' &&
+            !request.resource.data.keys().hasAny(['tenantId'])));
+      allow delete: if false;
       allow update: if admin() && uid != request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disabled']) &&
         request.resource.data.disabled is bool;
+    }
+    match /account_requests/{uid} {
+      // Legacy signup requests are read once to activate accounts created by
+      // older app versions; current signups write users/{uid} directly.
+      allow read: if (request.auth != null && uid == request.auth.uid) || admin();
+      allow create: if request.auth != null && uid == request.auth.uid &&
+        request.resource.data.keys().hasOnly(['email', 'displayName', 'requestedRole', 'status', 'createdAt']) &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.displayName is string &&
+        request.resource.data.displayName.size() > 0 && request.resource.data.displayName.size() <= 100 &&
+        request.resource.data.requestedRole in ['landlord', 'tenant'] &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.createdAt == request.time;
+      // Legacy request documents remain immutable; account approval is retired.
+      allow update, delete: if false;
     }
     match /app_documents/{id} { allow read, write: if false; }
     match /user_state/{uid} {
@@ -44,7 +80,11 @@ service cloud.firestore {
     }
     match /rental_properties/{id} {
       allow read: if true;
-      allow create: if admin() || owner(request.resource.data);
+      // Landlord property document IDs are their Firebase UIDs, so a landlord
+      // can create only the one property document assigned to their account.
+      allow create: if admin() ||
+        (request.auth != null && id == request.auth.uid &&
+          owner(request.resource.data));
       allow update: if admin() || (owner(resource.data) && request.resource.data.ownerUid == resource.data.ownerUid &&
         request.resource.data.get('published', true) == resource.data.get('published', true));
       allow delete: if false;

@@ -177,7 +177,7 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Dữ liệu được lưu trên thiết bị và giữ lại khi mở ứng dụng.',
+            'Thay đổi được đồng bộ lên Firebase và chia sẻ theo quyền tài khoản.',
             style: TextStyle(
               color: LandlordPalette.of(context).muted,
               fontSize: 11,

@@ -3,40 +3,26 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../layouts/role_layout.dart';
 
-const _knownCloudProfiles = <String, Map<String, dynamic>>{
-  'vZgXcGrc0BZEN8E9syy8NfANvBr2': {
-    'email': 'admin@ex.com',
-    'role': 'admin',
-    'disabled': false,
-  },
-  'KlgeZapbNNPQZFsjFwIDGEg5gHQ2': {
-    'email': 'landlord@ex.com',
-    'role': 'landlord',
-    'disabled': false,
-  },
-  '7vmo08B8BzQoj61aahwkliiR2eG3': {
-    'email': 'tentant@ex.com',
-    'role': 'tenant',
-    'tenantId': 'tenant-demo',
-    'disabled': false,
-  },
-};
-
 class FirebaseAccountSession {
   const FirebaseAccountSession({
     required this.uid,
     required this.role,
     this.tenantId,
+    this.email = '',
+    this.displayName = '',
   });
 
   final String uid;
   final AppRole role;
   final String? tenantId;
+  final String email;
+  final String displayName;
 
   factory FirebaseAccountSession.fromProfile(
     String uid,
-    Map<String, dynamic>? profile,
-  ) {
+    Map<String, dynamic>? profile, {
+    String authEmail = '',
+  }) {
     if (profile == null || profile['disabled'] != false) {
       throw ArgumentError('Tài khoản chưa được cấp quyền hoặc đã bị khóa.');
     }
@@ -60,6 +46,8 @@ class FirebaseAccountSession {
       uid: uid,
       role: roles.single,
       tenantId: tenantId as String?,
+      email: profile['email'] as String? ?? authEmail,
+      displayName: profile['displayName'] as String? ?? '',
     );
   }
 }
@@ -72,8 +60,18 @@ abstract interface class AccountGateway {
   Future<void> changePassword(String current, String password);
 }
 
-/// Authentication and server-provisioned profiles only; never grants roles.
-class FirebaseAccountGateway implements AccountGateway {
+abstract interface class AccountRegistrationGateway {
+  Future<FirebaseAccountSession> registerAccount(
+    String email,
+    String password, {
+    required String displayName,
+    required AppRole requestedRole,
+  });
+}
+
+/// Firebase authentication with role-limited, Rules-validated self-registration.
+class FirebaseAccountGateway
+    implements AccountGateway, AccountRegistrationGateway {
   FirebaseAccountGateway({FirebaseAuth? auth, FirebaseFirestore? firestore})
     : _auth = auth ?? FirebaseAuth.instance,
       _firestore = firestore ?? FirebaseFirestore.instance;
@@ -83,20 +81,76 @@ class FirebaseAccountGateway implements AccountGateway {
 
   @override
   Future<void> register(String email, String password) async {
+    await registerAccount(
+      email,
+      password,
+      displayName: email.split('@').first,
+      requestedRole: AppRole.tenant,
+    );
+    await _auth.signOut();
+  }
+
+  @override
+  Future<FirebaseAccountSession> registerAccount(
+    String email,
+    String password, {
+    required String displayName,
+    required AppRole requestedRole,
+  }) async {
     if (_auth.currentUser != null) {
       throw ArgumentError('Vui lòng đăng xuất trước khi tạo tài khoản mới.');
     }
+    if (![AppRole.landlord, AppRole.tenant].contains(requestedRole)) {
+      throw ArgumentError(
+        'Chỉ hỗ trợ đăng ký tài khoản chủ trọ hoặc người thuê.',
+      );
+    }
+    final name = displayName.trim();
+    if (name.isEmpty || name.length > 100) {
+      throw ArgumentError('Họ tên cần từ 1 đến 100 ký tự.');
+    }
     try {
-      await _auth.createUserWithEmailAndPassword(
+      final result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      // Creating an Auth identity never provisions a role or opens private data.
-      await _auth.signOut();
+      final user = result.user;
+      if (user == null) throw ArgumentError('Không thể tạo tài khoản.');
+      final profile = _newProfile(
+        uid: user.uid,
+        email: user.email ?? email,
+        displayName: name,
+        role: requestedRole,
+      );
+      await _firestore.collection('users').doc(user.uid).set(profile);
+      return FirebaseAccountSession.fromProfile(
+        user.uid,
+        profile,
+        authEmail: user.email ?? email,
+      );
     } on FirebaseAuthException catch (error) {
       throw ArgumentError(_message(error.code));
+    } on FirebaseException catch (error) {
+      await _auth.signOut();
+      throw ArgumentError(
+        'Đã tạo tài khoản nhưng chưa lưu được hồ sơ. Kiểm tra Firestore Rules rồi thử đăng nhập lại. ($error)',
+      );
     }
   }
+
+  Map<String, dynamic> _newProfile({
+    required String uid,
+    required String email,
+    required String displayName,
+    required AppRole role,
+  }) => {
+    'email': email,
+    'displayName': displayName,
+    'role': role.name,
+    'disabled': false,
+    if (role == AppRole.tenant) 'tenantId': 'tenant-$uid',
+    'createdAt': FieldValue.serverTimestamp(),
+  };
 
   @override
   Future<void> requestPasswordReset(String email) async {
@@ -118,19 +172,46 @@ class FirebaseAccountGateway implements AccountGateway {
       );
       final user = result.user;
       if (user == null) throw ArgumentError('Không thể xác thực tài khoản.');
-      Map<String, dynamic>? data;
-      try {
-        final profile = await _firestore
-            .collection('users')
+      final profile = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get(const GetOptions(source: Source.server));
+      var profileData = profile.data();
+      if (profileData == null) {
+        // Existing signups from the former approval flow can activate their
+        // own landlord/tenant profile from their immutable self-owned request.
+        final legacyRequest = await _firestore
+            .collection('account_requests')
             .doc(user.uid)
-            .get()
-            .timeout(const Duration(milliseconds: 1800));
-        data = profile.data();
-      } catch (_) {
-        data = _knownCloudProfiles[user.uid];
-        if (data == null) rethrow;
+            .get(const GetOptions(source: Source.server));
+        final request = legacyRequest.data();
+        final requestedRole = request?['requestedRole'];
+        final requestedEmail = request?['email'];
+        final requestDisplayName = request?['displayName'];
+        if (request != null &&
+            request['status'] == 'pending' &&
+            (requestedRole == AppRole.landlord.name ||
+                requestedRole == AppRole.tenant.name) &&
+            requestedEmail is String &&
+            requestedEmail.trim().toLowerCase() ==
+                (user.email ?? '').trim().toLowerCase()) {
+          final role = AppRole.values.byName(requestedRole as String);
+          profileData = _newProfile(
+            uid: user.uid,
+            email: user.email ?? requestedEmail,
+            displayName: requestDisplayName is String
+                ? requestDisplayName.trim()
+                : '',
+            role: role,
+          );
+          await _firestore.collection('users').doc(user.uid).set(profileData);
+        }
       }
-      return FirebaseAccountSession.fromProfile(user.uid, data);
+      return FirebaseAccountSession.fromProfile(
+        user.uid,
+        profileData,
+        authEmail: user.email ?? '',
+      );
     } catch (error) {
       await _auth.signOut();
       if (error is ArgumentError) rethrow;

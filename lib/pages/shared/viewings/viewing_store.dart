@@ -170,6 +170,7 @@ class ViewingStore extends ChangeNotifier {
         ),
       );
     _nextRequestId = map['nextId'] as int;
+    notifyListeners();
   }
 
   List<RoomViewing> get records => List.unmodifiable(_records);

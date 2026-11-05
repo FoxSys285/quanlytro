@@ -7,6 +7,7 @@ import '../../landlord_theme.dart';
 import '../models/landlord_property.dart';
 import '../services/property_image_picker.dart';
 import 'landlord_property_image.dart';
+import 'landlord_location_selector.dart';
 
 class LandlordPropertyEditor extends StatefulWidget {
   const LandlordPropertyEditor({
@@ -164,7 +165,7 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.creating ? 'Thêm nhà trọ' : 'Chỉnh sửa nhà trọ',
+                        widget.creating ? 'Tạo nhà trọ' : 'Chỉnh sửa nhà trọ',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -387,22 +388,13 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _city,
-                      decoration: _decoration(
-                        'Tỉnh / thành phố',
-                        Icons.location_city_outlined,
-                      ),
-                      validator: _required,
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _ward,
-                      decoration: _decoration(
-                        'Phường / xã',
-                        Icons.location_on_outlined,
-                      ),
-                      validator: _required,
+                    LandlordLocationSelector(
+                      initialCity: _city.text,
+                      initialWard: _ward.text,
+                      onChanged: (city, ward) {
+                        _city.text = city;
+                        _ward.text = ward;
+                      },
                     ),
                   ],
                 ),

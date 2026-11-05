@@ -451,7 +451,7 @@ class _LoginPageState extends State<LoginPage> {
                           ? null
                           : () => setState(() {
                               _email.text = acc.email;
-                              _password.text = isCloud ? '123456' : 'Tro@2026';
+                              _password.text = isCloud ? 'Test123456' : 'Tro@2026';
                               _error = null;
                             }),
                     ),
@@ -639,7 +639,7 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   _legalLink(
                     'Điều khoản sử dụng',
-                    'Sử dụng tài khoản được cấp cho bạn và bảo mật thông tin đăng nhập. Với tài khoản mẫu, dữ liệu được lưu trên thiết bị để trải nghiệm các chức năng quản lý nhà trọ.',
+                    'Bạn có trách nhiệm bảo mật thông tin đăng nhập và chỉ sử dụng dữ liệu đúng quyền tài khoản được cấp.',
                   ),
                   const Text(
                     ' và ',
@@ -648,8 +648,8 @@ class _LoginPageState extends State<LoginPage> {
                   _legalLink(
                     'Chính sách bảo mật',
                     LocalAuth.instance.isCloudMode
-                        ? 'Ứng dụng sử dụng Firebase để xác thực tài khoản và đồng bộ dữ liệu theo quyền truy cập của từng vai trò. Vui lòng liên hệ quản trị viên để được hỗ trợ về dữ liệu tài khoản.'
-                        : 'Tài khoản mẫu và dữ liệu được lưu trên thiết bị. Không dùng thông tin nhạy cảm khi trải nghiệm tài khoản mẫu. Khi bật đồng bộ, dữ liệu nghiệp vụ có thể được lưu trên Firebase.',
+                        ? 'Dữ liệu và quyền truy cập được tải từ Firebase sau khi đăng nhập. Tài khoản chưa được admin cấp quyền sẽ không vào được dữ liệu nghiệp vụ.'
+                        : 'Bản dùng thử lưu dữ liệu trên thiết bị. Không dùng thông tin cá nhân thật khi trải nghiệm.',
                   ),
                 ],
               ),

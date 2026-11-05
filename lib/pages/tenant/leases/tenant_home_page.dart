@@ -7,6 +7,7 @@ import '../../../layouts/role_layout.dart';
 
 import '../../landlord/finance/landlord_finance_models.dart';
 import '../../landlord/announcements/models/landlord_announcement.dart';
+import '../../landlord/incidents/models/landlord_suco.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../shared/announcements/announcement_store.dart';
 import '../../shared/rental/tenant_session.dart';
@@ -23,6 +24,28 @@ import '../tenant_detail_ui.dart';
 import '../tenant_settings_page.dart';
 import 'components/tenant_lease_member_row.dart';
 import '../members/components/tenant_member_requests.dart';
+
+class _TenantActivityItem {
+  const _TenantActivityItem({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.date,
+    required this.onTap,
+    this.badge,
+    this.badgeColor,
+    this.badgeForeground,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final DateTime date;
+  final String? badge;
+  final Color? badgeColor;
+  final Color? badgeForeground;
+  final VoidCallback onTap;
+}
 
 class TenantHomePage extends StatelessWidget {
   const TenantHomePage({
@@ -63,7 +86,7 @@ class TenantHomePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _overviewStats(),
+                    _overviewStats(data, notifications),
                     const SizedBox(height: 17),
                     if (lease == null)
                       const TenantEmptyState(
@@ -84,7 +107,6 @@ class TenantHomePage extends StatelessWidget {
                     const SizedBox(height: 18),
                     _activityHistorySection(context, data),
                     const SizedBox(height: 18),
-                    _verifiedBanner(context),
                     const SizedBox(height: 12),
                   ],
                 ),
@@ -188,12 +210,28 @@ class TenantHomePage extends StatelessWidget {
     );
   }
 
-  Widget _overviewStats() {
-    const stats = [
-      (Icons.home_rounded, '1', 'Phòng đang ở'),
-      (Icons.description_rounded, '1', 'Hợp đồng'),
-      (Icons.receipt_long_rounded, '2', 'Hóa đơn chưa TT'),
-      (Icons.notifications_rounded, '0', 'Thông báo mới'),
+  Widget _overviewStats(
+    LandlordDemoStore data,
+    AnnouncementStore notifications,
+  ) {
+    final currentLease = data.currentLeaseForTenant(tenantId);
+    final unpaidInvoices = data
+        .invoicesForTenant(tenantId)
+        .where((invoice) => !invoice.cancelled && invoice.remaining > 0)
+        .length;
+    final unreadNotifications = notifications
+        .forTenant(tenantId)
+        .where((item) => !notifications.isRead(item.id, tenantId))
+        .length;
+    final stats = [
+      (Icons.home_rounded, currentLease == null ? '0' : '1', 'Phòng đang ở'),
+      (
+        Icons.description_rounded,
+        '${data.leasesForTenant(tenantId).length}',
+        'Hợp đồng',
+      ),
+      (Icons.receipt_long_rounded, '$unpaidInvoices', 'Hóa đơn chưa TT'),
+      (Icons.notifications_rounded, '$unreadNotifications', 'Thông báo mới'),
     ];
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
@@ -337,23 +375,7 @@ class TenantHomePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 9),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.asset(
-                  'assets/images/room_types/interior.webp',
-                  width: 112,
-                  height: 90,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const SizedBox(
-                    width: 112,
-                    height: 90,
-                    child: ColoredBox(
-                      color: Color(0xFFE9F1EA),
-                      child: Icon(Icons.home_work_rounded),
-                    ),
-                  ),
-                ),
-              ),
+              _stayImage(data.property.imageUrl),
             ],
           ),
           const SizedBox(height: 13),
@@ -398,6 +420,30 @@ class TenantHomePage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _stayImage(String imageUrl) {
+    const placeholder = SizedBox(
+      width: 112,
+      height: 90,
+      child: ColoredBox(
+        color: Color(0xFFE9F1EA),
+        child: Icon(Icons.home_work_rounded),
+      ),
+    );
+    final source = imageUrl.trim();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: source.isEmpty
+          ? placeholder
+          : Image.network(
+              source,
+              width: 112,
+              height: 90,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => placeholder,
+            ),
     );
   }
 
@@ -519,103 +565,181 @@ class TenantHomePage extends StatelessWidget {
     BuildContext context,
     LandlordDemoStore data, {
     bool showAll = true,
-  }) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.calendar_month_rounded,
-              color: tenantGreenDark,
-              size: 20,
-            ),
-            const SizedBox(width: 9),
-            const Expanded(
-              child: Text(
-                'Lịch sử hoạt động',
-                style: TextStyle(
-                  color: tenantInk,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
+  }) {
+    final activities = <_TenantActivityItem>[];
+    for (final lease in data.leasesForTenant(tenantId)) {
+      activities.add(
+        _TenantActivityItem(
+          icon: Icons.description_rounded,
+          color: const Color(0xFF1688CC),
+          title: 'Hợp đồng thuê phòng ${lease.room}',
+          date: lease.startDate,
+          onTap: () => _openPage(
+            context,
+            'Hợp đồng thuê',
+            TenantLeaseContractPage(store: data, tenantId: tenantId),
+          ),
+        ),
+      );
+    }
+    for (final invoice in data.invoicesForTenant(tenantId)) {
+      final paid = invoice.status == LandlordInvoiceStatus.paid;
+      activities.add(
+        _TenantActivityItem(
+          icon: Icons.receipt_long_rounded,
+          color: paid ? tenantGreen : const Color(0xFF1688CC),
+          title: 'Hóa đơn tháng ${invoice.period.month}/${invoice.period.year}',
+          date: invoice.period,
+          badge: invoice.status.label,
+          badgeColor: paid ? const Color(0xFFE4F5E9) : const Color(0xFFF0F2F5),
+          badgeForeground: paid ? tenantGreenDark : tenantMuted,
+          onTap: () => _openPage(
+            context,
+            'Hóa đơn',
+            TenantInvoicesPage(store: data, tenantId: tenantId),
+          ),
+        ),
+      );
+    }
+    for (final payment in data.paymentsForTenant(tenantId)) {
+      final (
+        title,
+        badge,
+        color,
+        badgeColor,
+        badgeForeground,
+      ) = switch (payment.status) {
+        LandlordPaymentStatus.approved => (
+          'Thanh toán đã được xác nhận',
+          _formatVnd(payment.approvedAmount ?? payment.reportedAmount),
+          tenantGreen,
+          const Color(0xFFE4F5E9),
+          tenantGreenDark,
+        ),
+        LandlordPaymentStatus.pending => (
+          'Đã gửi yêu cầu thanh toán',
+          _formatVnd(payment.reportedAmount),
+          const Color(0xFFE79A11),
+          const Color(0xFFFFF2D9),
+          const Color(0xFF8A5A00),
+        ),
+        LandlordPaymentStatus.rejected => (
+          'Thanh toán bị từ chối',
+          _formatVnd(payment.reportedAmount),
+          const Color(0xFFD64545),
+          const Color(0xFFFFE7E7),
+          const Color(0xFF9B2525),
+        ),
+      };
+      activities.add(
+        _TenantActivityItem(
+          icon: Icons.credit_card_rounded,
+          color: color,
+          title: title,
+          date: payment.paidAt,
+          badge: badge,
+          badgeColor: badgeColor,
+          badgeForeground: badgeForeground,
+          onTap: () => _openPage(
+            context,
+            'Hóa đơn',
+            TenantInvoicesPage(store: data, tenantId: tenantId),
+          ),
+        ),
+      );
+    }
+    for (final incident in data.incidentsForTenant(tenantId)) {
+      activities.add(
+        _TenantActivityItem(
+          icon: Icons.build_circle_outlined,
+          color: incident.status.color,
+          title: 'Báo sự cố: ${incident.title}',
+          date: _parseIncidentDate(incident.date),
+          badge: incident.status.label,
+          badgeColor: incident.status.color.withValues(alpha: 0.12),
+          badgeForeground: incident.status.color,
+          onTap: () => _openPage(
+            context,
+            'Báo sự cố',
+            TenantBaoSuCoPage(store: data, tenantId: tenantId),
+          ),
+        ),
+      );
+    }
+    activities.sort((a, b) => b.date.compareTo(a.date));
+    final visible = showAll ? activities.take(3).toList() : activities;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.calendar_month_rounded,
+                color: tenantGreenDark,
+                size: 20,
               ),
-            ),
-            if (showAll)
-              TextButton.icon(
-                onPressed: () => _openActivityHistory(context, data),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                label: const Text('Xem tất cả'),
-                style: TextButton.styleFrom(
-                  foregroundColor: tenantGreenDark,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 2,
-                    vertical: 4,
+              const SizedBox(width: 9),
+              const Expanded(
+                child: Text(
+                  'Lịch sử hoạt động',
+                  style: TextStyle(
+                    color: tenantInk,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-          ],
+              if (showAll && activities.length > 3)
+                TextButton.icon(
+                  onPressed: () => _openActivityHistory(context, data),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                  label: const Text('Xem tất cả'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: tenantGreenDark,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 2,
+                      vertical: 4,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
-      ),
-      _activityRow(
-        icon: Icons.check_circle_rounded,
-        color: const Color(0xFF07944D),
-        title: 'Đã thanh toán hóa đơn tháng 11/2026',
-        date: '02/11/2026 • 09:30',
-        trailing: const TenantActivityBadge(
-          label: '+ 250.000đ',
-          color: Color(0xFFE4F5E9),
-          foreground: Color(0xFF07944D),
-        ),
-        onTap: () => _openPage(
-          context,
-          'Hóa đơn',
-          TenantInvoicesPage(store: data, tenantId: tenantId),
-        ),
-      ),
-      _activityRow(
-        icon: Icons.description_rounded,
-        color: const Color(0xFF1688CC),
-        title: 'Ký hợp đồng thuê phòng',
-        date: '15/10/2026 • 14:20',
-        trailing: const Icon(
-          Icons.chevron_right_rounded,
-          color: tenantMuted,
-          size: 21,
-        ),
-        onTap: () => _openPage(
-          context,
-          'Hợp đồng thuê',
-          TenantLeaseContractPage(store: data, tenantId: tenantId),
-        ),
-      ),
-      _activityRow(
-        icon: Icons.priority_high_rounded,
-        color: const Color(0xFFFFB400),
-        title: 'Báo sự cố: Máy lạnh không hoạt động',
-        date: '10/10/2026 • 16:45',
-        trailing: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TenantActivityBadge(
-              label: 'Đã xử lý',
-              color: Color(0xFFE4F5E9),
-              foreground: Color(0xFF07944D),
+        if (visible.isEmpty)
+          const TenantSurface(
+            child: Text(
+              'Chưa có hoạt động nào được ghi nhận.',
+              style: TextStyle(color: tenantMuted, fontSize: 12),
             ),
-            SizedBox(width: 5),
-            Icon(Icons.chevron_right_rounded, color: tenantMuted, size: 21),
-          ],
-        ),
-        isLast: true,
-        onTap: () => _openPage(
-          context,
-          'Báo sự cố',
-          TenantBaoSuCoPage(store: data, tenantId: tenantId),
-        ),
-      ),
-    ],
-  );
+          )
+        else
+          for (var index = 0; index < visible.length; index++)
+            _activityRow(
+              icon: visible[index].icon,
+              color: visible[index].color,
+              title: visible[index].title,
+              date: _formatActivityDate(visible[index].date),
+              trailing: visible[index].badge == null
+                  ? const Icon(
+                      Icons.chevron_right_rounded,
+                      color: tenantMuted,
+                      size: 21,
+                    )
+                  : TenantActivityBadge(
+                      label: visible[index].badge!,
+                      color:
+                          visible[index].badgeColor ?? const Color(0xFFF0F2F5),
+                      foreground: visible[index].badgeForeground ?? tenantMuted,
+                    ),
+              onTap: visible[index].onTap,
+              isLast: index == visible.length - 1,
+            ),
+      ],
+    );
+  }
 
   Widget _activityRow({
     required IconData icon,
@@ -699,6 +823,36 @@ class TenantHomePage extends StatelessWidget {
       ],
     ),
   );
+
+  static DateTime _parseIncidentDate(String value) {
+    final parts = value.split('/');
+    if (parts.length != 3) return DateTime.fromMillisecondsSinceEpoch(0);
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    return DateTime(year, month, day);
+  }
+
+  static String _formatActivityDate(DateTime date) {
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+    final day = '${twoDigits(date.day)}/${twoDigits(date.month)}/${date.year}';
+    if (date.hour == 0 && date.minute == 0) return day;
+    return '$day · ${twoDigits(date.hour)}:${twoDigits(date.minute)}';
+  }
+
+  static String _formatVnd(int amount) {
+    final digits = amount.abs().toString();
+    final result = StringBuffer(amount < 0 ? '-' : '');
+    for (var index = 0; index < digits.length; index++) {
+      result.write(digits[index]);
+      final remaining = digits.length - index - 1;
+      if (remaining > 0 && remaining % 3 == 0) result.write('.');
+    }
+    return '${result.toString()}đ';
+  }
 
   void _openActivityHistory(BuildContext context, LandlordDemoStore data) {
     Navigator.of(context).push<void>(
@@ -896,47 +1050,6 @@ class TenantHomePage extends StatelessWidget {
       ),
     );
   }
-
-  Widget _verifiedBanner(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-    decoration: BoxDecoration(
-      color: const Color(0xFFDDF3E5),
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Row(
-      children: [
-        const Icon(Icons.verified_user_rounded, color: tenantGreen, size: 36),
-        const SizedBox(width: 11),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'An tâm hơn với nhà trọ được xác minh',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Color(0xFF0A3D27),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Thông tin rõ ràng, chủ trọ uy tín',
-                style: TextStyle(color: Color(0xFF52685C), fontSize: 10),
-              ),
-            ],
-          ),
-        ),
-        IconButton(
-          tooltip: 'Tìm hiểu thêm',
-          onPressed: () => showTenantPreviewNotice(context),
-          icon: const Icon(Icons.arrow_forward_rounded, color: tenantGreenDark),
-        ),
-      ],
-    ),
-  );
 
   String _memberInitials(String name) {
     final words = name.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty);

@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../layouts/role_layout.dart';
 import 'firebase_account_gateway.dart';
+import 'firebase_media_store.dart';
 import 'local_database.dart';
 import 'rental_cloud_codec.dart';
 
@@ -15,9 +16,12 @@ class ScopedFirestoreRentalRepository
   ScopedFirestoreRentalRepository({
     required this.session,
     FirebaseFirestore? firestore,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance;
+    FirebaseMediaStore? mediaStore,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _mediaStore = mediaStore ?? FirebaseMediaStore();
   final FirebaseAccountSession session;
   final FirebaseFirestore _firestore;
+  final FirebaseMediaStore _mediaStore;
   final _baseline = <String, Map<String, dynamic>>{};
   final _owners = <String, String>{};
   final _ticketAuthors = <String, String>{};
@@ -28,6 +32,9 @@ class ScopedFirestoreRentalRepository
   Stream<void> get changes => Stream<void>.multi((controller) {
     Query<Map<String, dynamic>> properties = _firestore.collection(
       'rental_properties',
+    );
+    Query<Map<String, dynamic>> records = _firestore.collection(
+      'rental_records',
     );
     Query<Map<String, dynamic>> tickets = _firestore.collection(
       'support_tickets',
@@ -160,9 +167,6 @@ class ScopedFirestoreRentalRepository
         'counters': List.filled(7, 1),
       };
     }
-    if (stores.isEmpty) {
-      throw ArgumentError('Tài khoản chưa được cấp dữ liệu nhà trọ.');
-    }
     final snapshot = <String, Map<String, dynamic>>{
       'viewings': {'records': <dynamic>[], 'nextId': 1},
       'conversations': {'records': <dynamic>[]},
@@ -243,7 +247,9 @@ class ScopedFirestoreRentalRepository
       );
     }
     snapshot['portfolio'] = {
-      'selectedId': (ordered.first['property'] as Map)['id'],
+      'selectedId': ordered.isEmpty
+          ? ''
+          : (ordered.first['property'] as Map)['id'],
       'properties': ordered,
     };
     if (own.exists && own.data() != null) {
@@ -389,7 +395,11 @@ class ScopedFirestoreRentalRepository
     if (_localBaseline.isEmpty && _lastReadSnapshot != null) {
       _localBaseline.addAll(_encode(_lastReadSnapshot!));
     }
-    final encoded = _encode(documents);
+    final prepared = await _mediaStore.prepareForCloud(
+      documents,
+      uploadPropertyMedia: session.role != AppRole.tenant,
+    );
+    final encoded = _encode(prepared);
     final changed = encoded.entries
         .where(
           (e) =>

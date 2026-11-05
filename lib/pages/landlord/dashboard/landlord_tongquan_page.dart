@@ -64,9 +64,59 @@ class LandlordTongQuanPage extends StatelessWidget {
     final viewings = ViewingStore.instance;
 
     return ListenableBuilder(
-      listenable: Listenable.merge([store, conversations, viewings]),
+      listenable: Listenable.merge([
+        store,
+        RentalPortfolio.instance,
+        conversations,
+        viewings,
+      ]),
       builder: (context, _) {
         final palette = LandlordPalette.of(context);
+        if (RentalPortfolio.instance.stores.isEmpty) {
+          return LandlordPageFrame(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: palette.line),
+                ),
+                child: Column(
+                  children: [
+                    const CircleAvatar(
+                      radius: 34,
+                      child: Icon(Icons.apartment_rounded, size: 34),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Chưa có nhà trọ nào',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Tạo nhà trọ để bắt đầu quản lý và đăng các phòng cho thuê.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(height: 1.5, color: Colors.blueGrey),
+                    ),
+                    const SizedBox(height: 22),
+                    FilledButton.icon(
+                      onPressed: () =>
+                          RoleLayoutShell.tryNavigateTo(context, 'properties'),
+                      icon: const Icon(Icons.add_home_work_outlined),
+                      label: const Text('Tạo phòng trọ'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
         final now = DateTime.now();
         final rooms = store.roomDetails;
         final occupied = rooms

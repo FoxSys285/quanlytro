@@ -297,6 +297,7 @@ class LandlordPayment {
     this.rejectionReason,
     this.proofBytes,
     this.proofName,
+    this.proofUrl,
     this.paymentAccountId,
   });
 
@@ -313,6 +314,7 @@ class LandlordPayment {
   String? rejectionReason;
   final List<int>? proofBytes;
   final String? proofName;
+  final String? proofUrl;
   final String? paymentAccountId;
   DateTime? reviewedAt;
 
@@ -330,6 +332,7 @@ class LandlordPayment {
     'rejectionReason': rejectionReason,
     'proofBytes': proofBytes,
     'proofName': proofName,
+    'proofUrl': proofUrl,
     'paymentAccountId': paymentAccountId,
     'reviewedAt': reviewedAt?.toIso8601String(),
   };
@@ -351,6 +354,7 @@ class LandlordPayment {
               ? null
               : List<int>.from(map['proofBytes'] as List),
           proofName: map['proofName'] as String?,
+          proofUrl: map['proofUrl'] as String?,
           paymentAccountId: map['paymentAccountId'] as String?,
         )
         ..reviewedAt = map['reviewedAt'] == null

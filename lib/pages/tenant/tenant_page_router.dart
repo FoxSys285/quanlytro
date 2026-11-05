@@ -14,11 +14,12 @@ import 'leases/tenant_home_page.dart';
 import 'leases/tenant_lease_contract_page.dart';
 import 'members/tenant_members_page.dart';
 import 'tenant_ui.dart';
+import 'tenant_room_access_gate.dart';
 import '../shared/rental/tenant_session.dart';
 import 'viewings/tenant_viewings_page.dart';
 
 Widget buildTenantPage(BuildContext context, RoleDestination destination) {
-  return switch (destination.id) {
+  final page = switch (destination.id) {
     'support' => const HelpPage(role: AppRole.tenant),
     'settings' => const AccountSettingsPage(
       role: AppRole.tenant,
@@ -42,6 +43,21 @@ Widget buildTenantPage(BuildContext context, RoleDestination destination) {
     'incidents' => TenantBaoSuCoPage(tenantId: TenantSession.currentTenantId),
     _ => _TenantSecondaryPage(destination: destination),
   };
+  if (!const {
+    'my_lease',
+    'announcements',
+    'lease_contract',
+    'members',
+    'invoices',
+    'incidents',
+  }.contains(destination.id)) {
+    return page;
+  }
+  return TenantRoomAccessGate(
+    tenantId: TenantSession.currentTenantId,
+    title: destination.drawerLabel ?? destination.label,
+    child: page,
+  );
 }
 
 class _TenantSecondaryPage extends StatelessWidget {

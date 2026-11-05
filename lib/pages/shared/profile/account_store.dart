@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../data/local_auth.dart';
 import '../../../layouts/role_layout.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../landlord/properties/models/landlord_property.dart';
@@ -8,13 +9,27 @@ import 'contact_details.dart';
 
 /// Saved per-account preferences and contact information.
 class AccountStore extends ChangeNotifier {
-  AccountStore({required this.rental}) {
-    rental.addListener(notifyListeners);
+  AccountStore({required LandlordDemoStore rental})
+    : _fallbackRental = rental,
+      _portfolio = RentalPortfolio.instance,
+      _portfolioBacked = RentalPortfolio.instance.stores.contains(rental) ||
+          identical(RentalPortfolio.instance.active, rental) {
+    if (_portfolioBacked) {
+      _portfolio.addListener(notifyListeners);
+    } else {
+      _fallbackRental.addListener(notifyListeners);
+    }
   }
   static AccountStore instance = AccountStore(
     rental: LandlordDemoStore.instance,
   );
-  final LandlordDemoStore rental;
+  final RentalPortfolio _portfolio;
+  final bool _portfolioBacked;
+  LandlordDemoStore _fallbackRental;
+  LandlordDemoStore get rental =>
+      _portfolioBacked && identical(_portfolio, RentalPortfolio.instance)
+      ? _portfolio.active
+      : _fallbackRental;
   final _contacts = <AppRole, ContactDetails>{};
   final _notifications = <AppRole, bool>{};
   Map<String, dynamic> toMap() => {
@@ -31,6 +46,20 @@ class AccountStore extends ChangeNotifier {
     (map['notifications'] as Map).forEach(
       (k, v) => _notifications[AppRole.values.byName(k as String)] = v as bool,
     );
+    notifyListeners();
+  }
+
+  void rebindRental(LandlordDemoStore nextRental) {
+    if (_portfolioBacked) {
+      _fallbackRental = nextRental;
+      notifyListeners();
+      return;
+    }
+    if (identical(rental, nextRental)) return;
+    _fallbackRental.removeListener(notifyListeners);
+    _fallbackRental = nextRental;
+    _fallbackRental.addListener(notifyListeners);
+    notifyListeners();
   }
 
   bool notificationsEnabled(AppRole role) => _notifications[role] ?? true;
@@ -56,17 +85,22 @@ class AccountStore extends ChangeNotifier {
     }
     final cloudTenant = TenantSession.authenticatedTenantId != null;
     if (cloudTenant && saved != null) return saved;
+    final authSession = LocalAuth.instance.session;
     final members = rental.members
         .where((member) => member.tenantId == TenantSession.currentTenantId)
         .toList();
     return ContactDetails(
       name: members.isEmpty
-          ? saved?.name ?? (cloudTenant ? 'Người thuê' : TenantSession.name)
+          ? saved?.name ??
+                (cloudTenant
+                    ? authSession?.displayName ?? 'Người thuê'
+                    : TenantSession.name)
           : members.first.name,
       phone: members.isEmpty
           ? saved?.phone ?? (cloudTenant ? '' : TenantSession.phone)
           : members.first.phone,
-      email: saved?.email ?? (cloudTenant ? '' : 'minhanh@example.com'),
+      email: saved?.email ??
+          (cloudTenant ? authSession?.email ?? '' : 'minhanh@example.com'),
       address:
           saved?.address ?? (cloudTenant ? '' : 'Bình Thạnh, TP. Hồ Chí Minh'),
     );
@@ -107,7 +141,11 @@ class AccountStore extends ChangeNotifier {
 
   @override
   void dispose() {
-    rental.removeListener(notifyListeners);
+    if (_portfolioBacked) {
+      _portfolio.removeListener(notifyListeners);
+    } else {
+      _fallbackRental.removeListener(notifyListeners);
+    }
     super.dispose();
   }
 }

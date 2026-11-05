@@ -1,0 +1,46 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function profile() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+    function active() {
+      return request.auth != null && profile().disabled == false;
+    }
+    function admin() {
+      return active() && profile().role == 'admin';
+    }
+    function property(propertyId) {
+      return firestore.get(/databases/(default)/documents/rental_properties/$(propertyId)).data;
+    }
+    function owner(propertyId) {
+      return active() && profile().role == 'landlord' &&
+        property(propertyId).ownerUid == request.auth.uid;
+    }
+    function invoice(propertyId, invoiceId) {
+      return firestore.get(/databases/(default)/documents/rental_records/$(propertyId + ':invoices:' + invoiceId)).data;
+    }
+    function tenant(record) {
+      return active() && profile().role == 'tenant' && profile().tenantId in record.tenantIds;
+    }
+
+    match /properties/{propertyId}/{filePath=**} {
+      allow read: if true;
+      allow write: if (admin() || owner(propertyId)) &&
+        request.resource.size <= 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    match /payment-proofs/{propertyId}/{invoiceId}/{filePath=**} {
+      allow read: if admin() || owner(propertyId) || tenant(invoice(propertyId, invoiceId));
+      allow create: if (admin() || owner(propertyId) || tenant(invoice(propertyId, invoiceId))) &&
+        request.resource.size <= 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+      allow update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

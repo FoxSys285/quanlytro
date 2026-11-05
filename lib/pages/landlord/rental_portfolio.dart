@@ -4,9 +4,11 @@ part of 'landlord_demo_store.dart';
 class RentalPortfolio extends ChangeNotifier {
   RentalPortfolio(Iterable<LandlordDemoStore> stores, {String? selectedId})
     : _stores = List.of(stores) {
-    if (_stores.isEmpty) throw ArgumentError('Cần ít nhất một nhà trọ.');
-    _selectedId = selectedId ?? _stores.first.property.id;
-    if (!_stores.any((s) => s.property.id == _selectedId)) {
+    _selectedId = _stores.isEmpty
+        ? ''
+        : selectedId ?? _stores.first.property.id;
+    if (_stores.isNotEmpty &&
+        !_stores.any((s) => s.property.id == _selectedId)) {
       _selectedId = _stores.first.property.id;
     }
     for (final store in _stores) {
@@ -20,7 +22,9 @@ class RentalPortfolio extends ChangeNotifier {
   final List<LandlordDemoStore> _stores;
   late String _selectedId;
   List<LandlordDemoStore> get stores => List.unmodifiable(_stores);
-  LandlordDemoStore get active => byId(_selectedId)!;
+  LandlordDemoStore get active =>
+      byId(_selectedId) ??
+      (_stores.isEmpty ? LandlordDemoStore.instance : _stores.first);
   LandlordDemoStore? byId(String id) {
     for (final store in _stores) {
       if (store.property.id == id) return store;
@@ -46,6 +50,9 @@ class RentalPortfolio extends ChangeNotifier {
     if (floors < 1 || floors > 30 || roomsPerFloor < 1 || roomsPerFloor > 50) {
       throw ArgumentError('Số tầng hoặc số phòng mỗi tầng không hợp lệ.');
     }
+    if (floors * roomsPerFloor > 350) {
+      throw ArgumentError('Mỗi nhà trọ có thể tạo tối đa 350 phòng.');
+    }
     final store = _seedProperty(
       property,
       floors,
@@ -53,6 +60,21 @@ class RentalPortfolio extends ChangeNotifier {
       _stores.length,
       occupied: false,
     );
+    _stores.add(store);
+    store.addListener(notifyListeners);
+    _selectedId = property.id;
+    notifyListeners();
+    return store;
+  }
+
+  LandlordDemoStore createSingleProperty(LandlordProperty property) {
+    if (_stores.isNotEmpty) {
+      throw ArgumentError('Mỗi chủ trọ chỉ được quản lý một nhà trọ.');
+    }
+    if (property.id.trim().isEmpty) {
+      throw ArgumentError('Không xác định được mã chủ trọ. Hãy đăng nhập lại.');
+    }
+    final store = LandlordDemoStore.emptyForProperty(property);
     _stores.add(store);
     store.addListener(notifyListeners);
     _selectedId = property.id;
@@ -85,7 +107,6 @@ class RentalPortfolio extends ChangeNotifier {
   /// Nhận bản mới từ server, giữ store và nhà đang mở để không mất màn hình.
   void restore(Map<String, dynamic> map) {
     final rows = (map['properties'] as List).cast<Map>();
-    if (rows.isEmpty) throw ArgumentError('Cần ít nhất một nhà trọ.');
     final ids = rows.map((row) => (row['property'] as Map)['id']).toSet();
     for (final store
         in _stores.where((s) => !ids.contains(s.property.id)).toList()) {
@@ -103,7 +124,9 @@ class RentalPortfolio extends ChangeNotifier {
       }
       store.restore(data);
     }
-    if (byId(_selectedId) == null) _selectedId = _stores.first.property.id;
+    _selectedId = _stores.isEmpty
+        ? ''
+        : byId(_selectedId)?.property.id ?? _stores.first.property.id;
     for (final store in _stores) {
       store._changed();
     }
@@ -116,7 +139,7 @@ class RentalPortfolio extends ChangeNotifier {
           LandlordDemoStore.demo()
             ..restore(Map<String, dynamic>.from(item as Map)),
     ),
-    selectedId: map['selectedId'] as String,
+    selectedId: map['selectedId'] as String?,
   );
 
   factory RentalPortfolio.seeded() {
@@ -547,6 +570,7 @@ LandlordDemoStore _seedProperty(
 }) {
   final store = LandlordDemoStore.demo();
   store._property = property;
+  final preserveDemoData = property.id == 'may' && index == 0 && occupied;
   if (occupied && index.isOdd) store._roomTypes.removeLast();
   if (!occupied) {
     store._paymentAccounts.clear();
@@ -564,9 +588,9 @@ LandlordDemoStore _seedProperty(
   for (var floor = 1; floor <= floors; floor++) {
     for (var number = 1; number <= count; number++) {
       final raw = '$floor${number.toString().padLeft(2, '0')}';
-      final code = index == 0 && raw == '105'
+      final code = preserveDemoData && raw == '105'
           ? 'B.105'
-          : index == 0 && raw == '302'
+          : preserveDemoData && raw == '302'
           ? 'A.302'
           : raw;
       final typeIndex = (number - 1) % store._roomTypes.length;
@@ -577,12 +601,12 @@ LandlordDemoStore _seedProperty(
           roomTypeId: store._roomTypes[typeIndex].id,
           area: [25, 28, 22, 40][typeIndex],
           capacity: [2, 4, 3, 5][typeIndex],
-          leaseRoomCode: index == 0 && raw == '101' ? 'A.101' : null,
+          leaseRoomCode: preserveDemoData && raw == '101' ? 'A.101' : null,
         ),
       );
     }
   }
-  if (index == 0 && occupied) {
+  if (preserveDemoData) {
     // Preserve the linked demonstration tenant and the original room types.
     for (final original in LandlordDemoStore.roomCatalog) {
       final pos = store._rooms.indexWhere((r) => r.code == original.code);
@@ -595,6 +619,7 @@ LandlordDemoStore _seedProperty(
     store._members.clear();
     store._incidents.clear();
     store._readings.clear();
+    store._paymentAccounts.clear();
   }
   final now = DateTime.now();
   final period = DateTime(now.year, now.month);

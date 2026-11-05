@@ -32,6 +32,7 @@ class LandlordStaffStore extends ChangeNotifier {
           ),
         ),
       );
+    notifyListeners();
   }
 
   final _staff = <LandlordStaff>[

@@ -36,9 +36,7 @@ Future<List<AdminAccount>> loadAdminAccounts() async {
   if (auth.role != AppRole.admin) {
     throw ArgumentError('Đăng nhập admin để đọc danh sách tài khoản.');
   }
-  final snapshot = await FirebaseFirestore.instance
-      .collection('users')
-      .get();
+  final snapshot = await FirebaseFirestore.instance.collection('users').get();
   return [
     for (final doc in snapshot.docs)
       (

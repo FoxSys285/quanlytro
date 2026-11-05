@@ -193,6 +193,8 @@ class AuthFlowField extends StatefulWidget {
     this.onSubmitted,
     this.textInputAction = TextInputAction.next,
     this.autofillHints,
+    this.keyboardType,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   final TextEditingController controller;
@@ -205,6 +207,8 @@ class AuthFlowField extends StatefulWidget {
   final ValueChanged<String>? onSubmitted;
   final TextInputAction textInputAction;
   final Iterable<String>? autofillHints;
+  final TextInputType? keyboardType;
+  final TextCapitalization textCapitalization;
 
   @override
   State<AuthFlowField> createState() => _AuthFlowFieldState();
@@ -230,9 +234,12 @@ class _AuthFlowFieldState extends State<AuthFlowField> {
         enabled: widget.enabled,
         validator: widget.validator,
         obscureText: widget.password && _obscure,
-        keyboardType: widget.password
-            ? TextInputType.visiblePassword
-            : TextInputType.emailAddress,
+        keyboardType:
+            widget.keyboardType ??
+            (widget.password
+                ? TextInputType.visiblePassword
+                : TextInputType.emailAddress),
+        textCapitalization: widget.textCapitalization,
         textInputAction: widget.textInputAction,
         autofillHints: widget.autofillHints,
         autocorrect: false,
