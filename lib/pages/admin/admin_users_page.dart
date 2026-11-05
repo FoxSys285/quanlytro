@@ -689,13 +689,22 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       children: [
         const AdminSyncBar(),
         AdminPanel(
-          backgroundColor: const Color(0xFF1D2E50),
+          backgroundColor: const Color(0xFF0F2537),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF0B192C),
+              Color(0xFF0F2942),
+              Color(0xFF0369A1),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Row(
                 children: [
-                  Icon(Icons.sensors_rounded, color: Color(0xFF87DFC0)),
+                  Icon(Icons.sensors_rounded, color: Color(0xFF2DD4BF)),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -722,7 +731,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                 count == 1
                     ? 'Phiên đăng nhập đang hoạt động'
                     : 'Chưa có phiên đang hoạt động',
-                style: const TextStyle(color: Color(0xFFD1DCF2), fontSize: 13),
+                style: const TextStyle(color: Color(0xFFBAE6FD), fontSize: 13),
               ),
             ],
           ),

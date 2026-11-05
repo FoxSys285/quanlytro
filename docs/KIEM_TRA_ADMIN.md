@@ -1,5 +1,30 @@
 # Rà soát và cập nhật admin — 04/11/2026
 
+## Công cụ bổ sung hoa hồng — 05/11/2026
+
+Firebase hiện dùng phân quyền; `app_documents` trả 403. Công cụ
+`initialize_admin_commissions.py` đã chuyển sang đọc `rental_properties`,
+`rental_records` và ghi `management/system` bằng phiên admin. Chỉ dùng dữ liệu
+Firebase đang đọc được, giữ tỷ lệ/kỳ/chứng từ hiện có, bổ sung tất cả kỳ cũ còn
+thiếu có tiền phòng đã duyệt; không chốt tháng đang diễn ra hoặc tạo tiền thực nhận.
+Đọc và ghi trong cùng transaction; lưu bản sao trong `.local-backups/firestore`,
+đọc lại đối chiếu sau commit. Không sửa Rules, tài khoản hoặc SQLite.
+
+Chạy từ terminal trong dự án, thay email bằng tài khoản admin thật; mật khẩu nhập
+ẩn tại terminal, không gửi vào chat. Lệnh đầu chỉ xem trước:
+
+```powershell
+python tool/initialize_admin_commissions.py --admin-email EMAIL_ADMIN
+python tool/initialize_admin_commissions.py --admin-email EMAIL_ADMIN --apply
+```
+
+Phiên 05/11 mới xác nhận đọc được 10 nhà trọ, 454 phòng công khai; chưa ghi dữ liệu
+riêng vì chưa có phiên admin. Các số liệu và kết quả ghi bên dưới là lịch sử ngày
+04/11, không phải xác nhận dữ liệu riêng hiện tại. Kiểm tra công cụ dùng mock và
+dữ liệu trong bộ nhớ, không chứng minh thao tác ghi thật.
+
+Transaction tham khảo [Firestore REST runQuery](https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents/runQuery).
+
 Đối chiếu `HeThongQuanLyKhachThueTro.docx`, mã nguồn hiện tại và yêu cầu bổ sung trong cuộc trao đổi. Word mô tả quản trị tài khoản, giám sát và báo cáo tổng hợp; chưa mô tả hoa hồng hoặc số người đang mở ứng dụng. Bản Word không bị sửa.
 
 | Yêu cầu | Kết quả và phạm vi |

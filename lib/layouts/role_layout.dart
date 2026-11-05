@@ -301,7 +301,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: widget.role == AppRole.admin
-          ? const Color(0xFFF5F6FB)
+          ? const Color(0xFFF0F6FA)
           : widget.role == AppRole.tenant
           ? const Color(0xFFFCFCFC)
           : Theme.of(context).scaffoldBackgroundColor,
@@ -331,7 +331,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           ? null
           : AppBar(
               backgroundColor: console
-                  ? const Color(0xFF1D2E50)
+                  ? const Color(0xFF0F2537)
                   : widget.role == AppRole.tenant
                   ? const Color(0xFFFCFCFC)
                   : landlordTheme
@@ -497,9 +497,9 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                         Container(
                           width: 224,
                           decoration: const BoxDecoration(
-                            color: Color(0xFF1D2E50),
+                            color: Color(0xFF0F2537),
                             border: Border(
-                              right: BorderSide(color: Color(0xFFE3E7E8)),
+                              right: BorderSide(color: Color(0xFFDCE6F1)),
                             ),
                           ),
                           child: Material(
@@ -525,11 +525,11 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                                       selected:
                                           item.id == _selectedDestinationId,
                                       selectedTileColor: const Color(
-                                        0xFF535BC6,
+                                        0xFF0284C7,
                                       ),
                                       selectedColor: Colors.white,
-                                      textColor: const Color(0xFFD5DDF0),
-                                      iconColor: const Color(0xFFADBBD5),
+                                      textColor: const Color(0xFFD0E4F5),
+                                      iconColor: const Color(0xFF93B8D8),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),

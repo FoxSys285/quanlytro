@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -31,8 +32,14 @@ class ScopedFirestoreRentalRepository
     Query<Map<String, dynamic>> tickets = _firestore.collection(
       'support_tickets',
     );
+    Query<Map<String, dynamic>> records = _firestore.collection(
+      'rental_records',
+    );
     if (session.role == AppRole.landlord) {
       properties = properties.where('ownerUid', isEqualTo: session.uid);
+      records = records.where('ownerUid', isEqualTo: session.uid);
+    } else if (session.role == AppRole.tenant) {
+      records = records.where('tenantIds', arrayContains: session.tenantId);
     }
     if (session.role != AppRole.admin) {
       tickets = tickets.where('accountUid', isEqualTo: session.uid);
@@ -40,24 +47,27 @@ class ScopedFirestoreRentalRepository
     final subscriptions = <StreamSubscription<dynamic>>[];
     void watch(Stream<dynamic> stream) {
       subscriptions.add(
-        stream.skip(1).listen(
-          (_) {
-            if (!controller.isClosed) controller.add(null);
-          },
-          onError: (Object error) {
-            debugPrint('Firestore stream warning: $error');
-            if (error is FirebaseException &&
-                error.code == 'permission-denied' &&
-                session.role == AppRole.admin) {
-              return;
-            }
-            if (!controller.isClosed) controller.addError(error);
-          },
-        ),
+        stream
+            .skip(1)
+            .listen(
+              (_) {
+                if (!controller.isClosed) controller.add(null);
+              },
+              onError: (Object error) {
+                debugPrint('Firestore stream warning: $error');
+                if (error is FirebaseException &&
+                    error.code == 'permission-denied' &&
+                    session.role == AppRole.admin) {
+                  return;
+                }
+                if (!controller.isClosed) controller.addError(error);
+              },
+            ),
       );
     }
 
     watch(properties.snapshots());
+    watch(records.snapshots());
     watch(tickets.snapshots());
     watch(_firestore.doc('user_state/${session.uid}').snapshots());
     watch(_firestore.doc('public_settings/viewings').snapshots());
@@ -80,6 +90,7 @@ class ScopedFirestoreRentalRepository
 
   @override
   Future<Map<String, Map<String, dynamic>>> readAll() async {
+    const server = GetOptions(source: Source.server);
     Query<Map<String, dynamic>> properties = _firestore.collection(
       'rental_properties',
     );
@@ -103,15 +114,15 @@ class ScopedFirestoreRentalRepository
     }
 
     final futures = <Future<dynamic>>[
-      properties.get(),
-      records.get(),
-      _firestore.collection('user_state').doc(session.uid).get(),
-      tickets.get(),
-      _firestore.doc('public_settings/viewings').get(),
+      properties.get(server),
+      records.get(server),
+      _firestore.collection('user_state').doc(session.uid).get(server),
+      tickets.get(server),
+      _firestore.doc('public_settings/viewings').get(server),
       if (session.role == AppRole.admin)
-        _firestore.doc('management/system').get()
+        _firestore.doc('management/system').get(server)
       else if (session.role == AppRole.landlord)
-        _firestore.doc('management/${session.uid}').get(),
+        _firestore.doc('management/${session.uid}').get(server),
     ];
     final results = await Future.wait(futures);
     final propSnap = results[0] as QuerySnapshot<Map<String, dynamic>>;

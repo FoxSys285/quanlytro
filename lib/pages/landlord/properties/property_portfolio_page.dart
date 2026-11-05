@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/admin_store.dart';
+import '../../../data/app_persistence.dart';
 import '../landlord_theme.dart';
 
 import '../landlord_demo_store.dart';
@@ -18,16 +19,36 @@ class PropertyPortfolioPage extends StatefulWidget {
 
 class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
   String _query = '';
+  bool _saving = false;
   RentalPortfolio get _portfolio => RentalPortfolio.instance;
+
+  Future<void> _save(String message) async {
+    setState(() => _saving = true);
+    try {
+      final persistence = AppPersistence.current;
+      await persistence?.saveChanges();
+      if (!mounted) return;
+      showLandlordMessage(
+        context,
+        persistence?.cloudConfirmed == true
+            ? '$message Đã lưu lên Firebase.'
+            : '$message Đã lưu trên máy.',
+      );
+    } catch (error) {
+      if (mounted) showLandlordMessage(context, '$error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   Future<void> _edit(LandlordDemoStore store) async {
     final property = await showDialog<LandlordProperty>(
       context: context,
       builder: (_) => LandlordPropertyEditor(property: store.property),
     );
-    if (property == null) return;
+    if (!mounted || property == null) return;
     store.updateProperty(property);
-    if (mounted) showLandlordMessage(context, 'Đã cập nhật ${property.name}.');
+    await _save('Đã cập nhật ${property.name}.');
   }
 
   Future<void> _add() async {
@@ -106,6 +127,7 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
     );
     if (!mounted || confirmed != true) return;
     _portfolio.add(property, floors: floors, roomsPerFloor: rooms);
+    await _save('Đã thêm ${property.name}.');
   }
 
   Future<void> _delete(LandlordDemoStore store) async {
@@ -131,8 +153,9 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
     if (!mounted || confirmed != true) return;
     try {
       _portfolio.remove(store.property.id);
+      await _save('Đã xóa ${store.property.name}.');
     } on ArgumentError catch (e) {
-      showLandlordMessage(context, e.message.toString());
+      if (mounted) showLandlordMessage(context, e.message.toString());
     }
   }
 
@@ -208,7 +231,7 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                       ),
                     ),
                     FilledButton.icon(
-                      onPressed: _add,
+                      onPressed: _saving ? null : _add,
                       icon: Icon(Icons.add),
                       label: Text('Thêm nhà trọ'),
                     ),
@@ -352,13 +375,13 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                     ),
                     IconButton(
                       tooltip: 'Sửa ${p.name}',
-                      onPressed: () => _edit(store),
+                      onPressed: _saving ? null : () => _edit(store),
                       icon: Icon(Icons.edit_outlined),
                     ),
                     if (store.leases.isEmpty)
                       IconButton(
                         tooltip: 'Xóa ${p.name}',
-                        onPressed: () => _delete(store),
+                        onPressed: _saving ? null : () => _delete(store),
                         icon: Icon(Icons.delete_outline),
                       ),
                   ],

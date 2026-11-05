@@ -6,16 +6,18 @@ import '../../data/app_persistence.dart';
 import '../../data/local_auth.dart';
 import '../../layouts/role_layout.dart';
 
-const adminInk = Color(0xFF0F172A);
-const adminBlue = Color(0xFF4F46E5);
-const adminPurple = Color(0xFF7C3AED);
-const adminTeal = Color(0xFF0D9488);
-const adminOrange = Color(0xFFEF4444);
-const adminMuted = Color(0xFF64748B);
+const adminInk = Color(0xFF0B192C);
+const adminBlue = Color(0xFF0284C7);
+const adminPurple = Color(0xFF0369A1);
+const adminTeal = Color(0xFF0891B2);
+const adminOrange = Color(0xFFE11D48);
+const adminMuted = Color(0xFF52657A);
 const adminGold = Color(0xFFD97706);
-const adminLine = Color(0xFFE2E8F0);
-const adminCanvas = Color(0xFFF8FAFC);
-const adminGreen = Color(0xFF059669);
+const adminLine = Color(0xFFDCE6F1);
+const adminCanvas = Color(0xFFF0F6FA);
+const adminGreen = Color(0xFF0D9488);
+const adminHeaderBg = Color(0xFF0F2537);
+const adminSurfaceTint = Color(0xFFF5FAFE);
 
 class AdminSyncBar extends StatelessWidget {
   const AdminSyncBar({super.key});
@@ -26,17 +28,21 @@ class AdminSyncBar extends StatelessWidget {
     return ValueListenableBuilder<String>(
       valueListenable: persistence.saveStatus,
       builder: (context, status, _) => Container(
-        margin: const EdgeInsets.only(bottom: 18),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: Colors.white,
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Color(0xFFFFFFFF), Color(0xFFF3F9FD)],
+          ),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: adminLine),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x040F172A),
-              blurRadius: 8,
-              offset: Offset(0, 2),
+              color: Color(0x080B192C),
+              blurRadius: 12,
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -169,29 +175,42 @@ class AdminPanel extends StatelessWidget {
     required this.child,
     this.backgroundColor = Colors.white,
     this.padding = const EdgeInsets.all(16),
+    this.gradient,
   });
   final Widget child;
   final Color backgroundColor;
   final EdgeInsetsGeometry padding;
+  final Gradient? gradient;
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 16),
     padding: padding,
     decoration: BoxDecoration(
-      color: backgroundColor,
-      borderRadius: BorderRadius.circular(16),
+      color: gradient == null ? backgroundColor : null,
+      gradient: gradient,
+      borderRadius: BorderRadius.circular(18),
       border: Border.all(
-        color: backgroundColor == Colors.white ? adminLine : backgroundColor,
+        color: backgroundColor == Colors.white && gradient == null
+            ? adminLine
+            : backgroundColor == adminInk
+            ? const Color(0xFF1E3A5F)
+            : backgroundColor,
       ),
-      boxShadow: backgroundColor == Colors.white
+      boxShadow: backgroundColor == Colors.white && gradient == null
           ? const [
               BoxShadow(
-                color: Color(0x060F172A),
-                blurRadius: 10,
-                offset: Offset(0, 4),
+                color: Color(0x090B192C),
+                blurRadius: 14,
+                offset: Offset(0, 5),
               ),
             ]
-          : null,
+          : const [
+              BoxShadow(
+                color: Color(0x140B192C),
+                blurRadius: 16,
+                offset: Offset(0, 6),
+              ),
+            ],
     ),
     child: Material(type: MaterialType.transparency, child: child),
   );

@@ -41,11 +41,11 @@ class AdminDashboard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF0F172A),
-                  Color(0xFF1E293B),
-                  Color(0xFF1E1B4B),
+                  Color(0xFF0B192C),
+                  Color(0xFF0F2942),
+                  Color(0xFF0C4A6E),
                 ],
-                stops: [0.0, 0.5, 1.0],
+                stops: [0.0, 0.55, 1.0],
               ),
             ),
             child: Center(
@@ -71,14 +71,14 @@ class AdminDashboard extends StatelessWidget {
                           const Icon(
                             Icons.calendar_today_outlined,
                             size: 14,
-                            color: Color(0xFFD1DCF2),
+                            color: Color(0xFFBAE6FD),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               landlordDate(DateTime.now()),
                               style: const TextStyle(
-                                color: Color(0xFFD1DCF2),
+                                color: Color(0xFFBAE6FD),
                                 fontSize: 12,
                               ),
                             ),
@@ -89,7 +89,7 @@ class AdminDashboard extends StatelessWidget {
                               auth.isCloudMode ? '● Trực tuyến' : '● Sẵn sàng',
                               textAlign: TextAlign.end,
                               style: const TextStyle(
-                                color: Color(0xFF34D399),
+                                color: Color(0xFF2DD4BF),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -108,19 +108,19 @@ class AdminDashboard extends StatelessWidget {
                                   : '${auth.localAccounts.length}',
                               'Tài khoản',
                               Icons.people_alt_outlined,
-                              const Color(0xFF34D399),
+                              const Color(0xFF2DD4BF),
                             ),
                             _stat(
                               '${stores.length}',
                               'Nhà trọ',
                               Icons.apartment_rounded,
-                              const Color(0xFFFBBF24),
+                              const Color(0xFF38BDF8),
                             ),
                             _stat(
                               '$occupied / $rooms',
                               'Phòng thuê',
                               Icons.door_front_door_outlined,
-                              const Color(0xFF818CF8),
+                              const Color(0xFF7DD3FC),
                             ),
                           ],
                         ),
@@ -266,7 +266,12 @@ class AdminDashboard extends StatelessWidget {
                       ),
                     const SizedBox(height: 20),
                     AdminPanel(
-                      backgroundColor: const Color(0xFFEEF2FF),
+                      backgroundColor: const Color(0xFFE0F2FE),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFE0F2FE), Color(0xFFF0F9FF)],
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [

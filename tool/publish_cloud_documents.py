@@ -64,6 +64,7 @@ def sign_in_admin(email):
     except Exception:
         _session_token = None
         raise
+    return uid
 
 
 def value(item):

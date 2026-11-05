@@ -69,49 +69,52 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
         subtitle: 'Chốt hoa hồng từng tháng, theo dõi công nợ và chứng từ.',
         children: [
           const AdminSyncBar(),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 380),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Tháng trước',
-                    onPressed: () => setState(
-                      () => _month = DateTime(_month.year, _month.month - 1),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: adminLine),
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Tháng trước',
+                  onPressed: () => setState(
+                    () => _month = DateTime(_month.year, _month.month - 1),
+                  ),
+                  icon: const Icon(Icons.chevron_left, color: adminBlue),
+                ),
+                Expanded(
+                  child: Text(
+                    landlordMonth(_month),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: adminInk,
                     ),
-                    icon: const Icon(Icons.chevron_left),
                   ),
-                  Expanded(
-                    child: Text(
-                      landlordMonth(_month),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: adminInk,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Tháng sau',
-                    onPressed: _month.isBefore(DateTime(now.year, now.month))
-                        ? () => setState(
-                            () => _month = DateTime(
-                              _month.year,
-                              _month.month + 1,
-                            ),
-                          )
-                        : null,
-                    icon: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ),
+                ),
+                IconButton(
+                  tooltip: 'Tháng sau',
+                  onPressed: _month.isBefore(DateTime(now.year, now.month))
+                      ? () => setState(
+                          () => _month = DateTime(
+                            _month.year,
+                            _month.month + 1,
+                          ),
+                        )
+                      : null,
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           _summary(statements, forecast),
           const AdminPanel(
+            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             child: ExpansionTile(
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.only(top: 8),
@@ -135,7 +138,7 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
             ),
             onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -154,7 +157,7 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           for (final store in filteredStores)
             Builder(
               builder: (context) {
@@ -526,25 +529,46 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
   Widget _summary(List<CommissionStatement> statements, int forecast) {
     final total = statements.fold<int>(0, (n, s) => n + s.due);
     final received = statements.fold<int>(0, (n, s) => n + s.received);
-    final secondary = Colors.white.withValues(alpha: 0.78);
-    final receivedColor = Color.lerp(adminGreen, Colors.white, 0.55)!;
+    const secondary = Color(0xFFBAE6FD);
+    const receivedColor = Color(0xFF2DD4BF);
     return AdminPanel(
       backgroundColor: adminInk,
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFF0B192C),
+          Color(0xFF0F2942),
+          Color(0xFF0369A1),
+        ],
+        stops: [0.0, 0.55, 1.0],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.account_balance_wallet_outlined,
-                color: receivedColor,
-                size: 21,
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0x2638BDF8),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: Color(0xFF7DD3FC),
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   statements.isEmpty ? 'Hoa hồng dự kiến' : 'Còn phải thu',
-                  style: TextStyle(color: secondary, fontSize: 14),
+                  style: const TextStyle(
+                    color: secondary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -557,20 +581,33 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 28,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
             ),
           ),
           if (statements.isNotEmpty && forecast > 0)
             Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                'Dự kiến chưa chốt: ${formatLandlordMoney(forecast)}',
-                style: TextStyle(color: secondary, fontSize: 12),
+              padding: const EdgeInsets.only(top: 10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0x2238BDF8),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0x407DD3FC)),
+                ),
+                child: Text(
+                  'Dự kiến chưa chốt: ${formatLandlordMoney(forecast)}',
+                  style: const TextStyle(
+                    color: Color(0xFFE0F2FE),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
-          const SizedBox(height: 18),
-          Divider(color: Colors.white.withValues(alpha: 0.18)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+          Divider(color: Colors.white.withValues(alpha: 0.16)),
+          const SizedBox(height: 10),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -578,16 +615,17 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Đã chốt',
                       style: TextStyle(color: secondary, fontSize: 12),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     Text(
                       formatLandlordMoney(total),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
+                        fontSize: 15,
                       ),
                     ),
                   ],
@@ -598,16 +636,17 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Đã nhận',
                       style: TextStyle(color: secondary, fontSize: 12),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     Text(
                       formatLandlordMoney(received),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: receivedColor,
                         fontWeight: FontWeight.w700,
+                        fontSize: 15,
                       ),
                     ),
                   ],
@@ -615,21 +654,21 @@ class _AdminCommissionPageState extends State<AdminCommissionPage> {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: total == 0 ? 0 : received / total,
-              minHeight: 5,
+              minHeight: 6,
               color: receivedColor,
               backgroundColor: Colors.white.withValues(alpha: 0.16),
               semanticsLabel: 'Tỷ lệ hoa hồng đã nhận',
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             '${statements.length} nhà trọ đã chốt · ${total == 0 ? 0 : (received * 100 / total).round()}% đã thu',
-            style: TextStyle(color: secondary, fontSize: 12),
+            style: const TextStyle(color: secondary, fontSize: 12),
           ),
         ],
       ),

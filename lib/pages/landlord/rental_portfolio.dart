@@ -547,7 +547,19 @@ LandlordDemoStore _seedProperty(
 }) {
   final store = LandlordDemoStore.demo();
   store._property = property;
-  if (index.isOdd) store._roomTypes.removeLast();
+  if (occupied && index.isOdd) store._roomTypes.removeLast();
+  if (!occupied) {
+    store._paymentAccounts.clear();
+    for (var i = 0; i < store._roomTypes.length; i++) {
+      final type = store._roomTypes[i];
+      store._roomTypes[i] = LandlordRoomType(
+        id: type.id,
+        name: type.name,
+        monthlyRent: type.monthlyRent,
+        photos: const [],
+      );
+    }
+  }
   store._rooms.clear();
   for (var floor = 1; floor <= floors; floor++) {
     for (var number = 1; number <= count; number++) {
@@ -570,7 +582,7 @@ LandlordDemoStore _seedProperty(
       );
     }
   }
-  if (index == 0) {
+  if (index == 0 && occupied) {
     // Preserve the linked demonstration tenant and the original room types.
     for (final original in LandlordDemoStore.roomCatalog) {
       final pos = store._rooms.indexWhere((r) => r.code == original.code);

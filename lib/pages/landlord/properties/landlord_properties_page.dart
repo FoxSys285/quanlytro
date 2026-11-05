@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/admin_store.dart';
+import '../../../data/app_persistence.dart';
 import '../landlord_theme.dart';
 
 import '../landlord_demo_store.dart';
@@ -22,16 +23,31 @@ class LandlordPropertiesPage extends StatelessWidget {
     );
     if (result == null) return;
     _store.updateProperty(result);
+    try {
+      await AppPersistence.current?.saveChanges();
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$error')));
+      }
+      return;
+    }
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã cập nhật thông tin nhà trọ.')),
+        SnackBar(
+          content: Text(
+            AppPersistence.current?.cloudConfirmed == true
+                ? 'Đã cập nhật thông tin nhà trọ lên Firebase.'
+                : 'Đã cập nhật thông tin nhà trọ trên máy.',
+          ),
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (store == null && RentalPortfolio.instance.stores.length > 1) {
+    if (store == null) {
       return const PropertyPortfolioPage();
     }
     return ListenableBuilder(
