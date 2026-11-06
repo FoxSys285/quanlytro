@@ -4,6 +4,7 @@ import '../landlord_theme.dart';
 import '../landlord_glass.dart';
 
 import '../../shared/conversations/conversation_store.dart';
+import '../landlord_demo_store.dart';
 import 'models/landlord_cuoctrochuyen.dart';
 
 // Tên Class chính bằng tiếng Việt
@@ -72,9 +73,100 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
     });
   }
 
+  void _showTenantInfo() {
+    final conversation = widget.conversation;
+    final store = RentalPortfolio.instance.byId(conversation.propertyId);
+    final roomLease = store == null
+        ? null
+        : store
+              .leasesForTenant(conversation.tenantId)
+              .where(
+                (item) =>
+                    store.canonicalRoom(item.room) ==
+                    store.canonicalRoom(conversation.room),
+              )
+              .firstOrNull;
+    final lease =
+        (conversation.leaseId == null
+            ? null
+            : store?.leaseById(conversation.leaseId!)) ??
+        roomLease;
+    final palette = LandlordPalette.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: palette.surface,
+        surfaceTintColor: Colors.transparent,
+        title: const Text(
+          'Thông tin người thuê',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _tenantInfoRow('Họ tên', conversation.tenantName),
+              _tenantInfoRow(
+                'Số điện thoại',
+                lease?.phone.trim().isNotEmpty == true
+                    ? lease!.phone
+                    : 'Chưa cập nhật',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tenantInfoRow(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 116,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: LandlordPalette.of(context).muted,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              color: LandlordPalette.of(context).ink,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final danhSachTinNhan = widget.conversation.messages;
+    final initials = widget.conversation.tenantName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .map((part) => part[0])
+        .take(2)
+        .join()
+        .toUpperCase();
 
     return Scaffold(
       backgroundColor: LandlordPalette.of(context).canvas,
@@ -82,10 +174,61 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
         backgroundColor: LandlordPalette.of(context).surface
             .withValues(alpha: 0.9),
         surfaceTintColor: Colors.transparent,
-        title: Text(
-          '${widget.conversation.tenantName} · ${widget.conversation.room}',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 21,
+              backgroundColor: propertyBlue,
+              child: Text(
+                initials.isEmpty ? 'N' : initials,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.conversation.tenantName.trim().isEmpty
+                        ? 'Người thuê'
+                        : widget.conversation.tenantName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.conversation.propertyName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: LandlordPalette.of(context).muted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Thông tin người thuê',
+            onPressed: _showTenantInfo,
+            icon: const Icon(Icons.info_outline_rounded),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: PropertyPortfolioBackdrop(
         child: Column(
@@ -218,7 +361,10 @@ class _BongBongTinNhan extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(message.text, style: TextStyle(color: mauChu, fontSize: 13)),
+            SelectableText(
+              message.text,
+              style: TextStyle(color: mauChu, fontSize: 13),
+            ),
             const SizedBox(height: 3),
             Text(
               message.time,

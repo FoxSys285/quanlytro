@@ -73,7 +73,7 @@ typedef RoleBottomNavigationBuilder = Widget Function(
   ValueChanged<int> onDestinationSelected,
 );
 
-typedef RoleTopBarBuilder = Widget Function(
+typedef RoleTopBarBuilder = Widget? Function(
   BuildContext context,
   RoleDestination destination,
   VoidCallback onOpenDrawer,
@@ -118,6 +118,7 @@ class RoleLayoutShell extends StatefulWidget {
     this.hideAppBarOnDestination,
     this.hideAppBarOnDestinations,
     this.hideTopBarOnDestinations,
+    this.hideBottomNavigationOnDestinations = const {},
     this.bottomNavigationBuilder,
     this.retainedDestinationIds = const {},
   });
@@ -142,6 +143,7 @@ class RoleLayoutShell extends StatefulWidget {
   final String? hideAppBarOnDestination;
   final Set<String>? hideAppBarOnDestinations;
   final Set<String>? hideTopBarOnDestinations;
+  final Set<String> hideBottomNavigationOnDestinations;
   final RoleBottomNavigationBuilder? bottomNavigationBuilder;
   final Set<String> retainedDestinationIds;
 
@@ -595,7 +597,11 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           ],
         ),
       ),
-      bottomNavigationBar: adminWide
+      bottomNavigationBar:
+          adminWide ||
+              widget.hideBottomNavigationOnDestinations.contains(
+                _selectedDestinationId,
+              )
           ? null
           : widget.bottomNavigationBuilder?.call(
                   context,

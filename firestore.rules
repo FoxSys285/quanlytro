@@ -20,12 +20,15 @@ service cloud.firestore {
             (data.phoneVerified == false ||
               data.phoneNumber == request.auth.token.get('phone_number', ''))));
     }
+    function validTenantCode(code) {
+      return code is string && code.matches('^[A-Z0-9]{8}$');
+    }
     match /users/{uid} {
       // Users can read their own role record to distinguish pending/disabled accounts.
       allow read: if request.auth != null &&
         (uid == request.auth.uid || admin());
       // Users can self-register only as landlord or tenant. Admin can never be
-      // assigned by a client; tenant IDs are fixed to the authenticated UID.
+      // assigned by a client; tenant codes are reserved atomically on creation.
       allow create: if request.auth != null && uid == request.auth.uid &&
         request.resource.data.keys().hasOnly([
           'email', 'displayName', 'role', 'disabled', 'tenantId', 'createdAt',
@@ -43,7 +46,10 @@ service cloud.firestore {
         request.resource.data.disabled == false &&
         request.resource.data.createdAt == request.time &&
         ((request.resource.data.role == 'tenant' &&
-            request.resource.data.tenantId == 'tenant-' + uid) ||
+            validTenantCode(request.resource.data.tenantId) &&
+            !exists(/databases/$(database)/documents/tenant_codes/$(request.resource.data.tenantId)) &&
+            existsAfter(/databases/$(database)/documents/tenant_codes/$(request.resource.data.tenantId)) &&
+            getAfter(/databases/$(database)/documents/tenant_codes/$(request.resource.data.tenantId)).data.createdAt == request.time) ||
           (request.resource.data.role == 'landlord' &&
             !request.resource.data.keys().hasAny(['tenantId'])));
       allow delete: if false;
@@ -56,6 +62,21 @@ service cloud.firestore {
           ]) && validPhoneContact(request.resource.data) &&
           request.resource.data.phoneVerified == true &&
           request.resource.data.phoneNumber == request.auth.token.get('phone_number', ''));
+    }
+    match /tenant_codes/{code} {
+      // Authenticated users can check a generated code for a collision, but
+      // cannot list reservations or inspect tenant account details.
+      allow get: if request.auth != null;
+      allow list: if false;
+      allow create: if request.auth != null &&
+        validTenantCode(code) &&
+        request.resource.data.keys().hasOnly(['createdAt']) &&
+        request.resource.data.createdAt == request.time &&
+        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tenant' &&
+        getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == code;
+      allow update, delete: if false;
     }
     match /account_requests/{uid} {
       // Legacy signup requests are read once to activate accounts created by

@@ -412,7 +412,6 @@ class LandlordTongQuanPage extends StatelessWidget {
                       initialRoom: balance.details.room.code,
                     ),
                     destinationId: 'billing',
-                    title: 'Thu chi',
                   ),
                 ),
               ),

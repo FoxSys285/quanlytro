@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../tenant_detail_ui.dart';
 import '../tenant_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
+import '../../shared/rental/tenant_session.dart';
 import 'components/tenant_bongbongtinnhan.dart';
 import 'models/tenant_cuoctrochuyen.dart';
 import '../../landlord/landlord_demo_store.dart';
@@ -21,6 +22,30 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
   final _scroll = ScrollController();
   final _focus = FocusNode();
   late final TenantConversation _conversation;
+
+  String get _tenantId {
+    final id = _conversation.source?.tenantId.trim();
+    return id == null || id.isEmpty ? TenantSession.currentTenantId : id;
+  }
+
+  String get _tenantPhone {
+    final source = _conversation.source;
+    if (source == null) return TenantSession.phone;
+    final store = RentalPortfolio.instance.byId(source.propertyId);
+    final lease = source.leaseId == null
+        ? null
+        : store?.leaseById(source.leaseId!);
+    final currentLease =
+        lease ??
+        (store == null
+            ? null
+            : store
+                  .leasesForTenant(source.tenantId)
+                  .where((item) => item.isCurrent)
+                  .firstOrNull);
+    final phone = currentLease?.phone.trim();
+    return phone == null || phone.isEmpty ? TenantSession.phone : phone;
+  }
 
   @override
   void initState() {
@@ -156,10 +181,15 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
                 style: TextStyle(color: tenantMuted, fontSize: 12, height: 1.5),
               ),
               const SizedBox(height: 18),
-              for (final text in [
-                'Chào chủ trọ, tôi muốn hỏi thêm về hợp đồng thuê phòng.',
-                'Tôi đã thanh toán, nhờ chủ trọ kiểm tra giúp.',
-                'Phòng đang có sự cố, nhờ chủ trọ hỗ trợ kiểm tra.',
+              for (final (title, text) in [
+                (
+                  'Gửi mã người thuê trọ',
+                  'Mã người thuê trọ của tôi là $_tenantId.',
+                ),
+                (
+                  'Gửi số điện thoại',
+                  'Số điện thoại của tôi là $_tenantPhone.',
+                ),
               ]) ...[
                 TenantSurface(
                   padding: EdgeInsets.zero,
@@ -172,11 +202,19 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
                       Icons.chat_bubble_outline_rounded,
                     ),
                     title: Text(
-                      text,
+                      title,
                       style: const TextStyle(
                         color: tenantInk,
-                        fontSize: 13,
-                        height: 1.5,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: Text(
+                      text,
+                      style: const TextStyle(
+                        color: tenantMuted,
+                        fontSize: 12,
+                        height: 1.45,
                       ),
                     ),
                     trailing: const Icon(
@@ -277,41 +315,6 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
               constraints: const BoxConstraints(maxWidth: 920),
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: TenantSurface(
-                      padding: EdgeInsets.zero,
-                      child: ListTile(
-                        onTap: _showInfo,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 13,
-                          vertical: 2,
-                        ),
-                        leading: const TenantDetailIcon(
-                          Icons.home_outlined,
-                          size: 36,
-                        ),
-                        title: Text(
-                          _conversation.contextLabel,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: tenantGreenDark,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        trailing: const Icon(
-                          Icons.chevron_right_rounded,
-                          color: tenantMuted,
-                          size: 19,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                    ),
-                  ),
                   Expanded(
                     child: ListView.builder(
                       controller: _scroll,

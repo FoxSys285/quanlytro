@@ -306,6 +306,14 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
                     onPressed: () => _edit(),
                     child: const Text('Thêm phòng mới'),
                   ),
+                TextButton.icon(
+                  onPressed: () => _openPage(
+                    'Hợp đồng thuê',
+                    LandlordLeasesPage(store: _store, openTemplateEditor: true),
+                  ),
+                  icon: const Icon(Icons.description_outlined),
+                  label: const Text('Tạo hợp đồng mẫu chung'),
+                ),
               ],
             ),
           ),
@@ -401,6 +409,18 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
               ),
               icon: const Icon(Icons.edit_note_rounded, size: 18),
               label: const Text('Ghi điện nước'),
+            ),
+            FilledButton.icon(
+              onPressed: () => _openPage(
+                'Hợp đồng thuê',
+                LandlordLeasesPage(store: _store, openTemplateEditor: true),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: propertyBlue,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.description_outlined, size: 18),
+              label: const Text('Tạo hợp đồng mẫu chung'),
             ),
           ],
         ),

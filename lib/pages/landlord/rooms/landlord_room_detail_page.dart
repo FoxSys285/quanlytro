@@ -460,7 +460,6 @@ class LandlordRoomDetailPage extends StatelessWidget {
                     initialRoom: roomCode,
                   ),
                   destinationId: 'billing',
-                  title: 'Thu chi',
                 ),
               ),
               const SizedBox(height: 24),

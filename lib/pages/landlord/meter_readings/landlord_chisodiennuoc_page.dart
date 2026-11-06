@@ -308,9 +308,13 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
     }
 
     Widget widgetNuoc;
-    if (hopDong != null && hopDong.waterType == 'Theo tháng') {
+    if (hopDong != null &&
+        (hopDong.waterType == 'Theo tháng' ||
+            hopDong.waterType == 'Theo người')) {
       widgetNuoc = Text(
-        'Nước theo tháng · ${formatLandlordMoney(hopDong.waterPrice)}',
+        hopDong.waterType == 'Theo người'
+            ? 'Nước theo người · ${formatLandlordMoney(hopDong.waterPrice)}/người'
+            : 'Nước theo tháng · ${formatLandlordMoney(hopDong.waterPrice)}',
       );
     } else {
       // Lấy đơn giá nước: ưu tiên cấu hình giá trong Bảng giá dịch vụ bằng LINQ

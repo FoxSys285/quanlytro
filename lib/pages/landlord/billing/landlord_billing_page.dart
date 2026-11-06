@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../../layouts/landlord_navigation.dart';
 import '../landlord_theme.dart';
 import '../landlord_glass.dart';
@@ -9,6 +10,9 @@ import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_ui.dart';
 import '../properties/components/landlord_property_image.dart';
+import '../properties/components/landlord_property_editor.dart';
+import '../properties/models/landlord_property.dart';
+import '../properties/components/property_portfolio_visuals.dart';
 import '../incidents/models/landlord_suco.dart';
 import '../rooms/components/landlord_room_button.dart';
 import '../rooms/landlord_room_finance_detail_page.dart';
@@ -49,6 +53,7 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
   DateTime _period = DateTime(DateTime.now().year, DateTime.now().month);
   String _roomFilter = 'Tất cả';
   int _roomPage = 0;
+  int _billingTab = 0;
   late final _search = TextEditingController(text: widget.initialRoom ?? '');
   late String _query = widget.initialRoom ?? '';
 
@@ -130,6 +135,28 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
     _query = '';
     _search.clear();
   });
+
+  Future<void> _editProperty() async {
+    final property = await showDialog<LandlordProperty>(
+      context: context,
+      builder: (_) => LandlordPropertyEditor(property: _store.property),
+    );
+    if (!mounted || property == null) return;
+    _store.updateProperty(property);
+    try {
+      final persistence = AppPersistence.current;
+      await persistence?.saveChanges();
+      if (!mounted) return;
+      showLandlordMessage(
+        context,
+        persistence?.cloudConfirmed == true
+            ? 'Đã cập nhật ${property.name}. Đã lưu lên Firebase.'
+            : 'Đã cập nhật ${property.name}. Đã lưu trên máy.',
+      );
+    } catch (error) {
+      if (mounted) showLandlordMessage(context, '$error');
+    }
+  }
 
   @override
   void initState() {
@@ -308,8 +335,10 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                 const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () {
+                  child: PropertyPortfolioActionButton(
+                    label: 'Xem thu chi',
+                    icon: Icons.account_balance_wallet_outlined,
+                    onTap: () {
                       _portfolio.select(property.id);
                       setState(() {
                         _selectedPropertyId = property.id;
@@ -318,8 +347,6 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                         _roomFilter = 'Tất cả';
                       });
                     },
-                    icon: const Icon(Icons.account_balance_wallet_outlined),
-                    label: const Text('Xem thu chi'),
                   ),
                 ),
               ],
@@ -506,250 +533,178 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
         0,
         ListPagination.lastPage(invoices.length, _pageSize),
       );
-      return LandlordGlassPage(
-        store: _store,
-        profileName: widget.profileName,
-        title: 'Thu chi nhà trọ',
-        kicker: 'QUẢN LÝ TÀI CHÍNH',
-        subtitle: _store.property.name,
-        children: [
-          LandlordGlassCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 14, 8),
-                  child: Row(
-                    children: [
-                      if (widget.store == null && widget.initialRoom == null)
-                        IconButton.filledTonal(
-                          tooltip: 'Quay lại danh sách nhà trọ',
-                          onPressed: _returnToPropertyPicker,
-                          icon: const Icon(Icons.arrow_back_rounded),
-                        ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _store.property.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: LandlordPalette.of(context).ink,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              Text(
-                                'Chi tiết nhà trọ',
-                                style: TextStyle(
-                                  color: LandlordPalette.of(context).muted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                LandlordPropertyImage(
-                  url: _store.property.imageUrl,
-                  bytes: _store.property.imageBytes,
-                  height: MediaQuery.sizeOf(context).width >= 700 ? 220 : 150,
-                  borderRadius: 21,
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(15),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        color: propertyBlue,
-                        size: 21,
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _store.property.address.isEmpty
-                                  ? 'Chưa cập nhật địa chỉ'
-                                  : _store.property.address,
-                              style: TextStyle(
-                                color: LandlordPalette.of(context).ink,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                height: 1.4,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              '${_store.catalog.length} phòng · ${_store.roomTypes.length} loại phòng',
-                              style: TextStyle(
-                                color: LandlordPalette.of(context).muted,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          LandlordBluePanel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.account_balance_wallet_rounded,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'Thu tiền phòng',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      landlordMonth(_period),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Còn phải thu',
-                  style: TextStyle(color: Color(0xFFD8E7FF), fontSize: 12),
-                ),
-                const SizedBox(height: 6),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    formatLandlordMoney(debt),
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 8,
-                  children: [
-                    Text(
-                      '${balances.where((b) => b.state == RoomPaymentState.unpaid).length} phòng chưa đóng',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    Text(
-                      '${balances.where((b) => b.state == RoomPaymentState.paid).length} phòng đã đóng',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final width = (constraints.maxWidth - 10) / 2;
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
+      return _billingShell(context, [
+        LandlordBluePanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  _metric(
-                    'Đã thu trong tháng',
-                    formatLandlordMoney(paid),
-                    Icons.check_circle_outline,
-                    const Color(0xFF17A374),
-                    width: width,
+                  const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: Colors.white,
                   ),
-                  _metric(
-                    'Chờ duyệt',
-                    '$pendingCount khoản',
-                    Icons.fact_check_outlined,
-                    const Color(0xFFB78427),
-                    width: width,
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Thu tiền phòng',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
-                  _metric(
-                    'Quá hạn',
-                    formatLandlordMoney(overdue),
-                    Icons.event_busy_outlined,
-                    const Color(0xFFDA4458),
-                    width: width,
-                  ),
-                  _metric(
-                    'Chưa lập phiếu thu',
-                    '${balances.where((b) => b.state == RoomPaymentState.unbilled).length} phòng',
-                    Icons.receipt_long_outlined,
-                    propertyBlue,
-                    width: width,
+                  Text(
+                    landlordMonth(_period),
+                    style: const TextStyle(fontSize: 12),
                   ),
                 ],
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-          LandlordGlassSection(
-            title: 'Danh sách phòng',
-            subtitle:
-                'Theo dõi phiếu thu theo tháng và tình trạng của từng phòng.',
-            trailing: IconButton.filledTonal(
-              tooltip: 'Lập phiếu thu',
-              onPressed: _store.activeLeases.isEmpty ? null : _createInvoice,
-              icon: const Icon(Icons.add_rounded),
-            ),
-          ),
-          DropdownButtonFormField<DateTime>(
-            key: ValueKey(_period),
-            initialValue: _period,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Tháng theo dõi',
-              prefixIcon: Icon(Icons.calendar_month_outlined),
-            ),
-            items: [
-              for (final month in months)
-                DropdownMenuItem(
-                  value: month,
-                  child: Text(landlordMonth(month)),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Còn phải thu',
+                style: TextStyle(color: Color(0xFFD8E7FF), fontSize: 12),
+              ),
+              const SizedBox(height: 6),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  formatLandlordMoney(debt),
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                children: [
+                  Text(
+                    '${balances.where((b) => b.state == RoomPaymentState.unpaid).length} phòng chưa đóng',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  Text(
+                    '${balances.where((b) => b.state == RoomPaymentState.paid).length} phòng đã đóng',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
             ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _period = value;
-                  _roomPage = 0;
-                });
-              }
-            },
           ),
-          const SizedBox(height: 12),
-          _BillingRoomKpis(
-            total: totalRooms,
-            occupied: occupiedRooms,
-            vacant: vacantRooms,
+        ),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = (constraints.maxWidth - 10) / 2;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _metric(
+                  'Đã thu trong tháng',
+                  formatLandlordMoney(paid),
+                  Icons.check_circle_outline,
+                  const Color(0xFF17A374),
+                  width: width,
+                ),
+                _metric(
+                  'Chờ duyệt',
+                  '$pendingCount khoản',
+                  Icons.fact_check_outlined,
+                  const Color(0xFFB78427),
+                  width: width,
+                ),
+                _metric(
+                  'Quá hạn',
+                  formatLandlordMoney(overdue),
+                  Icons.event_busy_outlined,
+                  const Color(0xFFDA4458),
+                  width: width,
+                ),
+                _metric(
+                  'Chưa lập phiếu thu',
+                  '${balances.where((b) => b.state == RoomPaymentState.unbilled).length} phòng',
+                  Icons.receipt_long_outlined,
+                  propertyBlue,
+                  width: width,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+        LandlordGlassSection(
+          title: 'Danh sách phòng',
+          subtitle:
+              'Theo dõi phiếu thu theo tháng và tình trạng của từng phòng.',
+          trailing: IconButton.filledTonal(
+            tooltip: 'Lập phiếu thu',
+            onPressed: _store.activeLeases.isEmpty ? null : _createInvoice,
+            icon: const Icon(Icons.add_rounded),
           ),
-          const SizedBox(height: 14),
+        ),
+        DropdownButtonFormField<DateTime>(
+          key: ValueKey(_period),
+          initialValue: _period,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Tháng theo dõi',
+            prefixIcon: Icon(Icons.calendar_month_outlined),
+          ),
+          items: [
+            for (final month in months)
+              DropdownMenuItem(value: month, child: Text(landlordMonth(month))),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _period = value;
+                _roomPage = 0;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 12),
+        _BillingRoomKpis(
+          total: totalRooms,
+          occupied: occupiedRooms,
+          vacant: vacantRooms,
+        ),
+        const SizedBox(height: 14),
+        LandlordGlassCard(
+          padding: const EdgeInsets.all(5),
+          child: DefaultTabController(
+            length: 2,
+            initialIndex: _billingTab,
+            child: TabBar(
+              dividerColor: Colors.transparent,
+              onTap: (value) => setState(() => _billingTab = value),
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF45BCFF), propertyBlue],
+                ),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              labelColor: Colors.white,
+              unselectedLabelColor: LandlordPalette.of(context).muted,
+              labelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+              tabs: [
+                const Tab(text: 'Phòng trọ'),
+                const Tab(text: 'Lịch sử hóa đơn'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        if (_billingTab == 0) ...[
           TextField(
             controller: _search,
             onChanged: (value) => setState(() {
@@ -820,16 +775,10 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                 onList: () => setState(() => _grid = false),
                 onGrid: () => setState(() => _grid = true),
               );
-              if (constraints.maxWidth < 580) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [floorPicker, const SizedBox(height: 9), toggle],
-                );
-              }
               return Row(
                 children: [
                   Expanded(child: floorPicker),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 6),
                   toggle,
                 ],
               );
@@ -974,7 +923,9 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
             showBoundaryPages: true,
             onChanged: (value) => setState(() => _roomPage = value),
           ),
-          const SizedBox(height: 24),
+        ],
+        if (_billingTab == 1) ...[
+          const SizedBox(height: 4),
           LandlordGlassSection(
             title: 'Lịch sử hóa đơn',
             subtitle: '${_store.invoices.length} hóa đơn của nhà trọ',
@@ -1031,8 +982,134 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
             ),
           ),
         ],
-      );
+      ]);
     },
+  );
+
+  Widget _billingShell(BuildContext context, List<Widget> children) =>
+      PropertyPortfolioBackdrop(
+        child: SafeArea(
+          bottom: false,
+          child: SingleChildScrollView(
+            key: PageStorageKey('landlord-billing-${_store.property.id}'),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _billingHeader(context),
+                    const SizedBox(height: 16),
+                    _billingPropertyCard(context),
+                    const SizedBox(height: 16),
+                    ...children,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+  Widget _billingHeader(BuildContext context) {
+    final palette = LandlordPalette.of(context);
+    return Row(
+      children: [
+        IconButton.filledTonal(
+          tooltip: widget.store == null && widget.initialRoom == null
+              ? 'Quay lại danh sách nhà trọ'
+              : 'Quay lại',
+          onPressed: widget.store == null && widget.initialRoom == null
+              ? _returnToPropertyPicker
+              : () => Navigator.maybePop(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _store.property.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: palette.ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                'Chi tiết nhà trọ',
+                style: TextStyle(color: palette.muted, fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton.filledTonal(
+          tooltip: 'Chỉnh sửa thông tin nhà trọ',
+          onPressed: _editProperty,
+          icon: const Icon(Icons.edit_outlined, color: propertyBlue),
+        ),
+      ],
+    );
+  }
+
+  Widget _billingPropertyCard(BuildContext context) => LandlordGlassCard(
+    padding: EdgeInsets.zero,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LandlordPropertyImage(
+          url: _store.property.imageUrl,
+          bytes: _store.property.imageBytes,
+          height: MediaQuery.sizeOf(context).width >= 700 ? 220 : 150,
+          borderRadius: 21,
+        ),
+        Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                color: propertyBlue,
+                size: 21,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _store.property.address.isEmpty
+                          ? 'Chưa cập nhật địa chỉ'
+                          : _store.property.address,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).ink,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${_store.catalog.length} phòng · ${_store.roomTypes.length} loại phòng',
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
 
   void _openRoomDetail(LandlordRoomBalance balance) {
@@ -1423,10 +1500,15 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
           name: 'Điện · ${draft.electricKwh} kWh',
           amount: draft.electricKwh * lease.electricityPrice,
         ),
-      if (lease.waterType == 'Theo tháng' && lease.waterPrice > 0)
+      if ((lease.waterType == 'Theo tháng' ||
+              lease.waterType == 'Theo người') &&
+          lease.waterPrice > 0)
         LandlordInvoiceCharge(
-          name: 'Nước · theo tháng',
-          amount: lease.waterPrice,
+          name: lease.waterType == 'Theo người'
+              ? 'Nước · ${lease.occupantCount} người'
+              : 'Nước · theo tháng',
+          amount: lease.waterPrice *
+              (lease.waterType == 'Theo người' ? lease.occupantCount : 1),
         )
       else if (draft.waterM3 > 0)
         LandlordInvoiceCharge(
@@ -1782,6 +1864,8 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
         electricKwh * _lease.electricityPrice +
         (_lease.waterType == 'Theo tháng'
             ? _lease.waterPrice
+            : _lease.waterType == 'Theo người'
+            ? _lease.waterPrice * _lease.occupantCount
             : waterM3 * _lease.waterPrice) +
         _lease.vehicleFee +
         _lease.serviceFee +
@@ -1887,10 +1971,13 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
                     helperText: '${formatLandlordMoney(_lease.waterPrice)}/m³',
                   ),
                 ),
-              if (_lease.waterType == 'Theo tháng')
+              if (_lease.waterType == 'Theo tháng' ||
+                  _lease.waterType == 'Theo người')
                 _contractChargeLine(
                   'Tiền nước',
-                  '${formatLandlordMoney(_lease.waterPrice)}/tháng',
+                  _lease.waterType == 'Theo người'
+                      ? '${formatLandlordMoney(_lease.waterPrice)}/người × ${_lease.occupantCount}'
+                      : '${formatLandlordMoney(_lease.waterPrice)}/tháng',
                 ),
               _sectionLabel('KHOẢN THU THÊM'),
               TextField(

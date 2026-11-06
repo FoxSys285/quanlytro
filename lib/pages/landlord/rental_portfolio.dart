@@ -725,6 +725,7 @@ extension RentalStorePersistence on LandlordDemoStore {
     'rooms': _rooms.map((r) => r.toMap()).toList(),
     'roomTypes': _roomTypes.map((r) => r.toMap()).toList(),
     'leases': _leases.map((r) => r.toMap()).toList(),
+    'leaseTemplates': _leaseTemplates.map((r) => r.toMap()).toList(),
     'invoices': _invoices.map((r) => r.toMap()).toList(),
     'payments': _payments.map((r) => r.toMap()).toList(),
     'paymentAccounts': _paymentAccounts.map((r) => r.toMap()).toList(),
@@ -759,6 +760,15 @@ extension RentalStorePersistence on LandlordDemoStore {
     _leases
       ..clear()
       ..addAll(read('leases', LandlordLease.fromMap));
+    _leaseTemplates
+      ..clear()
+      ..addAll(
+        (map['leaseTemplates'] as List? ?? const []).map(
+          (item) => LandlordLeaseTemplate.fromMap(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        ),
+      );
     _invoices
       ..clear()
       ..addAll(read('invoices', LandlordInvoice.fromMap));

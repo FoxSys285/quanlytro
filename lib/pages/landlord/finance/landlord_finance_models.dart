@@ -18,9 +18,14 @@ class LandlordLease {
     this.landlordPermanentAddress = '',
     this.landlordCitizenId = '',
     this.landlordContact = '',
+    this.landlordBirthDate,
+    this.landlordCitizenIssueDate,
+    this.landlordCitizenIssuePlace = '',
     this.tenantBirthYear = '',
+    this.tenantBirthDate,
     this.tenantCitizenId = '',
     this.tenantCitizenIssueDate,
+    this.tenantCitizenIssuePlace = '',
     this.tenantPermanentAddress = '',
     this.electricityPrice = 3500,
     this.waterPrice = 15000,
@@ -35,6 +40,11 @@ class LandlordLease {
     this.occupantCount = 1,
     this.status = LandlordLeaseStatus.active,
     this.note = '',
+    this.responsibilityA = '',
+    this.responsibilityB = '',
+    this.commonResponsibilities = '',
+    this.templateId = '',
+    this.rentalAddress = '',
   });
 
   final String id;
@@ -53,9 +63,14 @@ class LandlordLease {
   String landlordPermanentAddress;
   String landlordCitizenId;
   String landlordContact;
+  DateTime? landlordBirthDate;
+  DateTime? landlordCitizenIssueDate;
+  String landlordCitizenIssuePlace;
   String tenantBirthYear;
+  DateTime? tenantBirthDate;
   String tenantCitizenId;
   DateTime? tenantCitizenIssueDate;
+  String tenantCitizenIssuePlace;
   String tenantPermanentAddress;
   int electricityPrice;
   int waterPrice;
@@ -70,6 +85,11 @@ class LandlordLease {
   int occupantCount;
   LandlordLeaseStatus status;
   String note;
+  String responsibilityA;
+  String responsibilityB;
+  String commonResponsibilities;
+  String templateId;
+  String rentalAddress;
 
   DateTime get _today {
     final now = DateTime.now();
@@ -116,9 +136,14 @@ class LandlordLease {
     'landlordPermanentAddress': landlordPermanentAddress,
     'landlordCitizenId': landlordCitizenId,
     'landlordContact': landlordContact,
+    'landlordBirthDate': landlordBirthDate?.toIso8601String(),
+    'landlordCitizenIssueDate': landlordCitizenIssueDate?.toIso8601String(),
+    'landlordCitizenIssuePlace': landlordCitizenIssuePlace,
     'tenantBirthYear': tenantBirthYear,
+    'tenantBirthDate': tenantBirthDate?.toIso8601String(),
     'tenantCitizenId': tenantCitizenId,
     'tenantCitizenIssueDate': tenantCitizenIssueDate?.toIso8601String(),
+    'tenantCitizenIssuePlace': tenantCitizenIssuePlace,
     'tenantPermanentAddress': tenantPermanentAddress,
     'electricityPrice': electricityPrice,
     'waterPrice': waterPrice,
@@ -133,6 +158,11 @@ class LandlordLease {
     'occupantCount': occupantCount,
     'status': status.name,
     'note': note,
+    'responsibilityA': responsibilityA,
+    'responsibilityB': responsibilityB,
+    'commonResponsibilities': commonResponsibilities,
+    'templateId': templateId,
+    'rentalAddress': rentalAddress,
   };
 
   factory LandlordLease.fromMap(Map<String, dynamic> map) => LandlordLease(
@@ -152,11 +182,23 @@ class LandlordLease {
     landlordPermanentAddress: map['landlordPermanentAddress'] as String,
     landlordCitizenId: map['landlordCitizenId'] as String,
     landlordContact: map['landlordContact'] as String,
+    landlordBirthDate: map['landlordBirthDate'] == null
+        ? null
+        : DateTime.parse(map['landlordBirthDate'] as String),
+    landlordCitizenIssueDate: map['landlordCitizenIssueDate'] == null
+        ? null
+        : DateTime.parse(map['landlordCitizenIssueDate'] as String),
+    landlordCitizenIssuePlace:
+        map['landlordCitizenIssuePlace'] as String? ?? '',
     tenantBirthYear: map['tenantBirthYear'] as String,
+    tenantBirthDate: map['tenantBirthDate'] == null
+        ? null
+        : DateTime.parse(map['tenantBirthDate'] as String),
     tenantCitizenId: map['tenantCitizenId'] as String,
     tenantCitizenIssueDate: map['tenantCitizenIssueDate'] == null
         ? null
         : DateTime.parse(map['tenantCitizenIssueDate'] as String),
+    tenantCitizenIssuePlace: map['tenantCitizenIssuePlace'] as String? ?? '',
     tenantPermanentAddress: map['tenantPermanentAddress'] as String,
     electricityPrice: map['electricityPrice'] as int,
     waterPrice: map['waterPrice'] as int,
@@ -171,6 +213,11 @@ class LandlordLease {
     occupantCount: map['occupantCount'] as int,
     status: LandlordLeaseStatus.values.byName(map['status'] as String),
     note: map['note'] as String,
+    responsibilityA: map['responsibilityA'] as String? ?? '',
+    responsibilityB: map['responsibilityB'] as String? ?? '',
+    commonResponsibilities: map['commonResponsibilities'] as String? ?? '',
+    templateId: map['templateId'] as String? ?? '',
+    rentalAddress: map['rentalAddress'] as String? ?? '',
   );
 }
 

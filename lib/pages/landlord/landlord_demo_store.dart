@@ -11,6 +11,7 @@ import '../shared/rental/rental_record_id.dart';
 import 'incidents/models/landlord_suco.dart';
 import 'services/models/landlord_dichvu.dart';
 import 'meter_readings/models/landlord_chisodiennuoc.dart';
+import 'leases/models/landlord_lease_template.dart';
 
 part 'rental_portfolio.dart';
 
@@ -34,6 +35,7 @@ class LandlordDemoStore extends ChangeNotifier {
       ..['rooms'] = <dynamic>[]
       ..['roomTypes'] = <dynamic>[]
       ..['leases'] = <dynamic>[]
+      ..['leaseTemplates'] = <dynamic>[]
       ..['invoices'] = <dynamic>[]
       ..['payments'] = <dynamic>[]
       ..['paymentAccounts'] = <dynamic>[]
@@ -252,6 +254,102 @@ class LandlordDemoStore extends ChangeNotifier {
   ];
   int _nextLease = 1;
   List<LandlordLease> get leases => List.unmodifiable(_leases);
+  final _leaseTemplates = <LandlordLeaseTemplate>[];
+  List<LandlordLeaseTemplate> get leaseTemplates =>
+      List.unmodifiable(_leaseTemplates);
+
+  LandlordLeaseTemplate? leaseTemplateById(String id) {
+    for (final template in _leaseTemplates) {
+      if (template.id == id) return template;
+    }
+    return null;
+  }
+
+  void saveLeaseTemplate({
+    LandlordLeaseTemplate? existing,
+    required String name,
+    required String landlordName,
+    required String landlordPermanentAddress,
+    required String landlordCitizenId,
+    required String landlordContact,
+    required DateTime? landlordBirthDate,
+    required DateTime? landlordCitizenIssueDate,
+    required String landlordCitizenIssuePlace,
+    required int electricityPrice,
+    required int waterPrice,
+    required String waterType,
+    required bool cashPaymentEnabled,
+    required String cashPaymentLocation,
+    required bool bankTransferEnabled,
+    required String bankName,
+    required String bankAccountNumber,
+    required String responsibilityA,
+    required String responsibilityB,
+    required String commonResponsibilities,
+  }) {
+    if (existing != null && !_leaseTemplates.contains(existing)) {
+      throw ArgumentError('Mẫu hợp đồng không tồn tại.');
+    }
+    final bankDigits = bankAccountNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    final ownerPhoneDigits = landlordContact.replaceAll(RegExp(r'[^0-9]'), '');
+    if (name.trim().isEmpty ||
+        landlordName.trim().isEmpty ||
+        landlordPermanentAddress.trim().isEmpty ||
+        !RegExp(r'^(\d{9}|\d{12})$').hasMatch(landlordCitizenId.trim()) ||
+        ownerPhoneDigits.length < 9 ||
+        ownerPhoneDigits.length > 12) {
+      throw ArgumentError('Nhập tên mẫu và đầy đủ thông tin bên A.');
+    }
+    if (electricityPrice <= 0 || waterPrice < 0) {
+      throw ArgumentError('Kiểm tra đơn giá điện và nước.');
+    }
+    if (!cashPaymentEnabled && !bankTransferEnabled) {
+      throw ArgumentError('Chọn ít nhất một phương thức thanh toán.');
+    }
+    if (cashPaymentEnabled && cashPaymentLocation.trim().isEmpty) {
+      throw ArgumentError('Nhập địa điểm nhận tiền mặt.');
+    }
+    if (bankTransferEnabled &&
+        (bankName.trim().isEmpty ||
+            bankDigits.length < 6 ||
+            bankDigits.length > 20)) {
+      throw ArgumentError('Nhập tên ngân hàng và số tài khoản hợp lệ.');
+    }
+    final template = LandlordLeaseTemplate(
+      id: existing?.id ?? rentalRecordId('lease-template'),
+      name: name.trim(),
+      landlordName: landlordName.trim(),
+      landlordPermanentAddress: landlordPermanentAddress.trim(),
+      landlordCitizenId: landlordCitizenId.trim(),
+      landlordContact: landlordContact.trim(),
+      landlordBirthDate: landlordBirthDate,
+      landlordCitizenIssueDate: landlordCitizenIssueDate,
+      landlordCitizenIssuePlace: landlordCitizenIssuePlace.trim(),
+      electricityPrice: electricityPrice,
+      waterPrice: waterPrice,
+      waterType: waterType,
+      cashPaymentEnabled: cashPaymentEnabled,
+      cashPaymentLocation: cashPaymentLocation.trim(),
+      bankTransferEnabled: bankTransferEnabled,
+      bankName: bankName.trim(),
+      bankAccountNumber: bankDigits,
+      responsibilityA: responsibilityA.trim(),
+      responsibilityB: responsibilityB.trim(),
+      commonResponsibilities: commonResponsibilities.trim(),
+    );
+    if (existing == null) {
+      _leaseTemplates.insert(0, template);
+    } else {
+      _leaseTemplates[_leaseTemplates.indexOf(existing)] = template;
+    }
+    notifyListeners();
+  }
+
+  void deleteLeaseTemplate(LandlordLeaseTemplate template) {
+    _leaseTemplates.remove(template);
+    notifyListeners();
+  }
+
   List<LandlordLease> get activeLeases =>
       List.unmodifiable(_leases.where((lease) => lease.isCurrent));
 
@@ -409,6 +507,16 @@ class LandlordDemoStore extends ChangeNotifier {
     required String note,
     required LandlordLeaseStatus status,
     String? tenantId,
+    DateTime? landlordBirthDate,
+    DateTime? landlordCitizenIssueDate,
+    String landlordCitizenIssuePlace = '',
+    DateTime? tenantBirthDate,
+    String tenantCitizenIssuePlace = '',
+    String responsibilityA = '',
+    String responsibilityB = '',
+    String commonResponsibilities = '',
+    String templateId = '',
+    String rentalAddress = '',
   }) {
     if (existing != null && !_leases.contains(existing)) {
       throw ArgumentError('Hợp đồng không tồn tại.');
@@ -531,10 +639,15 @@ class LandlordDemoStore extends ChangeNotifier {
           landlordPermanentAddress: landlordPermanentAddress.trim(),
           landlordCitizenId: landlordCitizenId.trim(),
           landlordContact: landlordContact.trim(),
+          landlordBirthDate: landlordBirthDate,
+          landlordCitizenIssueDate: landlordCitizenIssueDate,
+          landlordCitizenIssuePlace: landlordCitizenIssuePlace.trim(),
           tenantName: tenantName.trim(),
           tenantBirthYear: tenantBirthYear.trim(),
+          tenantBirthDate: tenantBirthDate,
           tenantCitizenId: tenantCitizenId.trim(),
           tenantCitizenIssueDate: tenantCitizenIssueDate,
+          tenantCitizenIssuePlace: tenantCitizenIssuePlace.trim(),
           tenantPermanentAddress: tenantPermanentAddress.trim(),
           phone: phone.trim(),
           startDate: startDate,
@@ -555,6 +668,11 @@ class LandlordDemoStore extends ChangeNotifier {
           bankAccountNumber: bankDigits,
           occupantCount: occupantCount,
           note: note.trim(),
+          responsibilityA: responsibilityA.trim(),
+          responsibilityB: responsibilityB.trim(),
+          commonResponsibilities: commonResponsibilities.trim(),
+          templateId: templateId,
+          rentalAddress: rentalAddress.trim(),
           status: status,
         ),
       );
@@ -565,10 +683,15 @@ class LandlordDemoStore extends ChangeNotifier {
         ..landlordPermanentAddress = landlordPermanentAddress.trim()
         ..landlordCitizenId = landlordCitizenId.trim()
         ..landlordContact = landlordContact.trim()
+        ..landlordBirthDate = landlordBirthDate
+        ..landlordCitizenIssueDate = landlordCitizenIssueDate
+        ..landlordCitizenIssuePlace = landlordCitizenIssuePlace.trim()
         ..tenantName = tenantName.trim()
         ..tenantBirthYear = tenantBirthYear.trim()
+        ..tenantBirthDate = tenantBirthDate
         ..tenantCitizenId = tenantCitizenId.trim()
         ..tenantCitizenIssueDate = tenantCitizenIssueDate
+        ..tenantCitizenIssuePlace = tenantCitizenIssuePlace.trim()
         ..tenantPermanentAddress = tenantPermanentAddress.trim()
         ..phone = phone.trim()
         ..startDate = startDate
@@ -589,6 +712,11 @@ class LandlordDemoStore extends ChangeNotifier {
         ..bankAccountNumber = bankDigits
         ..occupantCount = occupantCount
         ..note = note.trim()
+        ..responsibilityA = responsibilityA.trim()
+        ..responsibilityB = responsibilityB.trim()
+        ..commonResponsibilities = commonResponsibilities.trim()
+        ..templateId = templateId
+        ..rentalAddress = rentalAddress.trim()
         ..status = status;
     }
     notifyListeners();

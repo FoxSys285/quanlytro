@@ -86,10 +86,10 @@ Mẫu nhập và cách dùng: [DATA_IMPORT.md](DATA_IMPORT.md). Đối chiếu k
 
 - Đăng nhập chỉ chấp nhận hồ sơ `users/{uid}` đọc trực tiếp từ server; bỏ hồ sơ UID/role hard-code khi Firestore lỗi hoặc timeout.
 - Đăng ký tạo hồ sơ `users/{uid}` ngay bằng Firestore Rules giới hạn UID, email và vai trò; client chỉ được chọn `landlord` hoặc `tenant`, không thể tự tạo admin.
-- Người thuê được cấp mã `tenant-{uid}` ngay khi đăng ký để ghép vào hợp đồng. Tài khoản không cần admin duyệt; admin vẫn duyệt xác minh nhà trọ trước khi công khai tin.
+- Người thuê mới được cấp mã ngẫu nhiên 8 ký tự gồm chữ in hoa và số; mã được đặt chỗ duy nhất để ghép vào hợp đồng. Tài khoản không cần admin duyệt; admin vẫn duyệt xác minh nhà trọ trước khi công khai tin.
 - Chủ trọ chưa có nhà được giữ ở màn onboarding đến khi tải xong dữ liệu server. Có thể tạo nhà/phòng đầu tiên và lưu qua cùng transaction Firestore.
 - Nếu đọc hoặc listener bị `permission-denied`/`unauthenticated`, ứng dụng đóng phiên để tránh tiếp tục hiển thị dữ liệu riêng đã cache.
-- Tên/email lúc đăng ký được dùng làm hồ sơ ban đầu; hồ sơ Người thuê cũng hiển thị mã liên kết do backend cấp để chia sẻ với Chủ trọ khi lập hợp đồng.
+- Tên/email lúc đăng ký được dùng làm hồ sơ ban đầu; hồ sơ Người thuê cũng hiển thị mã liên kết 8 ký tự để chia sẻ với Chủ trọ khi lập hợp đồng.
 - Ảnh nhà, album loại phòng và chứng từ thanh toán được chuyển lên Firebase Storage; Firestore chỉ giữ tham chiếu. Storage Rules tách ảnh tin đăng công khai khỏi chứng từ chỉ dành cho các role liên quan.
 
 Firestore Rules cho tự đăng ký đã được deploy lên `tropremium-d14ac`. Storage Rules chỉ cần deploy khi bật tính năng tải ảnh cloud; xem cấu hình project trong [FIREBASE_CLOUD.md](FIREBASE_CLOUD.md).

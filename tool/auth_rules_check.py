@@ -26,12 +26,17 @@ def create(uid, identity, role='tenant', phone='+84912345678', verified=False, *
               'displayName': 'Nguyen Van An', 'role': role, 'disabled': False,
               'phoneNumber': phone, 'phoneVerified': verified, 'phoneIsSynthetic': False,
               **extra}
+    writes = []
     if role == 'tenant':
-        fields['tenantId'] = 'tenant-' + uid
-    write = {'update': {'name': BASE.split('/v1/')[1] + '/users/' + uid,
-                        'fields': {k: wire_value(v) for k, v in fields.items()}},
-             'updateTransforms': [{'fieldPath': 'createdAt', 'setToServerValue': 'REQUEST_TIME'}]}
-    return requests.post(BASE + ':commit', json={'writes': [write]},
+        code = 'A' + ''.join(char for char in uid.upper() if char.isalnum())[:7].ljust(7, '0')
+        fields['tenantId'] = code
+        writes.append({'update': {'name': BASE.split('/v1/')[1] + '/tenant_codes/' + code,
+                                  'fields': {}},
+                       'updateTransforms': [{'fieldPath': 'createdAt', 'setToServerValue': 'REQUEST_TIME'}]})
+    writes.append({'update': {'name': BASE.split('/v1/')[1] + '/users/' + uid,
+                              'fields': {k: wire_value(v) for k, v in fields.items()}},
+                   'updateTransforms': [{'fieldPath': 'createdAt', 'setToServerValue': 'REQUEST_TIME'}]})
+    return requests.post(BASE + ':commit', json={'writes': writes},
                          headers={'Authorization': 'Bearer ' + token(uid, **identity)}, timeout=15)
 
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../layouts/role_layout.dart';
+import '../../landlord/landlord_demo_store.dart';
 import '../../landlord/landlord_ui.dart';
 import 'account_store.dart';
 import 'contact_details.dart';
@@ -54,6 +55,12 @@ class AccountProfilePage extends StatelessWidget {
           : null;
       if (role == AppRole.tenant || role == AppRole.landlord) {
         final isTenant = role == AppRole.tenant;
+        final portfolioStores = RentalPortfolio.instance.stores;
+        final managedProperties = isTenant
+            ? const <LandlordDemoStore>[]
+            : portfolioStores.contains(_store.rental)
+            ? portfolioStores
+            : [_store.rental];
         return TenantFeatureFrame(
           artwork: isTenant
               ? TenantFeatureArtwork.settings
@@ -132,15 +139,23 @@ class AccountProfilePage extends StatelessWidget {
               isTenant ? 'Chỗ ở hiện tại' : 'Nhà trọ quản lý',
             ),
             TenantSurface(
-              child: _tenantLine(
-                Icons.home_work_outlined,
-                isTenant ? _store.rental.property.name : 'Nhà trọ',
-                isTenant
-                    ? lease == null
+              child: isTenant
+                  ? _tenantLine(
+                      Icons.home_work_outlined,
+                      _store.rental.property.name,
+                      lease == null
                           ? 'Chưa có phòng đang thuê'
-                          : 'Phòng ${lease.room}'
-                    : _store.rental.property.name,
-              ),
+                          : 'Phòng ${lease.room}',
+                    )
+                  : Column(
+                      children: [
+                        for (final (index, rental)
+                            in managedProperties.indexed) ...[
+                          if (index > 0) const TenantThinDivider(),
+                          _managedPropertyLine(context, rental),
+                        ],
+                      ],
+                    ),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -246,6 +261,55 @@ class AccountProfilePage extends StatelessWidget {
         ),
       ),
     ],
+  );
+
+  Widget _managedPropertyLine(
+    BuildContext context,
+    LandlordDemoStore rental,
+  ) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const TenantDetailIcon(Icons.home_work_outlined),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                rental.property.name,
+                style: const TextStyle(
+                  color: tenantInk,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                rental.property.address.isEmpty
+                    ? 'Chưa cập nhật địa chỉ'
+                    : rental.property.address,
+                style: const TextStyle(
+                  color: tenantMuted,
+                  fontSize: 12,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                '${rental.catalog.length} phòng · ${rental.roomTypes.length} loại phòng',
+                style: TextStyle(
+                  color: TenantUiPalette.of(context).dark,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
 
   Widget _line(IconData icon, String label, String value) => Padding(

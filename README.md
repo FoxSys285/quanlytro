@@ -13,7 +13,7 @@ SQLite hỗ trợ Android, iOS và máy tính Windows/Linux/macOS. Trình duyệ
 
 ## Tài khoản và phân quyền
 
-Tài khoản thật được tạo trong Firebase Authentication; quyền lấy từ `users/{uid}` trên server. Người đăng ký chọn Chủ trọ hoặc Người thuê; yêu cầu xuất hiện trong **Quản trị viên → Người dùng & tài khoản → Yêu cầu**. Chỉ backend mới cấp role. Hồ sơ Người thuê nhận mã `tenant-{uid}` để Chủ trọ liên kết khi lập hợp đồng. Chủ trọ chưa có nhà sẽ được hướng dẫn tạo hồ sơ đầu tiên; dữ liệu được lưu Firestore theo UID/owner/tenant. Xem [thiết lập Firebase](docs/FIREBASE_CLOUD.md) và [kết quả kiểm tra 3 role](docs/ROLE_SYNC_AUDIT.md).
+Tài khoản thật được tạo trong Firebase Authentication; quyền lấy từ `users/{uid}` trên server. Người đăng ký chọn Chủ trọ hoặc Người thuê; yêu cầu xuất hiện trong **Quản trị viên → Người dùng & tài khoản → Yêu cầu**. Chỉ backend mới cấp role. Hồ sơ Người thuê mới nhận mã ngẫu nhiên gồm 8 chữ in hoa và số để Chủ trọ liên kết khi lập hợp đồng. Chủ trọ chưa có nhà sẽ được hướng dẫn tạo hồ sơ đầu tiên; dữ liệu được lưu Firestore theo UID/owner/tenant. Xem [thiết lập Firebase](docs/FIREBASE_CLOUD.md) và [kết quả kiểm tra 3 role](docs/ROLE_SYNC_AUDIT.md).
 
 Thông tin dưới đây chỉ áp dụng bản cũ chạy chủ động với `--dart-define=USE_FIREBASE_AUTH=false`, cần dữ liệu SQLite có sẵn. Không dùng bản này sau khi Rules đã khóa collection cũ.
 

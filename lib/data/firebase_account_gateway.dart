@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +9,16 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../layouts/role_layout.dart';
 import 'auth_validation.dart';
 import 'account_provider.dart';
+
+const _tenantCodeAlphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+String _generateTenantCode() {
+  final random = Random.secure();
+  return List.generate(
+    8,
+    (_) => _tenantCodeAlphabet[random.nextInt(_tenantCodeAlphabet.length)],
+  ).join();
+}
 
 class FirebaseAccountSession {
   const FirebaseAccountSession({
@@ -132,14 +143,13 @@ class FirebaseAccountGateway
       );
       final user = result.user;
       if (user == null) throw ArgumentError('Không thể tạo tài khoản.');
-      final profile = _newProfile(
+      final profile = await _saveProfileIfMissing(
         uid: user.uid,
         email: user.email ?? email,
         displayName: name,
         role: requestedRole,
         phoneNumber: normalizeVietnamesePhone(phoneNumber),
       );
-      await _firestore.collection('users').doc(user.uid).set(profile);
       return FirebaseAccountSession.fromProfile(
         user.uid,
         profile,
@@ -152,15 +162,19 @@ class FirebaseAccountGateway
       throw ArgumentError(
         'Đã tạo tài khoản nhưng chưa lưu được hồ sơ. Kiểm tra Firestore Rules rồi thử đăng nhập lại. ($error)',
       );
+    } catch (error) {
+      await _auth.signOut();
+      throw _friendlyError(error);
     }
   }
 
   Map<String, dynamic> _newProfile({
-    required String uid,
     required String email,
     required String displayName,
     required AppRole role,
     String phoneNumber = '',
+    String? tenantId,
+    bool phoneVerified = false,
   }) => {
     'email': email,
     'displayName': displayName,
@@ -168,12 +182,66 @@ class FirebaseAccountGateway
     'disabled': false,
     if (phoneNumber.isNotEmpty) ...{
       'phoneNumber': phoneNumber,
-      'phoneVerified': false,
+      'phoneVerified': phoneVerified,
       'phoneIsSynthetic': false,
     },
-    if (role == AppRole.tenant) 'tenantId': 'tenant-$uid',
+    if (role == AppRole.tenant) 'tenantId': tenantId,
     'createdAt': FieldValue.serverTimestamp(),
   };
+
+  /// Saves a new profile atomically with a unique tenant-code reservation.
+  /// Retrying the transaction handles the very unlikely case of a collision.
+  Future<Map<String, dynamic>> _saveProfileIfMissing({
+    required String uid,
+    required String email,
+    required String displayName,
+    required AppRole role,
+    String phoneNumber = '',
+    bool phoneVerified = false,
+  }) async {
+    final userRef = _firestore.collection('users').doc(uid);
+    if (role != AppRole.tenant) {
+      return _firestore.runTransaction((transaction) async {
+        final existing = await transaction.get(userRef);
+        if (existing.exists) return existing.data()!;
+        final profile = _newProfile(
+          email: email,
+          displayName: displayName,
+          role: role,
+          phoneNumber: phoneNumber,
+          phoneVerified: phoneVerified,
+        );
+        transaction.set(userRef, profile);
+        return profile;
+      });
+    }
+
+    for (var attempt = 0; attempt < 20; attempt++) {
+      final tenantId = _generateTenantCode();
+      final codeRef = _firestore.collection('tenant_codes').doc(tenantId);
+      final saved = await _firestore.runTransaction<Map<String, dynamic>?>((
+        transaction,
+      ) async {
+        final existingProfile = await transaction.get(userRef);
+        if (existingProfile.exists) return existingProfile.data()!;
+        final existingCode = await transaction.get(codeRef);
+        if (existingCode.exists) return null;
+        final profile = _newProfile(
+          email: email,
+          displayName: displayName,
+          role: role,
+          phoneNumber: phoneNumber,
+          tenantId: tenantId,
+          phoneVerified: phoneVerified,
+        );
+        transaction.set(codeRef, {'createdAt': FieldValue.serverTimestamp()});
+        transaction.set(userRef, profile);
+        return profile;
+      });
+      if (saved != null) return saved;
+    }
+    throw ArgumentError('Chưa thể tạo mã người thuê. Vui lòng thử lại.');
+  }
 
   @override
   Future<void> requestPasswordReset(String email) async {
@@ -230,7 +298,7 @@ class FirebaseAccountGateway
           requestedEmail.trim().toLowerCase() ==
               (user.email ?? '').trim().toLowerCase()) {
         final role = AppRole.values.byName(requestedRole as String);
-        profileData = _newProfile(
+        profileData = await _saveProfileIfMissing(
           uid: user.uid,
           email: user.email ?? requestedEmail,
           displayName: requestDisplayName is String
@@ -238,7 +306,6 @@ class FirebaseAccountGateway
               : '',
           role: role,
         );
-        await _firestore.collection('users').doc(user.uid).set(profileData);
       }
     }
     if (profileData == null && allowNewProfile) return null;
@@ -487,21 +554,15 @@ class FirebaseAccountGateway
       );
     }
     try {
-      final ref = _firestore.collection('users').doc(user.uid);
-      final profile = _newProfile(
+      final saved = await _saveProfileIfMissing(
         uid: user.uid,
         email: user.email ?? '',
         displayName: name,
         role: requestedRole,
         phoneNumber: normalizeVietnamesePhone(phoneNumber),
+        phoneVerified:
+            user.phoneNumber == normalizeVietnamesePhone(phoneNumber),
       );
-      profile['phoneVerified'] = user.phoneNumber == profile['phoneNumber'];
-      final saved = await _firestore.runTransaction((transaction) async {
-        final existing = await transaction.get(ref);
-        if (existing.exists) return existing.data()!;
-        transaction.set(ref, profile);
-        return profile;
-      });
       return FirebaseAccountSession.fromProfile(
         user.uid,
         saved,

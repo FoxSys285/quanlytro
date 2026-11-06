@@ -556,8 +556,18 @@ class _MetricDivider extends StatelessWidget {
   );
 }
 
-class PropertyAddButton extends StatelessWidget {
-  const PropertyAddButton({super.key, required this.onTap});
+class PropertyPortfolioActionButton extends StatelessWidget {
+  const PropertyPortfolioActionButton({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.disabledLabel,
+  });
+
+  final String label;
+  final String? disabledLabel;
+  final IconData icon;
   final VoidCallback? onTap;
 
   @override
@@ -594,11 +604,11 @@ class PropertyAddButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.add_rounded, color: Colors.white, size: 26),
+              Icon(icon, color: Colors.white, size: 26),
               const SizedBox(width: 10),
               Flexible(
                 child: Text(
-                  onTap == null ? 'Đang lưu...' : 'Thêm nhà trọ',
+                  onTap == null ? disabledLabel ?? label : label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

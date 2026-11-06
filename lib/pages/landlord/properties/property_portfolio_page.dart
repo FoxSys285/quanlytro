@@ -417,7 +417,12 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                       ),
                     const SizedBox(height: 14),
                     Center(
-                      child: PropertyAddButton(onTap: _saving ? null : _add),
+                      child: PropertyPortfolioActionButton(
+                        label: 'Thêm nhà trọ',
+                        disabledLabel: 'Đang lưu...',
+                        icon: Icons.add_rounded,
+                        onTap: _saving ? null : _add,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     if (stores.isEmpty)

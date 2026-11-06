@@ -172,7 +172,11 @@ class TenantLeaseContractPage extends StatelessWidget {
                     TenantDetailRow(
                       label: 'Giá nước',
                       value:
-                          '${formatTenantMoney(lease.waterPrice)}/${lease.waterType == 'Theo tháng' ? 'tháng' : 'm³'}',
+                          '${formatTenantMoney(lease.waterPrice)}/${lease.waterType == 'Theo tháng'
+                              ? 'tháng'
+                              : lease.waterType == 'Theo người'
+                              ? 'người'
+                              : 'm³'}',
                     ),
                     TenantDetailRow(
                       label: 'Phí gửi xe',

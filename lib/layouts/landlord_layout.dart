@@ -17,7 +17,10 @@ import '../pages/landlord/billing/landlord_billing_page.dart';
 import '../pages/landlord/conversations/landlord_danhsachtinnhan_page.dart';
 import 'landlord_navigation.dart';
 import '../pages/shared/profile/account_store.dart';
+import '../pages/shared/announcements/announcement_store.dart';
 import '../pages/landlord/landlord_page_router.dart';
+import '../pages/tenant/tenant_detail_ui.dart';
+import '../pages/tenant/tenant_navigation_bar.dart';
 import 'role_layout.dart';
 
 class LandlordLayout extends StatefulWidget {
@@ -115,6 +118,8 @@ class _LandlordLayoutState extends State<LandlordLayout> {
               'payments',
               'payment_accounts',
               'incidents',
+              'settings',
+              'support',
             },
             hideTopBarOnDestinations: const {
               'room_types',
@@ -132,6 +137,7 @@ class _LandlordLayoutState extends State<LandlordLayout> {
               'payment_accounts',
               'incidents',
             },
+            hideBottomNavigationOnDestinations: const {'settings', 'support'},
             notificationsEnabled: AccountStore.instance.notificationsEnabled(
               AppRole.landlord,
             ),
@@ -151,6 +157,22 @@ class _LandlordLayoutState extends State<LandlordLayout> {
                 _dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
               ),
             ),
+            topBarBuilder:
+                (context, destination, onOpenDrawer, onSelect, onBack) {
+                  if (destination.id != 'settings' &&
+                      destination.id != 'support') {
+                    return null;
+                  }
+                  return TenantDetailTheme(
+                    landlordStyle: true,
+                    child: TenantNavigationBar(
+                      title: destination.label,
+                      onBack: onBack,
+                      onNotifications: () => onSelect('announcements'),
+                      notifications: AnnouncementStore.forRental(active),
+                    ),
+                  );
+                },
             initialDestinationId: 'dashboard',
             showMoreTab: false,
             bottomNavigationBuilder: (context, selectedIndex, onSelected) =>
