@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../layouts/landlord_navigation.dart';
 import '../../shared/widgets/list_pagination.dart';
@@ -72,32 +70,6 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
     builder: (_) => LandlordRoomEditor(store: _store, room: room),
   );
 
-  Future<void> _delete(LandlordRoom room) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Xóa phòng ${room.code}?'),
-        content: const Text('Chỉ có thể xóa phòng chưa có lịch sử hợp đồng.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Xóa phòng'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || confirmed != true) return;
-    try {
-      _store.deleteRoom(room.code);
-    } on ArgumentError catch (error) {
-      showLandlordMessage(context, error.message.toString());
-    }
-  }
-
   void _openPage(String title, Widget page) {
     final destination = switch (page) {
       LandlordLeasesPage() => 'leases',
@@ -110,25 +82,23 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
       LandlordFloorPlanSetupPage() || LandlordFloorPlanPage() => 'rooms',
       _ => 'rooms',
     };
+    final routeTitle = switch (page) {
+      LandlordLeasesPage() ||
+      LandlordChiSoDienNuocPage() ||
+      LandlordViewingsPage() ||
+      LandlordYeuCauSuaChuaPage() ||
+      LandlordAnnouncementsPage() ||
+      LandlordRoomTypesPage() ||
+      LandlordFloorPlanSetupPage() ||
+      LandlordFloorPlanPage() => null,
+      _ => title,
+    };
     LandlordNavigation.push<void>(
       context,
-      title: title,
+      title: routeTitle,
       page: page,
       destinationId: destination,
     );
-  }
-
-  Future<void> _openContact(Uri uri) async {
-    try {
-      if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
-          mounted) {
-        showLandlordMessage(context, 'Không thể mở ứng dụng liên hệ.');
-      }
-    } catch (_) {
-      if (mounted) {
-        showLandlordMessage(context, 'Không thể mở ứng dụng liên hệ.');
-      }
-    }
   }
 
   void _showRoom(String code) {
@@ -138,11 +108,6 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
       destinationId: 'rooms',
     );
   }
-
-  bool _canDelete(LandlordRoom room) => !_store.leases.any(
-    (lease) =>
-        _store.canonicalRoom(lease.room) == _store.canonicalRoom(room.code),
-  );
 
   LandlordInvoice? _invoiceFor(LandlordRoomDetails details) {
     final lease = details.lease;
@@ -219,31 +184,8 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
     LandlordRoomDetails details,
     LandlordRoomHighlight highlight,
   ) {
-    final lease = details.lease;
-    if (highlight == LandlordRoomHighlight.overdue && lease != null) {
-      final phone = lease.phone.replaceAll(RegExp(r'\D'), '');
-      return [
-        LandlordRoomAction(
-          label: 'Gọi',
-          icon: Icons.call_outlined,
-          onTap: () => _openContact(Uri(scheme: 'tel', path: phone)),
-        ),
-        LandlordRoomAction(
-          label: 'Nhắc qua Zalo',
-          icon: Icons.message_outlined,
-          primary: true,
-          onTap: () => _openContact(Uri.parse('https://zalo.me/$phone')),
-        ),
-      ];
-    }
     if (highlight == LandlordRoomHighlight.vacant) {
       return [
-        LandlordRoomAction(
-          label: 'Lịch xem',
-          icon: Icons.calendar_month_outlined,
-          onTap: () =>
-              _openPage('Lịch xem phòng', const LandlordViewingsPage()),
-        ),
         LandlordRoomAction(
           label: 'Tạo hợp đồng',
           icon: Icons.description_outlined,
@@ -255,80 +197,25 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
             ),
           ),
         ),
-      ];
-    }
-    if (highlight == LandlordRoomHighlight.maintenance) {
-      return [
         LandlordRoomAction(
-          label: 'Xem sự cố',
-          icon: Icons.handyman_outlined,
-          primary: true,
+          label: 'Lịch xem',
+          icon: Icons.calendar_month_outlined,
           onTap: () =>
-              _openPage('Yêu cầu sửa chữa', const LandlordYeuCauSuaChuaPage()),
-        ),
-        LandlordRoomAction(
-          label: 'Chi tiết',
-          icon: Icons.open_in_new_rounded,
-          onTap: () => _showRoom(details.room.code),
+              _openPage('Lịch xem phòng', const LandlordViewingsPage()),
         ),
       ];
     }
-    if (highlight == LandlordRoomHighlight.expiring ||
-        highlight == LandlordRoomHighlight.upcoming) {
+    if (highlight == LandlordRoomHighlight.expiring) {
       return [
         LandlordRoomAction(
-          label: 'Hợp đồng',
-          icon: Icons.description_outlined,
-          onTap: () => _openPage('Hợp đồng thuê', const LandlordLeasesPage()),
-        ),
-        LandlordRoomAction(
-          label: 'Chi tiết',
-          icon: Icons.open_in_new_rounded,
-          primary: true,
-          onTap: () => _showRoom(details.room.code),
+          label: 'Lịch xem',
+          icon: Icons.calendar_month_outlined,
+          onTap: () =>
+              _openPage('Lịch xem phòng', const LandlordViewingsPage()),
         ),
       ];
     }
-    return [
-      LandlordRoomAction(
-        label: 'Chỉ số',
-        icon: Icons.bolt_outlined,
-        onTap: () =>
-            _openPage('Chỉ số điện nước', const LandlordChiSoDienNuocPage()),
-      ),
-      LandlordRoomAction(
-        label: 'Hóa đơn',
-        icon: Icons.receipt_long_outlined,
-        primary: true,
-        onTap: () => _openPage('Hóa đơn', const LandlordBillingPage()),
-      ),
-    ];
-  }
-
-  Future<void> _copyList(List<LandlordRoomDetails> rooms) async {
-    final rows = <String>[
-      'Mã phòng,Tầng,Loại phòng,Trạng thái,Giá thuê,Người thuê',
-    ];
-    String csv(String value) => '"${value.replaceAll('"', '""')}"';
-    for (final details in rooms) {
-      rows.add(
-        [
-          csv(details.room.code),
-          '${details.room.floor}',
-          csv(details.typeName),
-          csv(details.status.label),
-          '${details.monthlyRent ?? 0}',
-          csv(details.lease?.tenantName ?? ''),
-        ].join(','),
-      );
-    }
-    await Clipboard.setData(ClipboardData(text: rows.join('\n')));
-    if (mounted) {
-      showLandlordMessage(
-        context,
-        'Đã sao chép danh sách ${rooms.length} phòng.',
-      );
-    }
+    return const [];
   }
 
   Widget _frame(List<Widget> children) => widget.embedded
@@ -493,24 +380,27 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Thêm phòng mới'),
             ),
-            OutlinedButton.icon(
+            FilledButton.icon(
               onPressed: () =>
                   _openPage('Sơ đồ tầng', LandlordFloorPlanPage(store: _store)),
+              style: FilledButton.styleFrom(
+                backgroundColor: propertyBlue,
+                foregroundColor: Colors.white,
+              ),
               icon: const Icon(Icons.grid_view_rounded, size: 17),
               label: const Text('Sơ đồ tầng'),
             ),
-            OutlinedButton.icon(
+            FilledButton.icon(
               onPressed: () => _openPage(
                 'Chỉ số điện nước',
-                const LandlordChiSoDienNuocPage(),
+                LandlordChiSoDienNuocPage(store: _store),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: propertyBlue,
+                foregroundColor: Colors.white,
               ),
               icon: const Icon(Icons.edit_note_rounded, size: 18),
               label: const Text('Ghi điện nước'),
-            ),
-            OutlinedButton.icon(
-              onPressed: () => _copyList(matches),
-              icon: const Icon(Icons.content_copy_rounded, size: 16),
-              label: const Text('Sao chép DS'),
             ),
           ],
         ),
@@ -755,15 +645,9 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
                             key: ValueKey(details.room.code),
                             details: details,
                             highlight: highlight,
-                            invoice: invoice,
-                            incident: incident,
                             compact: _grid,
                             actions: _actionsFor(details, highlight),
                             onTap: () => _showRoom(details.room.code),
-                            onEdit: () => _edit(details.room),
-                            onDelete: _canDelete(details.room)
-                                ? () => _delete(details.room)
-                                : null,
                           );
                         },
                       ),

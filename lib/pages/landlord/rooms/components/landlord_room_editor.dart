@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../landlord_theme.dart';
 import '../../landlord_demo_store.dart';
 import '../models/landlord_room.dart';
 import '../../../shared/media/room_photo_gallery.dart';
@@ -73,101 +74,136 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
   );
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(
-      widget.room == null
-          ? 'Thêm phòng trọ'
-          : 'Chỉnh sửa phòng ${widget.room!.code}',
-    ),
-    content: SizedBox(
-      width: 440,
-      child: SingleChildScrollView(
-        child: Form(
-          key: _form,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.store.property.name,
-                style: const TextStyle(color: Colors.blueGrey),
+  Widget build(BuildContext context) {
+    final palette = LandlordPalette.of(context);
+    return AlertDialog(
+      backgroundColor: palette.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: palette.primarySoft,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(Icons.meeting_room_outlined, color: palette.primary),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text(
+              widget.room == null
+                  ? 'Thêm phòng mới'
+                  : 'Chỉnh sửa phòng ${widget.room!.code}',
+              style: TextStyle(
+                color: palette.ink,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
               ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _code,
-                maxLength: 20,
-                decoration: const InputDecoration(
-                  labelText: 'Tên / mã phòng',
-                  helperText: 'Tên hiển thị duy nhất, ví dụ: 101 hoặc A.101',
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 440,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _form,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.store.property.name,
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                validator: (v) =>
-                    (v ?? '').trim().isEmpty ? 'Nhập mã phòng.' : null,
-              ),
-              const SizedBox(height: 16),
-              _number(_floor, 'Tầng', 1, 30),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: widget.store.roomTypes.any((t) => t.id == _type)
-                    ? _type
-                    : null,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Loại phòng'),
-                items: [
-                  for (final t in widget.store.roomTypes)
-                    DropdownMenuItem(
-                      value: t.id,
-                      child: Text(t.name, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _code,
+                  maxLength: 20,
+                  decoration: const InputDecoration(
+                    labelText: 'Tên / mã phòng',
+                    prefixIcon: Icon(Icons.tag_outlined),
+                    helperText: 'Tên hiển thị duy nhất, ví dụ: 101 hoặc A.101',
+                  ),
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'Nhập mã phòng.' : null,
+                ),
+                const SizedBox(height: 16),
+                _number(_floor, 'Tầng', 1, 30),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: widget.store.roomTypes.any((t) => t.id == _type)
+                      ? _type
+                      : null,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Loại phòng'),
+                  items: [
+                    for (final t in widget.store.roomTypes)
+                      DropdownMenuItem(
+                        value: t.id,
+                        child: Text(t.name, overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                  onChanged: (v) => setState(() => _type = v),
+                  validator: (v) => v == null ? 'Chọn loại phòng.' : null,
+                ),
+                const SizedBox(height: 16),
+                _number(_area, 'Diện tích (m²)', 6, 500),
+                const SizedBox(height: 16),
+                _number(_capacity, 'Số người tối đa', 1, 20),
+                const SizedBox(height: 16),
+                if (widget.store.roomTypes.any((type) => type.id == _type)) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: RoomPhotoGallery(
+                      photos: widget.store.roomTypes
+                          .firstWhere((type) => type.id == _type)
+                          .photos,
+                      label: 'Ảnh của loại phòng đã chọn',
+                      height: 130,
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Ảnh phòng lấy từ album của loại phòng đã chọn.',
+                    style: TextStyle(fontSize: 12, color: Colors.blueGrey),
+                  ),
+                  const SizedBox(height: 12),
                 ],
-                onChanged: (v) => setState(() => _type = v),
-                validator: (v) => v == null ? 'Chọn loại phòng.' : null,
-              ),
-              const SizedBox(height: 16),
-              _number(_area, 'Diện tích (m²)', 6, 500),
-              const SizedBox(height: 16),
-              _number(_capacity, 'Số người tối đa', 1, 20),
-              const SizedBox(height: 16),
-              if (widget.store.roomTypes.any((type) => type.id == _type)) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: RoomPhotoGallery(
-                    photos: widget.store.roomTypes
-                        .firstWhere((type) => type.id == _type)
-                        .photos,
-                    label: 'Ảnh của loại phòng đã chọn',
-                    height: 130,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 const Text(
-                  'Ảnh phòng lấy từ album của loại phòng đã chọn.',
-                  style: TextStyle(fontSize: 12, color: Colors.blueGrey),
+                  'Giá niêm yết lấy từ loại phòng. Phòng đã có hợp đồng giữ giá đã thỏa thuận.',
+                  style: TextStyle(fontSize: 12, height: 1.45),
                 ),
-                const SizedBox(height: 12),
-              ],
-              const Text(
-                'Giá niêm yết lấy từ loại phòng. Phòng đã có hợp đồng giữ giá đã thỏa thuận.',
-                style: TextStyle(fontSize: 12, color: Colors.blueGrey),
-              ),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    _error!,
-                    style: const TextStyle(color: Colors.red),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Hủy'),
-      ),
-      FilledButton(onPressed: _save, child: const Text('Lưu phòng')),
-    ],
-  );
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton.icon(
+          onPressed: _save,
+          icon: const Icon(Icons.check_rounded, size: 17),
+          label: const Text('Lưu phòng'),
+        ),
+      ],
+    );
+  }
 }

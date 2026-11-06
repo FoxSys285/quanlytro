@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../shared/media/room_photo_gallery.dart';
-import '../../finance/landlord_finance_models.dart';
-import '../../incidents/models/landlord_suco.dart';
 import '../../landlord_theme.dart';
-import '../../landlord_ui.dart';
 import '../models/landlord_room.dart';
 
 enum LandlordRoomHighlight {
@@ -15,6 +11,9 @@ enum LandlordRoomHighlight {
   overdue,
   expiring,
   maintenance,
+  pendingReview,
+  paid,
+  unbilled,
 }
 
 class LandlordRoomAction {
@@ -37,23 +36,19 @@ class LandlordRoomButton extends StatelessWidget {
     required this.details,
     required this.onTap,
     this.highlight,
-    this.invoice,
-    this.incident,
     this.actions = const [],
-    this.onEdit,
-    this.onDelete,
     this.compact = false,
+    this.secondaryText,
+    this.valueText,
   });
 
   final LandlordRoomDetails details;
   final VoidCallback onTap;
   final LandlordRoomHighlight? highlight;
-  final LandlordInvoice? invoice;
-  final LandlordIncident? incident;
   final List<LandlordRoomAction> actions;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
   final bool compact;
+  final String? secondaryText;
+  final String? valueText;
 
   LandlordRoomHighlight get _state =>
       highlight ??
@@ -63,424 +58,182 @@ class LandlordRoomButton extends StatelessWidget {
         LandlordRoomStatus.upcoming => LandlordRoomHighlight.upcoming,
       };
 
-  Color get _color => switch (_state) {
-    LandlordRoomHighlight.vacant => const Color(0xFF059669),
-    LandlordRoomHighlight.occupied => const Color(0xFF2563EB),
-    LandlordRoomHighlight.upcoming => const Color(0xFF7C64C6),
-    LandlordRoomHighlight.unpaid => const Color(0xFFD28720),
-    LandlordRoomHighlight.overdue => const Color(0xFFE04747),
-    LandlordRoomHighlight.expiring => const Color(0xFFE29A17),
-    LandlordRoomHighlight.maintenance => const Color(0xFF728198),
+  Color get _statusColor => switch (_state) {
+    LandlordRoomHighlight.vacant => const Color(0xFF16836F),
+    LandlordRoomHighlight.occupied => const Color(0xFF198754),
+    LandlordRoomHighlight.upcoming => const Color(0xFF63738B),
+    LandlordRoomHighlight.unpaid ||
+    LandlordRoomHighlight.overdue => const Color(0xFFD64545),
+    LandlordRoomHighlight.expiring => const Color(0xFFD99412),
+    LandlordRoomHighlight.maintenance => const Color(0xFF8054B8),
+    LandlordRoomHighlight.pendingReview => const Color(0xFFD99412),
+    LandlordRoomHighlight.paid => const Color(0xFF17A374),
+    LandlordRoomHighlight.unbilled => const Color(0xFFB78427),
   };
 
   String get _label => switch (_state) {
     LandlordRoomHighlight.vacant => 'Phòng trống',
     LandlordRoomHighlight.occupied => 'Đang thuê',
     LandlordRoomHighlight.upcoming => 'Sắp nhận phòng',
-    LandlordRoomHighlight.unpaid => 'Chưa thanh toán',
-    LandlordRoomHighlight.overdue => 'Quá hạn',
+    LandlordRoomHighlight.unpaid => 'Chưa đóng tiền',
+    LandlordRoomHighlight.overdue => 'Chưa đóng tiền',
     LandlordRoomHighlight.expiring => 'Sắp hết hạn',
     LandlordRoomHighlight.maintenance => 'Đang sửa chữa',
+    LandlordRoomHighlight.pendingReview => 'Đang chờ duyệt',
+    LandlordRoomHighlight.paid => 'Đã đóng tiền',
+    LandlordRoomHighlight.unbilled => 'Chưa lập phiếu thu',
   };
-
-  String _description() {
-    if (_state == LandlordRoomHighlight.overdue && invoice != null) {
-      final days = DateTime.now().difference(invoice!.dueDate).inDays;
-      return 'Quá hạn ${days < 1 ? 1 : days} ngày · Còn nợ ${formatLandlordMoney(invoice!.remaining)}';
-    }
-    if (_state == LandlordRoomHighlight.expiring && details.lease != null) {
-      final days = details.lease!.endDate.difference(DateTime.now()).inDays;
-      return 'Hợp đồng còn ${days < 0 ? 0 : days + 1} ngày';
-    }
-    if (_state == LandlordRoomHighlight.maintenance && incident != null) {
-      return incident!.title;
-    }
-    if (_state == LandlordRoomHighlight.upcoming && details.lease != null) {
-      return 'Nhận phòng ${landlordDate(details.lease!.startDate)}';
-    }
-    if (_state == LandlordRoomHighlight.vacant) {
-      return 'Sẵn sàng đón khách thuê';
-    }
-    if (_state == LandlordRoomHighlight.unpaid) {
-      return 'Có hóa đơn đang chờ thanh toán';
-    }
-    return '${details.room.area} m² · Tối đa ${details.room.capacity} người';
-  }
 
   @override
   Widget build(BuildContext context) {
     final palette = LandlordPalette.of(context);
-    final lease = details.lease;
-    final photos = details.type?.photos ?? const [];
-    final showPhoto =
-        photos.isNotEmpty &&
-        (_state == LandlordRoomHighlight.vacant || compact);
+    final color = _statusColor;
+    final vacant = _state == LandlordRoomHighlight.vacant;
+    final fill = vacant
+        ? palette.surface
+        : color.withValues(
+            alpha: Theme.of(context).brightness == Brightness.dark ? .16 : .07,
+          );
+    final border = vacant ? palette.line : color.withValues(alpha: .28);
+    final statusPill = Container(
+      constraints: const BoxConstraints(maxWidth: 130),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: vacant ? palette.surfaceAlt : color.withValues(alpha: .12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        _label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: vacant ? palette.muted : color,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+    return Semantics(
+      button: true,
+      label: 'Phòng ${details.room.code}, ${details.typeName}, $_label',
       child: Container(
-        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              palette.surface.withValues(alpha: 0.95),
-              _color.withValues(alpha: 0.07),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? palette.line
-                : Colors.white,
-          ),
+          color: fill,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: border),
           boxShadow: [
             BoxShadow(
-              color: const Color(0x18577EBA),
-              blurRadius: 22,
-              offset: const Offset(0, 8),
+              color: color.withValues(alpha: .07),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onTap,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 7, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            constraints: const BoxConstraints(
-                              minWidth: 38,
-                              minHeight: 38,
-                            ),
-                            alignment: Alignment.center,
-                            padding: const EdgeInsets.symmetric(horizontal: 5),
-                            decoration: BoxDecoration(
-                              color: _color.withValues(alpha: 0.13),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              details.room.code,
-                              style: TextStyle(
-                                color: _color,
-                                fontSize: compact ? 11 : 13,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              details.typeName,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: palette.ink,
-                                fontSize: compact ? 12 : 14,
-                                fontWeight: FontWeight.w800,
-                                height: 1.1,
-                              ),
-                            ),
-                          ),
-                          if (!compact) ...[
-                            Container(
-                              constraints: const BoxConstraints(maxWidth: 96),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _color.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                _label,
-                                maxLines: 2,
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: _color,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            PopupMenuButton<String>(
-                              tooltip: 'Tùy chọn phòng ${details.room.code}',
-                              icon: Icon(
-                                Icons.more_vert_rounded,
-                                color: palette.muted,
-                                size: 19,
-                              ),
-                              onSelected: (value) {
-                                if (value == 'edit') onEdit?.call();
-                                if (value == 'delete') onDelete?.call();
-                                if (value == 'detail') onTap();
-                              },
-                              itemBuilder: (_) => [
-                                const PopupMenuItem(
-                                  value: 'detail',
-                                  child: Text('Xem chi tiết'),
-                                ),
-                                if (onEdit != null)
-                                  const PopupMenuItem(
-                                    value: 'edit',
-                                    child: Text('Chỉnh sửa phòng'),
-                                  ),
-                                if (onDelete != null)
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Xóa phòng'),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Tầng ${details.room.floor} · ${details.room.area} m² · ${details.room.capacity} người',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: palette.muted, fontSize: 11),
-                      ),
-                      if (!compact) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          _description(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: _state == LandlordRoomHighlight.overdue
-                                ? _color
-                                : palette.muted,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            if (showPhoto)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    height: compact ? 84 : 112,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        RoomPhotoImage(
-                          photo: photos.first,
-                          label: 'Ảnh phòng ${details.room.code}',
-                        ),
-                        Positioned(
-                          left: 8,
-                          bottom: 7,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '${photos.length} ảnh',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            if (!compact && lease != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                child: Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    color: palette.surfaceAlt,
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 15,
-                        backgroundColor: _color.withValues(alpha: 0.13),
-                        child: Text(
-                          lease.tenantName.trim().isEmpty
-                              ? '?'
-                              : lease.tenantName
-                                    .trim()
-                                    .split(' ')
-                                    .last[0]
-                                    .toUpperCase(),
-                          style: TextStyle(
-                            color: _color,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              lease.tenantName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: palette.ink,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              'Hạn HĐ: ${landlordDate(lease.endDate)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: palette.muted,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (invoice?.status == LandlordInvoiceStatus.paid)
-                        _PaymentPill(
-                          label: 'Đã đóng',
-                          color: const Color(0xFF059669),
-                        ),
-                      if (invoice != null &&
-                          invoice!.remaining > 0 &&
-                          invoice!.status != LandlordInvoiceStatus.paid)
-                        _PaymentPill(
-                          label: 'Còn nợ',
-                          color: const Color(0xFFE04747),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: onTap,
+            child: Padding(
+              padding: EdgeInsets.all(compact ? 12 : 15),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              lease == null ? 'Giá niêm yết' : 'Giá thuê tháng',
-                              style: TextStyle(
-                                color: palette.muted,
-                                fontSize: 10,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              details.monthlyRent == null
-                                  ? 'Chưa có giá thuê'
-                                  : formatLandlordMoney(details.monthlyRent!),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: _state == LandlordRoomHighlight.overdue
-                                    ? _color
-                                    : palette.ink,
-                                fontSize: compact ? 13 : 16,
-                                fontWeight: FontWeight.w800,
+                        child: Text(
+                          'Phòng ${details.room.code}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: palette.ink,
+                            fontSize: compact ? 15 : 17,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -.25,
+                          ),
+                        ),
+                      ),
+                      if (!compact) ...[const SizedBox(width: 8), statusPill],
+                    ],
+                  ),
+                  if (compact) ...[
+                    const SizedBox(height: 6),
+                    Align(alignment: Alignment.centerLeft, child: statusPill),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    details.typeName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: palette.muted, fontSize: 12),
+                  ),
+                  if (secondaryText?.isNotEmpty == true) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      secondaryText!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: palette.muted, fontSize: 11),
+                    ),
+                  ],
+                  if (valueText?.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      valueText!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 13),
+                    if (compact)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (
+                            var index = 0;
+                            index < actions.length;
+                            index++
+                          ) ...[
+                            if (index > 0) const SizedBox(height: 7),
+                            _ActionButton(action: actions[index], color: color),
+                          ],
+                        ],
+                      )
+                    else
+                      Row(
+                        children: [
+                          for (
+                            var index = 0;
+                            index < actions.length;
+                            index++
+                          ) ...[
+                            if (index > 0) const SizedBox(width: 8),
+                            Expanded(
+                              child: _ActionButton(
+                                action: actions[index],
+                                color: color,
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                      if (compact)
-                        IconButton(
-                          tooltip: 'Xem phòng ${details.room.code}',
-                          onPressed: onTap,
-                          icon: Icon(
-                            Icons.arrow_forward_rounded,
-                            color: _color,
-                            size: 19,
-                          ),
-                        ),
-                    ],
-                  ),
-                  if (!compact && actions.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        for (
-                          var index = 0;
-                          index < actions.take(2).length;
-                          index++
-                        ) ...[
-                          if (index > 0) const SizedBox(width: 8),
-                          Expanded(
-                            child: _ActionButton(
-                              action: actions[index],
-                              color: _color,
-                            ),
-                          ),
                         ],
-                      ],
-                    ),
+                      ),
                   ],
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
-}
-
-class _PaymentPill extends StatelessWidget {
-  const _PaymentPill({required this.label, required this.color});
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.13),
-      borderRadius: BorderRadius.circular(7),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w700),
-    ),
-  );
 }
 
 class _ActionButton extends StatelessWidget {
@@ -490,44 +243,37 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = action.primary
+        ? FilledButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minimumSize: const Size(0, 38),
+          )
+        : OutlinedButton.styleFrom(
+            foregroundColor: color,
+            side: BorderSide(color: color.withValues(alpha: .35)),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minimumSize: const Size(0, 38),
+          );
+    final label = Text(
+      action.label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+    );
     return action.primary
         ? FilledButton.icon(
             onPressed: action.onTap,
-            style: FilledButton.styleFrom(
-              backgroundColor: color,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              minimumSize: const Size(0, 36),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(9),
-              ),
-            ),
-            icon: Icon(action.icon, size: 15),
-            label: Text(
-              action.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-            ),
+            style: style,
+            icon: Icon(action.icon, size: 16),
+            label: label,
           )
-        : TextButton.icon(
+        : OutlinedButton.icon(
             onPressed: action.onTap,
-            style: TextButton.styleFrom(
-              backgroundColor: color.withValues(alpha: 0.1),
-              foregroundColor: color,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              minimumSize: const Size(0, 36),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(9),
-              ),
-            ),
-            icon: Icon(action.icon, size: 15),
-            label: Text(
-              action.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-            ),
+            style: style,
+            icon: Icon(action.icon, size: 16),
+            label: label,
           );
   }
 }

@@ -12,8 +12,12 @@ class SupportTicketsPage extends StatelessWidget {
   const SupportTicketsPage({super.key, required this.role});
   final AppRole role;
 
-  Widget _dialogStyle(Widget child) =>
-      role == AppRole.tenant ? TenantDetailTheme(child: child) : child;
+  bool get _usesFeatureStyle =>
+      role == AppRole.tenant || role == AppRole.landlord;
+
+  Widget _dialogStyle(Widget child) => _usesFeatureStyle
+      ? TenantDetailTheme(landlordStyle: role == AppRole.landlord, child: child)
+      : child;
 
   Future<void> _compose(BuildContext context) async {
     final title = TextEditingController();
@@ -24,14 +28,15 @@ class SupportTicketsPage extends StatelessWidget {
       builder: (context) => _dialogStyle(
         StatefulBuilder(
           builder: (context, setState) => AlertDialog(
-            titlePadding: role == AppRole.tenant
+            titlePadding: _usesFeatureStyle
                 ? const EdgeInsets.fromLTRB(16, 16, 16, 0)
                 : null,
-            title: role == AppRole.tenant
+            title: _usesFeatureStyle
                 ? const TenantFormHeading(
                     icon: Icons.support_agent_rounded,
                     title: 'Gửi yêu cầu hỗ trợ',
-                    subtitle: 'Mô tả rõ màn hình và thao tác để quản trị viên kiểm tra.',
+                    subtitle:
+                        'Mô tả rõ màn hình và thao tác để đội hỗ trợ kiểm tra.',
                   )
                 : const Text('Gửi yêu cầu hỗ trợ'),
             content: SizedBox(
@@ -46,7 +51,7 @@ class SupportTicketsPage extends StatelessWidget {
                       textInputAction: TextInputAction.next,
                       decoration: InputDecoration(
                         labelText: 'Tiêu đề',
-                        prefixIcon: role == AppRole.tenant
+                        prefixIcon: _usesFeatureStyle
                             ? const Icon(Icons.edit_note_rounded)
                             : null,
                       ),
@@ -60,7 +65,7 @@ class SupportTicketsPage extends StatelessWidget {
                       decoration: InputDecoration(
                         labelText: 'Mô tả vấn đề và cách tái hiện',
                         alignLabelWithHint: true,
-                        hintText: role == AppRole.tenant
+                        hintText: _usesFeatureStyle
                             ? 'Bạn đang ở màn hình nào? Đã thao tác gì và gặp vấn đề gì?'
                             : null,
                       ),
@@ -166,11 +171,15 @@ class SupportTicketsPage extends StatelessWidget {
       final tickets = AdminStore.instance.tickets
           .where((t) => role == AppRole.admin || t.role == role)
           .toList();
-      if (role == AppRole.tenant) {
+      if (_usesFeatureStyle) {
         return TenantFeatureFrame(
-          artwork: TenantFeatureArtwork.help,
+          artwork: role == AppRole.landlord
+              ? TenantFeatureArtwork.landlordHelp
+              : TenantFeatureArtwork.help,
           title: 'Yêu cầu hỗ trợ',
-          subtitle: 'Theo dõi yêu cầu của bạn và phản hồi từ quản trị viên.',
+          subtitle: role == AppRole.landlord
+              ? 'Theo dõi yêu cầu hỗ trợ và phản hồi từ quản trị viên.'
+              : 'Theo dõi yêu cầu của bạn và phản hồi từ quản trị viên.',
           children: [
             TenantSurface(
               child: Row(
@@ -181,8 +190,10 @@ class SupportTicketsPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Cùng bạn giải quyết vấn đề',
+                        Text(
+                          role == AppRole.landlord
+                              ? 'Hỗ trợ vận hành nhà trọ'
+                              : 'Cùng bạn giải quyết vấn đề',
                           style: TextStyle(
                             color: tenantInk,
                             fontSize: 15,

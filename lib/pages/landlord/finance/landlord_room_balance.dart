@@ -2,19 +2,21 @@ import '../landlord_demo_store.dart';
 import '../rooms/models/landlord_room.dart';
 import 'landlord_finance_models.dart';
 
-enum RoomPaymentState { unpaid, paid, unbilled, vacant }
+enum RoomPaymentState { unpaid, pendingReview, paid, unbilled, vacant }
 
-/// A room stays in debt until every non-cancelled bill up to this month is paid.
-/// A room without a bill must never appear as paid merely because its debt is zero.
+/// A room with no current lease stays vacant; its old bills remain in history.
+/// An active room remains in debt until all non-cancelled bills are settled.
 class LandlordRoomBalance {
   LandlordRoomBalance({
     required this.details,
     required this.invoices,
     required this.period,
+    this.payments = const [],
   });
   final LandlordRoomDetails details;
   final List<LandlordInvoice> invoices;
   final DateTime period;
+  final List<LandlordPayment> payments;
   List<LandlordInvoice> get monthlyInvoices => invoices
       .where(
         (i) => i.period.year == period.year && i.period.month == period.month,
@@ -24,17 +26,34 @@ class LandlordRoomBalance {
   int get monthlyTotal => monthlyInvoices.fold(0, (sum, i) => sum + i.total);
   int get monthlyPaid =>
       monthlyInvoices.fold(0, (sum, i) => sum + i.paidAmount);
+  Set<String> get _invoiceIds => invoices.map((invoice) => invoice.id).toSet();
+  LandlordPayment? get pendingPayment => payments
+      .where(
+        (payment) =>
+            _invoiceIds.contains(payment.invoiceId) &&
+            payment.status == LandlordPaymentStatus.pending,
+      )
+      .firstOrNull;
+  LandlordPayment? get latestReviewedPayment => payments
+      .where(
+        (payment) =>
+            monthlyInvoices.any((invoice) => invoice.id == payment.invoiceId) &&
+            payment.status == LandlordPaymentStatus.approved,
+      )
+      .firstOrNull;
   RoomPaymentState get state {
+    if (details.lease == null) return RoomPaymentState.vacant;
+    if (pendingPayment != null) return RoomPaymentState.pendingReview;
     if (remaining > 0) return RoomPaymentState.unpaid;
     if (monthlyInvoices.isNotEmpty) return RoomPaymentState.paid;
-    if (details.lease != null) return RoomPaymentState.unbilled;
-    return RoomPaymentState.vacant;
+    return RoomPaymentState.unbilled;
   }
 
   String get label => switch (state) {
     RoomPaymentState.unpaid => 'Chưa đóng tiền',
+    RoomPaymentState.pendingReview => 'Đang chờ duyệt',
     RoomPaymentState.paid => 'Đã đóng tiền',
-    RoomPaymentState.unbilled => 'Chưa lập hóa đơn',
+    RoomPaymentState.unbilled => 'Chưa lập phiếu thu',
     RoomPaymentState.vacant => 'Phòng trống',
   };
 }
@@ -74,6 +93,7 @@ List<LandlordRoomBalance> landlordRoomBalances(
         details: details,
         period: period,
         invoices: grouped[canonical(details.room.code)] ?? const [],
+        payments: store.payments,
       ),
   ];
 }

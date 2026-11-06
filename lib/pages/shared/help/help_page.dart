@@ -23,6 +23,8 @@ class _HelpPageState extends State<HelpPage> {
   String _category = 'Tất cả';
 
   bool get _isTenant => widget.role == AppRole.tenant;
+  bool get _usesFeatureStyle =>
+      widget.role == AppRole.tenant || widget.role == AppRole.landlord;
   Color get _color => _isTenant ? const Color(0xFF16836F) : landlordBlue;
 
   @override
@@ -41,13 +43,14 @@ class _HelpPageState extends State<HelpPage> {
   }
 
   void _showGuide(HelpArticle article) {
-    if (_isTenant) {
+    if (_usesFeatureStyle) {
       showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         constraints: const BoxConstraints(maxWidth: 640),
         builder: (context) => TenantDetailTheme(
+          landlordStyle: widget.role == AppRole.landlord,
           child: TenantBottomSheetSurface(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -148,7 +151,7 @@ class _HelpPageState extends State<HelpPage> {
           text.contains(query);
     }).toList();
 
-    if (_isTenant) return _tenantHelp(articles, categories, filtered);
+    if (_usesFeatureStyle) return _featureHelp(articles, categories, filtered);
 
     return LandlordPageFrame(
       children: [
@@ -449,23 +452,27 @@ class _HelpPageState extends State<HelpPage> {
     );
   }
 
-  Widget _tenantHelp(
+  Widget _featureHelp(
     List<HelpArticle> articles,
     List<String> categories,
     List<HelpArticle> filtered,
   ) => TenantFeatureFrame(
-    artwork: TenantFeatureArtwork.help,
+    artwork: _isTenant
+        ? TenantFeatureArtwork.help
+        : TenantFeatureArtwork.landlordHelp,
     title: 'Bạn cần trợ giúp gì?',
-    subtitle: 'Hướng dẫn từ tìm phòng đến cuộc sống ở trọ, luôn sẵn sàng để bạn xem lại.',
+    subtitle: _isTenant
+        ? 'Hướng dẫn từ tìm phòng đến cuộc sống ở trọ, luôn sẵn sàng để bạn xem lại.'
+        : 'Hướng dẫn quản lý nhà trọ, thu chi và đồng hành cùng người thuê.',
     children: [
       TenantSurface(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'DÀNH CHO NGƯỜI THUÊ',
+            Text(
+              'DÀNH CHO ${widget.role.label.toUpperCase()}',
               style: TextStyle(
-                color: tenantGreenDark,
+                color: TenantUiPalette.of(context).dark,
                 fontSize: 10,
                 letterSpacing: 0.5,
                 fontWeight: FontWeight.w800,
@@ -525,8 +532,12 @@ class _HelpPageState extends State<HelpPage> {
                               children: [
                                 Text(
                                   index == 0
-                                      ? 'Tìm chỗ ở phù hợp'
-                                      : 'Thanh toán tiền phòng',
+                                      ? (_isTenant
+                                            ? 'Tìm chỗ ở phù hợp'
+                                            : 'Thiết lập nhà trọ')
+                                      : (_isTenant
+                                            ? 'Thanh toán tiền phòng'
+                                            : 'Lập hóa đơn'),
                                   style: const TextStyle(
                                     color: tenantInk,
                                     fontSize: 14,
@@ -544,9 +555,9 @@ class _HelpPageState extends State<HelpPage> {
                               ],
                             ),
                           ),
-                          const Icon(
+                          Icon(
                             Icons.chevron_right_rounded,
-                            color: tenantGreenDark,
+                            color: TenantUiPalette.of(context).dark,
                             size: 21,
                           ),
                         ],
@@ -604,8 +615,8 @@ class _HelpPageState extends State<HelpPage> {
             child: TenantSurface(
               padding: EdgeInsets.zero,
               child: ExpansionTile(
-                key: ValueKey('tenant-${article.question}'),
-                iconColor: tenantGreenDark,
+                key: ValueKey('${widget.role.name}-${article.question}'),
+                iconColor: TenantUiPalette.of(context).dark,
                 collapsedIconColor: tenantMuted,
                 shape: const Border(),
                 collapsedShape: const Border(),
@@ -627,8 +638,8 @@ class _HelpPageState extends State<HelpPage> {
                   padding: const EdgeInsets.only(top: 5),
                   child: Text(
                     article.category,
-                    style: const TextStyle(
-                      color: tenantGreenDark,
+                    style: TextStyle(
+                      color: TenantUiPalette.of(context).dark,
                       fontSize: 11,
                     ),
                   ),
@@ -648,18 +659,22 @@ class _HelpPageState extends State<HelpPage> {
             ),
           ),
       const SizedBox(height: 14),
-      const TenantFeatureBanner(
+      TenantFeatureBanner(
         icon: Icons.support_agent_rounded,
         title: 'Cần hỗ trợ thêm?',
-        subtitle: 'Gửi yêu cầu để theo dõi phản hồi từ quản trị viên. Với vấn đề về phòng, hãy trao đổi với chủ trọ hoặc gửi báo cáo sự cố.',
+        subtitle: _isTenant
+            ? 'Gửi yêu cầu để theo dõi phản hồi từ quản trị viên. Với vấn đề về phòng, hãy trao đổi với chủ trọ hoặc gửi báo cáo sự cố.'
+            : 'Gửi yêu cầu để theo dõi phản hồi từ quản trị viên. Với vấn đề về người thuê, hợp đồng hoặc thanh toán, hãy trao đổi qua Tin nhắn.',
       ),
       const SizedBox(height: 14),
       FilledButton.icon(
         onPressed: () => Navigator.of(context).push<void>(
           MaterialPageRoute(
-            builder: (_) => const TenantSubpageScaffold(
+            builder: (_) => TenantSubpageScaffold(
               title: 'Yêu cầu hỗ trợ',
-              child: SupportTicketsPage(role: AppRole.tenant),
+              showNotifications: _isTenant,
+              landlordStyle: widget.role == AppRole.landlord,
+              child: SupportTicketsPage(role: widget.role),
             ),
           ),
         ),

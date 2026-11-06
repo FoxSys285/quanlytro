@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../layouts/role_layout.dart';
 import '../landlord_theme.dart';
 
 import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
+import '../landlord_glass.dart';
 import '../landlord_ui.dart';
 import '../../shared/widgets/list_pagination.dart';
 
@@ -66,126 +68,396 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
         ListPagination.lastPage(leases.length, _pageSize),
       );
       final visible = leases.skip(page * _pageSize).take(_pageSize);
-      return LandlordPageFrame(
-        children: [
-          LandlordPageTitle(
-            title: 'Hợp đồng thuê',
-            subtitle:
-                '$currentCount hợp đồng hiệu lực · $expiringCount sắp hết hạn',
-            trailing: FilledButton.icon(
-              onPressed: () => _editLease(),
-              icon: Icon(Icons.add, size: 18),
-              label: Text('Tạo hợp đồng'),
-            ),
-          ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final cardWidth = (constraints.maxWidth - 9) / 2;
-              return Wrap(
-                spacing: 9,
-                runSpacing: 9,
-                children: [
-                  _overviewMetric(
-                    width: cardWidth,
-                    label: 'Đang hiệu lực',
-                    value: '$currentCount',
-                    icon: Icons.verified_outlined,
-                    color: const Color(0xFF16836F),
-                  ),
-                  _overviewMetric(
-                    width: cardWidth,
-                    label: 'Sắp hết hạn',
-                    value: '$expiringCount',
-                    icon: Icons.event_busy_outlined,
-                    color: const Color(0xFFE08A1E),
-                  ),
-                  _overviewMetric(
-                    width: cardWidth,
-                    label: 'Bản nháp',
-                    value: '$draftCount',
-                    icon: Icons.drafts_outlined,
-                    color: landlordBlue,
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'Tìm theo người thuê, phòng hoặc mã hợp đồng',
-              prefixIcon: Icon(Icons.search_rounded),
-              filled: true,
-              fillColor: LandlordPalette.of(context).surface,
-              contentPadding: EdgeInsets.symmetric(vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(15)),
-                borderSide: BorderSide(color: LandlordPalette.of(context).line),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(15)),
-                borderSide: BorderSide(color: LandlordPalette.of(context).line),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(15)),
-                borderSide: BorderSide(color: landlordBlue, width: 1.4),
-              ),
-            ),
-            onChanged: (value) => setState(() {
-              _search = value.trim();
-              _page = 0;
-            }),
-          ),
-          const SizedBox(height: 11),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final label in const [
-                  'Tất cả',
-                  'Đang thuê',
-                  'Sắp hết hạn',
-                  'Sắp bắt đầu',
-                  'Hết hạn',
-                  'Nháp',
-                  'Đã kết thúc',
-                ]) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(right: 7),
-                    child: ChoiceChip(
-                      label: Text('$label · ${_countForFilter(label)}'),
-                      selected: _filter == label,
-                      onSelected: (_) => setState(() {
-                        _filter = label;
+      return PropertyPortfolioBackdrop(
+        child: SafeArea(
+          bottom: false,
+          child: SingleChildScrollView(
+            key: const PageStorageKey('landlord-leases'),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _topBar(),
+                    const SizedBox(height: 15),
+                    _leaseHero(),
+                    const SizedBox(height: 16),
+                    _overviewPanel(currentCount, expiringCount, draftCount),
+                    const SizedBox(height: 16),
+                    TextField(
+                      onChanged: (value) => setState(() {
+                        _search = value.trim();
                         _page = 0;
                       }),
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).ink,
+                        fontSize: 14,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Tìm người thuê, phòng, mã hợp đồng',
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: landlordBlue,
+                        ),
+                        filled: true,
+                        fillColor: LandlordPalette.of(context).surface,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 15,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide(
+                            color: Colors.white.withValues(alpha: .9),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: const BorderSide(
+                            color: landlordBlue,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ],
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final label in const [
+                            'Tất cả',
+                            'Đang thuê',
+                            'Sắp hết hạn',
+                            'Sắp bắt đầu',
+                            'Hết hạn',
+                            'Nháp',
+                            'Đã kết thúc',
+                          ])
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(
+                                  '$label · ${_countForFilter(label)}',
+                                ),
+                                selected: _filter == label,
+                                selectedColor: landlordBlue,
+                                backgroundColor: LandlordPalette.of(context)
+                                    .surface,
+                                side: BorderSide(
+                                  color: _filter == label
+                                      ? Colors.transparent
+                                      : Colors.white,
+                                ),
+                                labelStyle: TextStyle(
+                                  color: _filter == label
+                                      ? Colors.white
+                                      : landlordBlue,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                                onSelected: (_) => setState(() {
+                                  _filter = label;
+                                  _page = 0;
+                                }),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (leases.isEmpty)
+                      _emptyContracts()
+                    else ...[
+                      for (final lease in visible) _leaseCard(lease),
+                      ListPagination(
+                        total: leases.length,
+                        page: page,
+                        pageSize: _pageSize,
+                        onChanged: (value) => setState(() => _page = value),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Thay đổi được đồng bộ lên Firebase và chia sẻ theo quyền tài khoản.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          if (leases.isEmpty)
-            const LandlordEmptyState(message: 'Không có hợp đồng phù hợp.'),
-          for (final lease in visible) _leaseCard(lease),
-          ListPagination(
-            total: leases.length,
-            page: page,
-            pageSize: _pageSize,
-            onChanged: (value) => setState(() => _page = value),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Thay đổi được đồng bộ lên Firebase và chia sẻ theo quyền tài khoản.',
-            style: TextStyle(
-              color: LandlordPalette.of(context).muted,
-              fontSize: 11,
-            ),
-          ),
-        ],
+        ),
       );
     },
+  );
+
+  Widget _topBar() => Row(
+    children: [
+      IconButton.filledTonal(
+        tooltip: 'Quay lại',
+        onPressed: () {
+          final navigator = Navigator.of(context);
+          if (navigator.canPop()) {
+            navigator.pop();
+          } else {
+            RoleLayoutShell.navigateTo(context, 'properties');
+          }
+        },
+        icon: const Icon(Icons.arrow_back_rounded),
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(
+          'Hợp đồng thuê',
+          style: TextStyle(
+            color: LandlordPalette.of(context).ink,
+            fontSize: 21,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -.5,
+          ),
+        ),
+      ),
+      IconButton.filledTonal(
+        tooltip: 'Nhà trọ',
+        onPressed: _openProperties,
+        style: IconButton.styleFrom(
+          foregroundColor: const Color(0xFFFF3267),
+          backgroundColor: Colors.white.withValues(alpha: .86),
+        ),
+        icon: const Icon(Icons.favorite_rounded),
+      ),
+    ],
+  );
+
+  void _openProperties() {
+    if (RoleLayoutShell.navigateTo(context, 'properties')) return;
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) navigator.pop();
+  }
+
+  Widget _leaseHero() => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(25),
+      border: Border.all(color: Colors.white.withValues(alpha: .9)),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          LandlordPalette.of(context).surface.withValues(alpha: .98),
+          LandlordPalette.of(context).surfaceAlt.withValues(alpha: .8),
+        ],
+      ),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x205A99E9),
+          blurRadius: 22,
+          offset: Offset(0, 9),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 62,
+          height: 62,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF438EFF), landlordBlue],
+            ),
+          ),
+          child: const Icon(
+            Icons.description_outlined,
+            color: Colors.white,
+            size: 33,
+          ),
+        ),
+        const SizedBox(width: 13),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'QUẢN LÝ NHÀ TRỌ',
+                style: TextStyle(
+                  color: landlordBlue,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .7,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Hợp đồng thuê',
+                style: TextStyle(
+                  color: LandlordPalette.of(context).ink,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Theo dõi hiệu lực và thời hạn hợp đồng.',
+                style: TextStyle(
+                  color: LandlordPalette.of(context).muted,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _overviewPanel(
+    int currentCount,
+    int expiringCount,
+    int draftCount,
+  ) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(28),
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF438EFF), Color(0xFF154BCC)],
+      ),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x30366BDA),
+          blurRadius: 24,
+          offset: Offset(0, 10),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.bar_chart_rounded, color: Colors.white),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Tổng quan',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .16),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.white.withValues(alpha: .3)),
+              ),
+              child: const Text(
+                'Tháng này',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const spacing = 8.0;
+            final width = (constraints.maxWidth - spacing * 2) / 3;
+            return Wrap(
+              spacing: spacing,
+              children: [
+                _overviewMetric(
+                  width: width,
+                  label: 'Đang hiệu lực',
+                  value: '$currentCount',
+                  icon: Icons.check_circle_outline_rounded,
+                ),
+                _overviewMetric(
+                  width: width,
+                  label: 'Sắp hết hạn',
+                  value: '$expiringCount',
+                  icon: Icons.event_busy_outlined,
+                ),
+                _overviewMetric(
+                  width: width,
+                  label: 'Bản nháp',
+                  value: '$draftCount',
+                  icon: Icons.drafts_outlined,
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
+
+  Widget _emptyContracts() => LandlordGlassCard(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+    child: Column(
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE4EFFF),
+            borderRadius: BorderRadius.circular(19),
+          ),
+          child: const Icon(
+            Icons.description_outlined,
+            color: landlordBlue,
+            size: 29,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          _search.isEmpty && _filter == 'Tất cả'
+              ? 'Chưa có hợp đồng thuê.'
+              : 'Không có hợp đồng phù hợp.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: LandlordPalette.of(context).muted,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          onPressed: () => _editLease(),
+          style: FilledButton.styleFrom(
+            backgroundColor: landlordBlue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+            elevation: 4,
+            shadowColor: landlordBlue.withValues(alpha: .35),
+          ),
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Tạo hợp đồng'),
+        ),
+      ],
+    ),
   );
 
   int _countForFilter(String label) => switch (label) {
@@ -210,46 +482,38 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
     required String label,
     required String value,
     required IconData icon,
-    required Color color,
   }) => Container(
     width: width,
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+    padding: const EdgeInsets.fromLTRB(11, 12, 8, 11),
     decoration: BoxDecoration(
-      color: LandlordPalette.of(context).surface,
-      borderRadius: BorderRadius.circular(15),
-      border: Border.all(color: LandlordPalette.of(context).line),
+      color: Colors.white.withValues(alpha: .16),
+      borderRadius: BorderRadius.circular(19),
+      border: Border.all(color: Colors.white.withValues(alpha: .1)),
     ),
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircleAvatar(
-          radius: 17,
-          backgroundColor: color.withValues(alpha: 0.1),
-          child: Icon(icon, size: 17, color: color),
+        Icon(icon, size: 21, color: Colors.white),
+        const SizedBox(height: 9),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 23,
+            height: 1,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: LandlordPalette.of(context).muted,
-                  fontSize: 10,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                value,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+        const SizedBox(height: 5),
+        Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            height: 1.25,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -258,85 +522,115 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
 
   Widget _leaseCard(LandlordLease lease) {
     final (status, color) = _leaseStatus(lease);
-    return LandlordCard(
-      onTap: () => _showLeaseDetails(lease),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 11),
+      child: LandlordGlassCard(
+        padding: EdgeInsets.zero,
+        onTap: () => _showLeaseDetails(lease),
+        tint: color,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                backgroundColor: landlordBlue.withValues(alpha: 0.1),
-                child: Icon(Icons.description_outlined, color: landlordBlue),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Phòng ${lease.room} · ${lease.tenantName}',
-                      style: TextStyle(
-                        color: LandlordPalette.of(context).ink,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: landlordBlue.withValues(alpha: .1),
+                      borderRadius: BorderRadius.circular(15),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      lease.id,
-                      style: TextStyle(
-                        color: LandlordPalette.of(context).muted,
-                        fontSize: 11,
-                      ),
+                    child: const Icon(
+                      Icons.description_outlined,
+                      color: landlordBlue,
                     ),
-                  ],
-                ),
-              ),
-              LandlordStatusPill(status, color: color),
-            ],
-          ),
-          Divider(height: 23),
-          _detailLine(
-            'Thời hạn',
-            '${landlordDate(lease.startDate)} – ${landlordDate(lease.endDate)}',
-          ),
-          const SizedBox(height: 7),
-          _detailLine(
-            'Tiền thuê',
-            '${formatLandlordMoney(lease.monthlyRent)} / tháng',
-          ),
-          const SizedBox(height: 7),
-          _detailLine('Tiền cọc', formatLandlordMoney(lease.deposit)),
-          const SizedBox(height: 7),
-          _detailLine('Số người ở', '${lease.occupantCount} người'),
-          if (lease.phone.isNotEmpty) ...[
-            const SizedBox(height: 7),
-            _detailLine('Liên hệ', lease.phone),
-          ],
-          const SizedBox(height: 11),
-          Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 4,
-            runSpacing: 2,
-            children: [
-              TextButton.icon(
-                onPressed: () => _editLease(lease),
-                icon: Icon(Icons.edit_outlined, size: 17),
-                label: Text('Chỉnh sửa'),
-              ),
-              if (lease.isCurrent)
-                TextButton.icon(
-                  onPressed: () => _endLease(lease),
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFB64A4A),
                   ),
-                  icon: Icon(Icons.event_busy_outlined, size: 17),
-                  label: Text('Kết thúc'),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Phòng ${lease.room}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: LandlordPalette.of(context).ink,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          lease.tenantName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: LandlordPalette.of(context).muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  LandlordStatusPill(status, color: color),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                lease.id,
+                style: TextStyle(
+                  color: LandlordPalette.of(context).muted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
                 ),
+              ),
+              Divider(height: 22, color: LandlordPalette.of(context).line),
+              _detailLine(
+                'Thời hạn',
+                '${landlordDate(lease.startDate)} – ${landlordDate(lease.endDate)}',
+              ),
+              const SizedBox(height: 8),
+              _detailLine(
+                'Tiền thuê',
+                '${formatLandlordMoney(lease.monthlyRent)} / tháng',
+              ),
+              const SizedBox(height: 8),
+              _detailLine('Tiền cọc', formatLandlordMoney(lease.deposit)),
+              const SizedBox(height: 8),
+              _detailLine('Số người ở', '${lease.occupantCount} người'),
+              if (lease.phone.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _detailLine('Liên hệ', lease.phone),
+              ],
+              const SizedBox(height: 10),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 7,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _editLease(lease),
+                    icon: const Icon(Icons.edit_outlined, size: 17),
+                    label: const Text('Chỉnh sửa'),
+                  ),
+                  if (lease.isCurrent)
+                    FilledButton.tonalIcon(
+                      onPressed: () => _endLease(lease),
+                      style: FilledButton.styleFrom(
+                        foregroundColor: const Color(0xFFB64A4A),
+                      ),
+                      icon: const Icon(Icons.event_busy_outlined, size: 17),
+                      label: const Text('Kết thúc'),
+                    ),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -851,328 +1145,521 @@ class _LeaseEditorState extends State<_LeaseEditor> {
     if (!availableRooms.contains(_room) && availableRooms.isNotEmpty) {
       _room = availableRooms.first;
     }
-    return AlertDialog(
-      title: Text(
-        widget.lease == null ? 'Tạo hợp đồng thuê phòng' : 'Chỉnh sửa hợp đồng',
-      ),
-      content: SizedBox(
-        width: 540,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 650,
+          maxHeight: MediaQuery.sizeOf(context).height * .9,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F8FF),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x40547AB4),
+                blurRadius: 34,
+                offset: Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Form(
+            key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _room,
-                  decoration: InputDecoration(labelText: 'Phòng'),
-                  items: [
-                    for (final room in availableRooms)
-                      DropdownMenuItem(value: room, child: Text('Phòng $room')),
-                  ],
-                  onChanged: (value) => setState(() => _room = value ?? _room),
-                ),
-                _sectionTitle('BÊN A · BÊN CHO THUÊ PHÒNG'),
-                _textField(
-                  _landlordName,
-                  'Họ tên bên A',
-                  validator: _requiredValidator('Nhập họ tên bên A.'),
-                  capitalization: TextCapitalization.words,
-                ),
-                _textField(
-                  _landlordAddress,
-                  'Địa chỉ thường trú',
-                  validator: _requiredValidator(
-                    'Nhập địa chỉ thường trú bên A.',
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 18, 14, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.lease == null
+                                  ? 'Tạo hợp đồng thuê phòng'
+                                  : 'Chỉnh sửa hợp đồng',
+                              style: const TextStyle(
+                                color: Color(0xFF102F67),
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Điền thông tin hai bên và thỏa thuận thuê phòng.',
+                              style: TextStyle(
+                                color: LandlordPalette.of(context).muted,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Đóng',
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
                   ),
                 ),
-                _textField(
-                  _landlordId,
-                  'CCCD bên A',
-                  keyboardType: TextInputType.number,
-                  validator: _citizenIdValidator,
-                ),
-                _textField(
-                  _landlordContact,
-                  'Điện thoại / Zalo bên A',
-                  keyboardType: TextInputType.phone,
-                  validator: _phoneValidator,
-                ),
-                _sectionTitle('BÊN B · BÊN THUÊ PHÒNG'),
-                _textField(
-                  _tenantKey,
-                  'Mã người thuê (tenantId trong hồ sơ tài khoản)',
-                  readOnly: widget.lease != null,
-                  validator: (value) =>
-                      value == null ||
-                          value.trim().isEmpty ||
-                          RegExp(r'^[^\s/:]+$').hasMatch(value.trim())
-                      ? null
-                      : 'Mã người thuê không chứa khoảng trắng, / hoặc :.',
-                ),
-                _textField(
-                  _name,
-                  'Họ tên bên B',
-                  validator: _requiredValidator('Nhập họ tên bên B.'),
-                  capitalization: TextCapitalization.words,
-                ),
-                _textField(
-                  _birthYear,
-                  'Năm sinh',
-                  keyboardType: TextInputType.number,
-                  validator: _birthYearValidator,
-                ),
-                _textField(
-                  _tenantId,
-                  'CCCD bên B',
-                  keyboardType: TextInputType.number,
-                  validator: _citizenIdValidator,
-                ),
-                _dateField(
-                  'Ngày cấp CCCD',
-                  _tenantIssueDate,
-                  (date) => setState(() => _tenantIssueDate = date),
-                  lastDate: DateTime.now(),
-                ),
-                _textField(
-                  _phone,
-                  'Điện thoại / Zalo bên B',
-                  keyboardType: TextInputType.phone,
-                  validator: _phoneValidator,
-                ),
-                _textField(
-                  _tenantAddress,
-                  'Địa chỉ thường trú',
-                  validator: _requiredValidator(
-                    'Nhập địa chỉ thường trú bên B.',
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          initialValue: _room,
+                          isExpanded: true,
+                          style: const TextStyle(
+                            color: Color(0xFF102F67),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          decoration: _inputDecoration('Phòng').copyWith(
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(19),
+                              borderSide: const BorderSide(
+                                color: landlordBlue,
+                                width: 1.8,
+                              ),
+                            ),
+                          ),
+                          items: [
+                            for (final room in availableRooms)
+                              DropdownMenuItem(
+                                value: room,
+                                child: Text('Phòng $room'),
+                              ),
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _room = value ?? _room),
+                        ),
+                        _sectionTitle(
+                          'BÊN A · BÊN CHO THUÊ PHÒNG',
+                          icon: Icons.home_outlined,
+                        ),
+                        _textField(
+                          _landlordName,
+                          'Họ tên bên A',
+                          validator: _requiredValidator('Nhập họ tên bên A.'),
+                          capitalization: TextCapitalization.words,
+                        ),
+                        _textField(
+                          _landlordAddress,
+                          'Địa chỉ thường trú',
+                          validator: _requiredValidator(
+                            'Nhập địa chỉ thường trú bên A.',
+                          ),
+                        ),
+                        _textField(
+                          _landlordId,
+                          'CCCD bên A',
+                          keyboardType: TextInputType.number,
+                          validator: _citizenIdValidator,
+                        ),
+                        _textField(
+                          _landlordContact,
+                          'Điện thoại / Zalo bên A',
+                          keyboardType: TextInputType.phone,
+                          validator: _phoneValidator,
+                        ),
+                        _sectionTitle(
+                          'BÊN B · BÊN THUÊ PHÒNG',
+                          icon: Icons.person_outline_rounded,
+                        ),
+                        _textField(
+                          _tenantKey,
+                          'Mã người thuê (tenantId trong hồ sơ tài khoản)',
+                          readOnly: widget.lease != null,
+                          validator: (value) =>
+                              value == null ||
+                                  value.trim().isEmpty ||
+                                  RegExp(r'^[^\s/:]+$').hasMatch(value.trim())
+                              ? null
+                              : 'Mã người thuê không chứa khoảng trắng, / hoặc :.',
+                        ),
+                        _textField(
+                          _name,
+                          'Họ tên bên B',
+                          validator: _requiredValidator('Nhập họ tên bên B.'),
+                          capitalization: TextCapitalization.words,
+                        ),
+                        _textField(
+                          _birthYear,
+                          'Năm sinh',
+                          keyboardType: TextInputType.number,
+                          validator: _birthYearValidator,
+                        ),
+                        _textField(
+                          _tenantId,
+                          'CCCD bên B',
+                          keyboardType: TextInputType.number,
+                          validator: _citizenIdValidator,
+                        ),
+                        _dateField(
+                          'Ngày cấp CCCD',
+                          _tenantIssueDate,
+                          (date) => setState(() => _tenantIssueDate = date),
+                          lastDate: DateTime.now(),
+                        ),
+                        _textField(
+                          _phone,
+                          'Điện thoại / Zalo bên B',
+                          keyboardType: TextInputType.phone,
+                          validator: _phoneValidator,
+                        ),
+                        _textField(
+                          _tenantAddress,
+                          'Địa chỉ thường trú',
+                          validator: _requiredValidator(
+                            'Nhập địa chỉ thường trú bên B.',
+                          ),
+                        ),
+                        _sectionTitle(
+                          'PHÒNG VÀ CÁC KHOẢN TIỀN',
+                          icon: Icons.meeting_room_outlined,
+                        ),
+                        _pairFields(
+                          _textField(
+                            _rent,
+                            'Giá phòng / tháng',
+                            keyboardType: TextInputType.number,
+                            validator: _positiveAmountValidator,
+                          ),
+                          _textField(
+                            _deposit,
+                            'Tiền đặt cọc',
+                            keyboardType: TextInputType.number,
+                            validator: _nonNegativeAmountValidator,
+                          ),
+                        ),
+                        _pairFields(
+                          _textField(
+                            _electricity,
+                            'Tiền điện / kWh',
+                            keyboardType: TextInputType.number,
+                            validator: _positiveAmountValidator,
+                          ),
+                          _textField(
+                            _water,
+                            'Tiền nước',
+                            keyboardType: TextInputType.number,
+                            validator: _nonNegativeAmountValidator,
+                          ),
+                        ),
+                        DropdownButtonFormField<String>(
+                          initialValue: _waterType,
+                          isExpanded: true,
+                          style: const TextStyle(
+                            color: Color(0xFF102F67),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          decoration: _inputDecoration('Cách tính tiền nước'),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'Theo m³',
+                              child: Text('Theo m³'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Theo tháng',
+                              child: Text('Theo tháng'),
+                            ),
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _waterType = value ?? _waterType),
+                        ),
+                        _pairFields(
+                          _textField(
+                            _vehicle,
+                            'Tiền xe / tháng',
+                            keyboardType: TextInputType.number,
+                            validator: _nonNegativeAmountValidator,
+                          ),
+                          _textField(
+                            _service,
+                            'Tiền dịch vụ / tháng',
+                            keyboardType: TextInputType.number,
+                            validator: _nonNegativeAmountValidator,
+                          ),
+                        ),
+                        _pairFields(
+                          _textField(
+                            _dueDay,
+                            'Ngày đóng tiền (1–31)',
+                            keyboardType: TextInputType.number,
+                            validator: _dueDayValidator,
+                          ),
+                          _textField(
+                            _occupants,
+                            'Số người đã duyệt',
+                            readOnly: true,
+                            keyboardType: TextInputType.number,
+                            validator: _occupantsValidator,
+                          ),
+                        ),
+                        _sectionTitle(
+                          'THỜI HẠN THUÊ',
+                          icon: Icons.calendar_month_outlined,
+                        ),
+                        _textField(
+                          _termMonths,
+                          'Thời hạn bên B thuê (tháng)',
+                          keyboardType: TextInputType.number,
+                          validator: _termMonthsValidator,
+                        ),
+                        _pairFields(
+                          _dateField(
+                            'Từ ngày',
+                            _start,
+                            (date) => setState(() => _start = date!),
+                          ),
+                          _dateField(
+                            'Đến ngày',
+                            _end,
+                            (date) => setState(() => _end = date!),
+                          ),
+                        ),
+                        _sectionTitle(
+                          'PHƯƠNG THỨC THANH TOÁN',
+                          icon: Icons.payments_outlined,
+                        ),
+                        CheckboxListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                          ),
+                          dense: true,
+                          activeColor: landlordBlue,
+                          tileColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(17),
+                            side: const BorderSide(color: Color(0xFFD4E3FF)),
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          value: _cashEnabled,
+                          onChanged: (value) =>
+                              setState(() => _cashEnabled = value ?? false),
+                          title: Text(
+                            'Tiền mặt',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (_cashEnabled)
+                          _textField(
+                            _cashLocation,
+                            'Địa điểm nhận tiền mặt',
+                            validator: _requiredValidator(
+                              'Nhập nơi nhận tiền mặt.',
+                            ),
+                          ),
+                        CheckboxListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                          ),
+                          dense: true,
+                          activeColor: landlordBlue,
+                          tileColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(17),
+                            side: const BorderSide(color: Color(0xFFD4E3FF)),
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          value: _bankEnabled,
+                          onChanged: (value) =>
+                              setState(() => _bankEnabled = value ?? false),
+                          title: Text(
+                            'Chuyển khoản ngân hàng',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (_bankEnabled) ...[
+                          _textField(
+                            _bankName,
+                            'Tên ngân hàng',
+                            validator: _requiredValidator(
+                              'Nhập tên ngân hàng.',
+                            ),
+                          ),
+                          _textField(
+                            _bankAccount,
+                            'Số tài khoản',
+                            keyboardType: TextInputType.number,
+                            validator: _bankAccountValidator,
+                          ),
+                        ],
+                        _sectionTitle('GHI CHÚ', icon: Icons.notes_rounded),
+                        TextFormField(
+                          controller: _note,
+                          minLines: 2,
+                          maxLines: 4,
+                          style: const TextStyle(
+                            color: Color(0xFF102F67),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          decoration: _inputDecoration(
+                            'Ghi chú thêm trong hợp đồng',
+                          ).copyWith(alignLabelWithHint: true),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<LandlordLeaseStatus>(
+                          initialValue: _status,
+                          isExpanded: true,
+                          style: const TextStyle(
+                            color: Color(0xFF102F67),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          decoration: _inputDecoration('Trạng thái lưu'),
+                          items: const [
+                            DropdownMenuItem(
+                              value: LandlordLeaseStatus.active,
+                              child: Text('Đang hiệu lực'),
+                            ),
+                            DropdownMenuItem(
+                              value: LandlordLeaseStatus.draft,
+                              child: Text('Nháp'),
+                            ),
+                            DropdownMenuItem(
+                              value: LandlordLeaseStatus.terminated,
+                              child: Text('Đã kết thúc'),
+                            ),
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _status = value ?? _status),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                _sectionTitle('PHÒNG VÀ CÁC KHOẢN TIỀN'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _textField(
-                        _rent,
-                        'Giá phòng / tháng',
-                        keyboardType: TextInputType.number,
-                        validator: _positiveAmountValidator,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 2, 18, 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Hủy'),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _textField(
-                        _deposit,
-                        'Tiền đặt cọc',
-                        keyboardType: TextInputType.number,
-                        validator: _nonNegativeAmountValidator,
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        onPressed: _save,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: landlordBlue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                          elevation: 3,
+                          shadowColor: landlordBlue.withValues(alpha: .3),
+                        ),
+                        icon: const Icon(Icons.save_outlined, size: 18),
+                        label: const Text('Lưu hợp đồng'),
                       ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _textField(
-                        _electricity,
-                        'Tiền điện / kWh',
-                        keyboardType: TextInputType.number,
-                        validator: _positiveAmountValidator,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _textField(
-                        _water,
-                        'Tiền nước',
-                        keyboardType: TextInputType.number,
-                        validator: _nonNegativeAmountValidator,
-                      ),
-                    ),
-                  ],
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: _waterType,
-                  decoration: InputDecoration(labelText: 'Cách tính tiền nước'),
-                  items: const [
-                    DropdownMenuItem(value: 'Theo m³', child: Text('Theo m³')),
-                    DropdownMenuItem(
-                      value: 'Theo tháng',
-                      child: Text('Theo tháng'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _waterType = value ?? _waterType),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _textField(
-                        _vehicle,
-                        'Tiền xe / tháng',
-                        keyboardType: TextInputType.number,
-                        validator: _nonNegativeAmountValidator,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _textField(
-                        _service,
-                        'Tiền dịch vụ / tháng',
-                        keyboardType: TextInputType.number,
-                        validator: _nonNegativeAmountValidator,
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _textField(
-                        _dueDay,
-                        'Ngày đóng tiền (1–31)',
-                        keyboardType: TextInputType.number,
-                        validator: _dueDayValidator,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _textField(
-                        _occupants,
-                        'Số người đã duyệt',
-                        readOnly: true,
-                        keyboardType: TextInputType.number,
-                        validator: _occupantsValidator,
-                      ),
-                    ),
-                  ],
-                ),
-                _sectionTitle('THỜI HẠN THUÊ'),
-                _textField(
-                  _termMonths,
-                  'Thời hạn bên B thuê (tháng)',
-                  keyboardType: TextInputType.number,
-                  validator: _termMonthsValidator,
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _dateField(
-                        'Từ ngày',
-                        _start,
-                        (date) => setState(() => _start = date!),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _dateField(
-                        'Đến ngày',
-                        _end,
-                        (date) => setState(() => _end = date!),
-                      ),
-                    ),
-                  ],
-                ),
-                _sectionTitle('PHƯƠNG THỨC THANH TOÁN'),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _cashEnabled,
-                  onChanged: (value) =>
-                      setState(() => _cashEnabled = value ?? false),
-                  title: Text(
-                    'Tiền mặt',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ],
                   ),
-                ),
-                if (_cashEnabled)
-                  _textField(
-                    _cashLocation,
-                    'Địa điểm nhận tiền mặt',
-                    validator: _requiredValidator('Nhập nơi nhận tiền mặt.'),
-                  ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _bankEnabled,
-                  onChanged: (value) =>
-                      setState(() => _bankEnabled = value ?? false),
-                  title: Text(
-                    'Chuyển khoản ngân hàng',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                if (_bankEnabled) ...[
-                  _textField(
-                    _bankName,
-                    'Tên ngân hàng',
-                    validator: _requiredValidator('Nhập tên ngân hàng.'),
-                  ),
-                  _textField(
-                    _bankAccount,
-                    'Số tài khoản',
-                    keyboardType: TextInputType.number,
-                    validator: _bankAccountValidator,
-                  ),
-                ],
-                _sectionTitle('GHI CHÚ'),
-                TextFormField(
-                  controller: _note,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText: 'Ghi chú thêm trong hợp đồng',
-                    alignLabelWithHint: true,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<LandlordLeaseStatus>(
-                  initialValue: _status,
-                  decoration: InputDecoration(labelText: 'Trạng thái lưu'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: LandlordLeaseStatus.active,
-                      child: Text('Đang hiệu lực'),
-                    ),
-                    DropdownMenuItem(
-                      value: LandlordLeaseStatus.draft,
-                      child: Text('Nháp'),
-                    ),
-                    DropdownMenuItem(
-                      value: LandlordLeaseStatus.terminated,
-                      child: Text('Đã kết thúc'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _status = value ?? _status),
                 ),
               ],
             ),
           ),
         ),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy')),
-        FilledButton(onPressed: _save, child: Text('Lưu hợp đồng')),
-      ],
     );
   }
 
-  Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.only(top: 15, bottom: 3),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        title,
-        style: TextStyle(
-          color: landlordBlue,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.45,
+  Widget _sectionTitle(String title, {required IconData icon}) => Padding(
+    padding: const EdgeInsets.only(top: 17, bottom: 5),
+    child: Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(11),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF438EFF), landlordBlue],
+            ),
+          ),
+          child: Icon(icon, size: 19, color: Colors.white),
         ),
-      ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: landlordBlue,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: .35,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _pairFields(Widget first, Widget second) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < 460) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [first, second],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(child: first),
+          const SizedBox(width: 12),
+          Expanded(child: second),
+        ],
+      );
+    },
+  );
+
+  InputDecoration _inputDecoration(String label) => InputDecoration(
+    labelText: label,
+    labelStyle: const TextStyle(color: Color(0xFF526991)),
+    floatingLabelStyle: const TextStyle(
+      color: landlordBlue,
+      fontWeight: FontWeight.w700,
+    ),
+    filled: true,
+    fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: Color(0xFFD4E3FF)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: Color(0xFFD4E3FF)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: landlordBlue, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: Color(0xFFD64545)),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: Color(0xFFD64545), width: 1.4),
     ),
   );
 
@@ -1191,7 +1678,12 @@ class _LeaseEditorState extends State<_LeaseEditor> {
       keyboardType: keyboardType,
       textCapitalization: capitalization,
       validator: validator,
-      decoration: InputDecoration(labelText: label, isDense: true),
+      style: const TextStyle(
+        color: Color(0xFF102F67),
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+      ),
+      decoration: _inputDecoration(label),
     ),
   );
 
@@ -1279,10 +1771,8 @@ class _LeaseEditorState extends State<_LeaseEditor> {
         if (picked != null) onChanged(picked);
       },
       child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
+        decoration: _inputDecoration(label).copyWith(
           suffixIcon: Icon(Icons.calendar_month_outlined),
-          isDense: true,
           errorText: date == null ? 'Chọn ngày cấp CCCD' : null,
         ),
         child: Text(

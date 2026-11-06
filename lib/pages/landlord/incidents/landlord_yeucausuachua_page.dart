@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../landlord_theme.dart';
 
 import '../landlord_demo_store.dart';
+import '../landlord_glass.dart';
 import '../landlord_ui.dart';
 import 'models/landlord_suco.dart';
 
@@ -47,17 +48,19 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
   // 3. CÁC HÀM XỬ LÝ (Viết trước hàm build)
   // Hàm tạo chip lọc trạng thái
   Widget _taoChipLoc(String nhan, IncidentStatus? trangThai) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(nhan),
-        selected: _boLocTrangThai == trangThai,
-        onSelected: (_) {
-          setState(() {
-            _boLocTrangThai = trangThai;
-          });
-        },
+    final selected = _boLocTrangThai == trangThai;
+    return ChoiceChip(
+      label: Text(nhan),
+      selected: selected,
+      selectedColor: landlordBlue,
+      backgroundColor: LandlordPalette.of(context).surface,
+      side: BorderSide(color: selected ? Colors.transparent : Colors.white),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : landlordBlue,
+        fontWeight: FontWeight.w700,
+        fontSize: 12,
       ),
+      onSelected: (_) => setState(() => _boLocTrangThai = trangThai),
     );
   }
 
@@ -73,52 +76,122 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
 
   // Hàm mở bảng chi tiết sự cố và cho phép chủ trọ chuyển đổi trạng thái
   void _moChiTietSuCo(LandlordIncident suCo) {
-    // Tạo danh sách các chip chọn trạng thái bằng LINQ map
-    final danhSachNutChonTrangThai = IncidentStatus.values
-        .map(
-          (trangThai) => ChoiceChip(
-            label: Text(trangThai.label),
-            selected: suCo.status == trangThai,
-            onSelected: (_) {
-              _store.updateIncident(suCo, trangThai);
-              Navigator.pop(context);
-              showLandlordMessage(
-                context,
-                'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
-              );
-            },
-          ),
-        )
-        .toList();
-
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      builder: (nguCanhBang) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              suCo.title,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (nguCanhBang) => Container(
+        decoration: BoxDecoration(
+          color: LandlordPalette.of(context).surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: LandlordPalette.of(context).line,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 17),
+                Text(
+                  suCo.title,
+                  style: TextStyle(
+                    color: LandlordPalette.of(context).ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    LandlordStatusPill(
+                      suCo.status.label,
+                      color: suCo.status.color,
+                    ),
+                    if (suCo.urgent)
+                      const LandlordStatusPill(
+                        'Khẩn cấp',
+                        color: Color(0xFFD64545),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Phòng ${suCo.room} · ${suCo.category}',
+                  style: TextStyle(
+                    color: LandlordPalette.of(context).ink,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Người báo: ${suCo.reporter} · ${suCo.date}',
+                  style: TextStyle(color: LandlordPalette.of(context).muted),
+                ),
+                const SizedBox(height: 14),
+                LandlordGlassCard(child: Text(suCo.description)),
+                const SizedBox(height: 16),
+                LandlordGlassSection(
+                  title: 'Cập nhật trạng thái',
+                  subtitle: 'Chọn trạng thái mới cho yêu cầu này.',
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final trangThai in IncidentStatus.values)
+                      _statusChoice(
+                        suCo,
+                        trangThai,
+                        () => Navigator.pop(nguCanhBang),
+                      ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
-            Text('Phòng ${suCo.room} · ${suCo.category}'),
-            Text('Người báo: ${suCo.reporter} · ${suCo.date}'),
-            const SizedBox(height: 10),
-            Text(suCo.description),
-            const SizedBox(height: 16),
-            const Text(
-              'Cập nhật trạng thái',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, children: danhSachNutChonTrangThai),
-          ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _statusChoice(
+    LandlordIncident suCo,
+    IncidentStatus trangThai,
+    VoidCallback close,
+  ) {
+    final selected = suCo.status == trangThai;
+    return ChoiceChip(
+      label: Text(trangThai.label),
+      selected: selected,
+      selectedColor: landlordBlue,
+      backgroundColor: LandlordPalette.of(context).surfaceAlt,
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : LandlordPalette.of(context).ink,
+        fontWeight: FontWeight.w700,
+      ),
+      onSelected: (_) {
+        _store.updateIncident(suCo, trangThai);
+        close();
+        showLandlordMessage(
+          context,
+          'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
+        );
+      },
     );
   }
 
@@ -130,84 +203,120 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
         ? _danhSachSuCo
         : _danhSachSuCo.where((s) => s.status == _boLocTrangThai).toList();
 
-    // Danh sách widget hiển thị trên toàn trang
-    final List<Widget> danhSachWidget = [
-      const LandlordPageTitle(
-        title: 'Yêu cầu sửa chữa',
-        subtitle: 'Tiếp nhận và cập nhật tiến độ sự cố của người thuê.',
-      ),
-      // Thanh chip lọc trạng thái sự cố nằm ngang
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(children: _taoDanhSachChipLoc()),
-      ),
-      const SizedBox(height: 12),
-    ];
-
-    // Kiểm tra danh sách rỗng
-    if (danhSachHienThi.isEmpty) {
-      danhSachWidget.add(
-        const LandlordEmptyState(message: 'Không có yêu cầu nào.'),
-      );
-    } else {
-      for (int i = 0; i < danhSachHienThi.length; i++) {
-        final suCo = danhSachHienThi[i];
-
-        // Huy hiệu khẩn cấp nếu sự cố được đánh dấu gấp
-        Widget? huyHieuKhanCap;
-        if (suCo.urgent) {
-          huyHieuKhanCap = const Padding(
-            padding: EdgeInsets.only(top: 6),
-            child: LandlordStatusPill('Khẩn cấp', color: Colors.red),
-          );
-        }
-
-        // Nội dung chi tiết trong thẻ sự cố
-        final List<Widget> noiDungTheSuCo = [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  suCo.title,
-                  style: TextStyle(
-                    color: LandlordPalette.of(context).ink,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+    return LandlordFeaturePage(
+      title: 'Yêu cầu sửa chữa',
+      subtitle: 'Tiếp nhận và cập nhật tiến độ sự cố của người thuê.',
+      icon: Icons.build_outlined,
+      kicker: 'BẢO TRÌ NHÀ TRỌ',
+      children: [
+        LandlordGlassSection(
+          title: 'Yêu cầu sửa chữa',
+          subtitle: '${danhSachHienThi.length} yêu cầu phù hợp.',
+        ),
+        Wrap(spacing: 8, runSpacing: 8, children: _taoDanhSachChipLoc()),
+        const SizedBox(height: 10),
+        if (danhSachHienThi.isEmpty)
+          const LandlordGlassCard(
+            child: Center(child: Text('Không có yêu cầu nào.')),
+          ),
+        for (final suCo in danhSachHienThi)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: LandlordGlassCard(
+              onTap: () => _moChiTietSuCo(suCo),
+              tint: suCo.urgent ? const Color(0xFFD64545) : null,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: suCo.urgent
+                              ? const Color(0xFFFCE8EA)
+                              : const Color(0xFFE4EFFF),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          suCo.urgent
+                              ? Icons.warning_amber_rounded
+                              : Icons.build_outlined,
+                          color: suCo.urgent
+                              ? const Color(0xFFD64545)
+                              : landlordBlue,
+                        ),
+                      ),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              suCo.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: LandlordPalette.of(context).ink,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              'Phòng ${suCo.room} · ${suCo.reporter}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: LandlordPalette.of(context).muted,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      LandlordStatusPill(
+                        suCo.status.label,
+                        color: suCo.status.color,
+                      ),
+                    ],
                   ),
-                ),
+                  if (suCo.urgent) ...[
+                    const SizedBox(height: 8),
+                    const LandlordStatusPill(
+                      'Khẩn cấp',
+                      color: Color(0xFFD64545),
+                    ),
+                  ],
+                  if (suCo.description.isNotEmpty) ...[
+                    const SizedBox(height: 9),
+                    Text(
+                      suCo.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: LandlordPalette.of(context).muted,
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Text(
+                    suCo.date,
+                    style: TextStyle(
+                      color: LandlordPalette.of(context).muted,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
               ),
-              LandlordStatusPill(suCo.status.label, color: suCo.status.color),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Phòng ${suCo.room} · ${suCo.reporter} · ${suCo.date}',
-            style: TextStyle(
-              color: LandlordPalette.of(context).muted,
-              fontSize: 12,
             ),
           ),
-        ];
-
-        if (huyHieuKhanCap != null) {
-          noiDungTheSuCo.add(huyHieuKhanCap);
-        }
-
-        // Thêm thẻ sự cố vào danh sách giao diện
-        danhSachWidget.add(
-          LandlordCard(
-            onTap: () {
-              _moChiTietSuCo(suCo);
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: noiDungTheSuCo,
-            ),
-          ),
-        );
-      }
-    }
-
-    return LandlordPageFrame(children: danhSachWidget);
+      ],
+    );
   }
 }

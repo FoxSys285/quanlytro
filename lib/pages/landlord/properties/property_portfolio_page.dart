@@ -459,6 +459,13 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
   Widget _card(LandlordDemoStore store) {
     final property = store.property;
     final palette = LandlordPalette.of(context);
+    final rooms = store.roomDetails;
+    final occupiedCount = rooms
+        .where((room) => room.status == LandlordRoomStatus.occupied)
+        .length;
+    final vacantCount = rooms
+        .where((room) => room.status == LandlordRoomStatus.vacant)
+        .length;
     final illustrative =
         property.imageBytes == null && property.imageUrl.isEmpty;
     return Container(
@@ -605,6 +612,27 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                   ],
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 2, 14, 13),
+                child: Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    _propertyStat(
+                      '${store.catalog.length} phòng',
+                      Icons.meeting_room_outlined,
+                    ),
+                    _propertyStat(
+                      '$occupiedCount đang thuê',
+                      Icons.people_alt_outlined,
+                    ),
+                    _propertyStat(
+                      '$vacantCount còn trống',
+                      Icons.door_front_door_outlined,
+                    ),
+                  ],
+                ),
+              ),
               if (AdminStore.instance.reviewNote(property.id).isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
@@ -619,6 +647,32 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _propertyStat(String label, IconData icon) {
+    final palette = LandlordPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: palette.primary),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: palette.ink,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

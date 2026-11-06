@@ -83,10 +83,12 @@ flutter:
     - assets/images/tenant_invoices_hero.png
     - assets/images/tenant_favorites_hero.png
     - assets/images/tenant_settings_hero.png
+    - assets/images/landlord_settings_hero.png
     - assets/images/tenant_incidents_hero.png
     - assets/images/tenant_viewings_hero.png
     - assets/images/tenant_members_hero.png
     - assets/images/tenant_help_hero.png
+    - assets/images/landlord_help_hero.png
     - assets/images/tenant_messages_hero.png
     - assets/images/tenant_announcements_hero.png
     - assets/images/landlord_home_hero.png

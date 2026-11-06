@@ -29,7 +29,7 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
   final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.type?.name);
   late final _price = TextEditingController(
-    text: widget.type?.monthlyRent.toString() ?? '',
+    text: widget.type == null ? '' : _formatVnd(widget.type!.monthlyRent),
   );
   late final _photos = <RoomPhoto>[...?widget.type?.photos];
   bool _picking = false;
@@ -76,7 +76,7 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
     try {
       widget.store.saveRoomType(
         _name.text,
-        monthlyRent: int.parse(_price.text),
+        monthlyRent: int.parse(_price.text.replaceAll(RegExp(r'\D'), '')),
         id: widget.type?.id,
         photos: _photos,
       );
@@ -125,9 +125,9 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
               const SizedBox(height: 18),
               TextFormField(
                 controller: _price,
-                maxLength: 12,
+                maxLength: 16,
                 keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                inputFormatters: [_VietnameseMoneyFormatter()],
                 decoration: InputDecoration(
                   labelText: 'Giá thuê',
                   prefixIcon: Icon(Icons.payments_outlined),
@@ -136,7 +136,12 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
                   border: OutlineInputBorder(),
                   counterText: '',
                 ),
-                validator: (value) => (int.tryParse(value ?? '') ?? 0) <= 0
+                validator: (value) =>
+                    (int.tryParse(
+                              (value ?? '').replaceAll(RegExp(r'\D'), ''),
+                            ) ??
+                            0) <=
+                        0
                     ? 'Nhập giá thuê lớn hơn 0.'
                     : null,
               ),
@@ -297,4 +302,47 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
       ],
     ),
   );
+}
+
+String _formatVnd(int amount) => amount.toString().replaceAllMapped(
+  RegExp(r'\B(?=(\d{3})+(?!\d))'),
+  (_) => '.',
+);
+
+class _VietnameseMoneyFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      return newValue.copyWith(
+        text: '',
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    }
+    final formatted = _formatVnd(int.parse(digits));
+    final cursorOffset = newValue.selection.end
+        .clamp(0, newValue.text.length)
+        .toInt();
+    final digitCursor = newValue.text
+        .substring(0, cursorOffset)
+        .replaceAll(RegExp(r'\D'), '')
+        .length;
+    var seen = 0;
+    var cursor = formatted.length;
+    for (var index = 0; index < formatted.length; index++) {
+      if (RegExp(r'\d').hasMatch(formatted[index])) seen++;
+      if (seen == digitCursor) {
+        cursor = index + 1;
+        break;
+      }
+    }
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: cursor),
+      composing: TextRange.empty,
+    );
+  }
 }

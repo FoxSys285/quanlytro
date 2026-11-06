@@ -14,6 +14,12 @@ enum TenantFeatureArtwork {
     'Tài khoản của bạn',
     Icons.settings_rounded,
   ),
+  landlordSettings(
+    'landlord_settings_hero.png',
+    'Quản lý nhà trọ',
+    Icons.settings_rounded,
+    landlordStyle: true,
+  ),
   incidents(
     'tenant_incidents_hero.png',
     'Hỗ trợ chỗ ở',
@@ -25,12 +31,24 @@ enum TenantFeatureArtwork {
     Icons.calendar_month_rounded,
   ),
   members('tenant_members_hero.png', 'Người ở cùng', Icons.groups_rounded),
-  help('tenant_help_hero.png', 'Trung tâm hỗ trợ', Icons.support_agent_rounded);
+  help('tenant_help_hero.png', 'Trung tâm hỗ trợ', Icons.support_agent_rounded),
+  landlordHelp(
+    'landlord_help_hero.png',
+    'Hỗ trợ Chủ trọ',
+    Icons.support_agent_rounded,
+    landlordStyle: true,
+  );
 
-  const TenantFeatureArtwork(this.fileName, this.label, this.icon);
+  const TenantFeatureArtwork(
+    this.fileName,
+    this.label,
+    this.icon, {
+    this.landlordStyle = false,
+  });
   final String fileName;
   final String label;
   final IconData icon;
+  final bool landlordStyle;
   String get asset => 'assets/images/$fileName';
 }
 
@@ -50,96 +68,106 @@ class TenantFeatureFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TenantDetailTheme(
-    child: TenantPageFrame(
-      padding: EdgeInsets.zero,
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) => Stack(
-            children: [
-              Positioned.fill(
-                child: Image.asset(
-                  artwork.asset,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.centerRight,
-                  excludeFromSemantics: true,
-                ),
-              ),
-              const Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFFF1FAF5),
-                        Color(0xE6F1FAF5),
-                        Color(0x00F1FAF5),
-                      ],
-                      stops: [0, 0.44, 1],
+    landlordStyle: artwork.landlordStyle,
+    child: Builder(
+      builder: (context) {
+        final colors = TenantUiPalette.of(context);
+        return TenantPageFrame(
+          padding: EdgeInsets.zero,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) => Stack(
+                children: [
+                  Positioned.fill(
+                    child: Image.asset(
+                      artwork.asset,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.centerRight,
+                      excludeFromSemantics: true,
                     ),
                   ),
-                ),
-              ),
-              Container(
-                constraints: const BoxConstraints(minHeight: 196),
-                padding: EdgeInsets.fromLTRB(
-                  constraints.maxWidth < 600 ? 20 : 32,
-                  23,
-                  16,
-                  25,
-                ),
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  width: constraints.maxWidth < 600
-                      ? constraints.maxWidth * 0.59
-                      : 450,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TenantStatusPill(
-                        artwork.label,
-                        color: tenantGreenDark,
-                        icon: artwork.icon,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: Color(0xFF073D26),
-                          fontSize: 25,
-                          height: 1.12,
-                          letterSpacing: -0.7,
-                          fontWeight: FontWeight.w800,
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            colors.header,
+                            colors.headerMid,
+                            colors.headerFade,
+                          ],
+                          stops: [0, 0.44, 1],
                         ),
                       ),
-                      const SizedBox(height: 9),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          color: Color(0xFF465B50),
-                          fontSize: 12,
-                          height: 1.45,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  Container(
+                    constraints: const BoxConstraints(minHeight: 196),
+                    padding: EdgeInsets.fromLTRB(
+                      constraints.maxWidth < 600 ? 20 : 32,
+                      23,
+                      16,
+                      25,
+                    ),
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: constraints.maxWidth < 600
+                          ? constraints.maxWidth * 0.59
+                          : 450,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TenantStatusPill(
+                            artwork.label,
+                            color: colors.dark,
+                            icon: artwork.icon,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            title,
+                            style: TextStyle(
+                              color: artwork.landlordStyle
+                                  ? Color(0xFF17344F)
+                                  : Color(0xFF073D26),
+                              fontSize: 25,
+                              height: 1.12,
+                              letterSpacing: -0.7,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 9),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              color: artwork.landlordStyle
+                                  ? Color(0xFF53697D)
+                                  : Color(0xFF465B50),
+                              fontSize: 12,
+                              height: 1.45,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: children,
-          ),
-        ),
-      ],
+            ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
+            ),
+          ],
+        );
+      },
     ),
   );
 }
@@ -155,53 +183,54 @@ class TenantFormHeading extends StatelessWidget {
   final String title;
   final String subtitle;
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFFE6F6ED), Color(0xFFF5FBF7)],
+  Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [colors.lighter, colors.formEnd]),
+        borderRadius: BorderRadius.circular(18),
       ),
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          radius: 22,
-          backgroundColor: Colors.white,
-          child: Icon(icon, color: tenantGreenDark, size: 24),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Color(0xFF123F29),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  height: 1.25,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: tenantMuted,
-                  fontSize: 12,
-                  height: 1.5,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: Colors.white,
+            child: Icon(icon, color: colors.dark, size: 24),
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: colors.formTitle,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: tenantMuted,
+                    fontSize: 12,
+                    height: 1.5,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class TenantFeatureBanner extends StatelessWidget {
@@ -215,43 +244,44 @@ class TenantFeatureBanner extends StatelessWidget {
   final String title;
   final String subtitle;
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(15),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFFE6F6ED), Color(0xFFD5F0E2)],
+  Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [colors.lighter, colors.bannerEnd]),
+        borderRadius: BorderRadius.circular(18),
       ),
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Row(
-      children: [
-        Icon(icon, color: tenantGreenDark, size: 31),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Color(0xFF0A482C),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
+      child: Row(
+        children: [
+          Icon(icon, color: colors.dark, size: 31),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: colors.bannerTitle,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: Color(0xFF4C6558),
-                  fontSize: 11,
-                  height: 1.5,
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: colors.softText,
+                    fontSize: 11,
+                    height: 1.5,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }

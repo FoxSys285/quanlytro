@@ -4,6 +4,7 @@ import '../landlord_theme.dart';
 
 import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
+import '../landlord_glass.dart';
 import '../landlord_ui.dart';
 
 class LandlordPaymentAccountsPage extends StatelessWidget {
@@ -14,32 +15,35 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _store,
-    builder: (context, _) => LandlordPageFrame(
+    builder: (context, _) => LandlordFeaturePage(
+      title: 'Tài khoản nhận tiền',
+      subtitle: 'Quản lý thông tin chuyển khoản của nhà trọ.',
+      icon: Icons.account_balance_outlined,
       children: [
-        LandlordPageTitle(
-          title: 'Tài khoản nhận tiền',
-          subtitle:
-              'Thông tin chuyển khoản hiển thị trên hướng dẫn thanh toán.',
+        LandlordGlassSection(
+          title: 'Danh sách tài khoản',
+          subtitle: 'Tài khoản mặc định được dùng trong hướng dẫn thanh toán.',
           trailing: FilledButton.icon(
             onPressed: () => _edit(context),
-            icon: Icon(Icons.add, size: 18),
-            label: Text('Thêm tài khoản'),
+            style: FilledButton.styleFrom(
+              backgroundColor: landlordBlue,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Thêm tài khoản'),
           ),
         ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF5FF),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFD6E4FA)),
-          ),
+        LandlordGlassCard(
+          tint: const Color(0xFF2E8BFF),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.lock_outline_rounded, color: landlordBlue, size: 19),
-              SizedBox(width: 9),
+              const Icon(
+                Icons.lock_outline_rounded,
+                color: landlordBlue,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Chỉ lưu thông tin tài khoản để hiển thị cho người thuê. Ứng dụng không yêu cầu mật khẩu ngân hàng, mã PIN hoặc OTP.',
@@ -53,11 +57,34 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        if (_store.paymentAccounts.isEmpty)
+          LandlordGlassCard(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.account_balance_outlined,
+                  color: landlordBlue,
+                  size: 36,
+                ),
+                const SizedBox(height: 10),
+                const Text('Chưa có tài khoản nhận tiền.'),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () => _edit(context),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Thêm tài khoản'),
+                ),
+              ],
+            ),
+          ),
         for (final account in _store.paymentAccounts)
           _accountCard(context, account),
         const SizedBox(height: 4),
         Text(
           'Thay đổi tài khoản mặc định áp dụng cho hướng dẫn thanh toán mới.',
+          textAlign: TextAlign.center,
           style: TextStyle(
             color: LandlordPalette.of(context).muted,
             fontSize: 11,
@@ -69,125 +96,128 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
 
   Widget _accountCard(BuildContext context, LandlordPaymentAccount account) {
     final defaultAccount = account.isDefault && account.isActive;
-    return LandlordCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: landlordBlue.withValues(alpha: 0.1),
-                child: Icon(
-                  Icons.account_balance_outlined,
-                  color: landlordBlue,
-                ),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      account.bankName,
-                      style: TextStyle(
-                        color: LandlordPalette.of(context).ink,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      account.accountName,
-                      style: TextStyle(
-                        color: LandlordPalette.of(context).muted,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (defaultAccount)
-                const LandlordStatusPill('Mặc định', color: landlordBlue),
-            ],
-          ),
-          Divider(height: 22),
-          _line(context, 'Số tài khoản', account.maskedNumber),
-          if (account.branch.isNotEmpty) ...[
-            const SizedBox(height: 7),
-            _line(context, 'Ghi chú', account.branch),
-          ],
-          const SizedBox(height: 11),
-          Wrap(
-            alignment: WrapAlignment.end,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 7,
-            runSpacing: 5,
-            children: [
-              LandlordStatusPill(
-                account.isVerified ? 'Đã xác minh' : 'Chưa xác minh',
-                color: account.isVerified
-                    ? const Color(0xFF16836F)
-                    : const Color(0xFFE08A1E),
-              ),
-              LandlordStatusPill(
-                account.isActive ? 'Đang sử dụng' : 'Đã tạm ngưng',
-                color: account.isActive
-                    ? const Color(0xFF16836F)
-                    : LandlordPalette.of(context).muted,
-              ),
-              IconButton(
-                tooltip: 'Chỉnh sửa',
-                onPressed: () => _edit(context, account),
-                icon: Icon(Icons.edit_outlined, size: 19),
-              ),
-            ],
-          ),
-          if (account.isActive && !defaultAccount) ...[
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () {
-                  try {
-                    _store.setDefaultPaymentAccount(account);
-                    showLandlordMessage(
-                      context,
-                      'Đã chọn ${account.bankName} làm tài khoản mặc định.',
-                    );
-                  } on ArgumentError catch (error) {
-                    showLandlordMessage(context, error.message.toString());
-                  }
-                },
-                icon: Icon(Icons.star_outline_rounded, size: 17),
-                label: Text('Đặt làm mặc định'),
-              ),
-            ),
-          ],
-          Divider(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Cho phép người thuê chuyển khoản vào tài khoản này',
-                  style: TextStyle(
-                    color: LandlordPalette.of(context).ink,
-                    fontSize: 11,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 11),
+      child: LandlordGlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: landlordBlue.withValues(alpha: 0.1),
+                  child: Icon(
+                    Icons.account_balance_outlined,
+                    color: landlordBlue,
                   ),
                 ),
-              ),
-              Switch(
-                value: account.isActive,
-                onChanged: (value) {
-                  try {
-                    _store.setPaymentAccountActive(account, value);
-                  } on ArgumentError catch (error) {
-                    showLandlordMessage(context, error.message.toString());
-                  }
-                },
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        account.bankName,
+                        style: TextStyle(
+                          color: LandlordPalette.of(context).ink,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        account.accountName,
+                        style: TextStyle(
+                          color: LandlordPalette.of(context).muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (defaultAccount)
+                  const LandlordStatusPill('Mặc định', color: landlordBlue),
+              ],
+            ),
+            Divider(height: 22),
+            _line(context, 'Số tài khoản', account.maskedNumber),
+            if (account.branch.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              _line(context, 'Ghi chú', account.branch),
+            ],
+            const SizedBox(height: 11),
+            Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 7,
+              runSpacing: 5,
+              children: [
+                LandlordStatusPill(
+                  account.isVerified ? 'Đã xác minh' : 'Chưa xác minh',
+                  color: account.isVerified
+                      ? const Color(0xFF16836F)
+                      : const Color(0xFFE08A1E),
+                ),
+                LandlordStatusPill(
+                  account.isActive ? 'Đang sử dụng' : 'Đã tạm ngưng',
+                  color: account.isActive
+                      ? const Color(0xFF16836F)
+                      : LandlordPalette.of(context).muted,
+                ),
+                IconButton(
+                  tooltip: 'Chỉnh sửa',
+                  onPressed: () => _edit(context, account),
+                  icon: Icon(Icons.edit_outlined, size: 19),
+                ),
+              ],
+            ),
+            if (account.isActive && !defaultAccount) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () {
+                    try {
+                      _store.setDefaultPaymentAccount(account);
+                      showLandlordMessage(
+                        context,
+                        'Đã chọn ${account.bankName} làm tài khoản mặc định.',
+                      );
+                    } on ArgumentError catch (error) {
+                      showLandlordMessage(context, error.message.toString());
+                    }
+                  },
+                  icon: Icon(Icons.star_outline_rounded, size: 17),
+                  label: Text('Đặt làm mặc định'),
+                ),
               ),
             ],
-          ),
-        ],
+            Divider(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Cho phép người thuê chuyển khoản vào tài khoản này',
+                    style: TextStyle(
+                      color: LandlordPalette.of(context).ink,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                Switch(
+                  value: account.isActive,
+                  onChanged: (value) {
+                    try {
+                      _store.setPaymentAccountActive(account, value);
+                    } on ArgumentError catch (error) {
+                      showLandlordMessage(context, error.message.toString());
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -297,75 +327,96 @@ class _PaymentAccountEditorState extends State<_PaymentAccountEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(
-      widget.account == null
-          ? 'Thêm tài khoản nhận tiền'
-          : 'Sửa tài khoản nhận tiền',
-    ),
-    content: SizedBox(
-      width: 430,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _bank,
-              decoration: const InputDecoration(
-                labelText: 'Ngân hàng',
-                hintText: 'Ví dụ: Vietcombank',
-              ),
-            ),
-            TextField(
-              controller: _owner,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(labelText: 'Tên chủ tài khoản'),
-            ),
-            TextField(
-              controller: _number,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Số tài khoản',
-                helperText: 'Từ 6 đến 20 chữ số',
-              ),
-            ),
-            TextField(
-              controller: _branch,
-              decoration: const InputDecoration(
-                labelText: 'Chi nhánh hoặc ghi chú (không bắt buộc)',
-              ),
-            ),
-            const SizedBox(height: 8),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _makeDefault,
-              onChanged: (value) =>
-                  setState(() => _makeDefault = value ?? false),
-              title: Text(
-                'Dùng làm tài khoản mặc định',
-                style: TextStyle(fontSize: 13),
-              ),
-              subtitle: Text(
-                'Hiển thị trong hướng dẫn chuyển khoản mới.',
-                style: TextStyle(fontSize: 10),
-              ),
-              controlAffinity: ListTileControlAffinity.leading,
-            ),
-            Text(
-              'Thông tin được che bớt khi hiển thị trong danh sách.',
-              style: TextStyle(
-                color: LandlordPalette.of(context).muted,
-                fontSize: 10,
-              ),
-            ),
-          ],
+  Widget build(BuildContext context) => LandlordFormDialog(
+    title: widget.account == null
+        ? 'Thêm tài khoản nhận tiền'
+        : 'Sửa tài khoản nhận tiền',
+    subtitle: 'Nhập thông tin để người thuê chuyển khoản chính xác.',
+    icon: Icons.account_balance_outlined,
+    child: Column(
+      children: [
+        TextField(
+          controller: _bank,
+          decoration: landlordModernInputDecoration(
+            'Ngân hàng',
+            hintText: 'Ví dụ: Vietcombank',
+            prefixIcon: const Icon(Icons.account_balance_outlined),
+          ),
         ),
-      ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _owner,
+          textCapitalization: TextCapitalization.characters,
+          decoration: landlordModernInputDecoration('Tên chủ tài khoản'),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _number,
+          keyboardType: TextInputType.number,
+          decoration: landlordModernInputDecoration(
+            'Số tài khoản',
+            helperText: 'Từ 6 đến 20 chữ số',
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _branch,
+          decoration: landlordModernInputDecoration(
+            'Chi nhánh hoặc ghi chú',
+            hintText: 'Không bắt buộc',
+          ),
+        ),
+        const SizedBox(height: 10),
+        CheckboxListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          value: _makeDefault,
+          activeColor: landlordBlue,
+          tileColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(17),
+            side: const BorderSide(color: Color(0xFFD4E3FF)),
+          ),
+          onChanged: (value) => setState(() => _makeDefault = value ?? false),
+          title: const Text(
+            'Dùng làm tài khoản mặc định',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          ),
+          subtitle: const Text(
+            'Hiển thị trong hướng dẫn chuyển khoản mới.',
+            style: TextStyle(fontSize: 10),
+          ),
+          controlAffinity: ListTileControlAffinity.leading,
+        ),
+        const SizedBox(height: 9),
+        Text(
+          'Thông tin tài khoản sẽ được che bớt trong danh sách.',
+          style: TextStyle(
+            color: LandlordPalette.of(context).muted,
+            fontSize: 10,
+          ),
+        ),
+      ],
     ),
-    actions: [
-      TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy')),
-      FilledButton(onPressed: _save, child: Text('Lưu tài khoản')),
-    ],
+    footer: Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          onPressed: _save,
+          style: FilledButton.styleFrom(
+            backgroundColor: landlordBlue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
+          ),
+          icon: const Icon(Icons.save_outlined, size: 17),
+          label: const Text('Lưu tài khoản'),
+        ),
+      ],
+    ),
   );
 
   void _save() {

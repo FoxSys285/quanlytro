@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../landlord_theme.dart';
+import '../../landlord_glass.dart';
 
 import '../../../shared/viewings/components/viewing_status_badge.dart';
 import '../models/landlord_viewing.dart';
@@ -24,16 +25,10 @@ class LandlordViewingCard extends StatelessWidget {
     final time =
         '${date.hour.toString().padLeft(2, '0')}:'
         '${date.minute.toString().padLeft(2, '0')}';
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 14),
-      color: LandlordPalette.of(context).surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE7ECEF)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 11),
+      child: LandlordGlassCard(
+        padding: const EdgeInsets.all(17),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -48,14 +43,14 @@ class LandlordViewingCard extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEAF0FC),
-                    borderRadius: BorderRadius.circular(10),
+                    color: const Color(0xFFE4EFFF),
+                    borderRadius: BorderRadius.circular(13),
                   ),
                   child: Text(
                     time,
                     style: const TextStyle(
-                      color: Color(0xFF1679BC),
-                      fontSize: 20,
+                      color: Color(0xFF0866FF),
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -63,39 +58,51 @@ class LandlordViewingCard extends StatelessWidget {
                 ViewingStatusBadge(status: viewing.status),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 13),
             Text(
               viewing.customerName,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
             Text(
               viewing.roomName,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               viewing.address,
-              style: const TextStyle(color: Colors.blueGrey),
+              style: TextStyle(
+                color: LandlordPalette.of(context).muted,
+                fontSize: 12,
+              ),
             ),
-            const Divider(height: 28),
+            Divider(height: 24, color: LandlordPalette.of(context).line),
             _Information(
               icon: Icons.phone_outlined,
               label: 'Số điện thoại',
               value: viewing.phone,
             ),
-            const SizedBox(height: 14),
-            const Text(
+            const SizedBox(height: 13),
+            Text(
               'Nhu cầu cá nhân',
-              style: TextStyle(fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: LandlordPalette.of(context).ink,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-            const SizedBox(height: 6),
-            Text(viewing.personalNeeds, style: const TextStyle(height: 1.5)),
+            const SizedBox(height: 5),
+            Text(
+              viewing.personalNeeds,
+              style: TextStyle(
+                color: LandlordPalette.of(context).ink,
+                height: 1.5,
+              ),
+            ),
             if (viewing.attendeeCount != null) ...[
               const SizedBox(height: 13),
               const Text(
                 'Thông tin người đi xem',
-                style: TextStyle(fontWeight: FontWeight.w700),
+                style: TextStyle(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 7),
               _RequestDetail(
@@ -103,15 +110,15 @@ class LandlordViewingCard extends StatelessWidget {
                 value: '${viewing.attendeeCount} người',
               ),
             ],
-            const Divider(height: 28),
+            Divider(height: 24, color: LandlordPalette.of(context).line),
             Wrap(
-              spacing: 10,
+              spacing: 8,
               runSpacing: 8,
               children: [
                 FilledButton.icon(
                   onPressed: onConfirm,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1679BC),
+                    backgroundColor: const Color(0xFF0866FF),
                   ),
                   icon: const Icon(Icons.check_circle_outline, size: 18),
                   label: const Text('Xác nhận lịch'),

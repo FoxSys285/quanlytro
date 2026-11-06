@@ -75,9 +75,11 @@ class AccountSettingsPage extends StatelessWidget {
   }
 
   Widget _phoneOption(BuildContext context) => ListTile(
-    leading: const Icon(
+    leading: Icon(
       Icons.phonelink_lock_outlined,
-      color: Color(0xFF009B65),
+      color: role == AppRole.landlord
+          ? TenantUiColors.landlord.primary
+          : TenantUiColors.tenant.primary,
     ),
     title: const Text('Liên kết số điện thoại'),
     subtitle: const Text('Xác minh OTP để đăng nhập vào cùng tài khoản'),
@@ -88,8 +90,13 @@ class AccountSettingsPage extends StatelessWidget {
   void _open(BuildContext context, String title, Widget page) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => role == AppRole.tenant
-            ? TenantSubpageScaffold(title: title, child: page)
+        builder: (_) => role == AppRole.tenant || role == AppRole.landlord
+            ? TenantSubpageScaffold(
+                title: title,
+                child: page,
+                showNotifications: role == AppRole.tenant,
+                landlordStyle: role == AppRole.landlord,
+              )
             : Scaffold(
                 appBar: AppBar(title: Text(title)),
                 body: SafeArea(child: page),
@@ -100,7 +107,9 @@ class AccountSettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (role == AppRole.tenant) return _tenantSettings(context);
+    if (role == AppRole.tenant || role == AppRole.landlord) {
+      return _featureSettings(context);
+    }
     final color = role == AppRole.tenant
         ? const Color(0xFF08A94F)
         : landlordBlue;
@@ -166,10 +175,14 @@ class AccountSettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _tenantSettings(BuildContext context) => TenantFeatureFrame(
-    artwork: TenantFeatureArtwork.settings,
+  Widget _featureSettings(BuildContext context) => TenantFeatureFrame(
+    artwork: role == AppRole.landlord
+        ? TenantFeatureArtwork.landlordSettings
+        : TenantFeatureArtwork.settings,
     title: 'Cài đặt tài khoản',
-    subtitle: 'Thông tin cá nhân, bảo mật và thông báo của bạn.',
+    subtitle: role == AppRole.landlord
+        ? 'Thông tin cá nhân, bảo mật và thông báo trong hoạt động nhà trọ.'
+        : 'Thông tin cá nhân, bảo mật và thông báo của bạn.',
     children: [
       ListenableBuilder(
         listenable: AccountStore.instance,
@@ -193,8 +206,8 @@ class AccountSettingsPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 5),
-                      const Text(
-                        'Tài khoản người thuê',
+                      Text(
+                        'Tài khoản ${role == AppRole.landlord ? 'chủ trọ' : 'người thuê'}',
                         style: TextStyle(color: tenantMuted, fontSize: 12),
                       ),
                     ],
@@ -229,7 +242,7 @@ class AccountSettingsPage extends StatelessWidget {
               Icons.lock_outline_rounded,
               'Đổi mật khẩu',
               'Cập nhật mật khẩu đăng nhập của bạn',
-              const ChangePasswordPage(role: AppRole.tenant),
+              ChangePasswordPage(role: role),
             ),
           ],
         ),
@@ -247,10 +260,13 @@ class AccountSettingsPage extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 22),
-      const TenantFeatureBanner(
+      TenantFeatureBanner(
         icon: Icons.manage_accounts_rounded,
-        title: 'Không gian cá nhân của bạn',
-        subtitle: 'Cập nhật thông tin để giữ kết nối với chủ trọ và quản lý chỗ ở thuận tiện hơn.',
+        title:
+            'Không gian ${role == AppRole.landlord ? 'quản lý nhà trọ' : 'cá nhân'} của bạn',
+        subtitle: role == AppRole.landlord
+            ? 'Cập nhật thông tin để người thuê và đối tác dễ liên hệ, phối hợp quản lý nhà trọ thuận tiện hơn.'
+            : 'Cập nhật thông tin để giữ kết nối với chủ trọ và quản lý chỗ ở thuận tiện hơn.',
       ),
     ],
   );

@@ -6,7 +6,8 @@ import '../landlord_ui.dart';
 import 'landlord_room_balance.dart';
 
 Color roomPaymentColor(RoomPaymentState state) => switch (state) {
-  RoomPaymentState.unpaid => const Color(0xFFDA4458),
+  RoomPaymentState.unpaid => const Color(0xFFD64545),
+  RoomPaymentState.pendingReview => const Color(0xFFD99412),
   RoomPaymentState.paid => const Color(0xFF17A374),
   RoomPaymentState.unbilled => const Color(0xFFB78427),
   RoomPaymentState.vacant => const Color(0xFF8092AE),
@@ -44,6 +45,8 @@ class LandlordRoomBalanceCard extends StatelessWidget {
               child: Icon(
                 balance.state == RoomPaymentState.paid
                     ? Icons.check_circle_rounded
+                    : balance.state == RoomPaymentState.pendingReview
+                    ? Icons.hourglass_top_rounded
                     : Icons.meeting_room_rounded,
                 color: color,
                 size: 26,
@@ -71,7 +74,7 @@ class LandlordRoomBalanceCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    details.lease?.tenantName ?? 'Chưa có người thuê',
+                    '${details.typeName} · Tầng ${details.room.floor}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: palette.muted, fontSize: 12),
@@ -90,7 +93,27 @@ class LandlordRoomBalanceCard extends StatelessWidget {
                           fontSize: 12,
                         ),
                       ),
-                      if (balance.remaining > 0)
+                      if (details.lease != null)
+                        Text(
+                          details.lease!.tenantName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: palette.muted, fontSize: 11),
+                        ),
+                      if (balance.state == RoomPaymentState.vacant)
+                        const SizedBox.shrink()
+                      else if (balance.pendingPayment != null)
+                        Text(
+                          formatLandlordMoney(
+                            balance.pendingPayment!.reportedAmount,
+                          ),
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                        )
+                      else if (balance.remaining > 0)
                         Text(
                           formatLandlordMoney(balance.remaining),
                           style: TextStyle(

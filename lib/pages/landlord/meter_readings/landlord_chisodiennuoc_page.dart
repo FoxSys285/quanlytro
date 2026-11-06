@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../landlord_theme.dart';
+import '../landlord_glass.dart';
 
 import '../landlord_ui.dart';
 import '../landlord_demo_store.dart';
@@ -9,7 +10,10 @@ import 'models/landlord_chisodiennuoc.dart';
 
 // Tên Class chính bằng tiếng Việt
 class LandlordChiSoDienNuocPage extends StatefulWidget {
-  const LandlordChiSoDienNuocPage({super.key});
+  const LandlordChiSoDienNuocPage({super.key, this.store, this.initialRoom});
+
+  final LandlordDemoStore? store;
+  final String? initialRoom;
 
   @override
   State<LandlordChiSoDienNuocPage> createState() =>
@@ -18,7 +22,8 @@ class LandlordChiSoDienNuocPage extends StatefulWidget {
 
 class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
   // 1. DỮ KIỆN (Kho lưu trữ và biến trạng thái đưa lên đầu)
-  final _store = LandlordDemoStore.activeInstance;
+  late final LandlordDemoStore _store =
+      widget.store ?? LandlordDemoStore.activeInstance;
 
   DateTime _ngayKyGhi = DateTime(DateTime.now().year, DateTime.now().month);
   List<DateTime> get _cacKy => List.generate(
@@ -27,7 +32,11 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
   );
 
   List<LandlordMeterReading> get _danhSachChiSo =>
-      _store.readingsForPeriod(_ngayKyGhi);
+      _store.readingsForPeriod(_ngayKyGhi).where((reading) {
+        final room = widget.initialRoom;
+        return room == null ||
+            _store.canonicalRoom(reading.room) == _store.canonicalRoom(room);
+      }).toList();
 
   // 2. VÒNG ĐỜI VÀ LẮNG NGHE
   @override
@@ -331,7 +340,7 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
       );
     }
 
-    return LandlordCard(
+    return LandlordGlassCard(
       onTap: () {
         _moHopThoaiNhapChiSo(chiSo);
       },
@@ -387,58 +396,62 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
     }
 
     final List<Widget> danhSachWidget = [
-      const LandlordPageTitle(
-        title: 'Chỉ số điện nước',
-        subtitle: 'Nhập chỉ số cuối kỳ cho từng phòng.',
+      LandlordGlassSection(
+        title: widget.initialRoom == null
+            ? 'Ghi điện nước'
+            : 'Phòng ${widget.initialRoom}',
+        subtitle: 'Cập nhật chỉ số điện nước kỳ ${landlordMonth(_ngayKyGhi)}.',
       ),
-      LayoutBuilder(
-        builder: (context, constraints) {
-          final picker = DropdownButtonFormField<DateTime>(
-            initialValue: _ngayKyGhi,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Kỳ ghi chỉ số',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            items: [
-              for (final period in _cacKy)
-                DropdownMenuItem(
-                  value: period,
-                  child: Text(
-                    landlordMonth(period),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+      LandlordGlassCard(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final picker = DropdownButtonFormField<DateTime>(
+              initialValue: _ngayKyGhi,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Kỳ ghi chỉ số',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: [
+                for (final period in _cacKy)
+                  DropdownMenuItem(
+                    value: period,
+                    child: Text(
+                      landlordMonth(period),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-            ],
-            onChanged: (giaTriMoi) {
-              if (giaTriMoi != null) {
-                setState(() {
-                  _ngayKyGhi = giaTriMoi;
-                });
-                _store.prepareReadings(giaTriMoi);
-              }
-            },
-          );
-          final status = LandlordStatusPill(
-            'Đã nhập $soLuongDaNhap/${_danhSachChiSo.length}',
-            color: mauTrangThai,
-          );
-          if (constraints.maxWidth < 480) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [picker, const SizedBox(height: 8), status],
+              ],
+              onChanged: (giaTriMoi) {
+                if (giaTriMoi != null) {
+                  setState(() {
+                    _ngayKyGhi = giaTriMoi;
+                  });
+                  _store.prepareReadings(giaTriMoi);
+                }
+              },
             );
-          }
-          return Row(
-            children: [
-              Expanded(child: picker),
-              const SizedBox(width: 12),
-              status,
-            ],
-          );
-        },
+            final status = LandlordStatusPill(
+              'Đã nhập $soLuongDaNhap/${_danhSachChiSo.length}',
+              color: mauTrangThai,
+            );
+            if (constraints.maxWidth < 480) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [picker, const SizedBox(height: 8), status],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: picker),
+                const SizedBox(width: 12),
+                status,
+              ],
+            );
+          },
+        ),
       ),
       const SizedBox(height: 14),
     ];
@@ -453,6 +466,12 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
       }
     }
 
-    return LandlordPageFrame(children: danhSachWidget);
+    return LandlordGlassPage(
+      title: 'Ghi điện nước',
+      subtitle: _store.property.name,
+      kicker: 'QUẢN LÝ VẬN HÀNH',
+      store: _store,
+      children: danhSachWidget,
+    );
   }
 }

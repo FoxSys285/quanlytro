@@ -21,11 +21,16 @@ class NotificationSettingsPage extends StatelessWidget {
       listenable: accounts,
       builder: (context, _) {
         final enabled = accounts.notificationsEnabled(role);
-        if (role == AppRole.tenant) {
+        if (role == AppRole.tenant || role == AppRole.landlord) {
+          final isLandlord = role == AppRole.landlord;
           return TenantFeatureFrame(
-            artwork: TenantFeatureArtwork.settings,
+            artwork: isLandlord
+                ? TenantFeatureArtwork.landlordSettings
+                : TenantFeatureArtwork.settings,
             title: 'Thông báo ứng dụng',
-            subtitle: 'Chủ động quản lý thông báo trong tài khoản của bạn.',
+            subtitle: isLandlord
+                ? 'Chủ động theo dõi thông báo về nhà trọ và người thuê.'
+                : 'Chủ động quản lý thông báo trong tài khoản của bạn.',
             children: [
               const TenantSectionHeading('Tùy chọn thông báo'),
               TenantSurface(
@@ -53,7 +58,9 @@ class NotificationSettingsPage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  activeThumbColor: tenantGreen,
+                  activeThumbColor: isLandlord
+                      ? TenantUiColors.landlord.primary
+                      : TenantUiColors.tenant.primary,
                   value: enabled,
                   onChanged: (value) =>
                       accounts.setNotificationsEnabled(role, value),
@@ -89,10 +96,14 @@ class NotificationSettingsPage extends StatelessWidget {
                 'Thay đổi tùy chọn không xóa các thông báo đã nhận.',
               ),
               const SizedBox(height: 20),
-              const TenantFeatureBanner(
+              TenantFeatureBanner(
                 icon: Icons.notifications_active_outlined,
-                title: 'Theo dõi thông tin chỗ ở',
-                subtitle: 'Nhận cập nhật về hóa đơn, lịch xem phòng và các yêu cầu hỗ trợ.',
+                title: isLandlord
+                    ? 'Theo dõi hoạt động nhà trọ'
+                    : 'Theo dõi thông tin chỗ ở',
+                subtitle: isLandlord
+                    ? 'Nhận cập nhật về hóa đơn, thanh toán và yêu cầu sửa chữa.'
+                    : 'Nhận cập nhật về hóa đơn, lịch xem phòng và các yêu cầu hỗ trợ.',
               ),
             ],
           );

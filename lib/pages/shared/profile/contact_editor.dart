@@ -10,11 +10,13 @@ class ContactEditor extends StatefulWidget {
     required this.initial,
     this.isStaff = false,
     this.tenantStyle = false,
+    this.subtitle = 'Thông tin giúp chủ trọ liên hệ và hỗ trợ bạn.',
   });
   final String title;
   final ContactDetails initial;
   final bool isStaff;
   final bool tenantStyle;
+  final String subtitle;
   @override
   State<ContactEditor> createState() => _ContactEditorState();
 }
@@ -53,7 +55,7 @@ class _ContactEditorState extends State<ContactEditor> {
         ? TenantFormHeading(
             icon: Icons.edit_note_rounded,
             title: widget.title,
-            subtitle: 'Thông tin giúp chủ trọ liên hệ và hỗ trợ bạn.',
+            subtitle: widget.subtitle,
           )
         : Text(widget.title),
     contentPadding: widget.tenantStyle

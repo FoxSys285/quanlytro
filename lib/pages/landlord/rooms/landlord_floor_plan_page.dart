@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../data/app_persistence.dart';
+import '../../../layouts/landlord_navigation.dart';
+import '../finance/landlord_finance_models.dart';
+import '../incidents/models/landlord_suco.dart';
 import '../landlord_demo_store.dart';
+import '../landlord_glass.dart';
 import '../landlord_theme.dart';
 import '../landlord_ui.dart';
 import '../room_types/landlord_room_types_page.dart';
@@ -113,13 +117,17 @@ class _LandlordFloorPlanSetupPageState
         _roomTypeId = _store.roomTypes.first.id;
       }
       if (_store.roomTypes.isEmpty) {
-        return LandlordPageFrame(
+        return LandlordGlassPage(
+          title: 'Thiết lập tầng và phòng',
+          subtitle: _store.property.name,
+          kicker: 'QUẢN LÝ KHÔNG GIAN',
+          store: _store,
           children: [
-            LandlordPageTitle(
-              title: 'Thiết lập tầng và phòng',
-              subtitle: _store.property.name,
+            LandlordGlassSection(
+              title: 'Bắt đầu thiết lập',
+              subtitle: 'Tạo loại phòng trước, sau đó khai báo mặt bằng.',
             ),
-            LandlordCard(
+            LandlordGlassCard(
               child: Column(
                 children: [
                   Icon(
@@ -140,11 +148,11 @@ class _LandlordFloorPlanSetupPageState
                   ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
-                    onPressed: () => Navigator.of(context).push<void>(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            const Scaffold(body: LandlordRoomTypesPage()),
-                      ),
+                    onPressed: () => LandlordNavigation.push<void>(
+                      context,
+                      title: 'Loại phòng',
+                      destinationId: 'room_types',
+                      page: LandlordRoomTypesPage(store: _store),
                     ),
                     icon: const Icon(Icons.add_rounded),
                     label: const Text('Thêm loại phòng'),
@@ -158,17 +166,21 @@ class _LandlordFloorPlanSetupPageState
       if (_store.catalog.isNotEmpty) {
         return LandlordFloorPlanPage(store: _store);
       }
-      return LandlordPageFrame(
+      return LandlordGlassPage(
+        title: 'Thiết lập tầng và phòng',
+        subtitle: _store.property.name,
+        kicker: 'QUẢN LÝ KHÔNG GIAN',
+        store: _store,
         children: [
-          LandlordPageTitle(
-            title: 'Thiết lập tầng và phòng',
-            subtitle: _store.property.name,
+          LandlordGlassSection(
+            title: 'Khai báo mặt bằng',
+            subtitle: 'Nhập số tầng, số phòng và loại phòng mặc định.',
           ),
           Form(
             key: _form,
             child: Column(
               children: [
-                LandlordCard(
+                LandlordGlassCard(
                   padding: const EdgeInsets.all(18),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,7 +217,7 @@ class _LandlordFloorPlanSetupPageState
                   ),
                 ),
                 for (var index = 0; index < _roomCounts.length; index++)
-                  LandlordCard(
+                  LandlordGlassCard(
                     padding: const EdgeInsets.all(18),
                     child: Row(
                       children: [
@@ -250,7 +262,7 @@ class _LandlordFloorPlanSetupPageState
                       ],
                     ),
                   ),
-                LandlordCard(
+                LandlordGlassCard(
                   padding: const EdgeInsets.all(18),
                   child: DropdownButtonFormField<String>(
                     initialValue: _roomTypeId,
@@ -311,7 +323,6 @@ class LandlordFloorPlanPage extends StatelessWidget {
   const LandlordFloorPlanPage({super.key, this.store});
 
   final LandlordDemoStore? store;
-
   LandlordDemoStore get _store => store ?? LandlordDemoStore.activeInstance;
 
   Future<void> _edit(BuildContext context, LandlordRoom room) =>
@@ -320,6 +331,74 @@ class LandlordFloorPlanPage extends StatelessWidget {
         builder: (_) => LandlordRoomEditor(store: _store, room: room),
       );
 
+  (String, Color, Color) _roomStyle(LandlordRoomDetails details) {
+    final lease = details.lease;
+    if (details.status == LandlordRoomStatus.vacant) {
+      return ('Còn trống', const Color(0xFF16836F), Colors.white);
+    }
+    final invoices =
+        lease == null
+              ? const <LandlordInvoice>[]
+              : _store.invoices
+                    .where(
+                      (invoice) =>
+                          invoice.leaseId == lease.id &&
+                          !invoice.cancelled &&
+                          invoice.remaining > 0,
+                    )
+                    .toList()
+          ..sort((a, b) => b.period.compareTo(a.period));
+    if (invoices.any(
+      (invoice) => invoice.status == LandlordInvoiceStatus.overdue,
+    )) {
+      return (
+        'Chưa đóng tiền',
+        const Color(0xFFD64545),
+        const Color(0xFFD64545),
+      );
+    }
+    final hasIncident = _store.incidents.any(
+      (incident) =>
+          _store.canonicalRoom(incident.room) ==
+              _store.canonicalRoom(details.room.code) &&
+          (incident.status == IncidentStatus.newly ||
+              incident.status == IncidentStatus.inProgress),
+    );
+    if (hasIncident) {
+      return (
+        'Đang sửa chữa',
+        const Color(0xFF8054B8),
+        const Color(0xFF8054B8),
+      );
+    }
+    if (lease != null && lease.isCurrent) {
+      final days = lease.endDate.difference(DateTime.now()).inDays;
+      if (days >= 0 && days <= 30) {
+        return (
+          'Sắp hết hạn',
+          const Color(0xFFD99412),
+          const Color(0xFFF2C14E),
+        );
+      }
+      if (invoices.isNotEmpty) {
+        return (
+          'Chưa đóng tiền',
+          const Color(0xFFD64545),
+          const Color(0xFFD64545),
+        );
+      }
+      return ('Đang thuê', const Color(0xFF198754), const Color(0xFF2E9B62));
+    }
+    if (invoices.isNotEmpty) {
+      return (
+        'Chưa đóng tiền',
+        const Color(0xFFD64545),
+        const Color(0xFFD64545),
+      );
+    }
+    return ('Sắp nhận phòng', const Color(0xFF63738B), const Color(0xFF63738B));
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _store,
@@ -327,50 +406,46 @@ class LandlordFloorPlanPage extends StatelessWidget {
       final palette = LandlordPalette.of(context);
       final floors = _store.catalog.map((room) => room.floor).toSet().toList()
         ..sort();
-      return LandlordPageFrame(
+      return LandlordGlassPage(
+        title: 'Sơ đồ tầng',
+        subtitle: '${_store.property.name} · ${_store.catalog.length} phòng',
+        kicker: 'QUẢN LÝ KHÔNG GIAN',
+        store: _store,
         children: [
-          LandlordPageTitle(
-            title: 'Sơ đồ tầng',
-            subtitle:
-                '${_store.property.name} · ${_store.catalog.length} phòng',
-            trailing: IconButton.filledTonal(
-              tooltip: 'Quay lại',
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
+          LandlordGlassSection(
+            title: 'Mặt bằng theo tầng',
+            subtitle: 'Màu sắc giúp nhận biết nhanh trạng thái của từng phòng.',
           ),
-          for (final floor in floors) ...[
-            Padding(
-              padding: const EdgeInsets.only(top: 4, bottom: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: palette.primarySoft,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.stairs_rounded, color: palette.primary),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Tầng $floor',
-                      style: TextStyle(
-                        color: palette.ink,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${_store.catalog.where((room) => room.floor == floor).length} phòng',
-                    style: TextStyle(color: palette.muted, fontSize: 12),
-                  ),
-                ],
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _FloorLegend(
+                color: Colors.white,
+                label: 'Còn trống',
+                border: palette.line,
               ),
+              const _FloorLegend(color: Color(0xFF2E9B62), label: 'Đang thuê'),
+              const _FloorLegend(
+                color: Color(0xFFF2C14E),
+                label: 'Sắp hết hạn',
+              ),
+              const _FloorLegend(
+                color: Color(0xFFD64545),
+                label: 'Chưa đóng tiền',
+              ),
+              const _FloorLegend(
+                color: Color(0xFF8054B8),
+                label: 'Đang sửa chữa',
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (final floor in floors) ...[
+            LandlordGlassSection(
+              title: 'Tầng $floor',
+              subtitle:
+                  '${_store.catalog.where((room) => room.floor == floor).length} phòng',
             ),
             LayoutBuilder(
               builder: (context, constraints) {
@@ -392,37 +467,37 @@ class LandlordFloorPlanPage extends StatelessWidget {
                   runSpacing: spacing,
                   children: [
                     for (final room in rooms)
-                      SizedBox(
-                        width: width,
-                        child: _FloorRoomTile(
-                          room: room,
-                          typeName:
-                              _store.roomTypes
-                                  .where((type) => type.id == room.roomTypeId)
-                                  .firstOrNull
-                                  ?.name ??
-                              'Chưa gắn loại',
-                          occupied:
-                              _store.roomDetails
-                                  .where(
-                                    (details) => details.room.code == room.code,
-                                  )
-                                  .firstOrNull
-                                  ?.lease !=
-                              null,
-                          onTap: () => _edit(context, room),
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final details = _store.roomDetails.firstWhere(
+                            (item) => item.room.code == room.code,
+                          );
+                          final (label, color, background) = _roomStyle(
+                            details,
+                          );
+                          return SizedBox(
+                            width: width,
+                            child: _FloorRoomTile(
+                              room: room,
+                              typeName: details.typeName,
+                              label: label,
+                              color: color,
+                              background: background,
+                              onEdit: () => _edit(context, room),
+                            ),
+                          );
+                        },
                       ),
                   ],
                 );
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
           ],
-          const SizedBox(height: 8),
-          Text(
-            'Chạm vào ô phòng để đổi tên, gắn loại phòng và cập nhật diện tích hoặc sức chứa.',
-            style: TextStyle(color: palette.muted, fontSize: 12, height: 1.45),
+          const LandlordGlassCard(
+            child: Text(
+              'Chọn “Chỉnh sửa phòng” để cập nhật tên, tầng, loại phòng, diện tích hoặc sức chứa.',
+            ),
           ),
         ],
       );
@@ -430,88 +505,144 @@ class LandlordFloorPlanPage extends StatelessWidget {
   );
 }
 
+class _FloorLegend extends StatelessWidget {
+  const _FloorLegend({required this.color, required this.label, this.border});
+  final Color color;
+  final String label;
+  final Color? border;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: LandlordPalette.of(context).surface,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: LandlordPalette.of(context).line),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 11,
+          height: 11,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: border ?? color),
+          ),
+        ),
+        const SizedBox(width: 7),
+        Text(
+          label,
+          style: TextStyle(
+            color: LandlordPalette.of(context).ink,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class _FloorRoomTile extends StatelessWidget {
   const _FloorRoomTile({
     required this.room,
     required this.typeName,
-    required this.occupied,
-    required this.onTap,
+    required this.label,
+    required this.color,
+    required this.background,
+    required this.onEdit,
   });
-
   final LandlordRoom room;
   final String typeName;
-  final bool occupied;
-  final VoidCallback onTap;
+  final String label;
+  final Color color;
+  final Color background;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
     final palette = LandlordPalette.of(context);
-    final stateColor = occupied
-        ? const Color(0xFF3274D9)
-        : const Color(0xFF16836F);
-    return Material(
-      color: palette.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 100),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: palette.line),
-            boxShadow: [
-              BoxShadow(
-                color: palette.ink.withValues(alpha: .035),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      room.code,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: palette.ink,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Icon(Icons.circle, color: stateColor, size: 8),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                typeName,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: palette.muted,
-                  fontSize: 11,
-                  height: 1.3,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                occupied ? 'Đang thuê' : 'Còn trống',
-                style: TextStyle(
-                  color: stateColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
+    final isVacant = label == 'Còn trống';
+    final isLight = isVacant || label == 'Sắp hết hạn';
+    return Container(
+      constraints: const BoxConstraints(minHeight: 154),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isVacant ? palette.line : color.withValues(alpha: .55),
+          width: 1.2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: .1),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Phòng ${room.code}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isLight ? const Color(0xFF1B2935) : Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            typeName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isLight
+                  ? const Color(0xFF68778A)
+                  : Colors.white.withValues(alpha: .88),
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isLight ? color : Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: onEdit,
+              style: FilledButton.styleFrom(
+                foregroundColor: isLight ? palette.primary : Colors.white,
+                backgroundColor: isLight
+                    ? palette.primarySoft
+                    : Colors.white.withValues(alpha: .2),
+                minimumSize: const Size(0, 34),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+              ),
+              icon: const Icon(Icons.edit_outlined, size: 14),
+              label: const Text(
+                'Chỉnh sửa phòng',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

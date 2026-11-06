@@ -7,7 +7,7 @@ import '../room_types/landlord_room_types_page.dart';
 import '../rooms/landlord_rooms_page.dart';
 import 'components/landlord_property_image.dart';
 
-/// Both management tabs share one scrollable property page and one navigation bar.
+/// Property details replace the portfolio content without opening a nested Scaffold.
 class LandlordPropertyDetailPage extends StatefulWidget {
   const LandlordPropertyDetailPage({
     super.key,
@@ -39,52 +39,62 @@ class _LandlordPropertyDetailPageState
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) widget.onBack();
         },
-        child: Scaffold(
-          backgroundColor: palette.canvas,
-          appBar: AppBar(
-            backgroundColor: palette.surface.withValues(alpha: 0.92),
-            leading: IconButton(
-              tooltip: 'Quay lại danh sách nhà trọ',
-              onPressed: widget.onBack,
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  property.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  'Chi tiết nhà trọ',
-                  style: TextStyle(color: palette.muted, fontSize: 11),
-                ),
-              ],
-            ),
-            actions: [
-              IconButton(
-                tooltip: 'Chỉnh sửa thông tin nhà trọ',
-                onPressed: widget.onEdit,
-                icon: const Icon(Icons.edit_outlined, color: propertyBlue),
-              ),
-              const SizedBox(width: 6),
-            ],
-          ),
-          body: PropertyPortfolioBackdrop(
+        child: PropertyPortfolioBackdrop(
+          child: SafeArea(
+            bottom: false,
             child: SingleChildScrollView(
               key: PageStorageKey('property-detail-${property.id}'),
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1040),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Row(
+                        children: [
+                          IconButton.filledTonal(
+                            tooltip: 'Quay lại danh sách nhà trọ',
+                            onPressed: widget.onBack,
+                            icon: const Icon(Icons.arrow_back_rounded),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  property.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: palette.ink,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                Text(
+                                  'Chi tiết nhà trọ',
+                                  style: TextStyle(
+                                    color: palette.muted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
+                            tooltip: 'Chỉnh sửa thông tin nhà trọ',
+                            onPressed: widget.onEdit,
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              color: propertyBlue,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       LandlordGlassCard(
                         padding: EdgeInsets.zero,
                         child: Column(

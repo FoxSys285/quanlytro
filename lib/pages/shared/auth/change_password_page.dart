@@ -55,9 +55,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   @override
   Widget build(BuildContext context) {
-    if ((widget.role ?? LocalAuth.instance.role) == AppRole.tenant) {
+    final role = widget.role ?? LocalAuth.instance.role;
+    if (role == AppRole.tenant || role == AppRole.landlord) {
       return TenantFeatureFrame(
-        artwork: TenantFeatureArtwork.settings,
+        artwork: role == AppRole.landlord
+            ? TenantFeatureArtwork.landlordSettings
+            : TenantFeatureArtwork.settings,
         title: 'Bảo mật tài khoản',
         subtitle: 'Cập nhật mật khẩu để bảo vệ tài khoản của bạn.',
         children: [

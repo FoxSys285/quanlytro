@@ -19,12 +19,16 @@ class AccountProfilePage extends StatelessWidget {
   Future<void> _edit(BuildContext context) async {
     final contact = await showDialog<ContactDetails>(
       context: context,
-      builder: (_) => role == AppRole.tenant
+      builder: (_) => role == AppRole.tenant || role == AppRole.landlord
           ? TenantDetailTheme(
+              landlordStyle: role == AppRole.landlord,
               child: ContactEditor(
                 title: 'Chỉnh sửa hồ sơ',
                 initial: _store.profile(role),
                 tenantStyle: true,
+                subtitle: role == AppRole.landlord
+                    ? 'Thông tin giúp người thuê và đối tác liên hệ với bạn.'
+                    : 'Thông tin giúp chủ trọ liên hệ và hỗ trợ bạn.',
               ),
             )
           : ContactEditor(
@@ -48,11 +52,16 @@ class AccountProfilePage extends StatelessWidget {
       final lease = role == AppRole.tenant
           ? _store.rental.currentLeaseForTenant(TenantSession.currentTenantId)
           : null;
-      if (role == AppRole.tenant) {
+      if (role == AppRole.tenant || role == AppRole.landlord) {
+        final isTenant = role == AppRole.tenant;
         return TenantFeatureFrame(
-          artwork: TenantFeatureArtwork.settings,
+          artwork: isTenant
+              ? TenantFeatureArtwork.settings
+              : TenantFeatureArtwork.landlordSettings,
           title: 'Hồ sơ cá nhân',
-          subtitle: 'Thông tin liên hệ để kết nối với chủ trọ dễ dàng hơn.',
+          subtitle: isTenant
+              ? 'Thông tin liên hệ để kết nối với chủ trọ dễ dàng hơn.'
+              : 'Thông tin liên hệ để người thuê dễ dàng kết nối với bạn.',
           children: [
             TenantSurface(
               child: Column(
@@ -75,7 +84,12 @@ class AccountProfilePage extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            TenantStatusPill(role.label, color: tenantGreen),
+                            TenantStatusPill(
+                              role.label,
+                              color: isTenant
+                                  ? TenantUiColors.tenant.primary
+                                  : TenantUiColors.landlord.primary,
+                            ),
                           ],
                         ),
                       ),
@@ -97,11 +111,13 @@ class AccountProfilePage extends StatelessWidget {
                   const TenantThinDivider(),
                   _tenantLine(Icons.email_outlined, 'Email', contact.email),
                   const TenantThinDivider(),
-                  _tenantLine(
-                    Icons.link_rounded,
-                    'Mã liên kết để chủ trọ lập hợp đồng',
-                    TenantSession.currentTenantId,
-                  ),
+                  if (isTenant) ...[
+                    _tenantLine(
+                      Icons.link_rounded,
+                      'Mã liên kết để chủ trọ lập hợp đồng',
+                      TenantSession.currentTenantId,
+                    ),
+                  ],
                   const TenantThinDivider(),
                   _tenantLine(
                     Icons.location_on_outlined,
@@ -112,14 +128,18 @@ class AccountProfilePage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            const TenantSectionHeading('Chỗ ở hiện tại'),
+            TenantSectionHeading(
+              isTenant ? 'Chỗ ở hiện tại' : 'Nhà trọ quản lý',
+            ),
             TenantSurface(
               child: _tenantLine(
                 Icons.home_work_outlined,
-                _store.rental.property.name,
-                lease == null
-                    ? 'Chưa có phòng đang thuê'
-                    : 'Phòng ${lease.room}',
+                isTenant ? _store.rental.property.name : 'Nhà trọ',
+                isTenant
+                    ? lease == null
+                          ? 'Chưa có phòng đang thuê'
+                          : 'Phòng ${lease.room}'
+                    : _store.rental.property.name,
               ),
             ),
             const SizedBox(height: 24),

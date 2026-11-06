@@ -487,6 +487,17 @@ class LandlordRoomDetailPage extends StatelessWidget {
                 children: [
                   FilledButton.icon(
                     onPressed: () => _edit(context, room),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: propertyBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 17,
+                        vertical: 13,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
                     icon: const Icon(Icons.edit_outlined, size: 18),
                     label: const Text('Chỉnh sửa phòng'),
                   ),

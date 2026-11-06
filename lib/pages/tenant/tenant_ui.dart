@@ -7,6 +7,119 @@ const tenantMuted = Color(0xFF676B78);
 const tenantLine = Color(0xFFE8ECEB);
 const tenantCanvas = Color(0xFFFCFCFC);
 
+class TenantUiColors {
+  const TenantUiColors({
+    required this.primary,
+    required this.dark,
+    required this.softText,
+    required this.light,
+    required this.lighter,
+    required this.avatar,
+    required this.formEnd,
+    required this.formTitle,
+    required this.bannerEnd,
+    required this.bannerTitle,
+    required this.noteFill,
+    required this.header,
+    required this.headerMid,
+    required this.headerFade,
+    required this.canvas,
+    required this.line,
+    required this.inputFill,
+    required this.chipFill,
+    required this.chipSelected,
+    required this.chipLine,
+  });
+
+  final Color primary;
+  final Color dark;
+  final Color softText;
+  final Color light;
+  final Color lighter;
+  final Color avatar;
+  final Color formEnd;
+  final Color formTitle;
+  final Color bannerEnd;
+  final Color bannerTitle;
+  final Color noteFill;
+  final Color header;
+  final Color headerMid;
+  final Color headerFade;
+  final Color canvas;
+  final Color line;
+  final Color inputFill;
+  final Color chipFill;
+  final Color chipSelected;
+  final Color chipLine;
+
+  static const tenant = TenantUiColors(
+    primary: tenantGreen,
+    dark: tenantGreenDark,
+    softText: Color(0xFF4C6558),
+    light: Color(0xFFEAF7EF),
+    lighter: Color(0xFFE6F6ED),
+    avatar: Color(0xFFE0F3E7),
+    formEnd: Color(0xFFF5FBF7),
+    formTitle: Color(0xFF123F29),
+    bannerEnd: Color(0xFFD5F0E2),
+    bannerTitle: Color(0xFF0A482C),
+    noteFill: Color(0xFFEFF7F2),
+    header: Color(0xFFF1FAF5),
+    headerMid: Color(0xE6F1FAF5),
+    headerFade: Color(0x00F1FAF5),
+    canvas: tenantCanvas,
+    line: tenantLine,
+    inputFill: Color(0xFFF7F9F8),
+    chipFill: Color(0xFFF3F8F5),
+    chipSelected: Color(0xFFDFF3E7),
+    chipLine: Color(0xFFE2ECE6),
+  );
+
+  static const landlord = TenantUiColors(
+    primary: Color(0xFF1679BC),
+    dark: Color(0xFF0D5B91),
+    softText: Color(0xFF53697D),
+    light: Color(0xFFEAF4FC),
+    lighter: Color(0xFFE5F1FB),
+    avatar: Color(0xFFDFEFFB),
+    formEnd: Color(0xFFF6FAFE),
+    formTitle: Color(0xFF17344F),
+    bannerEnd: Color(0xFFD6EAF8),
+    bannerTitle: Color(0xFF143B5C),
+    noteFill: Color(0xFFEFF6FC),
+    header: Color(0xFFF1F7FF),
+    headerMid: Color(0xE6F1F7FF),
+    headerFade: Color(0x00F1F7FF),
+    canvas: Color(0xFFFCFDFF),
+    line: Color(0xFFE2EAF2),
+    inputFill: Color(0xFFF7FAFD),
+    chipFill: Color(0xFFF2F6FA),
+    chipSelected: Color(0xFFDCECF8),
+    chipLine: Color(0xFFE2EAF2),
+  );
+}
+
+class TenantUiPalette extends InheritedWidget {
+  const TenantUiPalette({
+    super.key,
+    required this.landlordStyle,
+    required super.child,
+  });
+
+  final bool landlordStyle;
+
+  TenantUiColors get colors =>
+      landlordStyle ? TenantUiColors.landlord : TenantUiColors.tenant;
+
+  static TenantUiColors of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<TenantUiPalette>()?.colors ??
+      TenantUiColors.tenant;
+
+  @override
+  bool updateShouldNotify(TenantUiPalette oldWidget) =>
+      landlordStyle != oldWidget.landlordStyle;
+}
+
 class TenantPageFrame extends StatelessWidget {
   const TenantPageFrame({super.key, required this.children, this.padding});
 
@@ -15,8 +128,9 @@ class TenantPageFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
     return ColoredBox(
-      color: tenantCanvas,
+      color: colors.canvas,
       child: SafeArea(
         top: false,
         child: LayoutBuilder(
@@ -53,6 +167,7 @@ class TenantProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
     final words = name.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty);
     final parts = words.toList();
     final initials = parts.isEmpty
@@ -65,11 +180,11 @@ class TenantProfileAvatar extends StatelessWidget {
       backgroundColor: Colors.white,
       child: CircleAvatar(
         radius: radius - 2,
-        backgroundColor: const Color(0xFFE0F3E7),
+        backgroundColor: colors.avatar,
         child: Text(
           initials,
           style: TextStyle(
-            color: tenantGreenDark,
+            color: colors.dark,
             fontSize: radius * 0.55,
             fontWeight: FontWeight.w800,
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../landlord_theme.dart';
 
+import '../landlord_glass.dart';
 import '../landlord_ui.dart';
 import '../landlord_demo_store.dart';
 import '../finance/landlord_finance_models.dart';
@@ -103,10 +104,13 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
         );
       final total = _requests ? requests.length : leaseIds.length;
       final page = _page.clamp(0, ListPagination.lastPage(total, _pageSize));
-      return LandlordPageFrame(
+      return LandlordFeaturePage(
+        title: 'Người thuê',
+        subtitle: 'Quản lý cư dân và yêu cầu thêm người ở cùng phòng.',
+        icon: Icons.groups_outlined,
         children: [
-          LandlordPageTitle(
-            title: 'Người thuê',
+          LandlordGlassSection(
+            title: 'Danh sách người thuê',
             subtitle:
                 '${active.length} người đang ở · $pending yêu cầu chờ duyệt',
           ),
@@ -114,57 +118,51 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              ChoiceChip(
-                label: Text('Yêu cầu thêm người ($pending)'),
-                selected: _requests,
-                onSelected: (_) => setState(() {
+              _filterChip(
+                'Yêu cầu thêm người ($pending)',
+                _requests,
+                () => setState(() {
                   _requests = true;
                   _page = 0;
                 }),
               ),
-              ChoiceChip(
-                label: Text('Danh sách người thuê (${active.length})'),
-                selected: !_requests,
-                onSelected: (_) => setState(() {
+              _filterChip(
+                'Danh sách người thuê (${active.length})',
+                !_requests,
+                () => setState(() {
                   _requests = false;
                   _page = 0;
                 }),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'Tìm theo tên, số điện thoại hoặc phòng',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
-              filled: true,
-              fillColor: LandlordPalette.of(context).surface,
-            ),
+          const SizedBox(height: 12),
+          LandlordGlassSearch(
+            hint: 'Tìm theo tên, số điện thoại hoặc phòng',
             onChanged: (value) => setState(() {
               _query = value;
               _page = 0;
             }),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           if (_requests) ...[
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                ChoiceChip(
-                  label: const Text('Tất cả yêu cầu'),
-                  selected: _requestStatus == null,
-                  onSelected: (_) => setState(() {
+                _filterChip(
+                  'Tất cả yêu cầu',
+                  _requestStatus == null,
+                  () => setState(() {
                     _requestStatus = null;
                     _page = 0;
                   }),
                 ),
                 for (final status in LeaseMemberStatus.values)
-                  ChoiceChip(
-                    label: Text(_statusLabel(status)),
-                    selected: _requestStatus == status,
-                    onSelected: (_) => setState(() {
+                  _filterChip(
+                    _statusLabel(status),
+                    _requestStatus == status,
+                    () => setState(() {
                       _requestStatus = status;
                       _page = 0;
                     }),
@@ -173,16 +171,20 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
             ),
             const SizedBox(height: 14),
             if (requests.isEmpty)
-              const LandlordEmptyState(message: 'Không có yêu cầu phù hợp.'),
+              const LandlordGlassCard(
+                child: Center(child: Text('Không có yêu cầu phù hợp.')),
+              ),
             for (final member
                 in requests.skip(page * _pageSize).take(_pageSize))
               _requestCard(member),
           ] else ...[
             if (filtered.isEmpty)
-              const LandlordEmptyState(message: 'Không tìm thấy người thuê.'),
+              const LandlordGlassCard(
+                child: Center(child: Text('Không tìm thấy người thuê.')),
+              ),
             for (final leaseId
                 in leaseIds.skip(page * _pageSize).take(_pageSize))
-              LandlordCard(
+              LandlordGlassCard(
                 padding: EdgeInsets.zero,
                 child: ExpansionTile(
                   key: PageStorageKey('members-$leaseId'),
@@ -233,6 +235,21 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
     },
   );
 
+  Widget _filterChip(String label, bool selected, VoidCallback onTap) =>
+      ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        selectedColor: landlordBlue,
+        backgroundColor: LandlordPalette.of(context).surface,
+        side: BorderSide(color: selected ? Colors.transparent : Colors.white),
+        labelStyle: TextStyle(
+          color: selected ? Colors.white : landlordBlue,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+        onSelected: (_) => onTap(),
+      );
+
   Widget _requestCard(LeaseMember member) {
     final lease = _store.leaseById(member.leaseId)!;
     final color = switch (member.status) {
@@ -246,63 +263,66 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
               item.leaseId == lease.id && item.tenantId == member.requestedBy,
         )
         .firstOrNull;
-    return LandlordCard(
-      key: ValueKey(member.id),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                'Phòng ${lease.room}',
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              LandlordStatusPill(_statusLabel(member.status), color: color),
-            ],
-          ),
-          const Divider(height: 24),
-          Text(
-            member.name,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          Text('Điện thoại: ${member.phone}'),
-          Text('Ngày dự kiến vào ở: ${landlordDate(member.joinedAt)}'),
-          Text('Người gửi: ${requester?.name ?? lease.tenantName}'),
-          if (member.requestedAt != null)
-            Text('Ngày gửi: ${landlordDate(member.requestedAt!)}'),
-          Text(
-            'Đang ở: ${_store.membersForLease(lease.id).length} / ${_store.roomByCode(lease.room)?.capacity ?? '—'} người',
-          ),
-          if (member.rejectionReason != null)
-            Text(
-              'Lý do: ${member.rejectionReason}',
-              style: const TextStyle(color: Colors.red),
-            ),
-          if (member.status == LeaseMemberStatus.pending) ...[
-            const SizedBox(height: 12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: LandlordGlassCard(
+        key: ValueKey(member.id),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Wrap(
-              spacing: 8,
+              spacing: 12,
               runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                FilledButton.icon(
-                  onPressed: () => _review(member, true),
-                  icon: const Icon(Icons.check, size: 18),
-                  label: const Text('Duyệt'),
+                Text(
+                  'Phòng ${lease.room}',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                OutlinedButton(
-                  onPressed: () => _review(member, false),
-                  child: const Text('Từ chối'),
-                ),
+                LandlordStatusPill(_statusLabel(member.status), color: color),
               ],
             ),
+            const Divider(height: 24),
+            Text(
+              member.name,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            Text('Điện thoại: ${member.phone}'),
+            Text('Ngày dự kiến vào ở: ${landlordDate(member.joinedAt)}'),
+            Text('Người gửi: ${requester?.name ?? lease.tenantName}'),
+            if (member.requestedAt != null)
+              Text('Ngày gửi: ${landlordDate(member.requestedAt!)}'),
+            Text(
+              'Đang ở: ${_store.membersForLease(lease.id).length} / ${_store.roomByCode(lease.room)?.capacity ?? '—'} người',
+            ),
+            if (member.rejectionReason != null)
+              Text(
+                'Lý do: ${member.rejectionReason}',
+                style: const TextStyle(color: Colors.red),
+              ),
+            if (member.status == LeaseMemberStatus.pending) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _review(member, true),
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('Duyệt'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () => _review(member, false),
+                    child: const Text('Từ chối'),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
