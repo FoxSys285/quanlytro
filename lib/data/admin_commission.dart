@@ -89,7 +89,7 @@ class CommissionStatement {
         rentCollected: map['rentCollected'] as int,
         rateBasisPoints: map['rateBasisPoints'] as int,
         createdAt: DateTime.parse(map['createdAt'] as String),
-        receipts: (map['receipts'] as List)
+        receipts: (map['receipts'] as List? ?? const [])
             .map((r) => Map<String, dynamic>.from(r as Map))
             .toList(),
       );

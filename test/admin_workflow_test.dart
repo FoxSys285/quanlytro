@@ -69,6 +69,19 @@ void main() {
   });
   tearDownAll(() => LocalAuth.instance.signOut());
 
+  test('Partial cloud admin settings restore with safe defaults', () {
+    final admin = AdminStore()
+      ..restore({
+        'verified': <String, bool>{'may': true},
+        'acceptingViewings': false,
+      });
+
+    expect(admin.isHidden('may'), isFalse);
+    expect(admin.tickets, isEmpty);
+    expect(admin.logs, isEmpty);
+    expect(admin.acceptingViewings, isFalse);
+  });
+
   test('Commission counts approved rent share by payment month, excludes pending/rejected/cancelled', () {
     final store = financialStore();
     expect(commissionRentCollected(store, DateTime(2026, 1)), 1500000);

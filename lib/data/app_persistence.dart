@@ -178,8 +178,8 @@ class AppPersistence {
           LocalAuth.instance.role == AppRole.landlord) {
         save();
       }
-    } catch (failure) {
-      debugPrint('Background cloud sync warning: $failure');
+    } catch (failure, stackTrace) {
+      debugPrint('Background cloud sync warning: $failure\n$stackTrace');
       if (!_disposed) {
         _closeRevokedSession(failure);
         _initialSyncCompleted = false;

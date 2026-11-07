@@ -327,23 +327,25 @@ class AdminStore extends ChangeNotifier {
       );
     _verified
       ..clear()
-      ..addAll(Map<String, bool>.from(map['verified'] as Map));
+      ..addAll(Map<String, bool>.from(map['verified'] as Map? ?? {}));
     _hidden
       ..clear()
-      ..addAll(List<String>.from(map['hidden'] as List));
+      ..addAll(List<String>.from(map['hidden'] as List? ?? const []));
     _tickets
       ..clear()
       ..addAll(
-        (map['tickets'] as List).map(
+        (map['tickets'] as List? ?? const []).map(
           (t) => SupportTicket.fromMap(Map<String, dynamic>.from(t as Map)),
         ),
       );
     _logs
       ..clear()
       ..addAll(
-        (map['logs'] as List).map((l) => Map<String, String>.from(l as Map)),
+        (map['logs'] as List? ?? const []).map(
+          (l) => Map<String, String>.from(l as Map),
+        ),
       );
-    acceptingViewings = map['acceptingViewings'] as bool;
+    acceptingViewings = map['acceptingViewings'] as bool? ?? true;
     notifyListeners();
   }
 }
