@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/local_auth.dart';
 import '../../../layouts/role_layout.dart';
 import '../../landlord/landlord_ui.dart';
+import 'app_notification_service.dart';
 import '../profile/account_store.dart';
 import '../../tenant/tenant_detail_ui.dart';
 import '../../tenant/tenant_ui.dart';
@@ -62,8 +64,20 @@ class NotificationSettingsPage extends StatelessWidget {
                       ? TenantUiColors.landlord.primary
                       : TenantUiColors.tenant.primary,
                   value: enabled,
-                  onChanged: (value) =>
-                      accounts.setNotificationsEnabled(role, value),
+                  onChanged: (value) async {
+                    if (!value) {
+                      accounts.setNotificationsEnabled(role, false);
+                      await AppNotificationService.instance.setEnabled(false);
+                      return;
+                    }
+                    final session = LocalAuth.instance.session;
+                    final granted = session != null && session.role == role
+                        ? await AppNotificationService.instance
+                              .requestAndRegister(session, enabled: true)
+                        : await AppNotificationService.instance
+                              .requestPermissionOnly();
+                    accounts.setNotificationsEnabled(role, granted);
+                  },
                 ),
               ),
               const SizedBox(height: 18),
@@ -132,8 +146,20 @@ class NotificationSettingsPage extends StatelessWidget {
                 ),
                 activeThumbColor: color,
                 value: enabled,
-                onChanged: (value) =>
-                    accounts.setNotificationsEnabled(role, value),
+                onChanged: (value) async {
+                  if (!value) {
+                    accounts.setNotificationsEnabled(role, false);
+                    await AppNotificationService.instance.setEnabled(false);
+                    return;
+                  }
+                  final session = LocalAuth.instance.session;
+                  final granted = session != null && session.role == role
+                      ? await AppNotificationService.instance
+                            .requestAndRegister(session, enabled: true)
+                      : await AppNotificationService.instance
+                            .requestPermissionOnly();
+                  accounts.setNotificationsEnabled(role, granted);
+                },
               ),
             ),
             const Padding(

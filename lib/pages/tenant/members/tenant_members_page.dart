@@ -4,6 +4,7 @@ import '../../landlord/landlord_demo_store.dart';
 import '../../landlord/finance/landlord_finance_models.dart';
 import '../../shared/rental/tenant_session.dart';
 import 'components/tenant_member_requests.dart';
+import 'components/tenant_member_account_actions.dart';
 import '../tenant_ui.dart';
 import '../tenant_feature_ui.dart';
 import '../tenant_detail_ui.dart';
@@ -39,6 +40,9 @@ class TenantMembersPage extends StatelessWidget {
           );
         }
         final members = data.membersForLease(lease.id);
+        final self = members
+            .where((member) => member.tenantId == tenantId)
+            .firstOrNull;
         final room = data.roomByCode(lease.room);
         final capacity = room?.capacity ?? lease.occupantCount;
         return TenantFeatureFrame(
@@ -127,6 +131,10 @@ class TenantMembersPage extends StatelessWidget {
                   isCurrentUser: member.tenantId == tenantId,
                 ),
               ),
+            if (self != null && !self.isRepresentative) ...[
+              const SizedBox(height: 18),
+              TenantMemberAccountActions(store: data, member: self),
+            ],
             TenantMemberRequests(store: data, tenantId: tenantId),
             const SizedBox(height: 20),
             const TenantFeatureBanner(

@@ -128,12 +128,6 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
                 TenantSurface(
                   child: Column(
                     children: [
-                      TenantDataRow(
-                        label: 'Giá thuê',
-                        value: '${formatTenantMoney(_room.price)} / tháng',
-                        emphasized: true,
-                      ),
-                      const TenantThinDivider(),
                       TenantDataRow(label: 'Diện tích', value: _room.size),
                       if (_room.capacity != null)
                         TenantDataRow(
@@ -146,25 +140,51 @@ class TenantRoomDetailsSheetState extends State<TenantRoomDetailsSheet> {
                           label: 'Khoảng cách',
                           value: _room.distance,
                         ),
-                      const TenantThinDivider(),
-                      TenantDataRow(
-                        label: 'Tiền điện',
-                        value:
-                            '${formatTenantMoney(_room.electricityPrice)}/kWh',
-                      ),
-                      const TenantThinDivider(),
-                      TenantDataRow(
-                        label: 'Tiền nước',
-                        value: _room.waterType == 'Theo tháng'
-                            ? '${formatTenantMoney(_room.waterPrice)}/tháng'
-                            : '${formatTenantMoney(_room.waterPrice)}/m³',
-                      ),
                       if (_room.rating != '—') const TenantThinDivider(),
                       if (_room.rating != '—')
                         TenantDataRow(
                           label: 'Đánh giá',
                           value: '★ ${_room.rating} / 5',
                         ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const TenantSectionHeading('Bảng giá & dịch vụ'),
+                TenantSurface(
+                  child: Column(
+                    children: [
+                      TenantDataRow(
+                        label: 'Giá thuê phòng',
+                        value: '${formatTenantMoney(_room.price)} / tháng',
+                        emphasized: true,
+                      ),
+                      for (final service in _room.priceList) ...[
+                        const TenantThinDivider(),
+                        TenantDataRow(
+                          label: service.name,
+                          value:
+                              '${formatTenantMoney(service.price)}'
+                              '${service.unit.isEmpty ? '' : ' / ${service.unit}'}'
+                              '${service.basis.isEmpty ? '' : ' · ${service.basis}'}',
+                        ),
+                      ],
+                      if (_room.priceList.isEmpty) ...[
+                        const TenantThinDivider(),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Chủ nhà chưa cập nhật dịch vụ cho phòng này.',
+                              style: TextStyle(
+                                color: tenantMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

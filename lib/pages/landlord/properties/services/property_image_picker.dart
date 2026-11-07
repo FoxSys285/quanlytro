@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:image_picker/image_picker.dart';
 
+import '../../../shared/media/media_permission_service.dart';
+
 class SelectedPropertyImage {
   const SelectedPropertyImage({required this.bytes, required this.name});
   final Uint8List bytes;
@@ -10,6 +12,11 @@ class SelectedPropertyImage {
 }
 
 Future<SelectedPropertyImage?> pickPropertyImage() async {
+  if (!await MediaPermissionService.checkBeforePicker(RentalMediaKind.image)) {
+    throw const FormatException(
+      'Hãy cho phép truy cập ảnh trong Cài đặt để chọn hình.',
+    );
+  }
   final file = await ImagePicker().pickImage(
     source: ImageSource.gallery,
     maxWidth: 1920,

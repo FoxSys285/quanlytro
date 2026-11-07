@@ -1,4 +1,5 @@
 {
     "java.compile.nullAnalysis.mode": "automatic",
-    "cmake.sourceDirectory": "D:/HUIT/LTAndroid/DoAn/quanlytro/windows"
+    "cmake.sourceDirectory": "D:/HUIT/LTAndroid/DoAn/quanlytro/windows",
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

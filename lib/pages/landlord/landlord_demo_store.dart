@@ -751,11 +751,147 @@ class LandlordDemoStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void endLease(LandlordLease lease) {
+  void endLease(LandlordLease lease, {String reason = ''}) {
     if (!_leases.contains(lease)) {
       throw ArgumentError('Hợp đồng không tồn tại.');
     }
-    lease.status = LandlordLeaseStatus.terminated;
+    lease
+      ..status = LandlordLeaseStatus.terminated
+      ..terminationReason = reason.trim().isEmpty
+          ? 'Chủ trọ cập nhật chấm dứt hợp đồng.'
+          : reason.trim()
+      ..terminatedAt = DateTime.now();
+    notifyListeners();
+  }
+
+  void requestLeaseTermination({
+    required String tenantId,
+    required String leaseId,
+    required String reason,
+  }) {
+    final lease = leaseById(leaseId);
+    if (lease == null ||
+        !lease.isCurrent ||
+        lease.tenantId != tenantId ||
+        !leasesForTenant(tenantId).any((item) => item.id == leaseId)) {
+      throw ArgumentError(
+        'Chỉ người đại diện có thể gửi yêu cầu kết thúc hợp đồng.',
+      );
+    }
+    if (reason.trim().length < 5) {
+      throw ArgumentError('Nhập lý do kết thúc hợp đồng (ít nhất 5 ký tự).');
+    }
+    if (lease.terminationRequestStatus == 'pending') {
+      throw ArgumentError('Yêu cầu kết thúc hợp đồng đang chờ chủ trọ xử lý.');
+    }
+    lease
+      ..terminationRequestStatus = 'pending'
+      ..terminationRequestedAt = DateTime.now()
+      ..terminationRequestedBy = tenantId
+      ..terminationRequestReason = reason.trim()
+      ..terminationRejectionReason = ''
+      ..terminationReviewedAt = null;
+    notifyListeners();
+  }
+
+  void reviewLeaseTermination(
+    LandlordLease lease, {
+    required bool approve,
+    String reason = '',
+  }) {
+    if (!_leases.contains(lease) ||
+        lease.terminationRequestStatus != 'pending') {
+      throw ArgumentError('Yêu cầu kết thúc hợp đồng không còn chờ xử lý.');
+    }
+    if (!approve && reason.trim().length < 5) {
+      throw ArgumentError('Nhập lý do từ chối (ít nhất 5 ký tự).');
+    }
+    lease
+      ..terminationRequestStatus = approve ? 'approved' : 'rejected'
+      ..terminationReviewedAt = DateTime.now()
+      ..terminationRejectionReason = approve ? '' : reason.trim();
+    if (approve) {
+      endLease(lease, reason: lease.terminationRequestReason);
+    } else {
+      notifyListeners();
+    }
+  }
+
+  void requestLeaseRenewal({
+    required String tenantId,
+    required String leaseId,
+    required DateTime proposedEndDate,
+    String reason = '',
+  }) {
+    final lease = leaseById(leaseId);
+    if (lease == null ||
+        !lease.isCurrent ||
+        !leasesForTenant(tenantId).any((item) => item.id == leaseId)) {
+      throw ArgumentError('Hợp đồng không còn hiệu lực hoặc không thuộc bạn.');
+    }
+    final now = DateTime.now();
+    final endDay = DateTime(
+      lease.endDate.year,
+      lease.endDate.month,
+      lease.endDate.day,
+    );
+    final today = DateTime(now.year, now.month, now.day);
+    if (endDay.difference(today).inDays > 31) {
+      throw ArgumentError('Có thể đề nghị gia hạn trong vòng một tháng cuối.');
+    }
+    if (lease.renewalStatus == 'pending') {
+      throw ArgumentError('Yêu cầu gia hạn đang chờ chủ trọ xử lý.');
+    }
+    final requestedEnd = DateTime(
+      proposedEndDate.year,
+      proposedEndDate.month,
+      proposedEndDate.day,
+    );
+    if (!requestedEnd.isAfter(endDay)) {
+      throw ArgumentError('Ngày kết thúc mới phải sau thời hạn hiện tại.');
+    }
+    lease
+      ..renewalStatus = 'pending'
+      ..renewalRequestedAt = now
+      ..renewalRequestedBy = tenantId
+      ..renewalProposedEndDate = requestedEnd
+      ..renewalReason = reason.trim()
+      ..renewalRejectionReason = ''
+      ..renewalReviewedAt = null;
+    notifyListeners();
+  }
+
+  void reviewLeaseRenewal(
+    LandlordLease lease, {
+    required bool approve,
+    String reason = '',
+  }) {
+    if (!_leases.contains(lease) || lease.renewalStatus != 'pending') {
+      throw ArgumentError('Yêu cầu gia hạn không còn chờ xử lý.');
+    }
+    if (!approve && reason.trim().isEmpty) {
+      throw ArgumentError('Nhập lý do từ chối gia hạn.');
+    }
+    if (approve) {
+      final newEnd = lease.renewalProposedEndDate;
+      if (newEnd == null || !newEnd.isAfter(lease.endDate)) {
+        throw ArgumentError('Ngày gia hạn không hợp lệ.');
+      }
+      final months =
+          (newEnd.year - lease.endDate.year) * 12 +
+          newEnd.month -
+          lease.endDate.month;
+      lease
+        ..endDate = newEnd
+        ..termMonths += months > 0 ? months : 1
+        ..renewalStatus = 'approved'
+        ..renewalRejectionReason = '';
+    } else {
+      lease
+        ..renewalStatus = 'rejected'
+        ..renewalRejectionReason = reason.trim();
+    }
+    lease.renewalReviewedAt = DateTime.now();
     notifyListeners();
   }
 
@@ -1294,6 +1430,7 @@ class LandlordDemoStore extends ChangeNotifier {
     required String tenantId,
     required String name,
     required String phone,
+    String? memberTenantId,
     DateTime? joinedAt,
   }) {
     final lease = currentLeaseForTenant(tenantId);
@@ -1303,6 +1440,12 @@ class LandlordDemoStore extends ChangeNotifier {
       );
     }
     final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final linkedTenantId = memberTenantId?.trim().toUpperCase();
+    if (linkedTenantId != null &&
+        linkedTenantId.isNotEmpty &&
+        !RegExp(r'^[A-Z0-9]{8}$').hasMatch(linkedTenantId)) {
+      throw ArgumentError('Mã người thuê phải gồm đúng 8 chữ cái hoặc chữ số.');
+    }
     if (name.trim().isEmpty || !RegExp(r'^0\d{9}$').hasMatch(digits)) {
       throw ArgumentError('Nhập họ tên và số điện thoại hợp lệ (10 chữ số).');
     }
@@ -1333,11 +1476,18 @@ class LandlordDemoStore extends ChangeNotifier {
         .where(
           (member) =>
               member.leaseId == lease.id &&
-              member.status != LeaseMemberStatus.rejected,
+              ![
+                LeaseMemberStatus.rejected,
+                LeaseMemberStatus.left,
+              ].contains(member.status),
         )
         .toList();
     if (reserved.any(
-      (member) => member.phone.replaceAll(RegExp(r'[^0-9]'), '') == digits,
+      (member) =>
+          member.phone.replaceAll(RegExp(r'[^0-9]'), '') == digits ||
+          (linkedTenantId != null &&
+              linkedTenantId.isNotEmpty &&
+              member.tenantId.toUpperCase() == linkedTenantId),
     )) {
       throw ArgumentError(
         'Số điện thoại đã có trong phòng hoặc đang chờ duyệt.',
@@ -1352,7 +1502,9 @@ class LandlordDemoStore extends ChangeNotifier {
     final member = LeaseMember(
       id: id,
       leaseId: lease.id,
-      tenantId: 'tenant-$id',
+      tenantId: linkedTenantId?.isNotEmpty == true
+          ? linkedTenantId!
+          : 'tenant-$id',
       name: name.trim(),
       phone: digits,
       joinedAt: date,
@@ -1363,6 +1515,126 @@ class LandlordDemoStore extends ChangeNotifier {
     _members.insert(0, member);
     notifyListeners();
     return member;
+  }
+
+  void updateMemberIdentityDocuments(
+    String tenantId, {
+    String? identityFrontPath,
+    String? identityBackPath,
+    String? portraitPath,
+  }) {
+    final member = _members
+        .where(
+          (item) =>
+              item.tenantId == tenantId &&
+              item.status == LeaseMemberStatus.active,
+        )
+        .firstOrNull;
+    if (member == null) {
+      throw ArgumentError('Không tìm thấy thành viên đang ở.');
+    }
+    final prefix =
+        'lease-member-identity/${Uri.encodeComponent(_property.id)}/${Uri.encodeComponent(tenantId)}/${Uri.encodeComponent(member.id)}/';
+    for (final path in [identityFrontPath, identityBackPath, portraitPath]) {
+      if (path != null && !path.startsWith(prefix)) {
+        throw ArgumentError('Đường dẫn hồ sơ định danh không hợp lệ.');
+      }
+    }
+    if (identityFrontPath != null) member.identityFrontPath = identityFrontPath;
+    if (identityBackPath != null) member.identityBackPath = identityBackPath;
+    if (portraitPath != null) member.portraitPath = portraitPath;
+    notifyListeners();
+  }
+
+  LeaseMember requestMemberLeave({
+    required String tenantId,
+    required String reason,
+  }) {
+    final member = members
+        .where(
+          (item) =>
+              item.tenantId == tenantId &&
+              item.status == LeaseMemberStatus.active,
+        )
+        .firstOrNull;
+    if (member == null || member.isRepresentative) {
+      throw ArgumentError(
+        'Người đại diện cần liên hệ chủ trọ để kết thúc hợp đồng.',
+      );
+    }
+    if (member.leaveRequestedAt != null) {
+      throw ArgumentError('Bạn đã gửi yêu cầu rời phòng rồi.');
+    }
+    if (reason.trim().length < 5) {
+      throw ArgumentError('Nhập lý do rời phòng (ít nhất 5 ký tự).');
+    }
+    final now = DateTime.now();
+    final effective = now.add(const Duration(days: 30));
+    member
+      ..leaveReason = reason.trim()
+      ..leaveRequestedAt = now
+      ..leaveEffectiveAt = DateTime(
+        effective.year,
+        effective.month,
+        effective.day,
+      )
+      ..leaveAcknowledgedAt = null;
+    notifyListeners();
+    return member;
+  }
+
+  void acknowledgeMemberLeave(LeaseMember member) {
+    if (!_members.contains(member) ||
+        member.status != LeaseMemberStatus.active ||
+        member.leaveRequestedAt == null) {
+      throw ArgumentError('Không tìm thấy yêu cầu rời phòng đang chờ.');
+    }
+    member.leaveAcknowledgedAt = DateTime.now();
+    notifyListeners();
+  }
+
+  void completeMemberLeave(LeaseMember member) {
+    if (!_members.contains(member) ||
+        member.status != LeaseMemberStatus.active ||
+        member.leaveRequestedAt == null ||
+        member.leaveEffectiveAt == null) {
+      throw ArgumentError('Không tìm thấy yêu cầu rời phòng hợp lệ.');
+    }
+    final today = DateTime.now();
+    final effective = member.leaveEffectiveAt!;
+    if (DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).isBefore(DateTime(effective.year, effective.month, effective.day))) {
+      throw ArgumentError('Chỉ hoàn tất rời phòng sau đủ 30 ngày báo trước.');
+    }
+    member.status = LeaseMemberStatus.left;
+    final lease = leaseById(member.leaseId);
+    if (lease != null) {
+      lease.occupantCount = membersForLease(lease.id).length;
+      lease.services = List.unmodifiable(
+        lease.services.map((service) {
+          if (!service.basis.toLowerCase().contains('người')) return service;
+          return LandlordLeaseService(
+            serviceId: service.serviceId,
+            name: service.name,
+            unit: service.unit,
+            basis: service.basis,
+            price: service.price,
+            quantity: lease.occupantCount,
+            amount: service.price * lease.occupantCount,
+          );
+        }),
+      );
+      if (lease.services.isNotEmpty) {
+        lease.serviceFee = lease.services.fold<int>(
+          0,
+          (sum, service) => sum + service.amount,
+        );
+      }
+    }
+    notifyListeners();
   }
 
   void reviewMember(

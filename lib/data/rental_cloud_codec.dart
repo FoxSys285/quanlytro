@@ -67,7 +67,14 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
       ..remove('verificationDocuments')
       ..remove('verificationSubmittedAt')
       ..remove('verificationIsOwner');
-    final tenants = leases.map((l) => l['tenantId'] as String).toSet().toList();
+    final activeMemberRows = (store['members'] as List? ?? const [])
+        .whereType<Map>()
+        .where((member) => member['status'] == 'active')
+        .toList();
+    final tenants = <String>{
+      ...leases.map((lease) => lease['tenantId'] as String),
+      ...activeMemberRows.map((member) => member['tenantId'] as String),
+    }.toList();
     void record(
       String kind,
       String key,
@@ -111,7 +118,13 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
     }
     final readersForLease = <String, List<String>>{};
     for (final lease in leases) {
-      readersForLease[lease['id'] as String] = [lease['tenantId'] as String];
+      final leaseId = lease['id'] as String;
+      readersForLease[leaseId] = <String>{
+        lease['tenantId'] as String,
+        ...activeMemberRows
+            .where((member) => member['leaseId'] == leaseId)
+            .map((member) => member['tenantId'] as String),
+      }.toList();
     }
     final invoices = (store['invoices'] as List).cast<Map>();
     final invoiceLease = {for (final i in invoices) i['id']: i['leaseId']};
@@ -161,15 +174,13 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
       );
       final electricity = services['electricity'];
       final water = services['water'];
-      final typeServiceIds = List<String>.from(
-        type['serviceIds'] as List? ?? const [],
-      );
+      final typeServiceIds = List<String>.from(type['serviceIds'] ?? const []);
       final typeServicePrices = Map<String, dynamic>.from(
-        type['servicePrices'] as Map? ?? const {},
+        type['servicePrices'] ?? const {},
       );
       Map? configuredService({required bool isWater}) {
         for (final serviceId in typeServiceIds) {
-          final candidate = services[serviceId] as Map?;
+          final candidate = services[serviceId];
           if (candidate == null) continue;
           final name = (candidate['name'] as String? ?? '').toLowerCase();
           if (isWater
@@ -178,7 +189,7 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
             return candidate;
           }
         }
-        return isWater ? water as Map? : electricity as Map?;
+        return isWater ? water : electricity;
       }
 
       final roomElectricity = configuredService(isWater: false);
@@ -275,27 +286,23 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
       for (final row in snapshot[kind]?['records'] as List? ?? []) {
         final data = Map<String, dynamic>.from(row as Map);
         if (data['propertyId'] != id) continue;
+        final recipients = <String>[data['tenantId'] as String];
         if (kind == 'conversations') {
           final messages = data['messages'] as List;
           for (var index = 0; index < messages.length; index++) {
             final message = Map<String, dynamic>.from(messages[index] as Map);
             final position = message['index'] ?? index;
-            record(
-              'messages',
-              '${data['id']}:${message['id'] ?? position}',
-              {
-                ...message,
-                'conversationId': data['id'],
-                'index': position,
-                'conversationKey':
-                    '${Uri.encodeComponent(id)}:conversations:${Uri.encodeComponent(data['id'] as String)}',
-              },
-              [data['tenantId'] as String],
-            );
+            record('messages', '${data['id']}:${message['id'] ?? position}', {
+              ...message,
+              'conversationId': data['id'],
+              'index': position,
+              'conversationKey':
+                  '${Uri.encodeComponent(id)}:conversations:${Uri.encodeComponent(data['id'] as String)}',
+            }, recipients);
           }
           data['messages'] = <dynamic>[];
         }
-        record(kind, data['id'] as String, data, [data['tenantId'] as String]);
+        record(kind, data['id'] as String, data, recipients);
       }
     }
   }

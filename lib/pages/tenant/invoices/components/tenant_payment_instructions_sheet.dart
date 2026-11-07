@@ -8,6 +8,7 @@ import '../../tenant_detail_ui.dart';
 import '../../../landlord/landlord_demo_store.dart';
 import '../../../landlord/finance/landlord_finance_models.dart';
 import '../../../shared/rental/tenant_session.dart';
+import '../../../shared/media/media_permission_service.dart';
 
 void showTenantPaymentInstructions(
   BuildContext context, {
@@ -71,6 +72,16 @@ class _TenantPaymentInstructionsSheetState
 
   Future<void> _pickProof() async {
     try {
+      if (!await MediaPermissionService.checkBeforePicker(
+        RentalMediaKind.image,
+      )) {
+        if (mounted) {
+          setState(
+            () => _error = 'Cần quyền truy cập ảnh để chọn ảnh minh chứng.',
+          );
+        }
+        return;
+      }
       final image = await ImagePicker().pickImage(
         source: ImageSource.gallery,
         maxWidth: 1600,

@@ -6,18 +6,18 @@ import '../../data/app_persistence.dart';
 import '../../data/local_auth.dart';
 import '../../layouts/role_layout.dart';
 
-const adminInk = Color(0xFF0B192C);
-const adminBlue = Color(0xFF0284C7);
-const adminPurple = Color(0xFF0369A1);
-const adminTeal = Color(0xFF0891B2);
+const adminInk = Color(0xFF0B1220);
+const adminBlue = Color(0xFF087FC1);
+const adminPurple = Color(0xFF7046D3);
+const adminTeal = Color(0xFF168FC2);
 const adminOrange = Color(0xFFE11D48);
-const adminMuted = Color(0xFF52657A);
+const adminMuted = Color(0xFF66758A);
 const adminGold = Color(0xFFD97706);
-const adminLine = Color(0xFFDCE6F1);
-const adminCanvas = Color(0xFFF0F6FA);
+const adminLine = Color(0xFFE1E7F0);
+const adminCanvas = Color(0xFFF5F7FC);
 const adminGreen = Color(0xFF0D9488);
-const adminHeaderBg = Color(0xFF0F2537);
-const adminSurfaceTint = Color(0xFFF5FAFE);
+const adminHeaderBg = Color(0xFF0F172A);
+const adminSurfaceTint = Color(0xFFF6F5FF);
 
 class AdminSyncBar extends StatelessWidget {
   const AdminSyncBar({super.key});

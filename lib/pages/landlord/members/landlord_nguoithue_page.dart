@@ -1,3 +1,4 @@
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 import '../landlord_theme.dart';
@@ -23,7 +24,7 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
   int _page = 0;
   static const _pageSize = 10;
   bool _requests = true;
-  LeaseMemberStatus? _requestStatus = LeaseMemberStatus.pending;
+  LeaseMemberStatus? _requestStatus;
   LandlordDemoStore get _store =>
       widget.store ?? LandlordDemoStore.activeInstance;
 
@@ -48,6 +49,71 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
     }
   }
 
+  Future<void> _showIdentityDocuments(LeaseMember member) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Hồ sơ định danh · ${member.name}'),
+        content: SizedBox(
+          width: 440,
+          height: 420,
+          child: ListView(
+            children: [
+              _privateImage('Mặt trước CCCD', member.identityFrontPath),
+              _privateImage('Mặt sau CCCD', member.identityBackPath),
+              _privateImage('Ảnh chân dung', member.portraitPath),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _privateImage(String label, String? path) {
+    if (path == null || path.isEmpty) {
+      return ListTile(title: Text(label), subtitle: const Text('Chưa tải lên'));
+    }
+    return FutureBuilder(
+      future: FirebaseStorage.instance.ref(path).getData(10 * 1024 * 1024),
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              if (snapshot.connectionState != ConnectionState.done)
+                const SizedBox(
+                  height: 110,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (bytes == null)
+                const Text('Không đọc được ảnh từ kho lưu trữ riêng tư.')
+              else
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(
+                    bytes,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   bool _matches(LeaseMember member) {
     final lease = _store.leaseById(member.leaseId);
     return '${member.name} ${member.phone} ${lease?.room ?? ''} ${lease?.tenantName ?? ''}'
@@ -59,6 +125,7 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
     LeaseMemberStatus.pending => 'Chờ duyệt',
     LeaseMemberStatus.active => 'Đã duyệt',
     LeaseMemberStatus.rejected => 'Đã từ chối',
+    LeaseMemberStatus.left => 'Đã rời phòng',
   };
 
   @override
@@ -81,8 +148,10 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
               .where(
                 (member) =>
                     !member.isRepresentative &&
-                    (member.status != LeaseMemberStatus.active ||
-                        member.requestedAt != null),
+                    (member.status == LeaseMemberStatus.pending ||
+                        member.status == LeaseMemberStatus.rejected ||
+                        (member.status == LeaseMemberStatus.active &&
+                            member.leaveRequestedAt != null)),
               )
               .where(
                 (member) =>
@@ -210,15 +279,45 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
                         ),
                         title: Text(member.name),
                         subtitle: Text(
-                          '${member.phone}\nVào ở: ${landlordDate(member.joinedAt)}',
+                          '${member.phone} · Mã ${member.tenantId}\n'
+                          'Vào ở: ${landlordDate(member.joinedAt)} · '
+                          'Hồ sơ định danh: ${member.hasIdentityDocuments ? 'đã đủ' : 'chưa đủ'}'
+                          '${member.leaveEffectiveAt == null ? '' : '\nDự kiến rời phòng: ${landlordDate(member.leaveEffectiveAt!)}'}\nNhấn để xem giấy tờ định danh',
                         ),
+                        onTap: () => _showIdentityDocuments(member),
                         isThreeLine: true,
                         trailing: member.isRepresentative
                             ? const LandlordStatusPill(
                                 'Đại diện',
                                 color: landlordBlue,
                               )
-                            : null,
+                            : member.leaveRequestedAt == null
+                            ? null
+                            : Wrap(
+                                spacing: 4,
+                                children: [
+                                  if (member.leaveAcknowledgedAt == null)
+                                    TextButton(
+                                      onPressed: () => setState(
+                                        () => _store.acknowledgeMemberLeave(
+                                          member,
+                                        ),
+                                      ),
+                                      child: const Text('Đã nhận'),
+                                    ),
+                                  if (member.leaveEffectiveAt != null &&
+                                      !DateTime.now().isBefore(
+                                        member.leaveEffectiveAt!,
+                                      ))
+                                    TextButton(
+                                      onPressed: () => setState(
+                                        () =>
+                                            _store.completeMemberLeave(member),
+                                      ),
+                                      child: const Text('Hoàn tất rời'),
+                                    ),
+                                ],
+                              ),
                       ),
                   ],
                 ),
@@ -256,6 +355,7 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
       LeaseMemberStatus.pending => const Color(0xFFAB7623),
       LeaseMemberStatus.active => const Color(0xFF16836F),
       LeaseMemberStatus.rejected => Colors.red,
+      LeaseMemberStatus.left => Colors.grey,
     };
     final requester = _store.members
         .where(
@@ -291,6 +391,7 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
             Text('Điện thoại: ${member.phone}'),
+            Text('Mã người thuê: ${member.tenantId}'),
             Text('Ngày dự kiến vào ở: ${landlordDate(member.joinedAt)}'),
             Text('Người gửi: ${requester?.name ?? lease.tenantName}'),
             if (member.requestedAt != null)
@@ -303,6 +404,38 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
                 'Lý do: ${member.rejectionReason}',
                 style: const TextStyle(color: Colors.red),
               ),
+            if (member.leaveRequestedAt != null) ...[
+              Text('Lý do rời phòng: ${member.leaveReason ?? ''}'),
+              if (member.leaveEffectiveAt != null)
+                Text(
+                  'Ngày rời dự kiến: ${landlordDate(member.leaveEffectiveAt!)} · '
+                  '${member.leaveAcknowledgedAt == null ? 'chưa xác nhận' : 'đã xác nhận'}',
+                ),
+              if (member.leaveAcknowledgedAt == null ||
+                  (member.leaveEffectiveAt != null &&
+                      !DateTime.now().isBefore(member.leaveEffectiveAt!))) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    if (member.leaveAcknowledgedAt == null)
+                      OutlinedButton(
+                        onPressed: () => setState(
+                          () => _store.acknowledgeMemberLeave(member),
+                        ),
+                        child: const Text('Xác nhận đã nhận yêu cầu'),
+                      ),
+                    if (member.leaveEffectiveAt != null &&
+                        !DateTime.now().isBefore(member.leaveEffectiveAt!))
+                      FilledButton(
+                        onPressed: () =>
+                            setState(() => _store.completeMemberLeave(member)),
+                        child: const Text('Hoàn tất rời phòng'),
+                      ),
+                  ],
+                ),
+              ],
+            ],
             if (member.status == LeaseMemberStatus.pending) ...[
               const SizedBox(height: 12),
               Wrap(

@@ -24,8 +24,11 @@ class AdminLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Theme(
       data: Theme.of(context).copyWith(
-        colorScheme: ColorScheme.fromSeed(seedColor: adminBlue)
-            .copyWith(primary: adminBlue, secondary: adminTeal),
+        colorScheme: ColorScheme.fromSeed(seedColor: adminBlue).copyWith(
+          primary: adminBlue,
+          secondary: adminPurple,
+          tertiary: adminTeal,
+        ),
         scaffoldBackgroundColor: adminCanvas,
         dividerColor: adminLine,
         splashFactory: InkRipple.splashFactory,
@@ -144,16 +147,16 @@ class AdminLayout extends StatelessWidget {
             destinationId: 'dashboard',
           ),
           RoleTab(
-            label: 'Người dùng',
-            icon: Icons.manage_accounts_outlined,
-            selectedIcon: Icons.manage_accounts_rounded,
-            destinationId: 'users',
+            label: 'Chủ trọ',
+            icon: Icons.apartment_outlined,
+            selectedIcon: Icons.apartment_rounded,
+            destinationId: 'landlords',
           ),
           RoleTab(
-            label: 'Hoa hồng',
-            icon: Icons.account_balance_wallet_outlined,
-            selectedIcon: Icons.account_balance_wallet_rounded,
-            destinationId: 'commissions',
+            label: 'Thống kê',
+            icon: Icons.query_stats_outlined,
+            selectedIcon: Icons.query_stats_rounded,
+            destinationId: 'statistics',
           ),
         ],
         destinations: const [
@@ -164,33 +167,27 @@ class AdminLayout extends StatelessWidget {
             group: 'Quản trị',
           ),
           RoleDestination(
+            id: 'landlords',
+            label: 'Quản lý chủ trọ',
+            icon: Icons.apartment_outlined,
+            group: 'Quản trị',
+          ),
+          RoleDestination(
             id: 'users',
-            label: 'Người dùng',
+            label: 'Tài khoản người dùng',
             icon: Icons.manage_accounts_outlined,
             group: 'Quản trị',
           ),
           RoleDestination(
-            id: 'commissions',
-            label: 'Đối soát hoa hồng',
-            icon: Icons.account_balance_wallet_outlined,
-            group: 'Quản trị',
-          ),
-          RoleDestination(
-            id: 'activity',
-            label: 'Hoạt động ứng dụng',
-            icon: Icons.sensors_rounded,
+            id: 'statistics',
+            label: 'Thống kê gói',
+            icon: Icons.query_stats_outlined,
             group: 'Quản trị',
           ),
           RoleDestination(
             id: 'property_verification',
             label: 'Xác minh nhà trọ',
             icon: Icons.verified_user_outlined,
-            group: 'Kiểm duyệt',
-          ),
-          RoleDestination(
-            id: 'moderation',
-            label: 'Kiểm duyệt tin đăng',
-            icon: Icons.flag_outlined,
             group: 'Kiểm duyệt',
           ),
           RoleDestination(

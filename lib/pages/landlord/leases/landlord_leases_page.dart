@@ -782,6 +782,15 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                 spacing: 8,
                 runSpacing: 7,
                 children: [
+                  if (lease.renewalStatus == 'pending' ||
+                      lease.terminationRequestStatus == 'pending')
+                    const Chip(
+                      avatar: Icon(
+                        Icons.notifications_active_outlined,
+                        size: 16,
+                      ),
+                      label: Text('Có yêu cầu cần xử lý'),
+                    ),
                   OutlinedButton.icon(
                     onPressed: () => _showLeaseDocument(lease),
                     icon: const Icon(Icons.article_outlined, size: 17),
@@ -978,6 +987,25 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
                     ),
                   ),
                 ),
+                if (lease.renewalStatus == 'pending') ...[
+                  _requestReviewPanel(
+                    title: 'Đề nghị gia hạn hợp đồng',
+                    details:
+                        'Người thuê đề xuất đến ${lease.renewalProposedEndDate == null ? '—' : landlordDate(lease.renewalProposedEndDate!)}. ${lease.renewalReason}',
+                    onApprove: () => _reviewRenewal(lease, true),
+                    onReject: () => _reviewRenewal(lease, false),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (lease.terminationRequestStatus == 'pending') ...[
+                  _requestReviewPanel(
+                    title: 'Đề nghị kết thúc hợp đồng',
+                    details: lease.terminationRequestReason,
+                    onApprove: () => _reviewTermination(lease, true),
+                    onReject: () => _reviewTermination(lease, false),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
@@ -996,6 +1024,109 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
         ),
       ),
     );
+  }
+
+  Widget _requestReviewPanel({
+    required String title,
+    required String details,
+    required VoidCallback onApprove,
+    required VoidCallback onReject,
+  }) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF6E7),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFEAD5AC)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        Text(details, style: const TextStyle(fontSize: 12, height: 1.4)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            FilledButton(onPressed: onApprove, child: const Text('Duyệt')),
+            OutlinedButton(onPressed: onReject, child: const Text('Từ chối')),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Future<String?> _askReason(String title, String label) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 4,
+          maxLength: 300,
+          decoration: InputDecoration(labelText: label),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return reason;
+  }
+
+  Future<void> _reviewRenewal(LandlordLease lease, bool approve) async {
+    final reason = approve
+        ? ''
+        : await _askReason('Từ chối gia hạn', 'Lý do từ chối');
+    if (!approve && reason == null) return;
+    try {
+      _store.reviewLeaseRenewal(lease, approve: approve, reason: reason ?? '');
+      if (mounted) {
+        showLandlordMessage(
+          context,
+          approve ? 'Đã duyệt gia hạn.' : 'Đã từ chối đề nghị gia hạn.',
+        );
+      }
+    } on ArgumentError catch (error) {
+      if (mounted) showLandlordMessage(context, error.message.toString());
+    }
+  }
+
+  Future<void> _reviewTermination(LandlordLease lease, bool approve) async {
+    final reason = approve
+        ? ''
+        : await _askReason('Từ chối kết thúc hợp đồng', 'Lý do từ chối');
+    if (!approve && reason == null) return;
+    try {
+      _store.reviewLeaseTermination(
+        lease,
+        approve: approve,
+        reason: reason ?? '',
+      );
+      if (mounted) {
+        showLandlordMessage(
+          context,
+          approve
+              ? 'Đã chấm dứt hợp đồng theo đề nghị.'
+              : 'Đã từ chối đề nghị kết thúc hợp đồng.',
+        );
+      }
+    } on ArgumentError catch (error) {
+      if (mounted) showLandlordMessage(context, error.message.toString());
+    }
   }
 
   Future<void> _showLeaseDocument(LandlordLease lease) async {
@@ -1421,12 +1552,21 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
   }
 
   Future<void> _endLease(LandlordLease lease) async {
+    final reason = await _askReason(
+      'Kết thúc hợp đồng?',
+      'Lý do (quá hạn, vi phạm hoặc lý do khác)',
+    );
+    if (!mounted || reason == null) return;
+    if (reason.trim().length < 5) {
+      showLandlordMessage(context, 'Nhập lý do có ít nhất 5 ký tự.');
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Kết thúc hợp đồng?'),
         content: Text(
-          'Hợp đồng phòng ${lease.room} của ${lease.tenantName} sẽ chuyển sang trạng thái đã kết thúc.',
+          'Hợp đồng phòng ${lease.room} của ${lease.tenantName} sẽ kết thúc. Lý do: $reason',
         ),
         actions: [
           TextButton(
@@ -1440,7 +1580,8 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
         ],
       ),
     );
-    if (confirmed == true) _store.endLease(lease);
+    if (!mounted) return;
+    if (confirmed == true) _store.endLease(lease, reason: reason);
   }
 }
 

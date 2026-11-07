@@ -499,20 +499,31 @@ class AppPersistence {
   }
 
   Future<void> dispose() async {
+    if (_disposed) return;
     _refreshTimer?.cancel();
-    await _remoteSubscription?.cancel();
-    await flush();
-    _disposed = true;
-    for (final source in _subscriptions) {
-      source.removeListener(save);
+    final canFlush = !cloudMode || _initialSyncCompleted;
+    // Stop an in-flight initial read from restoring data into the next role's
+    // stores. No cloud edits can have been queued before initial sync finishes.
+    if (!canFlush) _disposed = true;
+    try {
+      await _remoteSubscription?.cancel();
+      _remoteSubscription = null;
+      if (canFlush) await flush();
+    } finally {
+      _disposed = true;
+      await _remoteSubscription?.cancel();
+      _remoteSubscription = null;
+      for (final source in _subscriptions) {
+        source.removeListener(save);
+      }
+      _subscriptions.clear();
+      if (current == this) current = null;
+      await repository.close();
+      scheduleMicrotask(() {
+        error.dispose();
+        saveStatus.dispose();
+        refreshing.dispose();
+      });
     }
-    _subscriptions.clear();
-    if (current == this) current = null;
-    await repository.close();
-    scheduleMicrotask(() {
-      error.dispose();
-      saveStatus.dispose();
-      refreshing.dispose();
-    });
   }
 }

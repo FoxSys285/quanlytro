@@ -30,6 +30,14 @@ class LocalAuth extends ChangeNotifier {
     return null;
   }
 
+  Future<bool> tenantCodeExists(String tenantId) async {
+    final gateway = _gateway;
+    if (gateway is TenantAccountLookupGateway) {
+      return (gateway as TenantAccountLookupGateway).tenantCodeExists(tenantId);
+    }
+    return false;
+  }
+
   AccountProviderGateway get _providers {
     final gateway = _gateway;
     if (gateway is AccountProviderGateway) {

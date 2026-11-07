@@ -1,4 +1,4 @@
-enum LeaseMemberStatus { pending, active, rejected }
+enum LeaseMemberStatus { pending, active, rejected, left }
 
 class LeaseMember {
   LeaseMember({
@@ -13,6 +13,13 @@ class LeaseMember {
     this.rejectionReason,
     this.requestedBy,
     this.requestedAt,
+    this.identityFrontPath,
+    this.identityBackPath,
+    this.portraitPath,
+    this.leaveReason,
+    this.leaveRequestedAt,
+    this.leaveEffectiveAt,
+    this.leaveAcknowledgedAt,
   });
 
   final String id;
@@ -24,6 +31,18 @@ class LeaseMember {
   final bool isRepresentative;
   LeaseMemberStatus status;
   String? rejectionReason;
+  String? identityFrontPath;
+  String? identityBackPath;
+  String? portraitPath;
+  String? leaveReason;
+  DateTime? leaveRequestedAt;
+  DateTime? leaveEffectiveAt;
+  DateTime? leaveAcknowledgedAt;
+
+  bool get hasIdentityDocuments =>
+      (identityFrontPath ?? '').isNotEmpty &&
+      (identityBackPath ?? '').isNotEmpty &&
+      (portraitPath ?? '').isNotEmpty;
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -37,6 +56,13 @@ class LeaseMember {
     'rejectionReason': rejectionReason,
     'requestedBy': requestedBy,
     'requestedAt': requestedAt?.toIso8601String(),
+    'identityFrontPath': identityFrontPath,
+    'identityBackPath': identityBackPath,
+    'portraitPath': portraitPath,
+    'leaveReason': leaveReason,
+    'leaveRequestedAt': leaveRequestedAt?.toIso8601String(),
+    'leaveEffectiveAt': leaveEffectiveAt?.toIso8601String(),
+    'leaveAcknowledgedAt': leaveAcknowledgedAt?.toIso8601String(),
   };
 
   factory LeaseMember.fromMap(Map<String, dynamic> map) => LeaseMember(
@@ -53,6 +79,19 @@ class LeaseMember {
     requestedAt: map['requestedAt'] == null
         ? null
         : DateTime.parse(map['requestedAt'] as String),
+    identityFrontPath: map['identityFrontPath'] as String?,
+    identityBackPath: map['identityBackPath'] as String?,
+    portraitPath: map['portraitPath'] as String?,
+    leaveReason: map['leaveReason'] as String?,
+    leaveRequestedAt: map['leaveRequestedAt'] == null
+        ? null
+        : DateTime.parse(map['leaveRequestedAt'] as String),
+    leaveEffectiveAt: map['leaveEffectiveAt'] == null
+        ? null
+        : DateTime.parse(map['leaveEffectiveAt'] as String),
+    leaveAcknowledgedAt: map['leaveAcknowledgedAt'] == null
+        ? null
+        : DateTime.parse(map['leaveAcknowledgedAt'] as String),
   );
   final String? requestedBy;
   final DateTime? requestedAt;

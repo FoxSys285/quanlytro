@@ -2,11 +2,17 @@ import 'dart:ui' as ui;
 
 import 'package:image_picker/image_picker.dart';
 
+import '../../../shared/media/media_permission_service.dart';
 import '../../../shared/media/room_photo.dart';
 
 typedef RoomTypePhotoPicker = Future<List<RoomPhoto>> Function(int remaining);
 
 Future<List<RoomPhoto>> pickRoomTypePhotos(int remaining) async {
+  if (!await MediaPermissionService.checkBeforePicker(RentalMediaKind.image)) {
+    throw const FormatException(
+      'Hãy cho phép truy cập ảnh trong Cài đặt để chọn hình.',
+    );
+  }
   final files = await ImagePicker().pickMultiImage(
     maxWidth: 1600,
     maxHeight: 1200,

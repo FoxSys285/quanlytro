@@ -52,4 +52,5 @@ class TenantAccountContact {
 
 abstract interface class TenantAccountLookupGateway {
   Future<TenantAccountContact?> lookupTenantContact(String tenantId);
+  Future<bool> tenantCodeExists(String tenantId);
 }

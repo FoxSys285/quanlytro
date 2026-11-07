@@ -99,6 +99,21 @@ class LandlordLease {
     this.commonResponsibilities = '',
     this.templateId = '',
     this.rentalAddress = '',
+    this.terminationReason = '',
+    this.terminatedAt,
+    this.terminationRequestStatus = '',
+    this.terminationRequestedAt,
+    this.terminationRequestedBy = '',
+    this.terminationRequestReason = '',
+    this.terminationReviewedAt,
+    this.terminationRejectionReason = '',
+    this.renewalStatus = '',
+    this.renewalRequestedAt,
+    this.renewalRequestedBy = '',
+    this.renewalProposedEndDate,
+    this.renewalReason = '',
+    this.renewalReviewedAt,
+    this.renewalRejectionReason = '',
   });
 
   final String id;
@@ -151,6 +166,21 @@ class LandlordLease {
   String commonResponsibilities;
   String templateId;
   String rentalAddress;
+  String terminationReason;
+  DateTime? terminatedAt;
+  String terminationRequestStatus;
+  DateTime? terminationRequestedAt;
+  String terminationRequestedBy;
+  String terminationRequestReason;
+  DateTime? terminationReviewedAt;
+  String terminationRejectionReason;
+  String renewalStatus;
+  DateTime? renewalRequestedAt;
+  String renewalRequestedBy;
+  DateTime? renewalProposedEndDate;
+  String renewalReason;
+  DateTime? renewalReviewedAt;
+  String renewalRejectionReason;
 
   int get servicesTotal => services.isEmpty
       ? vehicleFee + serviceFee
@@ -235,6 +265,21 @@ class LandlordLease {
     'commonResponsibilities': commonResponsibilities,
     'templateId': templateId,
     'rentalAddress': rentalAddress,
+    'terminationReason': terminationReason,
+    'terminatedAt': terminatedAt?.toIso8601String(),
+    'terminationRequestStatus': terminationRequestStatus,
+    'terminationRequestedAt': terminationRequestedAt?.toIso8601String(),
+    'terminationRequestedBy': terminationRequestedBy,
+    'terminationRequestReason': terminationRequestReason,
+    'terminationReviewedAt': terminationReviewedAt?.toIso8601String(),
+    'terminationRejectionReason': terminationRejectionReason,
+    'renewalStatus': renewalStatus,
+    'renewalRequestedAt': renewalRequestedAt?.toIso8601String(),
+    'renewalRequestedBy': renewalRequestedBy,
+    'renewalProposedEndDate': renewalProposedEndDate?.toIso8601String(),
+    'renewalReason': renewalReason,
+    'renewalReviewedAt': renewalReviewedAt?.toIso8601String(),
+    'renewalRejectionReason': renewalRejectionReason,
   };
 
   factory LandlordLease.fromMap(Map<String, dynamic> map) => LandlordLease(
@@ -304,6 +349,34 @@ class LandlordLease {
     commonResponsibilities: map['commonResponsibilities'] as String? ?? '',
     templateId: map['templateId'] as String? ?? '',
     rentalAddress: map['rentalAddress'] as String? ?? '',
+    terminationReason: map['terminationReason'] as String? ?? '',
+    terminatedAt: map['terminatedAt'] == null
+        ? null
+        : DateTime.parse(map['terminatedAt'] as String),
+    terminationRequestStatus: map['terminationRequestStatus'] as String? ?? '',
+    terminationRequestedAt: map['terminationRequestedAt'] == null
+        ? null
+        : DateTime.parse(map['terminationRequestedAt'] as String),
+    terminationRequestedBy: map['terminationRequestedBy'] as String? ?? '',
+    terminationRequestReason: map['terminationRequestReason'] as String? ?? '',
+    terminationReviewedAt: map['terminationReviewedAt'] == null
+        ? null
+        : DateTime.parse(map['terminationReviewedAt'] as String),
+    terminationRejectionReason:
+        map['terminationRejectionReason'] as String? ?? '',
+    renewalStatus: map['renewalStatus'] as String? ?? '',
+    renewalRequestedAt: map['renewalRequestedAt'] == null
+        ? null
+        : DateTime.parse(map['renewalRequestedAt'] as String),
+    renewalRequestedBy: map['renewalRequestedBy'] as String? ?? '',
+    renewalProposedEndDate: map['renewalProposedEndDate'] == null
+        ? null
+        : DateTime.parse(map['renewalProposedEndDate'] as String),
+    renewalReason: map['renewalReason'] as String? ?? '',
+    renewalReviewedAt: map['renewalReviewedAt'] == null
+        ? null
+        : DateTime.parse(map['renewalReviewedAt'] as String),
+    renewalRejectionReason: map['renewalRejectionReason'] as String? ?? '',
   );
 }
 

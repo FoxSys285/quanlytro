@@ -73,6 +73,13 @@ service cloud.firestore {
           request.resource.data.phoneVerified == true &&
           request.resource.data.phoneNumber == request.auth.token.get('phone_number', ''));
     }
+    match /users/{uid}/devices/{deviceId} {
+      allow read: if request.auth != null && uid == request.auth.uid;
+      allow create, update: if request.auth != null && uid == request.auth.uid &&
+        request.resource.data.keys().hasOnly(['token', 'enabled', 'updatedAt']) &&
+        request.resource.data.token is string && request.resource.data.enabled is bool;
+      allow delete: if request.auth != null && uid == request.auth.uid;
+    }
     match /tenant_codes/{code} {
       // Authenticated users can check a generated code for a collision, but
       // cannot list reservations or inspect tenant account details.
@@ -89,8 +96,8 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /tenant_contacts/{code} {
-      // Landlords can resolve a tenant code to the contact fields needed by a
-      // lease form. Tenants can read and maintain only their own directory row.
+      // Landlords can resolve a tenant code to contact fields. Tenants can
+      // read only their own directory row; listing remains forbidden.
       allow get: if active() && (
         profile().role in ['admin', 'landlord'] ||
         (profile().role == 'tenant' && profile().tenantId == code)
@@ -184,7 +191,9 @@ service cloud.firestore {
       function validTarget() {
         return request.resource.data.ownerUid ==
           get(/databases/$(database)/documents/rental_properties/$(request.resource.data.propertyId)).data.ownerUid &&
-          request.resource.data.tenantIds == [profile().tenantId] && request.resource.data.archived == false;
+          request.resource.data.tenantIds is list &&
+          request.resource.data.tenantIds.hasAny([profile().tenantId]) &&
+          request.resource.data.archived == false;
       }
       function ownLease() {
         let leaseId = request.resource.data.data.leaseId;
@@ -195,10 +204,10 @@ service cloud.firestore {
       function tenantCreate() {
         let d = request.resource.data.data;
         return validTarget() && (
-          (request.resource.data.kind == 'viewings' && d.tenantId == profile().tenantId && d.status == 'pending' && acceptingViewings()) ||
-          (request.resource.data.kind == 'incidents' && d.reporterId == profile().tenantId && d.status == 'newly' && ownLease()) ||
-          (request.resource.data.kind == 'members' && d.requestedBy == profile().tenantId && d.status == 'pending' && d.isRepresentative == false && ownLease()) ||
-          (request.resource.data.kind == 'conversations' && d.tenantId == profile().tenantId && d.messages == []) ||
+          (request.resource.data.kind == 'viewings' && request.resource.data.tenantIds == [profile().tenantId] && d.tenantId == profile().tenantId && d.status == 'pending' && acceptingViewings()) ||
+          (request.resource.data.kind == 'incidents' && d.reporterId == profile().tenantId && d.status == 'newly' && ownLease() && request.resource.data.tenantIds.hasOnly(get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':leases:' + d.leaseId)).data.tenantIds)) ||
+          (request.resource.data.kind == 'members' && d.requestedBy == profile().tenantId && d.status == 'pending' && d.isRepresentative == false && validTenantCode(d.tenantId) && d.tenantId != profile().tenantId && exists(/databases/$(database)/documents/tenant_codes/$(d.tenantId)) && ownLease() && get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':leases:' + d.leaseId)).data.data.tenantId == profile().tenantId && request.resource.data.tenantIds.hasOnly(get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':leases:' + d.leaseId)).data.tenantIds)) ||
+          (request.resource.data.kind == 'conversations' && request.resource.data.tenantIds == [profile().tenantId] && d.tenantId == profile().tenantId && d.messages == []) ||
           (request.resource.data.kind == 'messages' && messageCreate()) ||
           (request.resource.data.kind == 'payments' && paymentCreate())
         );
@@ -229,6 +238,7 @@ service cloud.firestore {
         let d = request.resource.data.data;
         let invoice = get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':invoices:' + d.invoiceId)).data;
         return tenant(invoice) && invoice.kind == 'invoices' && invoice.archived == false && invoice.data.cancelled == false &&
+          request.resource.data.tenantIds.hasOnly(invoice.tenantIds) &&
           invoice.ownerUid == request.resource.data.ownerUid && d.status == 'pending' && d.approvedAmount == null &&
           d.reviewedAt == null && d.reportedAmount is int && d.reportedAmount > 0 &&
           d.reportedAmount <= 1000000000;
@@ -241,10 +251,21 @@ service cloud.firestore {
           (resource.data.kind == 'viewings' && changed.hasOnly(['status']) && old.status != 'cancelled' && d.status == 'cancelled') ||
           (resource.data.kind == 'incidents' && changed.hasOnly(['status']) && old.status == 'resolved' && d.status in ['closed', 'newly']) ||
           (resource.data.kind == 'conversations' && conversationUpdate()) ||
+          (resource.data.kind == 'members' && memberIdentityUpdate()) ||
           (resource.data.kind == 'tenantAnnouncements' && changed.hasOnly(['readByTenant']) &&
             d.readByTenant.keys().hasOnly([profile().tenantId]) &&
             d.readByTenant[profile().tenantId] is list &&
             d.readByTenant[profile().tenantId].hasOnly(old.recipients.keys()));
+      }
+      function memberIdentityUpdate() {
+        let d = request.resource.data.data;
+        let old = resource.data.data;
+        let changed = d.diff(old).affectedKeys();
+        let identityUpdate = changed.hasOnly(['identityFrontPath', 'identityBackPath', 'portraitPath']);
+        let leaveUpdate = changed.hasOnly(['leaveReason', 'leaveRequestedAt', 'leaveEffectiveAt']);
+        return (identityUpdate || leaveUpdate) &&
+          old.status == 'active' && d.status == 'active' &&
+          old.tenantId == profile().tenantId && d.tenantId == profile().tenantId;
       }
       function conversationUpdate() {
         let d = request.resource.data.data;

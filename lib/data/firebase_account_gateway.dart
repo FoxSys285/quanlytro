@@ -262,6 +262,17 @@ class FirebaseAccountGateway
     );
   }
 
+  @override
+  Future<bool> tenantCodeExists(String tenantId) async {
+    final code = tenantId.trim().toUpperCase();
+    if (!RegExp(r'^[A-Z0-9]{8}$').hasMatch(code)) return false;
+    final snapshot = await _firestore
+        .collection('tenant_codes')
+        .doc(code)
+        .get(const GetOptions(source: Source.server));
+    return snapshot.exists;
+  }
+
   Future<void> _syncTenantContact(FirebaseAccountSession session) async {
     final tenantId = session.tenantId;
     if (session.role != AppRole.tenant || tenantId == null) return;

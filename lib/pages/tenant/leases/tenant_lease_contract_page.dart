@@ -18,6 +18,204 @@ String _serviceQuantityLabel(LandlordLeaseService service) {
   return '';
 }
 
+DateTime _endAfterMonths(DateTime endDate, int months) {
+  final first = DateTime(endDate.year, endDate.month + months, 1);
+  final lastDay = DateTime(first.year, first.month + 1, 0).day;
+  return DateTime(
+    first.year,
+    first.month,
+    endDate.day > lastDay ? lastDay : endDate.day,
+  );
+}
+
+Future<void> _requestRenewal(
+  BuildContext context,
+  LandlordDemoStore store,
+  LandlordLease lease,
+  String tenantId,
+) async {
+  final months = TextEditingController(text: '12');
+  final reason = TextEditingController();
+  final submitted = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Đề nghị gia hạn hợp đồng'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: months,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Số tháng muốn gia hạn',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: reason,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Lời nhắn cho chủ trọ (không bắt buộc)',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Gửi đề nghị'),
+        ),
+      ],
+    ),
+  );
+  final count = int.tryParse(months.text.trim());
+  months.dispose();
+  if (submitted != true || !context.mounted) {
+    reason.dispose();
+    return;
+  }
+  if (count == null || count < 1 || count > 60) {
+    reason.dispose();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Thời hạn gia hạn phải từ 1 đến 60 tháng.')),
+    );
+    return;
+  }
+  try {
+    store.requestLeaseRenewal(
+      tenantId: tenantId,
+      leaseId: lease.id,
+      proposedEndDate: _endAfterMonths(lease.endDate, count),
+      reason: reason.text.trim(),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã gửi đề nghị gia hạn cho chủ trọ.')),
+    );
+  } on ArgumentError catch (error) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(error.message.toString())));
+  } finally {
+    reason.dispose();
+  }
+}
+
+Future<void> _requestTermination(
+  BuildContext context,
+  LandlordDemoStore store,
+  LandlordLease lease,
+  String tenantId,
+) async {
+  final reason = TextEditingController();
+  final submitted = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Đề nghị kết thúc hợp đồng'),
+      content: TextField(
+        controller: reason,
+        autofocus: true,
+        minLines: 2,
+        maxLines: 4,
+        maxLength: 300,
+        decoration: const InputDecoration(
+          labelText: 'Lý do chuyển trọ / kết thúc hợp đồng',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Gửi đề nghị'),
+        ),
+      ],
+    ),
+  );
+  if (submitted != true || !context.mounted) {
+    reason.dispose();
+    return;
+  }
+  try {
+    store.requestLeaseTermination(
+      tenantId: tenantId,
+      leaseId: lease.id,
+      reason: reason.text.trim(),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã gửi đề nghị kết thúc hợp đồng cho chủ trọ.'),
+      ),
+    );
+  } on ArgumentError catch (error) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(error.message.toString())));
+  } finally {
+    reason.dispose();
+  }
+}
+
+Widget _leaseRequestPanel(
+  BuildContext context,
+  LandlordDemoStore store,
+  LandlordLease lease,
+  String tenantId,
+) {
+  final today = DateUtils.dateOnly(DateTime.now());
+  final daysLeft = DateUtils.dateOnly(lease.endDate).difference(today).inDays;
+  return TenantSurface(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const TenantSectionHeading('Gia hạn và kết thúc hợp đồng'),
+        Text(
+          lease.renewalStatus == 'pending'
+              ? 'Đề nghị gia hạn đang chờ chủ trọ duyệt. Ngày đề xuất: ${lease.renewalProposedEndDate == null ? '—' : landlordDate(lease.renewalProposedEndDate!)}.'
+              : lease.renewalStatus == 'rejected'
+              ? 'Đề nghị gần nhất bị từ chối: ${lease.renewalRejectionReason}'
+              : 'Hợp đồng còn $daysLeft ngày. Có thể gửi đề nghị gia hạn trong tháng cuối.',
+          style: const TextStyle(color: tenantMuted, fontSize: 12, height: 1.5),
+        ),
+        if (lease.renewalStatus != 'pending' && daysLeft <= 31) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => _requestRenewal(context, store, lease, tenantId),
+            icon: const Icon(Icons.autorenew_rounded),
+            label: const Text('Đề nghị gia hạn'),
+          ),
+        ],
+        if (lease.tenantId == tenantId) ...[
+          const Divider(height: 24),
+          if (lease.terminationRequestStatus == 'pending')
+            const Text(
+              'Đề nghị kết thúc hợp đồng đang chờ chủ trọ xử lý.',
+              style: TextStyle(color: tenantMuted, fontSize: 12),
+            )
+          else ...[
+            if (lease.terminationRequestStatus == 'rejected')
+              Text(
+                'Đề nghị trước bị từ chối: ${lease.terminationRejectionReason}',
+                style: const TextStyle(color: tenantMuted, fontSize: 12),
+              ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () =>
+                  _requestTermination(context, store, lease, tenantId),
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text('Đề nghị chuyển trọ / kết thúc hợp đồng'),
+            ),
+          ],
+        ],
+      ],
+    ),
+  );
+}
+
 class TenantLeaseContractPage extends StatelessWidget {
   const TenantLeaseContractPage({
     super.key,
@@ -39,6 +237,10 @@ class TenantLeaseContractPage extends StatelessWidget {
       listenable: data,
       builder: (context, _) {
         final lease = data.currentLeaseForTenant(tenantId);
+        final previousLease = data
+            .leasesForTenant(tenantId)
+            .where((item) => item.status == LandlordLeaseStatus.terminated)
+            .lastOrNull;
         final account = data.defaultPaymentAccount;
         final contractBankDiffers =
             account != null &&
@@ -47,16 +249,32 @@ class TenantLeaseContractPage extends StatelessWidget {
         return _frame(
           hasLease: lease != null,
           children: [
-            if (lease == null)
+            if (lease == null) ...[
               const TenantEmptyState(
                 icon: Icons.description_outlined,
                 title: 'Chưa có hợp đồng đang hiệu lực',
                 subtitle:
                     'Hợp đồng sẽ xuất hiện tại đây khi chủ trọ kích hoạt.',
-              )
-            else ...[
+              ),
+              if (previousLease != null)
+                TenantSurface(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const TenantSectionHeading('Hợp đồng đã kết thúc'),
+                      Text('Lý do: ${previousLease.terminationReason}'),
+                      if (previousLease.terminatedAt != null)
+                        Text(
+                          'Ngày kết thúc: ${landlordDate(previousLease.terminatedAt!)}',
+                        ),
+                    ],
+                  ),
+                ),
+            ] else ...[
               TenantLeaseOverview(data: data, lease: lease),
               const SizedBox(height: 26),
+              _leaseRequestPanel(context, data, lease, tenantId),
+              const SizedBox(height: 24),
               const TenantSectionHeading('Thông tin hợp đồng'),
               TenantSurface(
                 child: Column(

@@ -19,6 +19,9 @@ import 'data/property_catalog.dart';
 import 'pages/tenant/discovery/tenant_discovery_page.dart';
 import 'pages/shared/rental/tenant_session.dart';
 import 'pages/shared/auth/login_page.dart';
+import 'pages/shared/media/media_permission_service.dart';
+import 'pages/shared/notifications/app_notification_service.dart';
+import 'pages/shared/profile/account_store.dart';
 import 'pages/shared/widgets/app_brand.dart';
 
 final _appNavigatorKey = GlobalKey<NavigatorState>();
@@ -41,6 +44,12 @@ Future<void> main() async {
     );
   } catch (e) {
     debugPrint('Firebase init: $e');
+  }
+  try {
+    await AppNotificationService.instance.initialize();
+    await MediaPermissionService.checkAtAppEntry();
+  } catch (e) {
+    debugPrint('Notification/media permission setup: $e');
   }
   runApp(
     const MaterialApp(
@@ -69,9 +78,14 @@ Future<void> main() async {
           await persistence!.initializeAsync();
         },
         onSignedOut: () async {
-          await persistence?.dispose();
-          persistence = null;
-          TenantSession.authenticatedTenantId = null;
+          try {
+            await AppNotificationService.instance.unregister();
+          } finally {
+            final signedOutPersistence = persistence;
+            persistence = null;
+            TenantSession.authenticatedTenantId = null;
+            await signedOutPersistence?.dispose();
+          }
         },
       );
       runApp(const MyApp(requireLogin: true));
@@ -292,14 +306,22 @@ class _AuthenticatedApp extends StatefulWidget {
 
 class _AuthenticatedAppState extends State<_AuthenticatedApp>
     with WidgetsBindingObserver {
+  String? _permissionSessionUid;
+  bool _permissionSetupPending = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    LocalAuth.instance.addListener(_syncSessionPermissions);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncSessionPermissions();
+    });
   }
 
   @override
   void dispose() {
+    LocalAuth.instance.removeListener(_syncSessionPermissions);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -309,6 +331,37 @@ class _AuthenticatedAppState extends State<_AuthenticatedApp>
     LocalAuth.instance.setForeground(state == AppLifecycleState.resumed);
     if (state != AppLifecycleState.resumed) AppPersistence.current?.flush();
     if (state == AppLifecycleState.resumed) AppPersistence.current?.refresh();
+  }
+
+  void _syncSessionPermissions() {
+    final session = LocalAuth.instance.session;
+    final role = LocalAuth.instance.role;
+    if (session == null ||
+        role == null ||
+        (role != AppRole.landlord && role != AppRole.tenant) ||
+        session.uid == _permissionSessionUid ||
+        _permissionSetupPending) {
+      if (session == null) _permissionSessionUid = null;
+      return;
+    }
+    _permissionSetupPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      try {
+        await MediaPermissionService.checkAtAppEntry();
+        final enabled = AccountStore.instance.notificationsEnabled(role);
+        final notificationsGranted = await AppNotificationService.instance
+            .requestAndRegister(session, enabled: enabled);
+        if (enabled && !notificationsGranted) {
+          AccountStore.instance.setNotificationsEnabled(role, false);
+        }
+        _permissionSessionUid = session.uid;
+      } catch (error) {
+        debugPrint('Could not initialize session permissions: $error');
+      } finally {
+        _permissionSetupPending = false;
+      }
+    });
   }
 
   @override

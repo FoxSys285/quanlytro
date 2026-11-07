@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../landlord/landlord_demo_store.dart';
 import '../../../landlord/finance/landlord_finance_models.dart';
+import '../../../../data/local_auth.dart';
 import '../../../shared/rental/lease_member.dart';
 import '../../tenant_ui.dart';
 import '../../tenant_detail_ui.dart';
@@ -27,7 +28,10 @@ class TenantMemberRequests extends StatelessWidget {
         .where(
           (member) =>
               member.leaseId == lease.id &&
-              member.status != LeaseMemberStatus.active,
+              [
+                LeaseMemberStatus.pending,
+                LeaseMemberStatus.rejected,
+              ].contains(member.status),
         )
         .toList();
     final count =
@@ -138,6 +142,7 @@ class _MemberRequestEditorState extends State<_MemberRequestEditor> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _phone = TextEditingController();
+  final _memberCode = TextEditingController();
   DateTime _date = DateUtils.dateOnly(DateTime.now());
   String? _error;
 
@@ -145,6 +150,7 @@ class _MemberRequestEditorState extends State<_MemberRequestEditor> {
   void dispose() {
     _name.dispose();
     _phone.dispose();
+    _memberCode.dispose();
     super.dispose();
   }
 
@@ -163,18 +169,41 @@ class _MemberRequestEditorState extends State<_MemberRequestEditor> {
     if (date != null && mounted) setState(() => _date = date);
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
+    if (LocalAuth.instance.isCloudMode) {
+      if (!RegExp(r'^[A-Z0-9]{8}$')
+          .hasMatch(_memberCode.text.trim().toUpperCase())) {
+        setState(
+          () => _error = 'Mã người thuê gồm đúng 8 chữ cái hoặc chữ số.',
+        );
+        return;
+      }
+    }
     try {
+      final memberCode = _memberCode.text.trim().toUpperCase();
+      final name = _name.text.trim();
+      final phone = _phone.text.trim();
+      if (LocalAuth.instance.isCloudMode) {
+        final exists = await LocalAuth.instance.tenantCodeExists(memberCode);
+        if (!mounted) return;
+        if (!exists) {
+          setState(
+            () => _error = 'Không tìm thấy tài khoản theo mã người thuê.',
+          );
+          return;
+        }
+      }
       widget.store.requestMember(
         tenantId: widget.tenantId,
-        name: _name.text,
-        phone: _phone.text,
+        memberTenantId: memberCode,
+        name: name,
+        phone: phone,
         joinedAt: _date,
       );
       Navigator.pop(context, true);
     } on ArgumentError catch (error) {
-      setState(() => _error = error.message.toString());
+      if (mounted) setState(() => _error = error.message.toString());
     }
   }
 
@@ -199,36 +228,62 @@ class _MemberRequestEditorState extends State<_MemberRequestEditor> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextFormField(
-                controller: _name,
-                maxLength: 80,
-                textCapitalization: TextCapitalization.words,
+                controller: _memberCode,
+                maxLength: 8,
+                textCapitalization: TextCapitalization.characters,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Họ tên thành viên',
-                  prefixIcon: Icon(Icons.person_outline_rounded),
-                  counterText: '',
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Nhập họ tên thành viên.'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _phone,
-                keyboardType: TextInputType.phone,
                 inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(10),
+                  FilteringTextInputFormatter.allow(RegExp('[a-zA-Z0-9]')),
+                  LengthLimitingTextInputFormatter(8),
                 ],
                 decoration: const InputDecoration(
-                  labelText: 'Số điện thoại',
-                  prefixIcon: Icon(Icons.phone_outlined),
+                  labelText: 'Mã người thuê của thành viên',
+                  helperText:
+                      'Lấy mã trong Hồ sơ của tài khoản người được thêm.',
+                  prefixIcon: Icon(Icons.badge_outlined),
+                  counterText: '',
                 ),
-                validator: (value) => !RegExp(r'^0\d{9}$').hasMatch(value ?? '')
-                    ? 'Nhập số điện thoại 10 chữ số, bắt đầu bằng 0.'
+                validator: (value) =>
+                    !RegExp(r'^[A-Z0-9]{8}$')
+                        .hasMatch((value ?? '').trim().toUpperCase())
+                    ? 'Mã người thuê gồm 8 chữ cái hoặc chữ số.'
                     : null,
               ),
               const SizedBox(height: 12),
+              ...[
+                TextFormField(
+                  controller: _name,
+                  maxLength: 80,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Họ tên thành viên',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                    counterText: '',
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Nhập họ tên thành viên.'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _phone,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: 'Số điện thoại',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                  validator: (value) =>
+                      !RegExp(r'^0\d{9}$').hasMatch(value ?? '')
+                      ? 'Nhập số điện thoại 10 chữ số, bắt đầu bằng 0.'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+              ],
               Material(
                 type: MaterialType.transparency,
                 child: ListTile(

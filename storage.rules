@@ -23,6 +23,12 @@ service firebase.storage {
     function tenant(record) {
       return active() && profile().role == 'tenant' && profile().tenantId in record.tenantIds;
     }
+    function activeMember(propertyId, tenantId, memberId) {
+      let member = firestore.get(/databases/(default)/documents/rental_records/$(propertyId + ':members:' + memberId)).data;
+      return active() && profile().role == 'tenant' && profile().tenantId == tenantId &&
+        tenantId in member.tenantIds && member.data.tenantId == tenantId &&
+        member.data.status == 'active';
+    }
 
     match /properties/{propertyId}/{filePath=**} {
       allow read: if true;
@@ -45,6 +51,14 @@ service firebase.storage {
         request.resource.size <= 10 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
       allow update, delete: if false;
+    }
+
+    match /lease-member-identity/{propertyId}/{tenantId}/{memberId}/{fileName} {
+      allow read: if owner(propertyId) || activeMember(propertyId, tenantId, memberId);
+      allow create, update: if activeMember(propertyId, tenantId, memberId) &&
+        request.resource.size <= 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+      allow delete: if owner(propertyId) || activeMember(propertyId, tenantId, memberId);
     }
 
     match /{allPaths=**} {

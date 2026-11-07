@@ -10,8 +10,7 @@ import '../landlord/landlord_demo_store.dart';
 import '../landlord/properties/models/landlord_property.dart';
 import '../landlord/finance/landlord_finance_models.dart';
 import 'admin_ui.dart';
-import 'admin_dashboard.dart';
-import 'admin_users_page.dart';
+import '../shared/widgets/list_pagination.dart';
 
 class AdminWorkspacePage extends StatefulWidget {
   const AdminWorkspacePage({super.key, required this.destination});
@@ -22,12 +21,9 @@ class AdminWorkspacePage extends StatefulWidget {
 
 class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
   AdminStore get _admin => AdminStore.instance;
-  late final Future<List<AdminAccount>>? _cloudAccounts =
-      LocalAuth.instance.isCloudMode && LocalAuth.instance.role == AppRole.admin
-      ? loadAdminAccounts()
-      : null;
   String _query = '';
-  String _filter = 'all';
+  String _filter = 'pending';
+  int _page = 0;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -41,20 +37,6 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
       final admin = _admin;
       final id = widget.destination.id;
       final children = <Widget>[const AdminSyncBar()];
-      if (id == 'dashboard') {
-        if (_cloudAccounts != null) {
-          return FutureBuilder<List<AdminAccount>>(
-            future: _cloudAccounts,
-            builder: (context, snapshot) => _dashboard(
-              context,
-              stores,
-              admin,
-              userCount: snapshot.data?.length,
-            ),
-          );
-        }
-        return _dashboard(context, stores, admin, userCount: null);
-      }
       if (id == 'property_verification' || id == 'moderation') {
         final verification = id == 'property_verification';
         children.add(
@@ -63,7 +45,10 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
               labelText: 'Tìm nhà trọ, chủ trọ, địa chỉ',
               prefixIcon: Icon(Icons.search_rounded),
             ),
-            onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+            onChanged: (v) => setState(() {
+              _query = v.trim().toLowerCase();
+              _page = 0;
+            }),
           ),
         );
         children.add(const SizedBox(height: 16));
@@ -86,7 +71,10 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
                 ChoiceChip(
                   label: Text(item.label),
                   selected: _filter == item.id,
-                  onSelected: (_) => setState(() => _filter = item.id),
+                  onSelected: (_) => setState(() {
+                    _filter = item.id;
+                    _page = 0;
+                  }),
                 ),
             ],
           ),
@@ -94,13 +82,19 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
         children.add(const SizedBox(height: 20));
         final matched = stores.where((s) {
           final p = s.property;
-          final ready = verification
-              ? admin.isVerified(p.id)
-              : !admin.isHidden(p.id);
+          final isVerified = admin.isVerified(p.id);
+          final ready = verification ? isVerified : !admin.isHidden(p.id);
+          final awaitingReview =
+              verification && !isVerified && p.verificationSubmittedAt != null;
           return '${p.name} ${p.ownerName} ${p.address}'.toLowerCase().contains(
                 _query,
               ) &&
-              (_filter == 'all' || (_filter == 'ready' ? ready : !ready));
+              (_filter == 'all' ||
+                  (_filter == 'ready'
+                      ? ready
+                      : verification
+                      ? awaitingReview
+                      : !ready));
         }).toList();
         children.add(
           Text(
@@ -109,7 +103,7 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
           ),
         );
         children.add(const SizedBox(height: 12));
-        for (final store in matched) {
+        for (final store in matched.skip(_page * 10).take(10)) {
           children.add(_property(context, store, verification));
         }
         if (matched.isEmpty) {
@@ -119,13 +113,21 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
             ),
           );
         }
+        children.add(
+          ListPagination(
+            total: matched.length,
+            page: _page,
+            pageSize: 10,
+            onChanged: (page) => setState(() => _page = page),
+          ),
+        );
       } else if (id == 'audit_logs') {
         if (admin.logs.isEmpty) {
           children.add(
             const AdminPanel(child: Text('Chưa có hoạt động được ghi nhận.')),
           );
         }
-        for (final log in admin.logs) {
+        for (final log in admin.logs.skip(_page * 10).take(10)) {
           final at = DateTime.tryParse(log['at'] ?? '');
           children.add(
             Padding(
@@ -163,6 +165,14 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
             ),
           );
         }
+        children.add(
+          ListPagination(
+            total: admin.logs.length,
+            page: _page,
+            pageSize: 10,
+            onChanged: (page) => setState(() => _page = page),
+          ),
+        );
       }
       return AdminFrame(
         title: widget.destination.label,
@@ -175,13 +185,6 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
       );
     },
   );
-
-  Widget _dashboard(
-    BuildContext context,
-    List<LandlordDemoStore> stores,
-    AdminStore admin, {
-    int? userCount,
-  }) => AdminDashboard(stores: stores, admin: admin, userCount: userCount);
 
   Widget _property(
     BuildContext context,

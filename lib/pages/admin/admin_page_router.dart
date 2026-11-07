@@ -8,15 +8,18 @@ import '../shared/settings/account_settings_page.dart';
 import '../../data/admin_store.dart';
 import '../../data/local_auth.dart';
 import 'admin_ui.dart';
-import 'admin_users_page.dart';
-import 'admin_commission_page.dart';
 import 'admin_workspace_page.dart';
+import 'admin_overview_page.dart';
+import 'admin_landlords_page.dart';
+import 'admin_accounts_page.dart';
+import 'admin_statistics_page.dart';
 
 Widget buildAdminPage(BuildContext context, RoleDestination destination) =>
     switch (destination.id) {
-      'users' => const AdminUsersPage(),
-      'activity' => const AdminUsersPage(activity: true),
-      'commissions' => const AdminCommissionPage(),
+      'dashboard' => const AdminOverviewPage(),
+      'landlords' => const AdminLandlordsPage(),
+      'users' => const AdminAccountsPage(),
+      'statistics' => const AdminStatisticsPage(),
       'support' => const SupportTicketsPage(role: AppRole.admin),
       'profile' => const AccountProfilePage(role: AppRole.admin),
       'notifications' => const NotificationSettingsPage(role: AppRole.admin),
