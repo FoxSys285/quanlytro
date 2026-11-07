@@ -128,6 +128,40 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
           title: tieuDeHopThoai,
           subtitle: 'Thiết lập đơn giá và cách tính dịch vụ.',
           icon: Icons.price_change_outlined,
+          footer: Row(
+            children: [
+              if (dichVuCanSua != null)
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      _store.deleteService(dichVuCanSua);
+                      Navigator.pop(context, false);
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFD64545),
+                    ),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('Xóa'),
+                  ),
+                )
+              else
+                const Spacer(),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Hủy'),
+              ),
+              const SizedBox(width: 7),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: landlordBlue,
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.save_outlined, size: 17),
+                label: const Text('Lưu'),
+              ),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -205,40 +239,6 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
                     }
                   });
                 },
-              ),
-            ],
-          ),
-          footer: Row(
-            children: [
-              if (dichVuCanSua != null)
-                Expanded(
-                  child: TextButton.icon(
-                    onPressed: () {
-                      _store.deleteService(dichVuCanSua);
-                      Navigator.pop(context, false);
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFD64545),
-                    ),
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    label: const Text('Xóa'),
-                  ),
-                )
-              else
-                const Spacer(),
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Hủy'),
-              ),
-              const SizedBox(width: 7),
-              FilledButton.icon(
-                onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: landlordBlue,
-                  foregroundColor: Colors.white,
-                ),
-                icon: const Icon(Icons.save_outlined, size: 17),
-                label: const Text('Lưu'),
               ),
             ],
           ),

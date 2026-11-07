@@ -93,9 +93,9 @@ class AccountSettingsPage extends StatelessWidget {
         builder: (_) => role == AppRole.tenant || role == AppRole.landlord
             ? TenantSubpageScaffold(
                 title: title,
-                child: page,
                 showNotifications: role == AppRole.tenant,
                 landlordStyle: role == AppRole.landlord,
+                child: page,
               )
             : Scaffold(
                 appBar: AppBar(title: Text(title)),

@@ -7,13 +7,11 @@ class LandlordRoomType {
     required this.id,
     required this.name,
     required this.monthlyRent,
-    List<String> serviceIds = const [],
-    Map<String, int> servicePrices = const {},
+    this.serviceIds = const [],
+    this.servicePrices = const {},
     List<RoomPhoto> photos = const [],
     List<RoomTypeImage>? images,
-  }) : serviceIds = serviceIds,
-       servicePrices = servicePrices,
-       photos = images ?? photos;
+  }) : photos = images ?? photos;
   final String id;
   final String name;
   final int monthlyRent;

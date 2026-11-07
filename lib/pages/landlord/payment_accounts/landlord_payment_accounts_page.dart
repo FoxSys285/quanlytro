@@ -333,6 +333,26 @@ class _PaymentAccountEditorState extends State<_PaymentAccountEditor> {
         : 'Sửa tài khoản nhận tiền',
     subtitle: 'Nhập thông tin để người thuê chuyển khoản chính xác.',
     icon: Icons.account_balance_outlined,
+    footer: Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          onPressed: _save,
+          style: FilledButton.styleFrom(
+            backgroundColor: landlordBlue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
+          ),
+          icon: const Icon(Icons.save_outlined, size: 17),
+          label: const Text('Lưu tài khoản'),
+        ),
+      ],
+    ),
     child: Column(
       children: [
         TextField(
@@ -394,26 +414,6 @@ class _PaymentAccountEditorState extends State<_PaymentAccountEditor> {
             color: LandlordPalette.of(context).muted,
             fontSize: 10,
           ),
-        ),
-      ],
-    ),
-    footer: Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          onPressed: _save,
-          style: FilledButton.styleFrom(
-            backgroundColor: landlordBlue,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
-          ),
-          icon: const Icon(Icons.save_outlined, size: 17),
-          label: const Text('Lưu tài khoản'),
         ),
       ],
     ),

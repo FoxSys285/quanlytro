@@ -3,6 +3,28 @@ import 'package:quanlytro/data/local_auth.dart';
 import 'package:quanlytro/layouts/role_layout.dart';
 
 void main() {
+  test(
+    'Local sessions survive reopening and end only after sign out',
+    () async {
+      final firstRun = LocalAuth();
+      addTearDown(firstRun.dispose);
+      await firstRun.initialize();
+      await firstRun.signIn('landlord@tro.local', 'Tro@2026');
+
+      final saved = firstRun.toMap();
+      final nextRun = LocalAuth();
+      addTearDown(nextRun.dispose);
+      await nextRun.initialize(saved);
+      expect(nextRun.role, AppRole.landlord);
+
+      await nextRun.signOut();
+      final afterSignOut = LocalAuth();
+      addTearDown(afterSignOut.dispose);
+      await afterSignOut.initialize(nextRun.toMap());
+      expect(afterSignOut.role, isNull);
+    },
+  );
+
   test('Local role accounts reject invalid passwords and persist changed credentials', () async {
     final auth = LocalAuth();
     addTearDown(auth.dispose);

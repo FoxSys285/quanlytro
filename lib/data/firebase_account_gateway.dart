@@ -83,6 +83,10 @@ abstract interface class AccountGateway {
   Future<void> changePassword(String current, String password);
 }
 
+abstract interface class AccountSessionRestoreGateway {
+  Future<FirebaseAccountSession?> restoreSession();
+}
+
 abstract interface class AccountRegistrationGateway {
   Future<FirebaseAccountSession> registerAccount(
     String email,
@@ -97,6 +101,7 @@ abstract interface class AccountRegistrationGateway {
 class FirebaseAccountGateway
     implements
         AccountGateway,
+        AccountSessionRestoreGateway,
         AccountRegistrationGateway,
         AccountProviderGateway,
         TenantAccountLookupGateway {
@@ -315,9 +320,22 @@ class FirebaseAccountGateway
     }
   }
 
+  @override
+  Future<FirebaseAccountSession?> restoreSession() async {
+    final user = await _auth.authStateChanges().first;
+    if (user == null) return null;
+    try {
+      return await _sessionForUser(user, syncTenantContact: false);
+    } catch (error) {
+      await _auth.signOut();
+      throw _friendlyError(error);
+    }
+  }
+
   Future<FirebaseAccountSession?> _sessionForUser(
     User user, {
     bool allowNewProfile = false,
+    bool syncTenantContact = true,
   }) async {
     final profile = await _firestore
         .collection('users')
@@ -359,7 +377,7 @@ class FirebaseAccountGateway
       profileData,
       authEmail: user.email ?? '',
     );
-    await _syncTenantContact(session);
+    if (syncTenantContact) await _syncTenantContact(session);
     return session;
   }
 

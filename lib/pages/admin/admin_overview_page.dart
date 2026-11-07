@@ -18,7 +18,7 @@ class AdminOverviewPage extends StatefulWidget {
 class _AdminOverviewPageState extends State<AdminOverviewPage> {
   int _ticketPage = 0;
   bool _grid = true;
-  late Future<({int total, int active})> _accountCounts = _loadAccountCounts();
+  late final Future<({int total, int active})> _accountCounts = _loadAccountCounts();
 
   Future<({int total, int active})> _loadAccountCounts() async {
     final auth = LocalAuth.instance;

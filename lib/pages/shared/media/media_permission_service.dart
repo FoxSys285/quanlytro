@@ -11,17 +11,6 @@ enum RentalMediaKind { image, video }
 class MediaPermissionService {
   MediaPermissionService._();
 
-  static Future<void> checkAtAppEntry() async {
-    if (kIsWeb ||
-        ![
-          TargetPlatform.android,
-          TargetPlatform.iOS,
-        ].contains(defaultTargetPlatform)) {
-      return;
-    }
-    await Future.wait([Permission.photos.status, Permission.videos.status]);
-  }
-
   static Future<bool> checkBeforePicker(RentalMediaKind kind) async {
     if (kIsWeb ||
         ![

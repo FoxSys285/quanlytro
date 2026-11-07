@@ -37,6 +37,14 @@ class _Gateway implements AccountGateway {
   Future<void> changePassword(String current, String password) async {}
 }
 
+class _RestoringGateway extends _Gateway
+    implements AccountSessionRestoreGateway {
+  FirebaseAccountSession? restoredSession;
+
+  @override
+  Future<FirebaseAccountSession?> restoreSession() async => restoredSession;
+}
+
 void main() {
   test('Profiles cannot choose their role or bypass disabled provisioning', () {
     expect(
@@ -117,4 +125,34 @@ void main() {
       auth.dispose();
     },
   );
+
+  test('Restores a cloud session before exposing its role', () async {
+    final auth = LocalAuth();
+    final gateway = _RestoringGateway()
+      ..restoredSession = const FirebaseAccountSession(
+        uid: 'uid-tenant',
+        role: AppRole.tenant,
+        tenantId: 'tenant-123',
+      );
+    var privateDataOpen = false;
+    auth.configureFirebase(
+      gateway: gateway,
+      onSignedIn: (session) async {
+        expect(auth.role, isNull);
+        expect(session.uid, 'uid-tenant');
+        privateDataOpen = true;
+      },
+      onSignedOut: () async {
+        privateDataOpen = false;
+      },
+    );
+
+    expect(await auth.restoreCloudSession(), isTrue);
+    expect(auth.role, AppRole.tenant);
+    expect(auth.session?.tenantId, 'tenant-123');
+    expect(privateDataOpen, isTrue);
+    await auth.signOut();
+    expect(privateDataOpen, isFalse);
+    auth.dispose();
+  });
 }

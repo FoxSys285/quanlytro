@@ -23,7 +23,7 @@ Thông tin dưới đây chỉ áp dụng bản cũ chạy chủ động với `
 | Người thuê | tenant@tro.local | Tro@2026 |
 | Quản trị viên | admin@tro.local | Tro@2026 |
 
-Chọn vai trò trên màn hình đăng nhập để điền tài khoản mẫu. Có thể đổi mật khẩu trong Cài đặt. Mật khẩu lưu bằng PBKDF2-HMAC-SHA256 với salt riêng; phiên đăng nhập kết thúc khi đóng ứng dụng. Đây là tài khoản cục bộ cho bản SQLite, chưa phải Firebase Authentication.
+Chọn vai trò trên màn hình đăng nhập để điền tài khoản mẫu. Có thể đổi mật khẩu trong Cài đặt. Mật khẩu lưu bằng PBKDF2-HMAC-SHA256 với salt riêng. Phiên đăng nhập cục bộ được giữ qua lần mở app tiếp theo và kết thúc khi người dùng đăng xuất; đây là tài khoản cục bộ cho bản SQLite, chưa phải Firebase Authentication. Với Firebase, app xác minh lại hồ sơ và vai trò từ máy chủ rồi khôi phục dữ liệu đúng UID khi mở lại.
 
 ## Dữ liệu và chức năng
 

@@ -56,6 +56,48 @@ class _LandlordAnnouncementComposerState
       subtitle: 'Chọn người nhận và nhập nội dung gửi cư dân.',
       icon: Icons.campaign_outlined,
       maxWidth: 650,
+      footer: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: propertyBlue),
+            icon: const Icon(Icons.send_outlined),
+            label: const Text('Gửi thông báo'),
+            onPressed: () {
+              if (!_form.currentState!.validate() || rooms.isEmpty) return;
+              final now = DateTime.now();
+              final label = switch (_audience) {
+                _Audience.all => 'Tất cả các phòng',
+                _Audience.floor => 'Tầng $_target',
+                _Audience.room =>
+                  rooms.length == 1
+                      ? 'Phòng ${rooms.single}'
+                      : 'Các phòng được chọn (${rooms.length})',
+              };
+              Navigator.pop(
+                context,
+                LandlordAnnouncement(
+                  id: 'sent-${now.microsecondsSinceEpoch}',
+                  title: _title.text.trim(),
+                  content: _content.text.trim(),
+                  category: _category,
+                  priority: _priority,
+                  createdAt: now,
+                  propertyId: _propertyId,
+                  isRead: true,
+                  recipients: List.unmodifiable(rooms),
+                  audienceLabel: label,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       child: Form(
         key: _form,
         child: Column(
@@ -258,48 +300,6 @@ class _LandlordAnnouncementComposerState
             ),
           ],
         ),
-      ),
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: propertyBlue),
-            icon: const Icon(Icons.send_outlined),
-            label: const Text('Gửi thông báo'),
-            onPressed: () {
-              if (!_form.currentState!.validate() || rooms.isEmpty) return;
-              final now = DateTime.now();
-              final label = switch (_audience) {
-                _Audience.all => 'Tất cả các phòng',
-                _Audience.floor => 'Tầng $_target',
-                _Audience.room =>
-                  rooms.length == 1
-                      ? 'Phòng ${rooms.single}'
-                      : 'Các phòng được chọn (${rooms.length})',
-              };
-              Navigator.pop(
-                context,
-                LandlordAnnouncement(
-                  id: 'sent-${now.microsecondsSinceEpoch}',
-                  title: _title.text.trim(),
-                  content: _content.text.trim(),
-                  category: _category,
-                  priority: _priority,
-                  createdAt: now,
-                  propertyId: _propertyId,
-                  isRead: true,
-                  recipients: List.unmodifiable(rooms),
-                  audienceLabel: label,
-                ),
-              );
-            },
-          ),
-        ],
       ),
     );
   }

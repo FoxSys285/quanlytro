@@ -5,7 +5,6 @@ import '../landlord_theme.dart';
 import '../landlord_glass.dart';
 
 import '../../shared/conversations/conversation_store.dart';
-import '../landlord_demo_store.dart';
 import 'landlord_tenant_info_page.dart';
 import 'models/landlord_cuoctrochuyen.dart';
 

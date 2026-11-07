@@ -1,3 +1,6 @@
+// Firestore SDK interfaces are sealed; these fakes isolate session restoration.
+// ignore_for_file: subtype_of_sealed_class
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,9 +12,75 @@ class _Credential extends Fake implements UserCredential {}
 
 class _Firestore extends Fake implements FirebaseFirestore {}
 
+class _RestorableUser extends Fake implements User {
+  _RestorableUser(this.uid);
+
+  @override
+  final String uid;
+
+  @override
+  String get email => 'tenant@example.com';
+}
+
+class _ProfileSnapshot extends Fake
+    implements DocumentSnapshot<Map<String, dynamic>> {
+  _ProfileSnapshot(this.profile);
+
+  final Map<String, dynamic>? profile;
+
+  @override
+  Map<String, dynamic>? data() => profile;
+}
+
+class _ProfileDocument extends Fake
+    implements DocumentReference<Map<String, dynamic>> {
+  _ProfileDocument(this.profile);
+
+  final Map<String, dynamic>? profile;
+
+  @override
+  Future<DocumentSnapshot<Map<String, dynamic>>> get([
+    GetOptions? options,
+  ]) async => _ProfileSnapshot(profile);
+}
+
+class _ProfileCollection extends Fake
+    implements CollectionReference<Map<String, dynamic>> {
+  _ProfileCollection(this.profile);
+
+  final Map<String, dynamic>? profile;
+
+  @override
+  DocumentReference<Map<String, dynamic>> doc([String? path]) =>
+      _ProfileDocument(profile);
+}
+
+class _ProfileFirestore extends _Firestore {
+  _ProfileFirestore(this.profile);
+
+  final Map<String, dynamic>? profile;
+
+  @override
+  CollectionReference<Map<String, dynamic>> collection(String path) =>
+      _ProfileCollection(profile);
+}
+
+class _RestoredAuth extends _Auth {
+  _RestoredAuth(this.user);
+
+  final User user;
+
+  @override
+  User get currentUser => user;
+}
+
 class _Auth extends Fake implements FirebaseAuth {
   final events = <String>[];
   String? failure;
+
+  @override
+  Stream<User?> authStateChanges() => Stream.value(currentUser);
+
   @override
   User? get currentUser => null;
 
@@ -67,6 +136,39 @@ class _PhoneAuth extends _Auth {
 }
 
 void main() {
+  test('Restores only a server profile with an active tenant role', () async {
+    final auth = _RestoredAuth(_RestorableUser('tenant-uid'));
+    final gateway = FirebaseAccountGateway(
+      auth: auth,
+      firestore: _ProfileFirestore({
+        'role': 'tenant',
+        'tenantId': 'TENANT01',
+        'disabled': false,
+      }),
+    );
+
+    final session = await gateway.restoreSession();
+    expect(session?.uid, 'tenant-uid');
+    expect(session?.role, AppRole.tenant);
+    expect(session?.tenantId, 'TENANT01');
+    expect(auth.events, isEmpty);
+  });
+
+  test('Invalid restored profiles close the Firebase session', () async {
+    final auth = _RestoredAuth(_RestorableUser('disabled-uid'));
+    final gateway = FirebaseAccountGateway(
+      auth: auth,
+      firestore: _ProfileFirestore({
+        'role': 'tenant',
+        'tenantId': 'TENANT01',
+        'disabled': true,
+      }),
+    );
+
+    await expectLater(gateway.restoreSession(), throwsArgumentError);
+    expect(auth.events, ['signOut']);
+  });
+
   test('Phone SDK receives E.164 and resend token, and maps early callback failures', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);

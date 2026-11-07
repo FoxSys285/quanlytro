@@ -174,7 +174,6 @@ class TenantPageFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = TenantUiPalette.of(context);
     return TenantPageBackdrop(
       child: SafeArea(
         top: false,

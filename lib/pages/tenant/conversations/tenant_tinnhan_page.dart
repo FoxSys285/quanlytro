@@ -38,10 +38,7 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
         : store?.leaseById(source.leaseId!);
     final currentLease =
         lease ??
-        (store == null
-            ? null
-            : store
-                  .leasesForTenant(source.tenantId)
+        (store?.leasesForTenant(source.tenantId)
                   .where((item) => item.isCurrent)
                   .firstOrNull);
     final phone = currentLease?.phone.trim();

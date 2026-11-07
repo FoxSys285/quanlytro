@@ -85,6 +85,7 @@ Mẫu nhập và cách dùng: [DATA_IMPORT.md](DATA_IMPORT.md). Đối chiếu k
 ## Cập nhật luồng cấp quyền và onboarding
 
 - Đăng nhập chỉ chấp nhận hồ sơ `users/{uid}` đọc trực tiếp từ server; bỏ hồ sơ UID/role hard-code khi Firestore lỗi hoặc timeout.
+- Firebase Auth giữ phiên trên thiết bị; lúc mở lại ứng dụng, app xác minh hồ sơ `users/{uid}` từ server rồi khôi phục dữ liệu theo UID. Đăng xuất chủ động vẫn xóa phiên Firebase.
 - Đăng ký tạo hồ sơ `users/{uid}` ngay bằng Firestore Rules giới hạn UID, email và vai trò; client chỉ được chọn `landlord` hoặc `tenant`, không thể tự tạo admin.
 - Người thuê mới được cấp mã ngẫu nhiên 8 ký tự gồm chữ in hoa và số; mã được đặt chỗ duy nhất để ghép vào hợp đồng. Tài khoản không cần admin duyệt; admin vẫn duyệt xác minh nhà trọ trước khi công khai tin.
 - Chủ trọ chưa có nhà được giữ ở màn onboarding đến khi tải xong dữ liệu server. Có thể tạo nhà/phòng đầu tiên và lưu qua cùng transaction Firestore.

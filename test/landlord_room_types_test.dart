@@ -39,9 +39,11 @@ void main() {
       await tester.tap(find.text('Thêm loại phòng'));
       await tester.pumpAndSettle();
       final fields = find.byType(TextFormField);
-      expect(fields, findsNWidgets(2));
+      expect(fields, findsNWidgets(4));
       await tester.enterText(fields.at(0), ' studio ');
       await tester.enterText(fields.at(1), '2400000');
+      await tester.enterText(fields.at(2), '4500');
+      await tester.enterText(fields.at(3), '17000');
       await tester.tap(find.text('Lưu'));
       await tester.pumpAndSettle();
       expect(find.text('Tên loại phòng đã tồn tại.'), findsOneWidget);
@@ -56,12 +58,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Phòng đơn'), findsOneWidget);
       expect(find.text('2.400.000 đ/tháng'), findsOneWidget);
+      expect(store.roomTypes.last.servicePrices['electricity'], 4500);
+      expect(store.roomTypes.last.servicePrices['water'], 17000);
       await tester.ensureVisible(find.byTooltip('Sửa Phòng đơn'));
       await tester.tap(find.byTooltip('Sửa Phòng đơn'));
       await tester.pumpAndSettle();
       expect(
         tester.widget<TextFormField>(fields.at(1)).controller!.text,
-        '2400000',
+        '2.400.000',
       );
       await tester.enterText(fields.at(0), 'Phòng đơn có cửa sổ');
       await tester.enterText(fields.at(1), '2600000');

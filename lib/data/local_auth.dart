@@ -62,6 +62,24 @@ class LocalAuth extends ChangeNotifier {
     return true;
   }
 
+  /// Reopens the Firebase session saved by the platform after app restarts.
+  Future<bool> restoreCloudSession() async {
+    await _closing;
+    final gateway = _gateway;
+    if (gateway is! AccountSessionRestoreGateway) return false;
+    try {
+      final restoringGateway = gateway as AccountSessionRestoreGateway;
+      return await _acceptProviderSession(
+        await restoringGateway.restoreSession(),
+      );
+    } catch (_) {
+      _session = null;
+      _role = null;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<bool> signInWithGoogle() async {
     await _closing;
     if (_role != null) await signOut();
@@ -147,12 +165,14 @@ class LocalAuth extends ChangeNotifier {
     _onSignedOut = onSignedOut;
     _role = null;
     _session = null;
+    _localSessionEmail = null;
     _credentials.clear();
     _disabled.clear();
   }
 
   final _credentials = <String, Map<String, dynamic>>{};
   final _disabled = <String>{};
+  String? _localSessionEmail;
   AppRole? _role;
   AppRole? get role => _role;
   bool _foreground = true;
@@ -179,12 +199,14 @@ class LocalAuth extends ChangeNotifier {
     _credentials.clear();
     _disabled.clear();
     _role = null;
+    _localSessionEmail = null;
     if (saved != null) {
       (saved['credentials'] as Map).forEach(
         (k, v) =>
             _credentials[k as String] = Map<String, dynamic>.from(v as Map),
       );
       _disabled.addAll(List<String>.from(saved['disabled'] as List? ?? []));
+      _restoreLocalSession(saved['sessionEmail']);
       return;
     }
     for (final role in AppRole.values) {
@@ -198,6 +220,16 @@ class LocalAuth extends ChangeNotifier {
         'role': role.name,
       };
     }
+    _restoreLocalSession(saved?['sessionEmail']);
+  }
+
+  void _restoreLocalSession(Object? savedEmail) {
+    if (savedEmail is! String) return;
+    final email = savedEmail.trim().toLowerCase();
+    final account = _credentials[email];
+    if (account == null || _disabled.contains(email)) return;
+    _localSessionEmail = email;
+    _role = AppRole.values.byName(account['role'] as String);
   }
 
   Future<void> signIn(String email, String password) async {
@@ -246,6 +278,7 @@ class LocalAuth extends ChangeNotifier {
       throw ArgumentError('Tài khoản hoặc mật khẩu không đúng.');
     }
     _role = AppRole.values.byName(account['role'] as String);
+    _localSessionEmail = key;
     notifyListeners();
   }
 
@@ -315,6 +348,7 @@ class LocalAuth extends ChangeNotifier {
   Future<void> signOut() {
     _role = null;
     _session = null;
+    _localSessionEmail = null;
     notifyListeners();
     if (!isCloudMode) return Future.value();
     _closing = () async {
@@ -376,7 +410,11 @@ class LocalAuth extends ChangeNotifier {
 
   Map<String, dynamic> toMap() => isCloudMode
       ? {}
-      : {'credentials': _credentials, 'disabled': _disabled.toList()};
+      : {
+          'credentials': _credentials,
+          'disabled': _disabled.toList(),
+          if (_localSessionEmail != null) 'sessionEmail': _localSessionEmail,
+        };
 }
 
 // PBKDF2-HMAC-SHA256, one 256-bit block. Runs in an isolate to keep UI responsive.

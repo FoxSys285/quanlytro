@@ -2351,8 +2351,9 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                                       } else {
                                         final template = _store
                                             .leaseTemplateById(value);
-                                        if (template != null)
+                                        if (template != null) {
                                           _applyTemplate(template);
+                                        }
                                       }
                                     },
                                   ),
@@ -3019,9 +3020,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                       SizedBox(
                         width: 94,
                         child: TextFormField(
-                          key: ValueKey(
-                            'quantity-${_room}-${service.serviceId}',
-                          ),
+                          key: ValueKey('quantity-$_room-${service.serviceId}'),
                           controller: _serviceQuantityController(service),
                           keyboardType: TextInputType.number,
                           validator: _nonNegativeAmountValidator,
@@ -3894,16 +3893,6 @@ class _LeaseTemplateEditorState extends State<_LeaseTemplateEditor> {
 
   int? _amount(String value) =>
       int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
-
-  String? _positiveAmount(String? value) {
-    final amount = _amount(value ?? '');
-    return amount != null && amount > 0 ? null : 'Nhập số tiền lớn hơn 0.';
-  }
-
-  String? _nonNegativeAmount(String? value) {
-    final amount = _amount(value ?? '');
-    return amount != null && amount >= 0 ? null : 'Nhập số tiền hợp lệ.';
-  }
 
   String? _account(String? value) {
     final digits = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');

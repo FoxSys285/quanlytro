@@ -19,7 +19,6 @@ import 'data/property_catalog.dart';
 import 'pages/tenant/discovery/tenant_discovery_page.dart';
 import 'pages/shared/rental/tenant_session.dart';
 import 'pages/shared/auth/login_page.dart';
-import 'pages/shared/media/media_permission_service.dart';
 import 'pages/shared/notifications/app_notification_service.dart';
 import 'pages/shared/profile/account_store.dart';
 import 'pages/shared/widgets/app_brand.dart';
@@ -38,6 +37,12 @@ Future<void> main() async {
     debugPrint('Top-level unhandled error caught safely: $error\n$stack');
     return true;
   };
+  runApp(
+    const MaterialApp(
+      title: appName,
+      home: Scaffold(body: Center(child: CircularProgressIndicator())),
+    ),
+  );
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -45,18 +50,6 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('Firebase init: $e');
   }
-  try {
-    await AppNotificationService.instance.initialize();
-    await MediaPermissionService.checkAtAppEntry();
-  } catch (e) {
-    debugPrint('Notification/media permission setup: $e');
-  }
-  runApp(
-    const MaterialApp(
-      title: appName,
-      home: Scaffold(body: Center(child: CircularProgressIndicator())),
-    ),
-  );
   AppPersistence? persistence;
   try {
     TenantDiscoveryPage.activeCatalogSource = FirestoreTenantCatalogSource();
@@ -88,6 +81,11 @@ Future<void> main() async {
           }
         },
       );
+      try {
+        await LocalAuth.instance.restoreCloudSession();
+      } catch (error) {
+        debugPrint('Could not restore Firebase session: $error');
+      }
       runApp(const MyApp(requireLogin: true));
       return;
     }
@@ -348,7 +346,6 @@ class _AuthenticatedAppState extends State<_AuthenticatedApp>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       try {
-        await MediaPermissionService.checkAtAppEntry();
         final enabled = AccountStore.instance.notificationsEnabled(role);
         final notificationsGranted = await AppNotificationService.instance
             .requestAndRegister(session, enabled: enabled);

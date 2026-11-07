@@ -119,6 +119,29 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Registration creates a landlord account with the selected role',
+    (tester) async {
+      final gateway = _Gateway();
+      final auth = _cloudAuth(gateway);
+      addTearDown(auth.dispose);
+      await tester.pumpWidget(MaterialApp(home: RegisterPage(auth: auth)));
+      await _tap(tester, find.byType(CheckboxListTile).first);
+      await _fillRegistration(tester);
+      await _tap(tester, find.byType(CheckboxListTile).last);
+      await _tap(
+        tester,
+        find.widgetWithText(FilledButton, 'Đăng ký tài khoản'),
+      );
+
+      expect(gateway.registrations, 1);
+      expect(gateway.requestedRole, AppRole.landlord);
+      expect(auth.role, AppRole.landlord);
+      expect(auth.session?.tenantId, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Registration failures keep the form and never report success', (
     tester,
   ) async {

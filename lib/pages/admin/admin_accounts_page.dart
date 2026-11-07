@@ -167,11 +167,12 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
         auth.setDisabled(role, !account.disabled);
       }
       await _loadPage();
-      if (mounted)
+      if (mounted) {
         adminMessage(
           context,
           account.disabled ? 'Đã mở khóa tài khoản.' : 'Đã khóa tài khoản.',
         );
+      }
     } catch (error) {
       if (mounted) adminMessage(context, error.toString());
     } finally {
@@ -244,8 +245,9 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
             page: _page,
             pageSize: _pageSize,
             onChanged: (value) {
-              if (LocalAuth.instance.isCloudMode && value > _page && !_hasMore)
+              if (LocalAuth.instance.isCloudMode && value > _page && !_hasMore) {
                 return;
+              }
               _goToPage(value);
             },
           ),

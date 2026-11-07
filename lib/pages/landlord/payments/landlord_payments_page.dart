@@ -578,6 +578,48 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
     title: 'Đối soát thanh toán',
     subtitle: 'Kiểm tra minh chứng trước khi xác nhận khoản thu.',
     icon: Icons.fact_check_outlined,
+    footer: Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 7,
+      runSpacing: 7,
+      children: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Đóng'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () {
+            if (_reason.text.trim().isEmpty) {
+              showLandlordMessage(context, 'Nhập lý do trước khi từ chối.');
+              return;
+            }
+            Navigator.pop(
+              context,
+              _PaymentReviewResult.reject(_reason.text.trim()),
+            );
+          },
+          style: TextButton.styleFrom(foregroundColor: const Color(0xFFD64545)),
+          icon: const Icon(Icons.close_rounded, size: 17),
+          label: const Text('Không duyệt'),
+        ),
+        FilledButton.icon(
+          onPressed: () {
+            final value = int.tryParse(_amount.text.trim());
+            if (value == null ||
+                value <= 0 ||
+                value > widget.payment.reportedAmount ||
+                value > widget.invoice.remaining) {
+              showLandlordMessage(context, 'Số tiền xác nhận không hợp lệ.');
+              return;
+            }
+            Navigator.pop(context, _PaymentReviewResult.approve(value));
+          },
+          style: FilledButton.styleFrom(backgroundColor: landlordBlue),
+          icon: const Icon(Icons.check_rounded, size: 17),
+          label: const Text('Xác nhận'),
+        ),
+      ],
+    ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -666,48 +708,6 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
             fontSize: 10,
             height: 1.4,
           ),
-        ),
-      ],
-    ),
-    footer: Wrap(
-      alignment: WrapAlignment.end,
-      spacing: 7,
-      runSpacing: 7,
-      children: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Đóng'),
-        ),
-        OutlinedButton.icon(
-          onPressed: () {
-            if (_reason.text.trim().isEmpty) {
-              showLandlordMessage(context, 'Nhập lý do trước khi từ chối.');
-              return;
-            }
-            Navigator.pop(
-              context,
-              _PaymentReviewResult.reject(_reason.text.trim()),
-            );
-          },
-          style: TextButton.styleFrom(foregroundColor: const Color(0xFFD64545)),
-          icon: const Icon(Icons.close_rounded, size: 17),
-          label: const Text('Không duyệt'),
-        ),
-        FilledButton.icon(
-          onPressed: () {
-            final value = int.tryParse(_amount.text.trim());
-            if (value == null ||
-                value <= 0 ||
-                value > widget.payment.reportedAmount ||
-                value > widget.invoice.remaining) {
-              showLandlordMessage(context, 'Số tiền xác nhận không hợp lệ.');
-              return;
-            }
-            Navigator.pop(context, _PaymentReviewResult.approve(value));
-          },
-          style: FilledButton.styleFrom(backgroundColor: landlordBlue),
-          icon: const Icon(Icons.check_rounded, size: 17),
-          label: const Text('Xác nhận'),
         ),
       ],
     ),
