@@ -143,12 +143,7 @@ class FirebaseAccountGateway
       throw ArgumentError('Họ tên cần từ 1 đến 100 ký tự.');
     }
     try {
-      final result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      final user = result.user;
-      if (user == null) throw ArgumentError('Không thể tạo tài khoản.');
+      final user = await _createOrResumeRegistration(email, password);
       final profile = await _saveProfileIfMissing(
         uid: user.uid,
         email: user.email ?? email,
@@ -167,13 +162,57 @@ class FirebaseAccountGateway
       throw ArgumentError(_message(error.code));
     } on FirebaseException catch (error) {
       await _auth.signOut();
+      debugPrint('Registration profile save failed: $error');
       throw ArgumentError(
-        'Đã tạo tài khoản nhưng chưa lưu được hồ sơ. Kiểm tra Firestore Rules rồi thử đăng nhập lại. ($error)',
+        'Chưa lưu được hồ sơ đăng ký. Vui lòng thử đăng ký lại với cùng email và mật khẩu.',
       );
     } catch (error) {
       await _auth.signOut();
       throw _friendlyError(error);
     }
+  }
+
+  Future<User> _createOrResumeRegistration(
+    String email,
+    String password,
+  ) async {
+    UserCredential result;
+    try {
+      result = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (error) {
+      if (error.code != 'email-already-in-use') rethrow;
+      // Auth creation and Firestore writes cannot share a transaction. Verify
+      // the password before completing a signup whose profile write failed.
+      try {
+        result = await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } on FirebaseAuthException catch (signInError) {
+        if ([
+          'invalid-credential',
+          'wrong-password',
+          'user-not-found',
+        ].contains(signInError.code)) {
+          throw error;
+        }
+        rethrow;
+      }
+      final user = result.user;
+      if (user == null) throw ArgumentError('Không thể xác thực tài khoản.');
+      final profile = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get(const GetOptions(source: Source.server));
+      // Existing active or disabled accounts must keep their original profile.
+      if (profile.exists) throw ArgumentError(_message(error.code));
+    }
+    final user = result.user;
+    if (user == null) throw ArgumentError('Không thể tạo tài khoản.');
+    return user;
   }
 
   Map<String, dynamic> _newProfile({
@@ -372,6 +411,11 @@ class FirebaseAccountGateway
       }
     }
     if (profileData == null && allowNewProfile) return null;
+    if (profileData == null) {
+      throw ArgumentError(
+        'Tài khoản chưa hoàn tất đăng ký. Vui lòng đăng ký lại với cùng email và mật khẩu.',
+      );
+    }
     final session = FirebaseAccountSession.fromProfile(
       user.uid,
       profileData,

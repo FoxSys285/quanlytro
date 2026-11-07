@@ -3,6 +3,7 @@
 ## Chức năng trong ứng dụng
 
 - Đăng ký email: cả chủ trọ và người thuê đều phải nhập họ tên, email, số di động Việt Nam, mật khẩu và đồng ý điều khoản. Số điện thoại được chuẩn hóa thành `+84…` trong `users/{uid}`.
+- Nếu Authentication đã tạo tài khoản nhưng lưu hồ sơ thất bại, thử đăng ký lại với cùng email và mật khẩu trên bản app mới. App xác thực mật khẩu rồi chỉ hoàn tất hồ sơ còn thiếu trên cùng UID; hồ sơ đã tồn tại hoặc bị khóa không bị thay thế. Đăng nhập vào tài khoản thiếu hồ sơ cũng hướng dẫn quay lại đăng ký.
 - Đăng nhập: nhập email và mật khẩu; hoặc nhập số điện thoại để chuyển sang OTP. Hai nút Google và Số điện thoại đã nối với Firebase.
 - Tài khoản Google hoặc số điện thoại mới phải hoàn thiện họ tên, số điện thoại và chọn chủ trọ/người thuê. Không có lựa chọn đăng ký admin.
 - Tài khoản email đã có: đăng nhập bằng email, vào **Cài đặt → Liên kết số điện thoại**, xác minh OTP một lần. Firebase liên kết số vào cùng UID; những lần sau có thể đăng nhập bằng email hoặc OTP.
@@ -21,9 +22,9 @@ Dự án: `tropremium-d14ac`.
 
 ## Các bước cần hoàn tất bên ngoài code
 
-1. **Firestore Rules:** thay đổi trong `firestore.rules` cho phép lưu số liên hệ khi tạo hồ sơ và cho phép người dùng cập nhật số đăng nhập khi token Firebase đã xác minh đúng số đó. Không cho đổi vai trò, trạng thái khóa hoặc hồ sơ người khác. Đã kiểm tra trên emulator. Triển khai thật đang chờ người dùng xác nhận vì hệ thống duyệt tự động đã chặn lệnh triển khai thay đổi quyền truy cập.
+1. **Firestore Rules:** đã triển khai bản `firestore.rules` hiện tại lên `tropremium-d14ac` ngày **07/11/2026 lúc 17:47 (UTC+7)** và đọc lại xác nhận nội dung khớp repository. Rules cũ chỉ cho mã `tenant-{uid}`, không cho các trường số điện thoại và chưa có quyền đọc/đặt chỗ `tenant_codes`, gây lỗi `permission-denied` khi đăng ký bằng app hiện tại. Bản mới hỗ trợ số liên hệ, mã người thuê 8 ký tự đặt chỗ cùng transaction và cập nhật số đăng nhập đã xác minh bằng OTP. Client không thể tự cấp admin, đổi vai trò, mở khóa hoặc sửa hồ sơ người khác.
 
-   Sau khi có xác nhận:
+   Khi cập nhật Rules trong các lần sau, kiểm tra bằng emulator trước rồi triển khai:
 
    ```powershell
    firebase deploy --only firestore:rules --project tropremium-d14ac --non-interactive
@@ -43,6 +44,14 @@ flutter test test/provider_auth_test.dart test/login_ui_test.dart test/auth_flow
 python -m unittest discover -s test -p test_landlord_phone_backfill.py
 ```
 
-Kiểm tra Firestore Rules riêng bằng emulator cổng 8086, dự án `demo-auth`, sau đó chạy `python tool/auth_rules_check.py`. Script này chỉ gửi yêu cầu đến `127.0.0.1`, kiểm tra đăng ký hai vai trò, hồ sơ phone-only, chống giả mạo số xác minh, chống nâng quyền và chống đọc/sửa hồ sơ người khác.
+Kiểm tra Firestore Rules bằng emulator, dự án `demo-auth`:
+
+```powershell
+firebase emulators:exec --only firestore --project demo-auth "python tool/auth_rules_check.py"
+```
+
+Script mặc định dùng cổng 8080; thêm `--port 8086` nếu chạy emulator riêng ở cổng 8086. Script chỉ gửi yêu cầu đến `127.0.0.1`, kiểm tra đăng ký hai vai trò bằng batch và transaction giống app, đặt chỗ mã duy nhất, hồ sơ phone-only, chống giả mạo số xác minh, chống nâng quyền và chống đọc/sửa hồ sơ người khác.
+
+Lần sửa ngày 07/11/2026 đã tái hiện lỗi HTTP 403 với bản Rules production cũ trên emulator, sau đó đạt **20 kiểm tra Rules** với bản mới. **37 kiểm tra Flutter** trong `firebase_account_flows_test.dart`, `auth_flows_test.dart`, `provider_auth_test.dart`, `cloud_auth_boundary_test.dart`, `local_auth_test.dart` đều đạt; phân tích tĩnh gateway và test không có lỗi. Chưa kiểm tra tương tác trên điện thoại thật.
 
 Một test có sẵn ngoài luồng đăng nhập, `property_crud_test.dart` / `Cloud login cannot substitute seeded properties when Firebase fails`, đang thất bại vì kỳ vọng `initializeAsync()` ném lỗi trong khi triển khai hiện tại chạy đồng bộ nền. Tác vụ này không chỉnh luồng đồng bộ đó.
