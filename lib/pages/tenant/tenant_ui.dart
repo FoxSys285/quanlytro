@@ -120,6 +120,52 @@ class TenantUiPalette extends InheritedWidget {
       landlordStyle != oldWidget.landlordStyle;
 }
 
+/// Shared mint backdrop for tenant screens, with a blue tint for landlord-style
+/// feature pages that reuse the tenant components.
+class TenantPageBackdrop extends StatelessWidget {
+  const TenantPageBackdrop({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.canvas,
+        gradient: RadialGradient(
+          center: const Alignment(0.62, -1.05),
+          radius: 1.2,
+          colors: [colors.bannerEnd, colors.header, colors.canvas],
+          stops: const [0, 0.48, 1],
+        ),
+      ),
+      child: CustomPaint(
+        painter: _TenantPageBackdropPainter(colors.primary),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _TenantPageBackdropPainter extends CustomPainter {
+  const _TenantPageBackdropPainter(this.tint);
+
+  final Color tint;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final glow = Paint()..color = tint.withValues(alpha: 0.045);
+    canvas.drawCircle(Offset(size.width * 0.98, size.height * 0.12), 112, glow);
+    canvas.drawCircle(Offset(size.width * 0.02, size.height * 0.48), 76, glow);
+    canvas.drawCircle(Offset(size.width * 0.91, size.height * 0.78), 92, glow);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TenantPageBackdropPainter oldDelegate) =>
+      tint != oldDelegate.tint;
+}
+
 class TenantPageFrame extends StatelessWidget {
   const TenantPageFrame({super.key, required this.children, this.padding});
 
@@ -129,8 +175,7 @@ class TenantPageFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = TenantUiPalette.of(context);
-    return ColoredBox(
-      color: colors.canvas,
+    return TenantPageBackdrop(
       child: SafeArea(
         top: false,
         child: LayoutBuilder(

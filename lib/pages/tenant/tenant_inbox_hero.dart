@@ -35,43 +35,45 @@ class TenantInboxPageFrame extends StatelessWidget {
       statusBarBrightness: Brightness.light,
     ),
     child: TenantDetailTheme(
-      child: Material(
-        color: tenantCanvas,
-        child: SafeArea(
-          top: false,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final horizontalPadding = constraints.maxWidth < 600
-                  ? 18.0
-                  : 32.0;
-              return SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _hero(context),
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        horizontalPadding,
-                        20,
-                        horizontalPadding,
-                        32,
-                      ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 920),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: children,
+      child: TenantPageBackdrop(
+        child: Material(
+          color: Colors.transparent,
+          child: SafeArea(
+            top: false,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final horizontalPadding = constraints.maxWidth < 600
+                    ? 18.0
+                    : 32.0;
+                return SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _hero(context),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPadding,
+                          20,
+                          horizontalPadding,
+                          32,
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 920),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: children,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),

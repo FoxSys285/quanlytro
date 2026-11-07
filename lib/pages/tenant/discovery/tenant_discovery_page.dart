@@ -490,6 +490,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       hasError: _catalogError,
       offline: _offlineFallback,
       profileName: AccountStore.instance.profile(AppRole.tenant).name,
+      tenantId: widget.tenantId,
       query: _query,
       sort: _sort,
       searchController: _searchController,
@@ -550,11 +551,19 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       onNearby: _findNearby,
       onProperties: () => _openProperties(),
       onVerifiedProperties: () => _openProperties(verifiedOnly: true),
+      onMyLease: () => _openTenantDestination('my_lease'),
+      onInvoices: () => _openTenantDestination('invoices'),
+      onViewings: () => _openTenantDestination('viewings'),
+      onConversations: () => _openTenantDestination('conversations'),
       homeFeed: remote ? _homeFeed : null,
       onRefresh: _refreshHome,
       onGoodPrice: () => _openSearch(initialSort: 'rentAsc'),
     );
     return Material(type: MaterialType.transparency, child: home);
+  }
+
+  void _openTenantDestination(String destinationId) {
+    RoleLayoutShell.tryNavigateTo(context, destinationId);
   }
 
   int get _activeFilterCount {

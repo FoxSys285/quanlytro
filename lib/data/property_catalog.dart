@@ -47,10 +47,37 @@ class FirestoreTenantPropertyCatalogSource
         .doc(propertyId)
         .get(const GetOptions(source: Source.server));
     final data = snapshot.data();
-    if (data == null || data['published'] == false || data['archived'] == true) {
+    if (data == null ||
+        data['published'] == false ||
+        data['archived'] == true) {
       return null;
     }
     return TenantPropertyListing.fromMap(data);
+  }
+
+  Future<List<TenantPropertyListing>> fetchPropertiesForOwnerOf(
+    String propertyId,
+  ) async {
+    const server = GetOptions(source: Source.server);
+    final current = await _firestore
+        .collection('rental_properties')
+        .doc(propertyId)
+        .get(server);
+    final ownerUid = current.data()?['ownerUid'] as String?;
+    if (ownerUid == null || ownerUid.isEmpty) return const [];
+
+    final snapshot = await _firestore
+        .collection('rental_properties')
+        .where('ownerUid', isEqualTo: ownerUid)
+        .get(server);
+    return snapshot.docs
+        .map((doc) => doc.data())
+        .where(
+          (document) =>
+              document['published'] != false && document['archived'] != true,
+        )
+        .map(TenantPropertyListing.fromMap)
+        .toList();
   }
 
   @override

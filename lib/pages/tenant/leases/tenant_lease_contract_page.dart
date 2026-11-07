@@ -9,6 +9,15 @@ import '../tenant_detail_ui.dart';
 import '../tenant_ui.dart';
 import 'components/tenant_lease_overview.dart';
 
+String _serviceQuantityLabel(LandlordLeaseService service) {
+  final basis = service.basis.toLowerCase();
+  if (basis.contains('người')) return ' × ${service.quantity} người';
+  if (basis.contains('cái') || basis.contains('xe')) {
+    return ' × ${service.quantity} ${service.unit}';
+  }
+  return '';
+}
+
 class TenantLeaseContractPage extends StatelessWidget {
   const TenantLeaseContractPage({
     super.key,
@@ -178,14 +187,26 @@ class TenantLeaseContractPage extends StatelessWidget {
                               ? 'người'
                               : 'm³'}',
                     ),
-                    TenantDetailRow(
-                      label: 'Phí gửi xe',
-                      value: '${formatTenantMoney(lease.vehicleFee)}/tháng',
-                    ),
-                    TenantDetailRow(
-                      label: 'Phí dịch vụ',
-                      value: '${formatTenantMoney(lease.serviceFee)}/tháng',
-                    ),
+                    if (lease.services.isNotEmpty) ...[
+                      for (final service in lease.services)
+                        TenantDetailRow(
+                          label: service.name,
+                          value:
+                              '${formatTenantMoney(service.price)}/${service.unit}${_serviceQuantityLabel(service)} · ${service.basis} · ${formatTenantMoney(service.amount)}/tháng',
+                        ),
+                    ] else ...[
+                      TenantDetailRow(
+                        label: 'Phí gửi xe',
+                        value: '${formatTenantMoney(lease.vehicleFee)}/tháng',
+                      ),
+                      TenantDetailRow(
+                        label: lease.serviceName.isEmpty
+                            ? 'Phí dịch vụ'
+                            : 'Phí ${lease.serviceName}',
+                        value:
+                            '${formatTenantMoney(lease.serviceFee)}/${lease.serviceUnit.isEmpty ? 'tháng' : lease.serviceUnit}',
+                      ),
+                    ],
                     const TenantThinDivider(),
                     const TenantDetailNote(
                       'Tiền điện, nước được tính theo đơn giá và mức sử dụng thực tế. Tổng cần thanh toán được thể hiện trên từng hóa đơn.',

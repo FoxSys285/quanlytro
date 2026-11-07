@@ -161,6 +161,36 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
       );
       final electricity = services['electricity'];
       final water = services['water'];
+      final typeServiceIds = List<String>.from(
+        type['serviceIds'] as List? ?? const [],
+      );
+      final typeServicePrices = Map<String, dynamic>.from(
+        type['servicePrices'] as Map? ?? const {},
+      );
+      Map? configuredService({required bool isWater}) {
+        for (final serviceId in typeServiceIds) {
+          final candidate = services[serviceId] as Map?;
+          if (candidate == null) continue;
+          final name = (candidate['name'] as String? ?? '').toLowerCase();
+          if (isWater
+              ? serviceId == 'water' || name.contains('nước')
+              : serviceId == 'electricity' || name.contains('điện')) {
+            return candidate;
+          }
+        }
+        return isWater ? water as Map? : electricity as Map?;
+      }
+
+      final roomElectricity = configuredService(isWater: false);
+      final roomWater = configuredService(isWater: true);
+      final roomElectricityPrice =
+          typeServicePrices[roomElectricity?['id']] ??
+          roomElectricity?['price'] ??
+          4000;
+      final roomWaterPrice =
+          typeServicePrices[roomWater?['id']] ?? roomWater?['price'] ?? 15000;
+      final waterBasis = roomWater?['basis'] as String? ?? '';
+      final waterUnit = roomWater?['unit'] as String? ?? '';
       output['public_rooms/${Uri.encodeComponent('$id:${room['code']}')}'] = {
         'propertyId': id,
         'ownerUid': owner,
@@ -180,11 +210,18 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
           'Tầng ${room['floor']}',
           'Giờ tự do',
         ],
-        'electricityPrice': electricity?['price'] ?? 4000,
-        'waterType': water?['basis'] == 'Theo chỉ số'
-            ? 'Theo m³'
-            : 'Theo tháng',
-        'waterPrice': water?['price'] ?? 15000,
+        'electricityPrice': roomElectricityPrice,
+        'waterType':
+            waterUnit.toLowerCase().contains('người') ||
+                waterBasis.toLowerCase().contains('người')
+            ? 'Theo người'
+            : waterUnit.toLowerCase().contains('tháng') ||
+                  waterUnit.toLowerCase().contains('phòng') ||
+                  waterBasis.toLowerCase().contains('tháng') ||
+                  waterBasis.toLowerCase().contains('phòng')
+            ? 'Theo tháng'
+            : 'Theo m³',
+        'waterPrice': roomWaterPrice,
         'published': !hidden.contains(id),
         'available': !taken,
       };

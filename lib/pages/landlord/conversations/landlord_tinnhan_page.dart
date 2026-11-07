@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../layouts/landlord_navigation.dart';
 import '../landlord_theme.dart';
 import '../landlord_glass.dart';
 
 import '../../shared/conversations/conversation_store.dart';
 import '../landlord_demo_store.dart';
+import 'landlord_tenant_info_page.dart';
 import 'models/landlord_cuoctrochuyen.dart';
 
 // Tên Class chính bằng tiếng Việt
@@ -74,87 +76,12 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
   }
 
   void _showTenantInfo() {
-    final conversation = widget.conversation;
-    final store = RentalPortfolio.instance.byId(conversation.propertyId);
-    final roomLease = store == null
-        ? null
-        : store
-              .leasesForTenant(conversation.tenantId)
-              .where(
-                (item) =>
-                    store.canonicalRoom(item.room) ==
-                    store.canonicalRoom(conversation.room),
-              )
-              .firstOrNull;
-    final lease =
-        (conversation.leaseId == null
-            ? null
-            : store?.leaseById(conversation.leaseId!)) ??
-        roomLease;
-    final palette = LandlordPalette.of(context);
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: palette.surface,
-        surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'Thông tin người thuê',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        ),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _tenantInfoRow('Họ tên', conversation.tenantName),
-              _tenantInfoRow(
-                'Số điện thoại',
-                lease?.phone.trim().isNotEmpty == true
-                    ? lease!.phone
-                    : 'Chưa cập nhật',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
-          ),
-        ],
-      ),
+    LandlordNavigation.push<void>(
+      context,
+      page: LandlordTenantInfoPage(conversation: widget.conversation),
+      destinationId: 'conversations',
     );
   }
-
-  Widget _tenantInfoRow(String label, String value) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 116,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: LandlordPalette.of(context).muted,
-              fontSize: 12,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              color: LandlordPalette.of(context).ink,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -223,7 +150,7 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Thông tin người thuê',
+            tooltip: 'Thông tin người thuê trọ',
             onPressed: _showTenantInfo,
             icon: const Icon(Icons.info_outline_rounded),
           ),

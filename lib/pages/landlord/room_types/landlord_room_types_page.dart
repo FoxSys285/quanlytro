@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../landlord_theme.dart';
 import '../landlord_glass.dart';
+import '../landlord_ui.dart';
 
 import 'components/room_type_editor.dart';
 import '../../shared/media/room_photo_gallery.dart';
 
 import '../landlord_demo_store.dart';
+import '../services/models/landlord_service.dart';
 import 'models/landlord_room_type.dart';
 import '../properties/services/property_image_picker.dart';
 import '../../shared/media/room_photo.dart';
@@ -25,7 +27,7 @@ class LandlordRoomTypesPage extends StatelessWidget {
   LandlordDemoStore get _store => store ?? LandlordDemoStore.activeInstance;
 
   Future<void> _edit(BuildContext context, [LandlordRoomType? type]) async {
-    await showDialog<void>(
+    final saved = await showDialog<bool>(
       context: context,
       builder: (_) => RoomTypeEditor(
         store: _store,
@@ -40,6 +42,15 @@ class LandlordRoomTypesPage extends StatelessWidget {
               },
       ),
     );
+    if (saved == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            type == null ? 'Đã lưu loại phòng.' : 'Đã cập nhật loại phòng.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _delete(BuildContext context, LandlordRoomType type) async {
@@ -140,6 +151,10 @@ class LandlordRoomTypesPage extends StatelessWidget {
     final roomCount = _store.catalog
         .where((room) => room.roomTypeId == type.id)
         .length;
+    final services = type.serviceIds
+        .map(_store.serviceRecordById)
+        .whereType<LandlordService>()
+        .toList();
     return Container(
       key: ValueKey(type.id),
       clipBehavior: Clip.antiAlias,
@@ -206,13 +221,29 @@ class LandlordRoomTypesPage extends StatelessWidget {
             ),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                formatRoomTypePrice(type.monthlyRent),
-                style: TextStyle(
-                  color: propertyBlue,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    formatRoomTypePrice(type.monthlyRent),
+                    style: TextStyle(
+                      color: propertyBlue,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (services.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Text(
+                        'Dịch vụ: ${services.map((service) => '${service.name} ${formatLandlordMoney(type.servicePrices[service.id] ?? service.price)}/${service.unit}').join(', ')}',
+                        style: TextStyle(
+                          color: LandlordPalette.of(context).muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

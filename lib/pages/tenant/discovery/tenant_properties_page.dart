@@ -137,7 +137,7 @@ class _TenantPropertiesPageState extends State<TenantPropertiesPage> {
 
     return TenantDetailTheme(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F9F6),
+        backgroundColor: const Color(0xFFF7FAF8),
         appBar: AppBar(
           title: Text(
             _verifiedOnly ? 'Nhà trọ đáng tin cậy' : 'Danh sách nhà trọ',

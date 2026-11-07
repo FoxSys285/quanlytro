@@ -12,6 +12,8 @@ class LandlordLeaseTemplate {
     required this.electricityPrice,
     required this.waterPrice,
     required this.waterType,
+    this.electricityServiceId = 'electricity',
+    this.waterServiceId = 'water',
     required this.cashPaymentEnabled,
     required this.cashPaymentLocation,
     required this.bankTransferEnabled,
@@ -34,6 +36,8 @@ class LandlordLeaseTemplate {
   final int electricityPrice;
   final int waterPrice;
   final String waterType;
+  final String electricityServiceId;
+  final String waterServiceId;
   final bool cashPaymentEnabled;
   final String cashPaymentLocation;
   final bool bankTransferEnabled;
@@ -56,6 +60,8 @@ class LandlordLeaseTemplate {
     'electricityPrice': electricityPrice,
     'waterPrice': waterPrice,
     'waterType': waterType,
+    'electricityServiceId': electricityServiceId,
+    'waterServiceId': waterServiceId,
     'cashPaymentEnabled': cashPaymentEnabled,
     'cashPaymentLocation': cashPaymentLocation,
     'bankTransferEnabled': bankTransferEnabled,
@@ -86,6 +92,9 @@ class LandlordLeaseTemplate {
         electricityPrice: map['electricityPrice'] as int? ?? 3500,
         waterPrice: map['waterPrice'] as int? ?? 15000,
         waterType: map['waterType'] as String? ?? 'Theo m³',
+        electricityServiceId:
+            map['electricityServiceId'] as String? ?? 'electricity',
+        waterServiceId: map['waterServiceId'] as String? ?? 'water',
         cashPaymentEnabled: map['cashPaymentEnabled'] as bool? ?? true,
         cashPaymentLocation: map['cashPaymentLocation'] as String? ?? '',
         bankTransferEnabled: map['bankTransferEnabled'] as bool? ?? false,

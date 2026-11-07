@@ -99,7 +99,7 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
         statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF7FAF8),
         body: Column(
           children: [
             Expanded(

@@ -4,7 +4,9 @@ import '../../landlord_theme.dart';
 
 import 'package:flutter/services.dart';
 
+import '../../../../data/app_persistence.dart';
 import '../../landlord_demo_store.dart';
+import '../../services/models/landlord_service.dart';
 import '../../landlord_ui.dart';
 import '../../../shared/media/room_photo.dart';
 import '../../../shared/media/room_photo_gallery.dart';
@@ -32,13 +34,85 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
     text: widget.type == null ? '' : _formatVnd(widget.type!.monthlyRent),
   );
   late final _photos = <RoomPhoto>[...?widget.type?.photos];
+  late final _serviceIds = <String>{
+    ...(widget.type?.serviceIds ??
+        widget.store.services
+            .where(
+              (service) =>
+                  service.active &&
+                  (service.id == 'electricity' || service.id == 'water'),
+            )
+            .map((service) => service.id)),
+  };
+  final _servicePriceControllers = <String, TextEditingController>{};
   bool _picking = false;
+  bool _saving = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final service in widget.store.services) {
+      if (_serviceIds.contains(service.id)) {
+        _servicePriceControllers[service.id] = TextEditingController(
+          text: (widget.type?.servicePrices[service.id] ?? service.price)
+              .toString(),
+        );
+      }
+    }
+  }
+
+  List<LandlordService> get _serviceOptions {
+    final options = widget.store.services
+        .where((service) => service.active)
+        .toList();
+    for (final service in widget.store.services) {
+      if (_serviceIds.contains(service.id) &&
+          !options.any((item) => item.id == service.id)) {
+        options.add(service);
+      }
+    }
+    return options;
+  }
+
+  bool _isElectricityService(LandlordService service) =>
+      service.id == 'electricity' ||
+      service.name.toLowerCase().contains('điện');
+
+  bool _isWaterService(LandlordService service) =>
+      service.id == 'water' || service.name.toLowerCase().contains('nước');
+
+  void _setServiceSelected(LandlordService service, bool selected) {
+    if (!selected) {
+      _serviceIds.remove(service.id);
+      return;
+    }
+    if (_isElectricityService(service) || _isWaterService(service)) {
+      _serviceIds.removeWhere((id) {
+        final current = widget.store.serviceRecordById(id);
+        return current != null &&
+            (_isElectricityService(service)
+                ? _isElectricityService(current)
+                : _isWaterService(current));
+      });
+    }
+    _serviceIds.add(service.id);
+    _servicePriceControllers.putIfAbsent(
+      service.id,
+      () => TextEditingController(
+        text: (widget.type?.servicePrices[service.id] ?? service.price)
+            .toString(),
+      ),
+    );
+  }
 
   @override
   void dispose() {
     _name.dispose();
     _price.dispose();
+    for (final controller in _servicePriceControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -71,18 +145,36 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       widget.store.saveRoomType(
         _name.text,
         monthlyRent: int.parse(_price.text.replaceAll(RegExp(r'\D'), '')),
         id: widget.type?.id,
+        serviceIds: _serviceIds.toList(),
+        servicePrices: {
+          for (final id in _serviceIds)
+            id: int.parse(
+              _servicePriceControllers[id]!.text.replaceAll(RegExp(r'\D'), ''),
+            ),
+        },
         photos: _photos,
       );
-      Navigator.pop(context);
+      await AppPersistence.current?.flush();
+      if (mounted) Navigator.pop(context, true);
     } on ArgumentError catch (e) {
-      setState(() => _error = e.message.toString());
+      if (mounted) setState(() => _error = e.message.toString());
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = e.toString().replaceFirst('Bad state: ', ''));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -145,6 +237,93 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
                     ? 'Nhập giá thuê lớn hơn 0.'
                     : null,
               ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Icon(Icons.price_change_outlined, color: landlordBlue),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Bảng giá & dịch vụ áp dụng',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Text('${_serviceIds.length} đã chọn'),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Chọn dịch vụ áp dụng và nhập đơn giá riêng cho loại phòng này. Hợp đồng sẽ dùng các mức giá này làm mặc định.',
+                style: TextStyle(
+                  color: LandlordPalette.of(context).muted,
+                  fontSize: 12,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 7),
+              if (_serviceOptions.isEmpty)
+                const Text('Chưa có dịch vụ. Hãy tạo dịch vụ trong Bảng giá.'),
+              for (final service in _serviceOptions)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: _serviceIds.contains(service.id),
+                      onChanged: _saving
+                          ? null
+                          : (selected) => setState(
+                              () => _setServiceSelected(
+                                service,
+                                selected == true,
+                              ),
+                            ),
+                      title: Text(
+                        service.active
+                            ? service.name
+                            : '${service.name} (đã ngừng)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${service.unit} · ${service.basis}',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                    if (_serviceIds.contains(service.id))
+                      Padding(
+                        padding: const EdgeInsets.only(left: 48, bottom: 8),
+                        child: TextFormField(
+                          controller: _servicePriceControllers[service.id],
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [_VietnameseMoneyFormatter()],
+                          decoration: InputDecoration(
+                            labelText:
+                                'Đơn giá ${service.name} cho loại phòng này',
+                            suffixText: 'đ / ${service.unit}',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
+                          validator: (value) =>
+                              int.tryParse(
+                                    (value ?? '').replaceAll(RegExp(r'\D'), ''),
+                                  ) ==
+                                  null
+                              ? 'Nhập đơn giá hợp lệ.'
+                              : null,
+                        ),
+                      ),
+                  ],
+                ),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -241,7 +420,16 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
     ),
     actions: [
       TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy')),
-      FilledButton(onPressed: _picking ? null : _save, child: Text('Lưu')),
+      FilledButton(
+        onPressed: _picking || _saving ? null : _save,
+        child: _saving
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Text('Lưu'),
+      ),
     ],
   );
 

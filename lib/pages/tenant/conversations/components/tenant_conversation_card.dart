@@ -83,12 +83,13 @@ class TenantConversationCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        conversation.contextLabel,
+                        'Chủ trọ',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: tenantMuted,
+                          color: Colors.green,
                           fontSize: 11,
+                          fontWeight: FontWeight.bold
                         ),
                       ),
                       const SizedBox(height: 9),

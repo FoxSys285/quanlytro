@@ -22,6 +22,8 @@ import 'pages/shared/auth/login_page.dart';
 import 'pages/shared/widgets/app_brand.dart';
 
 final _appNavigatorKey = GlobalKey<NavigatorState>();
+final _noAppError = ValueNotifier<String?>(null);
+final _noAppRefresh = ValueNotifier<bool>(false);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -188,12 +190,15 @@ class MyApp extends StatelessWidget {
         listenable: LocalAuth.instance,
         builder: (context, _) {
           final persistence = AppPersistence.current;
-          if (persistence == null || persistence.isDisposed) return child!;
+          final activePersistence =
+              persistence == null || persistence.isDisposed
+              ? null
+              : persistence;
           return ValueListenableBuilder<String?>(
-            valueListenable: persistence.error,
+            valueListenable: activePersistence?.error ?? _noAppError,
             builder: (context, error, _) => Column(
               children: [
-                if (error != null)
+                if (activePersistence != null && error != null)
                   Material(
                     color: const Color(0xFFFFE8D5),
                     child: SafeArea(
@@ -204,10 +209,10 @@ class MyApp extends StatelessWidget {
                           children: [
                             Expanded(child: Text(error)),
                             TextButton(
-                              onPressed: persistence.save,
+                              onPressed: activePersistence.save,
                               child: const Text('Thử lưu lại'),
                             ),
-                            if (persistence.cloudMode)
+                            if (activePersistence.cloudMode)
                               TextButton(
                                 onPressed: () async {
                                   final discard = await showDialog<bool>(
@@ -235,7 +240,7 @@ class MyApp extends StatelessWidget {
                                     ),
                                   );
                                   if (discard == true) {
-                                    await persistence.refresh(
+                                    await activePersistence.refresh(
                                       discardUnsaved: true,
                                     );
                                   }
@@ -248,23 +253,24 @@ class MyApp extends StatelessWidget {
                     ),
                   ),
                 Expanded(
-                  child: persistence.isDisposed
-                      ? child!
-                      : ValueListenableBuilder<bool>(
-                          valueListenable: persistence.refreshing,
-                          builder: (context, busy, _) => Stack(
-                            children: [
-                              child!,
-                              if (busy)
-                                const Positioned(
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  child: LinearProgressIndicator(minHeight: 2),
-                                ),
-                            ],
+                  // Keep the root Navigator mounted as the error banner changes.
+                  key: const ValueKey('app-navigation-content'),
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable:
+                        activePersistence?.refreshing ?? _noAppRefresh,
+                    builder: (context, busy, _) => Stack(
+                      children: [
+                        child!,
+                        if (busy)
+                          const Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: LinearProgressIndicator(minHeight: 2),
                           ),
-                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),

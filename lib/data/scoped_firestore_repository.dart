@@ -27,6 +27,8 @@ class ScopedFirestoreRentalRepository
   final _ticketAuthors = <String, String>{};
   final _localBaseline = <String, Map<String, dynamic>>{};
   Map<String, Map<String, dynamic>>? _lastReadSnapshot;
+  bool _needsSchemaMigration = false;
+  bool get needsSchemaMigration => _needsSchemaMigration;
 
   static List<List<String>> tenantPropertyGroups(
     Iterable<Map<String, dynamic>> records,
@@ -165,6 +167,7 @@ class ScopedFirestoreRentalRepository
 
   @override
   Future<Map<String, Map<String, dynamic>>> readAll() async {
+    _needsSchemaMigration = false;
     const server = GetOptions(source: Source.server);
     Query<Map<String, dynamic>> properties = _firestore.collection(
       'rental_properties',
@@ -225,6 +228,11 @@ class ScopedFirestoreRentalRepository
       final ownerUid = data['ownerUid'] as String?;
       if (ownerUid != null) _owners[doc.id] = ownerUid;
       if (data['archived'] == true || data['data'] is! Map) continue;
+      final version = (data['data'] as Map)['schemaVersion'];
+      if (session.role == AppRole.landlord &&
+          (version is! num || version.toInt() < 2)) {
+        _needsSchemaMigration = true;
+      }
       stores[doc.id] = {
         ...Map<String, dynamic>.from(data['data'] as Map),
         for (final kind in [

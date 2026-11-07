@@ -6,6 +6,7 @@ import '../../shared/conversations/conversation_store.dart';
 import '../../shared/rental/tenant_session.dart';
 import 'components/tenant_bongbongtinnhan.dart';
 import 'models/tenant_cuoctrochuyen.dart';
+import 'tenant_conversation_info_page.dart';
 import '../../landlord/landlord_demo_store.dart';
 
 class TenantTinNhanPage extends StatefulWidget {
@@ -82,74 +83,9 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
   });
 
   void _showInfo() {
-    final source = _conversation.source;
-    final property = source == null
-        ? null
-        : RentalPortfolio.instance.byId(source.propertyId)?.property;
-    showDialog<void>(
-      context: context,
-      builder: (context) => TenantDetailTheme(
-        child: AlertDialog(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          title: const Text(
-            'Thông tin cuộc trò chuyện',
-            style: TextStyle(
-              color: tenantInk,
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          content: SizedBox(
-            width: 440,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      TenantProfileAvatar(
-                        name: _conversation.landlordName,
-                        radius: 25,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _conversation.landlordName,
-                          style: const TextStyle(
-                            color: tenantInk,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  TenantDetailNote(
-                    _conversation.contextLabel,
-                    icon: Icons.home_outlined,
-                  ),
-                  if (property != null) ...[
-                    const SizedBox(height: 12),
-                    TenantDetailRow(label: 'Nhà trọ', value: property.name),
-                    TenantDetailRow(label: 'Địa chỉ', value: property.address),
-                    TenantDetailRow(label: 'Điện thoại', value: property.phone),
-                  ],
-                  if (source?.leaseId != null)
-                    TenantDetailRow(label: 'Hợp đồng', value: source!.leaseId!),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Đóng'),
-            ),
-          ],
-        ),
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TenantConversationInfoPage(conversation: _conversation),
       ),
     );
   }
@@ -258,7 +194,7 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
     final propertyName = _conversation.source?.propertyName.trim();
     return TenantDetailTheme(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF4F8F5),
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: tenantCanvas,
           titleSpacing: 0,
@@ -296,7 +232,7 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
           ),
           actions: [
             IconButton(
-              tooltip: 'Thông tin cuộc trò chuyện',
+              tooltip: 'Thông tin chủ trọ',
               onPressed: _showInfo,
               icon: const Icon(
                 Icons.info_outline_rounded,
@@ -307,43 +243,45 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
             const SizedBox(width: 4),
           ],
         ),
-        body: SafeArea(
-          top: false,
-          bottom: false,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 920),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      controller: _scroll,
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
-                      itemCount: messages.length + 1,
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 22),
-                            child: Center(
-                              child: TenantStatusPill(
-                                messages.isEmpty
-                                    ? 'Bắt đầu cuộc trò chuyện'
-                                    : 'Cuộc trò chuyện',
-                                color: tenantMuted,
+        body: TenantPageBackdrop(
+          child: SafeArea(
+            top: false,
+            bottom: false,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 920),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        controller: _scroll,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
+                        itemCount: messages.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 22),
+                              child: Center(
+                                child: TenantStatusPill(
+                                  messages.isEmpty
+                                      ? 'Bắt đầu cuộc trò chuyện'
+                                      : 'Cuộc trò chuyện',
+                                  color: tenantMuted,
+                                ),
                               ),
-                            ),
+                            );
+                          }
+                          return TenantMessageBubble(
+                            message: messages[index - 1],
                           );
-                        }
-                        return TenantMessageBubble(
-                          message: messages[index - 1],
-                        );
-                      },
+                        },
+                      ),
                     ),
-                  ),
-                  _composer(),
-                ],
+                    _composer(),
+                  ],
+                ),
               ),
             ),
           ),

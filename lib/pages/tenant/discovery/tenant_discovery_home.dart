@@ -4,6 +4,10 @@ import 'package:flutter/services.dart';
 import '../../../data/admin_store.dart';
 import '../../../data/discovery_catalog.dart';
 
+import '../../landlord/landlord_demo_store.dart';
+import '../../shared/conversations/conversation_store.dart';
+import '../../shared/viewings/models/room_viewing.dart';
+import '../../shared/viewings/viewing_store.dart';
 import '../tenant_ui.dart';
 import 'components/tenant_area_picker_page.dart';
 import '../../shared/media/room_photo_gallery.dart';
@@ -24,6 +28,7 @@ class TenantDiscoveryHome extends StatelessWidget {
     required this.hasError,
     required this.offline,
     required this.profileName,
+    required this.tenantId,
     required this.query,
     required this.sort,
     required this.searchController,
@@ -54,6 +59,10 @@ class TenantDiscoveryHome extends StatelessWidget {
     required this.onNearby,
     required this.onProperties,
     required this.onVerifiedProperties,
+    required this.onMyLease,
+    required this.onInvoices,
+    required this.onViewings,
+    required this.onConversations,
     this.locationService = const TenantLocationService(),
     this.homeFeed,
     this.onRefresh,
@@ -68,6 +77,7 @@ class TenantDiscoveryHome extends StatelessWidget {
   final bool hasError;
   final bool offline;
   final String profileName;
+  final String tenantId;
   final String query;
   final String sort;
   final TextEditingController searchController;
@@ -98,6 +108,10 @@ class TenantDiscoveryHome extends StatelessWidget {
   final VoidCallback onNearby;
   final VoidCallback onProperties;
   final VoidCallback onVerifiedProperties;
+  final VoidCallback onMyLease;
+  final VoidCallback onInvoices;
+  final VoidCallback onViewings;
+  final VoidCallback onConversations;
   final TenantLocationService locationService;
   final DiscoveryHomeFeed? homeFeed;
   final Future<void> Function()? onRefresh;
@@ -106,8 +120,7 @@ class TenantDiscoveryHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (resultsOnly) {
-      return ColoredBox(
-        color: tenantCanvas,
+      return TenantPageBackdrop(
         child: SafeArea(top: false, child: _resultsPage(context)),
       );
     }
@@ -134,8 +147,7 @@ class TenantDiscoveryHome extends StatelessWidget {
         statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.light,
       ),
-      child: ColoredBox(
-        color: const Color(0xFFFCFCFC),
+      child: TenantPageBackdrop(
         child: RefreshIndicator(
           key: const ValueKey('discovery-pull-to-refresh'),
           color: tenantGreen,
@@ -171,6 +183,16 @@ class TenantDiscoveryHome extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: _quickCategories(context),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: _TenantQuickOverview(
+                    tenantId: tenantId,
+                    onMyLease: onMyLease,
+                    onInvoices: onInvoices,
+                    onViewings: onViewings,
+                    onConversations: onConversations,
+                  ),
                 ),
                 if (noListings)
                   const Padding(
@@ -288,192 +310,187 @@ class TenantDiscoveryHome extends StatelessWidget {
         statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.light,
       ),
-      child: ColoredBox(
-        color: const Color(0xFFFCFCFC),
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TenantHeader(
-                profileName: profileName,
-                onAvatarTap: () => Navigator.of(context).maybePop(),
-                onFavoritesTap: onFavorites,
-                onSettingsTap: onSettings,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 5, 18, 12),
-                child: Row(
-                  children: [
-                    IconButton(
-                      tooltip: 'Quay lại khám phá',
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'Danh sách phòng trọ',
-                        style: TextStyle(
-                          color: Color(0xFF202332),
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
+      child: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TenantHeader(
+              profileName: profileName,
+              onAvatarTap: () => Navigator.of(context).maybePop(),
+              onFavoritesTap: onFavorites,
+              onSettingsTap: onSettings,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 5, 18, 12),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Quay lại khám phá',
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Danh sách phòng trọ',
+                      style: TextStyle(
+                        color: Color(0xFF202332),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _searchBar(context),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onPickArea,
+                    icon: const Icon(Icons.map_outlined, size: 18),
+                    label: const Text('Chọn trên bản đồ'),
+                  ),
+                  TextButton.icon(
+                    onPressed: onNearby,
+                    icon: const Icon(Icons.my_location_rounded, size: 18),
+                    label: const Text('Vị trí hiện tại'),
+                  ),
+                ],
+              ),
+            ),
+            if (activeFilters != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 9, 18, 0),
+                child: activeFilters!,
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 19, 18, 8),
+              child: TenantSectionHeading(
+                'Danh sách phòng',
+                trailing: Text(
+                  remote
+                      ? 'Trang ${currentPage + 1}'
+                      : '${localRooms.length} phòng',
+                  style: const TextStyle(color: tenantMuted, fontSize: 12),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _searchBar(context),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Wrap(
-                  spacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: onPickArea,
-                      icon: const Icon(Icons.map_outlined, size: 18),
-                      label: const Text('Chọn trên bản đồ'),
-                    ),
-                    TextButton.icon(
-                      onPressed: onNearby,
-                      icon: const Icon(Icons.my_location_rounded, size: 18),
-                      label: const Text('Vị trí hiện tại'),
-                    ),
-                  ],
-                ),
-              ),
-              if (activeFilters != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 9, 18, 0),
-                  child: activeFilters!,
-                ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 19, 18, 8),
-                child: TenantSectionHeading(
-                  'Danh sách phòng',
-                  trailing: Text(
-                    remote
-                        ? 'Trang ${currentPage + 1}'
-                        : '${localRooms.length} phòng',
-                    style: const TextStyle(color: tenantMuted, fontSize: 12),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: DropdownButtonFormField<String>(
+                initialValue: sort,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'Sắp xếp danh sách',
+                  prefixIcon: const Icon(Icons.sort_rounded),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: tenantLine),
                   ),
                 ),
+                items: const [
+                  DropdownMenuItem(value: 'default', child: Text('Mặc định')),
+                  DropdownMenuItem(
+                    value: 'rentAsc',
+                    child: Text('Giá thuê tăng dần'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'rentDesc',
+                    child: Text('Giá thuê giảm dần'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'areaAsc',
+                    child: Text('Diện tích tăng dần'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'areaDesc',
+                    child: Text('Diện tích giảm dần'),
+                  ),
+                ],
+                onChanged: onSortChanged,
               ),
+            ),
+            const SizedBox(height: 12),
+            if (remote && hasError)
+              _catalogError()
+            else if (remote && loading)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (visibleRooms.isEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 18),
+                child: TenantEmptyState(
+                  icon: Icons.home_work_outlined,
+                  title:
+                      remote && query.trim().isEmpty && activeFilterCount == 0
+                      ? 'Chưa có nhà trọ nào'
+                      : 'Chưa tìm thấy phòng phù hợp',
+                  subtitle: remote && remoteHasNext
+                      ? 'Xem trang tiếp theo hoặc thay đổi bộ lọc để tiếp tục tìm.'
+                      : remote && query.trim().isEmpty && activeFilterCount == 0
+                      ? 'Hiện chưa có nhà trọ được đăng. Vui lòng quay lại sau.'
+                      : 'Thử đổi từ khóa hoặc bộ lọc nhé.',
+                ),
+              )
+            else
+              _roomGrid(context),
+            const SizedBox(height: 12),
+            if (remote && !loading && !hasError)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton.outlined(
+                    tooltip: 'Trang trước',
+                    onPressed: currentPage == 0 ? null : onRemotePrevious,
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('Trang ${currentPage + 1}'),
+                  ),
+                  IconButton.outlined(
+                    tooltip: 'Trang tiếp theo',
+                    onPressed: remoteHasNext ? onRemoteNext : null,
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              )
+            else if (!remote)
+              ListPagination(
+                total: localRooms.length,
+                page: localPage,
+                pageSize: pageSize,
+                onChanged: onLocalPageChanged,
+              ),
+            if (offline)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: DropdownButtonFormField<String>(
-                  initialValue: sort,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: 'Sắp xếp danh sách',
-                    prefixIcon: const Icon(Icons.sort_rounded),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: tenantLine),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Đang xem dữ liệu đã lưu trên thiết bị; tình trạng phòng có thể thay đổi.',
+                      style: TextStyle(color: tenantMuted, fontSize: 10),
                     ),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'default', child: Text('Mặc định')),
-                    DropdownMenuItem(
-                      value: 'rentAsc',
-                      child: Text('Giá thuê tăng dần'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'rentDesc',
-                      child: Text('Giá thuê giảm dần'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'areaAsc',
-                      child: Text('Diện tích tăng dần'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'areaDesc',
-                      child: Text('Diện tích giảm dần'),
+                    TextButton(
+                      onPressed: onReloadOnline,
+                      child: const Text('Tải lại trực tuyến'),
                     ),
                   ],
-                  onChanged: onSortChanged,
                 ),
               ),
-              const SizedBox(height: 12),
-              if (remote && hasError)
-                _catalogError()
-              else if (remote && loading)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (visibleRooms.isEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 18),
-                  child: TenantEmptyState(
-                    icon: Icons.home_work_outlined,
-                    title:
-                        remote && query.trim().isEmpty && activeFilterCount == 0
-                        ? 'Chưa có nhà trọ nào'
-                        : 'Chưa tìm thấy phòng phù hợp',
-                    subtitle: remote && remoteHasNext
-                        ? 'Xem trang tiếp theo hoặc thay đổi bộ lọc để tiếp tục tìm.'
-                        : remote &&
-                              query.trim().isEmpty &&
-                              activeFilterCount == 0
-                        ? 'Hiện chưa có nhà trọ được đăng. Vui lòng quay lại sau.'
-                        : 'Thử đổi từ khóa hoặc bộ lọc nhé.',
-                  ),
-                )
-              else
-                _roomGrid(context),
-              const SizedBox(height: 12),
-              if (remote && !loading && !hasError)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton.outlined(
-                      tooltip: 'Trang trước',
-                      onPressed: currentPage == 0 ? null : onRemotePrevious,
-                      icon: const Icon(Icons.chevron_left),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('Trang ${currentPage + 1}'),
-                    ),
-                    IconButton.outlined(
-                      tooltip: 'Trang tiếp theo',
-                      onPressed: remoteHasNext ? onRemoteNext : null,
-                      icon: const Icon(Icons.chevron_right),
-                    ),
-                  ],
-                )
-              else if (!remote)
-                ListPagination(
-                  total: localRooms.length,
-                  page: localPage,
-                  pageSize: pageSize,
-                  onChanged: onLocalPageChanged,
-                ),
-              if (offline)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Đang xem dữ liệu đã lưu trên thiết bị; tình trạng phòng có thể thay đổi.',
-                        style: TextStyle(color: tenantMuted, fontSize: 10),
-                      ),
-                      TextButton(
-                        onPressed: onReloadOnline,
-                        child: const Text('Tải lại trực tuyến'),
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );
@@ -1226,4 +1243,276 @@ class TenantDiscoveryHome extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _TenantQuickOverview extends StatelessWidget {
+  const _TenantQuickOverview({
+    required this.tenantId,
+    required this.onMyLease,
+    required this.onInvoices,
+    required this.onViewings,
+    required this.onConversations,
+  });
+
+  final String tenantId;
+  final VoidCallback onMyLease;
+  final VoidCallback onInvoices;
+  final VoidCallback onViewings;
+  final VoidCallback onConversations;
+
+  @override
+  Widget build(BuildContext context) {
+    final rental = LandlordDemoStore.instance;
+    final conversations = ConversationStore.instance;
+    final viewings = ViewingStore.instance;
+    return ListenableBuilder(
+      listenable: Listenable.merge([rental, conversations, viewings]),
+      builder: (context, _) {
+        final leaseCount = rental.currentLeaseForTenant(tenantId) == null
+            ? 0
+            : 1;
+        final unpaidCount = rental
+            .invoicesForTenant(tenantId)
+            .where((invoice) => !invoice.cancelled && invoice.remaining > 0)
+            .length;
+        final now = DateTime.now();
+        final viewingCount = viewings
+            .forTenant(tenantId)
+            .where(
+              (item) =>
+                  item.status != ViewingStatus.cancelled &&
+                  item.startsAt.isAfter(now),
+            )
+            .length;
+        final unreadCount = conversations
+            .forTenant(tenantId)
+            .fold<int>(0, (sum, item) => sum + item.tenantUnread);
+        final metrics = [
+          _TenantOverviewMetricData(
+            icon: Icons.home_rounded,
+            value: '$leaseCount',
+            label: 'Chỗ ở đang thuê',
+            onTap: onMyLease,
+          ),
+          _TenantOverviewMetricData(
+            icon: Icons.receipt_long_rounded,
+            value: '$unpaidCount',
+            label: 'Hóa đơn chờ',
+            onTap: onInvoices,
+          ),
+          _TenantOverviewMetricData(
+            icon: Icons.event_available_rounded,
+            value: '$viewingCount',
+            label: 'Lịch xem sắp tới',
+            onTap: onViewings,
+          ),
+          _TenantOverviewMetricData(
+            icon: Icons.chat_bubble_rounded,
+            value: '$unreadCount',
+            label: 'Tin nhắn mới',
+            onTap: onConversations,
+          ),
+        ];
+
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(
+              begin: Alignment.bottomLeft,
+              end: Alignment.topRight,
+              colors: [Color(0xFF08763B), Color(0xFF099B4C), Color(0xFF37B96D)],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x26348E5C),
+                blurRadius: 22,
+                offset: Offset(0, 9),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: CustomPaint(
+              painter: const _TenantOverviewDecorationPainter(),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(17, 15, 17, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.dashboard_rounded,
+                          color: Colors.white,
+                          size: 21,
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Tổng quan của bạn',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.25),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.bolt_rounded,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'LỐI TẮT',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.45,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 13),
+                    Row(
+                      children: [
+                        Expanded(child: _metric(metrics[0])),
+                        _divider(),
+                        Expanded(child: _metric(metrics[1])),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      child: Divider(
+                        height: 1,
+                        color: Colors.white.withValues(alpha: 0.23),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(child: _metric(metrics[2])),
+                        _divider(),
+                        Expanded(child: _metric(metrics[3])),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _divider() => Container(
+    width: 1,
+    height: 43,
+    color: Colors.white.withValues(alpha: 0.24),
+    margin: const EdgeInsets.symmetric(horizontal: 6),
+  );
+
+  Widget _metric(_TenantOverviewMetricData data) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: data.onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.17),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(data.icon, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data.value,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      height: 1,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.88),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _TenantOverviewMetricData {
+  const _TenantOverviewMetricData({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+  final VoidCallback onTap;
+}
+
+class _TenantOverviewDecorationPainter extends CustomPainter {
+  const _TenantOverviewDecorationPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.055)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    canvas.drawCircle(Offset(size.width - 12, 14), 49, paint);
+    canvas.drawCircle(Offset(size.width - 12, 14), 66, paint);
+    canvas.drawCircle(Offset(size.width - 12, 14), 83, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TenantOverviewDecorationPainter oldDelegate) =>
+      false;
 }

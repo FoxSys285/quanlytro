@@ -5,7 +5,49 @@ import '../../../landlord/room_types/models/landlord_room_type.dart';
 
 import '../../../landlord/landlord_demo_store.dart';
 import '../../../landlord/rooms/models/landlord_room.dart';
+import '../../../landlord/services/models/landlord_service.dart';
 import '../../../shared/media/room_photo.dart';
+
+LandlordService? _roomTypeService(
+  LandlordDemoStore store,
+  LandlordRoomType type, {
+  required bool water,
+}) {
+  for (final id in type.serviceIds) {
+    final service = store.serviceRecordById(id);
+    if (service == null || !service.active) continue;
+    if (water
+        ? service.id == 'water' || service.name.toLowerCase().contains('nước')
+        : service.id == 'electricity' ||
+              service.name.toLowerCase().contains('điện')) {
+      return service;
+    }
+  }
+  return store.serviceById(water ? 'water' : 'electricity');
+}
+
+int _roomTypeRate(
+  LandlordDemoStore store,
+  LandlordRoomType type, {
+  required bool water,
+}) {
+  final service = _roomTypeService(store, type, water: water);
+  return service == null ? 0 : type.servicePrices[service.id] ?? service.price;
+}
+
+String _roomTypeWaterBasis(LandlordDemoStore store, LandlordRoomType type) {
+  final service = _roomTypeService(store, type, water: true);
+  final unit = service?.unit.toLowerCase() ?? '';
+  final basis = service?.basis.toLowerCase() ?? '';
+  if (unit.contains('người') || basis.contains('người')) return 'Theo người';
+  if (unit.contains('tháng') ||
+      unit.contains('phòng') ||
+      basis.contains('tháng') ||
+      basis.contains('phòng')) {
+    return 'Theo tháng';
+  }
+  return 'Theo m³';
+}
 
 class TenantRoomListing {
   const TenantRoomListing({
@@ -343,11 +385,9 @@ class TenantRoomDemoData {
           roomType: details.typeName,
           city: store.property.city,
           ward: store.property.ward,
-          electricityPrice: store.serviceById('electricity')?.price ?? 0,
-          waterType: store.serviceById('water')?.basis == 'Theo chỉ số'
-              ? 'Theo m³'
-              : 'Theo tháng',
-          waterPrice: store.serviceById('water')?.price ?? 0,
+          electricityPrice: _roomTypeRate(store, details.type!, water: false),
+          waterType: _roomTypeWaterBasis(store, details.type!),
+          waterPrice: _roomTypeRate(store, details.type!, water: true),
           variant: 0,
           rating: '—',
           tags: [

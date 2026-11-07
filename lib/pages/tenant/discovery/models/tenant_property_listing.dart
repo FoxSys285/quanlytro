@@ -8,6 +8,7 @@ class TenantPropertyListing {
     required this.roomCount,
     required this.minRent,
     required this.verified,
+    this.roomTypes = const [],
     this.verificationScope = 'profile',
     this.verificationNote = '',
   });
@@ -16,6 +17,7 @@ class TenantPropertyListing {
   final int roomCount;
   final int? minRent;
   final bool verified;
+  final List<String> roomTypes;
   final String verificationScope;
   final String verificationNote;
   bool get isDemoVerification => verificationScope == 'demo';
@@ -30,6 +32,7 @@ class TenantPropertyListing {
     roomCount: store.catalog.length,
     minRent: _minimum(store.roomDetails.map((room) => room.monthlyRent)),
     verified: verified,
+    roomTypes: store.roomTypes.map((type) => type.name).toSet().toList(),
   );
 
   factory TenantPropertyListing.fromMap(Map<String, dynamic> document) {
@@ -48,6 +51,11 @@ class TenantPropertyListing {
       verified:
           document['verified'] == true &&
           document['verificationProof'] == propertyVerificationProof(data),
+      roomTypes: (data['roomTypes'] as List? ?? const [])
+          .map((type) => (type as Map)['name'] as String? ?? '')
+          .where((name) => name.isNotEmpty)
+          .toSet()
+          .toList(),
       verificationScope:
           document['isDemo'] == true || verification?['scope'] == 'demo'
           ? 'demo'

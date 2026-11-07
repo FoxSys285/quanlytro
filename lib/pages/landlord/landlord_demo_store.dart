@@ -278,6 +278,8 @@ class LandlordDemoStore extends ChangeNotifier {
     required int electricityPrice,
     required int waterPrice,
     required String waterType,
+    String? electricityServiceId,
+    String? waterServiceId,
     required bool cashPaymentEnabled,
     required String cashPaymentLocation,
     required bool bankTransferEnabled,
@@ -328,6 +330,11 @@ class LandlordDemoStore extends ChangeNotifier {
       electricityPrice: electricityPrice,
       waterPrice: waterPrice,
       waterType: waterType,
+      electricityServiceId:
+          electricityServiceId ??
+          existing?.electricityServiceId ??
+          'electricity',
+      waterServiceId: waterServiceId ?? existing?.waterServiceId ?? 'water',
       cashPaymentEnabled: cashPaymentEnabled,
       cashPaymentLocation: cashPaymentLocation.trim(),
       bankTransferEnabled: bankTransferEnabled,
@@ -495,8 +502,15 @@ class LandlordDemoStore extends ChangeNotifier {
     required int electricityPrice,
     required int waterPrice,
     required String waterType,
+    String? electricityServiceId,
+    String? waterServiceId,
     required int vehicleFee,
     required int serviceFee,
+    String? serviceId,
+    String? serviceName,
+    String? serviceUnit,
+    String? serviceBasis,
+    List<LandlordLeaseService>? services,
     required int dueDay,
     required bool cashPaymentEnabled,
     required String cashPaymentLocation,
@@ -605,11 +619,11 @@ class LandlordDemoStore extends ChangeNotifier {
     if (occupantCount > targetRoom.capacity) {
       throw ArgumentError('Số người vượt sức chứa của phòng.');
     }
-    final actualCount = existing == null
-        ? 1
-        : membersForLease(existing.id).length;
-    if (occupantCount != actualCount) {
-      throw ArgumentError('Số người ở lấy từ danh sách thành viên được duyệt.');
+    if (existing != null &&
+        occupantCount < membersForLease(existing.id).length) {
+      throw ArgumentError(
+        'Số người ở không thể nhỏ hơn số thành viên đã được duyệt.',
+      );
     }
     if (existing == null) {
       String? knownTenantId = tenantId;
@@ -658,8 +672,15 @@ class LandlordDemoStore extends ChangeNotifier {
           electricityPrice: electricityPrice,
           waterPrice: waterPrice,
           waterType: waterType,
+          electricityServiceId: electricityServiceId ?? 'electricity',
+          waterServiceId: waterServiceId ?? 'water',
           vehicleFee: vehicleFee,
           serviceFee: serviceFee,
+          serviceId: serviceId ?? '',
+          serviceName: serviceName ?? '',
+          serviceUnit: serviceUnit ?? '',
+          serviceBasis: serviceBasis ?? '',
+          services: List.unmodifiable(services ?? const []),
           dueDay: dueDay,
           cashPaymentEnabled: cashPaymentEnabled,
           cashPaymentLocation: cashPaymentLocation.trim(),
@@ -702,8 +723,16 @@ class LandlordDemoStore extends ChangeNotifier {
         ..electricityPrice = electricityPrice
         ..waterPrice = waterPrice
         ..waterType = waterType
+        ..electricityServiceId =
+            electricityServiceId ?? existing.electricityServiceId
+        ..waterServiceId = waterServiceId ?? existing.waterServiceId
         ..vehicleFee = vehicleFee
         ..serviceFee = serviceFee
+        ..serviceId = serviceId ?? existing.serviceId
+        ..serviceName = serviceName ?? existing.serviceName
+        ..serviceUnit = serviceUnit ?? existing.serviceUnit
+        ..serviceBasis = serviceBasis ?? existing.serviceBasis
+        ..services = List.unmodifiable(services ?? existing.services)
         ..dueDay = dueDay
         ..cashPaymentEnabled = cashPaymentEnabled
         ..cashPaymentLocation = cashPaymentLocation.trim()
@@ -944,24 +973,32 @@ class LandlordDemoStore extends ChangeNotifier {
       id: 'studio',
       name: 'Studio',
       monthlyRent: 3000000,
+      serviceIds: const ['electricity', 'water'],
+      servicePrices: const {'electricity': 4000, 'water': 15000},
       photos: [RoomPhoto.studio],
     ),
     const LandlordRoomType(
       id: 'balcony',
       name: 'Phòng có ban công',
       monthlyRent: 3500000,
+      serviceIds: const ['electricity', 'water'],
+      servicePrices: const {'electricity': 4000, 'water': 15000},
       photos: [RoomPhoto.balcony],
     ),
     const LandlordRoomType(
       id: 'loft',
       name: 'Phòng có gác',
       monthlyRent: 2800000,
+      serviceIds: const ['electricity', 'water'],
+      servicePrices: const {'electricity': 4000, 'water': 15000},
       photos: [RoomPhoto.loft],
     ),
     const LandlordRoomType(
       id: 'group',
       name: 'Phòng lớn cho 5 người',
       monthlyRent: 5000000,
+      serviceIds: const ['electricity', 'water'],
+      servicePrices: const {'electricity': 4000, 'water': 15000},
       photos: [RoomPhoto.group],
     ),
   ];
@@ -986,6 +1023,8 @@ class LandlordDemoStore extends ChangeNotifier {
     String name, {
     required int monthlyRent,
     String? id,
+    List<String>? serviceIds,
+    Map<String, int>? servicePrices,
     List<RoomPhoto>? photos,
     List<RoomTypeImage>? images,
   }) {
@@ -994,26 +1033,58 @@ class LandlordDemoStore extends ChangeNotifier {
       throw ArgumentError('Tên loại phòng trống hoặc trùng.');
     }
     if (monthlyRent <= 0) throw ArgumentError('Giá thuê phải lớn hơn 0.');
+    if (serviceIds != null &&
+        serviceIds.any((serviceId) => serviceRecordById(serviceId) == null)) {
+      throw ArgumentError('Có dịch vụ được chọn không còn tồn tại.');
+    }
+    if (servicePrices != null &&
+        servicePrices.entries.any(
+          (entry) =>
+              entry.value < 0 ||
+              (serviceIds != null && !serviceIds.contains(entry.key)),
+        )) {
+      throw ArgumentError('Kiểm tra đơn giá dịch vụ của loại phòng.');
+    }
     if (photos != null &&
         (photos.length > 12 || photos.any((photo) => !photo.hasSource))) {
       throw ArgumentError('Chọn tối đa 12 ảnh hợp lệ cho mỗi loại phòng.');
     }
     if (id == null) {
+      final selected = (serviceIds ?? const ['electricity', 'water']).toSet();
       _roomTypes.add(
         LandlordRoomType(
           id: 'custom-${_nextType++}',
           name: trimmed,
           monthlyRent: monthlyRent,
+          serviceIds: List.unmodifiable(selected),
+          servicePrices: Map.unmodifiable({
+            for (final serviceId in selected)
+              serviceId:
+                  servicePrices?[serviceId] ??
+                  serviceRecordById(serviceId)?.price ??
+                  0,
+          }),
           photos: List.unmodifiable(photos ?? images ?? const <RoomPhoto>[]),
         ),
       );
     } else {
       final index = _roomTypes.indexWhere((type) => type.id == id);
       if (index == -1) throw ArgumentError('Loại phòng không tồn tại.');
+      final selected = (serviceIds ?? _roomTypes[index].serviceIds).toSet();
+      final previousPrices = _roomTypes[index].servicePrices;
       _roomTypes[index] = LandlordRoomType(
         id: id,
         name: trimmed,
         monthlyRent: monthlyRent,
+        serviceIds: List.unmodifiable(selected),
+        servicePrices: Map.unmodifiable({
+          for (final serviceId in selected)
+            serviceId:
+                servicePrices?[serviceId] ??
+                previousPrices[serviceId] ??
+                serviceRecordById(serviceId)?.price ??
+                0,
+        }),
         photos: List.unmodifiable(photos ?? images ?? _roomTypes[index].photos),
       );
     }
@@ -1044,6 +1115,22 @@ class LandlordDemoStore extends ChangeNotifier {
   LandlordRoom? roomByCode(String code) {
     for (final room in _rooms) {
       if (canonicalRoom(room.code) == canonicalRoom(code)) return room;
+    }
+    return null;
+  }
+
+  LandlordRoomType? roomTypeForRoom(String code) {
+    final room = roomByCode(code);
+    if (room == null) return null;
+    for (final type in _roomTypes) {
+      if (type.id == room.roomTypeId) return type;
+    }
+    return null;
+  }
+
+  LandlordService? serviceRecordById(String id) {
+    for (final service in _services) {
+      if (service.id == id) return service;
     }
     return null;
   }
@@ -1303,7 +1390,30 @@ class LandlordDemoStore extends ChangeNotifier {
         ? LeaseMemberStatus.active
         : LeaseMemberStatus.rejected;
     member.rejectionReason = approve ? null : reason.trim();
-    lease.occupantCount = membersForLease(lease.id).length;
+    lease.occupantCount = lease.occupantCount > membersForLease(lease.id).length
+        ? lease.occupantCount
+        : membersForLease(lease.id).length;
+    lease.services = List.unmodifiable(
+      lease.services.map((service) {
+        if (!service.basis.toLowerCase().contains('người')) return service;
+        final quantity = lease.occupantCount;
+        return LandlordLeaseService(
+          serviceId: service.serviceId,
+          name: service.name,
+          unit: service.unit,
+          basis: service.basis,
+          price: service.price,
+          quantity: quantity,
+          amount: service.price * quantity,
+        );
+      }),
+    );
+    if (lease.services.isNotEmpty) {
+      lease.serviceFee = lease.services.fold<int>(
+        0,
+        (total, service) => total + service.amount,
+      );
+    }
     notifyListeners();
   }
 
@@ -1501,6 +1611,22 @@ class LandlordDemoStore extends ChangeNotifier {
 
   void deleteService(LandlordService service) {
     _services.remove(service);
+    for (var index = 0; index < _roomTypes.length; index++) {
+      final type = _roomTypes[index];
+      if (!type.serviceIds.contains(service.id)) continue;
+      _roomTypes[index] = LandlordRoomType(
+        id: type.id,
+        name: type.name,
+        monthlyRent: type.monthlyRent,
+        serviceIds: List.unmodifiable(
+          type.serviceIds.where((id) => id != service.id),
+        ),
+        servicePrices: Map.unmodifiable(
+          Map<String, int>.from(type.servicePrices)..remove(service.id),
+        ),
+        photos: type.photos,
+      );
+    }
     notifyListeners();
   }
 

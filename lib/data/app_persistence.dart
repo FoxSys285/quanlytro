@@ -14,6 +14,7 @@ import 'local_database.dart';
 import 'local_auth.dart';
 import 'admin_store.dart';
 import 'firestore_repository.dart';
+import 'scoped_firestore_repository.dart';
 import 'rental_cloud_codec.dart';
 import '../layouts/role_layout.dart';
 
@@ -141,9 +142,7 @@ class AppPersistence {
         }
         TenantFavoritesStore.roomNames
           ..clear()
-          ..addAll(
-            List<String>.from(data['favorites']?['ids'] as List? ?? []),
-          );
+          ..addAll(List<String>.from(data['favorites']?['ids'] as List? ?? []));
         TenantFavoritesStore.changes.value++;
         for (final store in RentalPortfolio.instance.stores) {
           final announcements = AnnouncementStore.forRental(store);
@@ -168,10 +167,16 @@ class AppPersistence {
           (_) => _scheduleRefresh(),
           onError: (Object failure) {
             _closeRevokedSession(failure);
-            error.value =
-                'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối và quyền tài khoản.';
+            error.value = 'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối và quyền tài khoản.';
           },
         );
+      }
+      final scopedRepository = repository;
+      if (!_disposed &&
+          scopedRepository is ScopedFirestoreRentalRepository &&
+          scopedRepository.needsSchemaMigration &&
+          LocalAuth.instance.role == AppRole.landlord) {
+        save();
       }
     } catch (failure) {
       debugPrint('Background cloud sync warning: $failure');
@@ -180,8 +185,7 @@ class AppPersistence {
         _initialSyncCompleted = false;
         _initialSyncFailed = true;
         error.value = null;
-        saveStatus.value =
-            'Chưa tải được dữ liệu Firebase · Thử kết nối lại';
+        saveStatus.value = 'Chưa tải được dữ liệu Firebase · Thử kết nối lại';
       }
     } finally {
       if (!_disposed) {
@@ -246,7 +250,7 @@ class AppPersistence {
     TenantFavoritesStore.roomNames
       ..clear()
       ..addAll(List<String>.from(data['favorites']?['ids'] as List? ?? []));
-          TenantFavoritesStore.changes.value++;
+    TenantFavoritesStore.changes.value++;
     for (final store in RentalPortfolio.instance.stores) {
       final announcements = AnnouncementStore.forRental(store);
       final stored = data['announcements:${store.property.id}'];
@@ -287,6 +291,15 @@ class AppPersistence {
           error.value = 'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối/quyền tài khoản.';
         },
       );
+    }
+    final scopedRepository = repository;
+    if (scopedRepository is ScopedFirestoreRentalRepository &&
+        scopedRepository.needsSchemaMigration &&
+        LocalAuth.instance.role == AppRole.landlord) {
+      // Save the normalized model through the signed-in owner's normal
+      // Firestore permissions; unrelated users and Firebase collections are
+      // left untouched.
+      save();
     }
   }
 
@@ -355,6 +368,24 @@ class AppPersistence {
         }
       });
     });
+  }
+
+  /// Waits for the queued local and Firebase write, so editors can report a
+  /// remote failure before closing and losing the user's draft context.
+  Future<void> flush() async {
+    if (_disposed) throw StateError('Phiên lưu dữ liệu đã đóng.');
+    if (cloudMode && !_initialSyncCompleted) {
+      throw StateError(
+        'Đang tải dữ liệu Firebase. Vui lòng lưu lại sau ít phút.',
+      );
+    }
+    if (_dirty && !_scheduled) save();
+    if (_scheduled) await Future<void>.delayed(Duration.zero);
+    await _pending;
+    if (error.value != null) throw StateError(error.value!);
+    if (_dirty || _scheduled) {
+      throw StateError('Dữ liệu chưa được lưu. Vui lòng thử lại.');
+    }
   }
 
   void _scheduleRefresh() {
@@ -456,11 +487,6 @@ class AppPersistence {
     if (repository is! HybridRentalRepository && !cloudMode) {
       throw StateError('Đã lưu trên máy nhưng chưa có kết nối Firebase.');
     }
-  }
-
-  Future<void> flush() async {
-    await Future<void>.delayed(Duration.zero);
-    await _pending;
   }
 
   Future<void> saveChanges() async {

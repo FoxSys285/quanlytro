@@ -1507,7 +1507,8 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
           name: lease.waterType == 'Theo người'
               ? 'Nước · ${lease.occupantCount} người'
               : 'Nước · theo tháng',
-          amount: lease.waterPrice *
+          amount:
+              lease.waterPrice *
               (lease.waterType == 'Theo người' ? lease.occupantCount : 1),
         )
       else if (draft.waterM3 > 0)
@@ -1515,10 +1516,21 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
           name: 'Nước · ${draft.waterM3} m³',
           amount: draft.waterM3 * lease.waterPrice,
         ),
-      if (lease.vehicleFee > 0)
-        LandlordInvoiceCharge(name: 'Tiền xe', amount: lease.vehicleFee),
-      if (lease.serviceFee > 0)
-        LandlordInvoiceCharge(name: 'Tiền dịch vụ', amount: lease.serviceFee),
+      if (lease.services.isNotEmpty) ...[
+        for (final service in lease.services)
+          if (service.amount > 0)
+            LandlordInvoiceCharge(name: service.name, amount: service.amount),
+      ] else ...[
+        if (lease.vehicleFee > 0)
+          LandlordInvoiceCharge(name: 'Tiền xe', amount: lease.vehicleFee),
+        if (lease.serviceFee > 0)
+          LandlordInvoiceCharge(
+            name: lease.serviceName.isEmpty
+                ? 'Tiền dịch vụ'
+                : lease.serviceName,
+            amount: lease.serviceFee,
+          ),
+      ],
       if (draft.extraFee > 0)
         LandlordInvoiceCharge(
           name: draft.extraName.isEmpty ? 'Khoản thu khác' : draft.extraName,
@@ -1867,8 +1879,7 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
             : _lease.waterType == 'Theo người'
             ? _lease.waterPrice * _lease.occupantCount
             : waterM3 * _lease.waterPrice) +
-        _lease.vehicleFee +
-        _lease.serviceFee +
+        _lease.servicesTotal +
         extraFee;
     return AlertDialog(
       title: Text('Lập phiếu thu'),
@@ -1939,14 +1950,24 @@ class _InvoiceEditorState extends State<_InvoiceEditor> {
                       'Đơn giá điện',
                       '${formatLandlordMoney(_lease.electricityPrice)}/kWh',
                     ),
-                    _contractChargeLine(
-                      'Tiền xe',
-                      '${formatLandlordMoney(_lease.vehicleFee)}/tháng',
-                    ),
-                    _contractChargeLine(
-                      'Tiền dịch vụ',
-                      '${formatLandlordMoney(_lease.serviceFee)}/tháng',
-                    ),
+                    if (_lease.services.isNotEmpty) ...[
+                      for (final service in _lease.services)
+                        _contractChargeLine(
+                          service.name,
+                          '${formatLandlordMoney(service.amount)}/tháng',
+                        ),
+                    ] else ...[
+                      _contractChargeLine(
+                        'Tiền xe',
+                        '${formatLandlordMoney(_lease.vehicleFee)}/tháng',
+                      ),
+                      _contractChargeLine(
+                        _lease.serviceName.isEmpty
+                            ? 'Tiền dịch vụ'
+                            : 'Phí ${_lease.serviceName}',
+                        '${formatLandlordMoney(_lease.serviceFee)}/${_lease.serviceUnit.isEmpty ? 'tháng' : _lease.serviceUnit}',
+                      ),
+                    ],
                   ],
                 ),
               ),

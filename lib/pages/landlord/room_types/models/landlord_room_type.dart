@@ -7,12 +7,20 @@ class LandlordRoomType {
     required this.id,
     required this.name,
     required this.monthlyRent,
+    List<String> serviceIds = const [],
+    Map<String, int> servicePrices = const {},
     List<RoomPhoto> photos = const [],
     List<RoomTypeImage>? images,
-  }) : photos = images ?? photos;
+  }) : serviceIds = serviceIds,
+       servicePrices = servicePrices,
+       photos = images ?? photos;
   final String id;
   final String name;
   final int monthlyRent;
+  final List<String> serviceIds;
+
+  /// A room type keeps its own rate for each selected service.
+  final Map<String, int> servicePrices;
   final List<RoomPhoto> photos;
   List<RoomTypeImage> get images => photos;
 
@@ -20,6 +28,8 @@ class LandlordRoomType {
     'id': id,
     'name': name,
     'monthlyRent': monthlyRent,
+    'serviceIds': serviceIds,
+    'servicePrices': servicePrices,
     'photos': photos.map((photo) => photo.toMap()).toList(),
   };
 
@@ -28,6 +38,14 @@ class LandlordRoomType {
         id: map['id'] as String,
         name: map['name'] as String,
         monthlyRent: map['monthlyRent'] as int,
+        serviceIds: List.unmodifiable(
+          List<String>.from(
+            map['serviceIds'] as List? ?? const ['electricity', 'water'],
+          ),
+        ),
+        servicePrices: Map<String, int>.unmodifiable(
+          Map<String, int>.from(map['servicePrices'] as Map? ?? const {}),
+        ),
         photos: map.containsKey('photos')
             ? List.unmodifiable(
                 (map['photos'] as List).map(

@@ -1,5 +1,52 @@
 enum LandlordLeaseStatus { active, draft, terminated }
 
+class LandlordLeaseService {
+  const LandlordLeaseService({
+    required this.serviceId,
+    required this.name,
+    required this.unit,
+    required this.basis,
+    required this.price,
+    required this.amount,
+    this.quantity = 1,
+  });
+
+  final String serviceId;
+  final String name;
+  final String unit;
+  final String basis;
+  final int price;
+  final int amount;
+  final int quantity;
+
+  Map<String, dynamic> toMap() => {
+    'serviceId': serviceId,
+    'name': name,
+    'unit': unit,
+    'basis': basis,
+    'price': price,
+    'amount': amount,
+    'quantity': quantity,
+  };
+
+  factory LandlordLeaseService.fromMap(Map<String, dynamic> map) {
+    final price = map['price'] as int? ?? 0;
+    final amount = map['amount'] as int? ?? price;
+    final savedQuantity = map['quantity'] as int?;
+    return LandlordLeaseService(
+      serviceId: map['serviceId'] as String? ?? '',
+      name: map['name'] as String? ?? '',
+      unit: map['unit'] as String? ?? '',
+      basis: map['basis'] as String? ?? '',
+      price: price,
+      amount: amount,
+      quantity:
+          savedQuantity ??
+          (price > 0 && amount % price == 0 ? amount ~/ price : 1),
+    );
+  }
+}
+
 class LandlordLease {
   LandlordLease({
     required this.id,
@@ -30,8 +77,15 @@ class LandlordLease {
     this.electricityPrice = 3500,
     this.waterPrice = 15000,
     this.waterType = 'Theo m³',
+    this.electricityServiceId = 'electricity',
+    this.waterServiceId = 'water',
     this.vehicleFee = 0,
     this.serviceFee = 0,
+    this.services = const [],
+    this.serviceId = '',
+    this.serviceName = '',
+    this.serviceUnit = '',
+    this.serviceBasis = '',
     this.cashPaymentEnabled = true,
     this.cashPaymentLocation = '',
     this.bankTransferEnabled = true,
@@ -75,8 +129,15 @@ class LandlordLease {
   int electricityPrice;
   int waterPrice;
   String waterType;
+  String electricityServiceId;
+  String waterServiceId;
   int vehicleFee;
   int serviceFee;
+  List<LandlordLeaseService> services;
+  String serviceId;
+  String serviceName;
+  String serviceUnit;
+  String serviceBasis;
   bool cashPaymentEnabled;
   String cashPaymentLocation;
   bool bankTransferEnabled;
@@ -90,6 +151,10 @@ class LandlordLease {
   String commonResponsibilities;
   String templateId;
   String rentalAddress;
+
+  int get servicesTotal => services.isEmpty
+      ? vehicleFee + serviceFee
+      : services.fold<int>(0, (sum, item) => sum + item.amount);
 
   DateTime get _today {
     final now = DateTime.now();
@@ -148,8 +213,15 @@ class LandlordLease {
     'electricityPrice': electricityPrice,
     'waterPrice': waterPrice,
     'waterType': waterType,
+    'electricityServiceId': electricityServiceId,
+    'waterServiceId': waterServiceId,
     'vehicleFee': vehicleFee,
     'serviceFee': serviceFee,
+    'services': services.map((service) => service.toMap()).toList(),
+    'serviceId': serviceId,
+    'serviceName': serviceName,
+    'serviceUnit': serviceUnit,
+    'serviceBasis': serviceBasis,
     'cashPaymentEnabled': cashPaymentEnabled,
     'cashPaymentLocation': cashPaymentLocation,
     'bankTransferEnabled': bankTransferEnabled,
@@ -203,8 +275,22 @@ class LandlordLease {
     electricityPrice: map['electricityPrice'] as int,
     waterPrice: map['waterPrice'] as int,
     waterType: map['waterType'] as String,
+    electricityServiceId:
+        map['electricityServiceId'] as String? ?? 'electricity',
+    waterServiceId: map['waterServiceId'] as String? ?? 'water',
     vehicleFee: map['vehicleFee'] as int,
     serviceFee: map['serviceFee'] as int,
+    services: (map['services'] as List? ?? const [])
+        .map(
+          (item) => LandlordLeaseService.fromMap(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
+        .toList(),
+    serviceId: map['serviceId'] as String? ?? '',
+    serviceName: map['serviceName'] as String? ?? '',
+    serviceUnit: map['serviceUnit'] as String? ?? '',
+    serviceBasis: map['serviceBasis'] as String? ?? '',
     cashPaymentEnabled: map['cashPaymentEnabled'] as bool,
     cashPaymentLocation: map['cashPaymentLocation'] as String,
     bankTransferEnabled: map['bankTransferEnabled'] as bool,

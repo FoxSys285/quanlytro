@@ -148,6 +148,7 @@ class TenantSubpageScaffold extends StatelessWidget {
   Widget build(BuildContext context) => TenantDetailTheme(
     landlordStyle: landlordStyle,
     child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar:
           appBar ??
           TenantNavigationBar(
@@ -155,7 +156,7 @@ class TenantSubpageScaffold extends StatelessWidget {
             onBack: () => Navigator.of(context).maybePop(),
             showNotifications: showNotifications,
           ),
-      body: child,
+      body: TenantPageBackdrop(child: child),
     ),
   );
 }

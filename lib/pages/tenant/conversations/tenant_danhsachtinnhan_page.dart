@@ -106,7 +106,7 @@ class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
             'Cuộc trò chuyện',
             trailing: Text(
               '${conversations.length} hội thoại',
-              style: const TextStyle(color: tenantMuted, fontSize: 11),
+              style: const TextStyle(color: Colors.green, fontSize: 11,fontWeight: FontWeight.bold),
             ),
           ),
           if (conversations.isEmpty)

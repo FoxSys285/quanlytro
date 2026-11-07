@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../pages/shared/widgets/app_brand.dart' as brand;
+import '../pages/tenant/tenant_ui.dart';
 
 enum AppRole { tenant, landlord, admin }
 
@@ -335,13 +336,16 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
             child: KeyedSubtree(key: ValueKey(destination.id), child: page),
           )
         : page;
+    final roleContent = widget.role == AppRole.tenant
+        ? TenantPageBackdrop(child: content)
+        : content;
 
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: widget.role == AppRole.admin
           ? const Color(0xFFF0F6FA)
           : widget.role == AppRole.tenant
-          ? const Color(0xFFFCFCFC)
+          ? const Color(0xFFF7FAF8)
           : Theme.of(context).scaffoldBackgroundColor,
       onDrawerChanged: _onDrawerChanged,
       drawer: _RoleDrawer(
@@ -592,7 +596,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                         Expanded(child: content),
                       ],
                     )
-                  : content,
+                  : roleContent,
             ),
           ],
         ),

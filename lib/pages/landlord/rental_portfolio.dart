@@ -386,6 +386,8 @@ class RentalPortfolio extends ChangeNotifier {
             monthlyRent: type.monthlyRent == basePrice
                 ? basePrice + index * 150000
                 : type.monthlyRent,
+            serviceIds: type.serviceIds,
+            servicePrices: type.servicePrices,
             photos: samples,
           );
         }
@@ -580,6 +582,8 @@ LandlordDemoStore _seedProperty(
         id: type.id,
         name: type.name,
         monthlyRent: type.monthlyRent,
+        serviceIds: type.serviceIds,
+        servicePrices: type.servicePrices,
         photos: const [],
       );
     }
@@ -721,6 +725,9 @@ LandlordDemoStore _seedProperty(
 
 extension RentalStorePersistence on LandlordDemoStore {
   Map<String, dynamic> toMap() => {
+    // Version 2 stores room-type service rates independently from the global
+    // service catalogue and includes per-service quantities in contracts.
+    'schemaVersion': 2,
     'property': _property.toMap(),
     'rooms': _rooms.map((r) => r.toMap()).toList(),
     'roomTypes': _roomTypes.map((r) => r.toMap()).toList(),
@@ -787,6 +794,26 @@ extension RentalStorePersistence on LandlordDemoStore {
     _services
       ..clear()
       ..addAll(read('services', LandlordService.fromMap));
+    // Older Firebase records only stored selected service IDs. Snapshot the
+    // existing catalogue price into each type so future price edits stay local
+    // to that type, and remove references to services that no longer exist.
+    for (var index = 0; index < _roomTypes.length; index++) {
+      final type = _roomTypes[index];
+      final linked = <String, int>{};
+      for (final serviceId in type.serviceIds) {
+        final service = serviceRecordById(serviceId);
+        if (service == null) continue;
+        linked[serviceId] = type.servicePrices[serviceId] ?? service.price;
+      }
+      _roomTypes[index] = LandlordRoomType(
+        id: type.id,
+        name: type.name,
+        monthlyRent: type.monthlyRent,
+        serviceIds: List.unmodifiable(linked.keys),
+        servicePrices: Map.unmodifiable(linked),
+        photos: type.photos,
+      );
+    }
     _readings
       ..clear()
       ..addAll(read('readings', LandlordMeterReading.fromMap));
