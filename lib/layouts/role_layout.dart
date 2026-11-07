@@ -343,7 +343,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: widget.role == AppRole.admin
-          ? const Color(0xFFF0F6FA)
+          ? Colors.white
           : widget.role == AppRole.tenant
           ? const Color(0xFFF7FAF8)
           : Theme.of(context).scaffoldBackgroundColor,

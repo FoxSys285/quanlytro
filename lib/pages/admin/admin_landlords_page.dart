@@ -214,12 +214,13 @@ class _AdminLandlordsPageState extends State<AdminLandlordsPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 8),
+                      AdminStatus(
+                        verified ? 'Đã xác minh' : 'Chưa xác minh',
+                        color: verified ? adminGreen : adminGold,
+                      ),
                     ],
                   ),
-                ),
-                AdminStatus(
-                  verified ? 'Đã xác minh' : 'Chưa xác minh',
-                  color: verified ? adminGreen : adminGold,
                 ),
               ],
             ),

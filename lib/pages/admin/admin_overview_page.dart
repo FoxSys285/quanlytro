@@ -18,7 +18,8 @@ class AdminOverviewPage extends StatefulWidget {
 class _AdminOverviewPageState extends State<AdminOverviewPage> {
   int _ticketPage = 0;
   bool _grid = true;
-  late final Future<({int total, int active})> _accountCounts = _loadAccountCounts();
+  late final Future<({int total, int active})> _accountCounts =
+      _loadAccountCounts();
 
   Future<({int total, int active})> _loadAccountCounts() async {
     final auth = LocalAuth.instance;
@@ -78,7 +79,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                 builder: (context, constraints) {
                   final columns = constraints.maxWidth >= 880
                       ? 3
-                      : constraints.maxWidth >= 540
+                      : constraints.maxWidth >= 320
                       ? 2
                       : 1;
                   final width =
@@ -150,18 +151,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                       onTap: () => RoleLayoutShell.navigateTo(context, 'users'),
                     ),
                   ];
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: metrics.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      mainAxisExtent: 168,
-                    ),
-                    itemBuilder: (context, index) => metrics[index],
-                  );
+                  return Wrap(spacing: 12, runSpacing: 12, children: metrics);
                 },
               );
             },
@@ -204,18 +194,17 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                     : constraints.maxWidth >= 620
                     ? 2
                     : 1;
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: visibleTickets.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    mainAxisExtent: 154,
-                  ),
-                  itemBuilder: (context, index) =>
-                      _TicketCard(ticket: visibleTickets[index]),
+                return Wrap(
+                  spacing: 12,
+                  children: [
+                    for (final ticket in visibleTickets)
+                      SizedBox(
+                        width:
+                            (constraints.maxWidth - (columns - 1) * 12) /
+                            columns,
+                        child: _TicketCard(ticket: ticket),
+                      ),
+                  ],
                 );
               },
             )
@@ -253,52 +242,11 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
     },
   );
 
-  Widget _welcomeBanner(BuildContext context) => Container(
-    padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(22),
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFF0B192C), Color(0xFF123A66), Color(0xFF5133A5)],
-      ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x241D4ED8),
-          blurRadius: 24,
-          offset: Offset(0, 12),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Trung tâm điều hành',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                'Xin chào ${LocalAuth.instance.session?.displayName.isNotEmpty == true ? LocalAuth.instance.session!.displayName : 'Quản trị viên'} · ${MaterialLocalizations.of(context).formatMediumDate(DateTime.now())}',
-                style: const TextStyle(color: Color(0xFFD7E7FF), fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-        const Icon(
-          Icons.auto_awesome_rounded,
-          color: Color(0xFFD7C7FF),
-          size: 34,
-        ),
-      ],
-    ),
+  Widget _welcomeBanner(BuildContext context) => AdminBanner(
+    title: 'Trung tâm điều hành',
+    subtitle:
+        'Xin chào ${LocalAuth.instance.session?.displayName.isNotEmpty == true ? LocalAuth.instance.session!.displayName : 'Quản trị viên'} · ${MaterialLocalizations.of(context).formatMediumDate(DateTime.now())}',
+    icon: Icons.admin_panel_settings_outlined,
   );
 }
 
@@ -325,17 +273,16 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
     width: width,
     child: Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      color: Color.alphaBlend(color.withValues(alpha: .055), Colors.white),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 142),
-          padding: const EdgeInsets.all(17),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: adminLine),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: .16)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

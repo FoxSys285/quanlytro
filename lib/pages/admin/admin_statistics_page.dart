@@ -19,46 +19,12 @@ class _AdminStatisticsPageState extends State<AdminStatisticsPage> {
     subtitle: 'Theo dõi doanh thu đăng ký, xu hướng theo tháng và gói được chọn nhiều nhất.',
     children: [
       const AdminSyncBar(),
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0B192C), Color(0xFF164E8A), Color(0xFF5B3CB5)],
-          ),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.insights_rounded, color: Color(0xFFD6CBFF), size: 30),
-            SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Doanh thu đăng ký gói',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    'Số liệu sẽ tự cập nhật khi ứng dụng ghi nhận thanh toán gói.',
-                    style: TextStyle(
-                      color: Color(0xFFD7E7FF),
-                      fontSize: 12,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      const AdminBanner(
+        title: 'Doanh thu đăng ký gói',
+        subtitle:
+            'Số liệu sẽ tự cập nhật khi ứng dụng ghi nhận thanh toán gói.',
+        icon: Icons.insights_rounded,
+        imageAsset: 'assets/images/room_types/studio.webp',
       ),
       const SizedBox(height: 14),
       AdminSection(
@@ -68,18 +34,15 @@ class _AdminStatisticsPageState extends State<AdminStatisticsPage> {
       LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth >= 700 ? 2 : 1;
-          return GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: LandlordPlan.all.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              mainAxisExtent: 154,
-            ),
-            itemBuilder: (context, index) =>
-                _PlanSummaryCard(plan: LandlordPlan.all[index]),
+          return Wrap(
+            spacing: 12,
+            children: [
+              for (final plan in LandlordPlan.all)
+                SizedBox(
+                  width: (constraints.maxWidth - (columns - 1) * 12) / columns,
+                  child: _PlanSummaryCard(plan: plan),
+                ),
+            ],
           );
         },
       ),
@@ -212,12 +175,18 @@ class _PlanSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = plan.id == 'plus' ? adminPurple : adminBlue;
     return AdminPanel(
+      backgroundColor: Color.alphaBlend(
+        color.withValues(alpha: .045),
+        Colors.white,
+      ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              Icon(Icons.workspace_premium_outlined, color: color, size: 22),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   plan.name,
@@ -234,7 +203,7 @@ class _PlanSummaryCard extends StatelessWidget {
           Text(
             plan.monthlyPriceLabel,
             style: TextStyle(
-              color: color,
+              color: Color.lerp(color, adminInk, .12),
               fontWeight: FontWeight.w900,
               fontSize: 18,
             ),

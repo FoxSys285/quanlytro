@@ -245,7 +245,9 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
             page: _page,
             pageSize: _pageSize,
             onChanged: (value) {
-              if (LocalAuth.instance.isCloudMode && value > _page && !_hasMore) {
+              if (LocalAuth.instance.isCloudMode &&
+                  value > _page &&
+                  !_hasMore) {
                 return;
               }
               _goToPage(value);
@@ -295,20 +297,20 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      AdminStatus(role?.label ?? account.role, color: color),
+                      AdminStatus(
+                        account.disabled ? 'Đã khóa' : 'Hoạt động',
+                        color: account.disabled ? adminOrange : adminGreen,
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                AdminStatus(role?.label ?? account.role, color: color),
-                const SizedBox(height: 6),
-                AdminStatus(
-                  account.disabled ? 'Đã khóa' : 'Hoạt động',
-                  color: account.disabled ? adminOrange : adminGreen,
-                ),
-              ],
             ),
             const SizedBox(width: 10),
             if (account.role != 'admin')

@@ -58,6 +58,8 @@ class AdminLayout extends StatelessWidget {
         ),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF0877B5),
+            foregroundColor: Colors.white,
             minimumSize: const Size(48, 48),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             textStyle: Theme.of(context).textTheme.labelLarge

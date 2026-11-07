@@ -74,6 +74,7 @@ migrate_working_dir/
 .pub/
 /build/
 /android/build/
+/android/.kotlin/
 /coverage/
 
 # Symbolication related

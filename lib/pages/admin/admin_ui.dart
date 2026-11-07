@@ -11,13 +11,86 @@ const adminBlue = Color(0xFF087FC1);
 const adminPurple = Color(0xFF7046D3);
 const adminTeal = Color(0xFF168FC2);
 const adminOrange = Color(0xFFE11D48);
-const adminMuted = Color(0xFF66758A);
+const adminMuted = Color(0xFF5D6B7E);
 const adminGold = Color(0xFFD97706);
 const adminLine = Color(0xFFE1E7F0);
-const adminCanvas = Color(0xFFF5F7FC);
+const adminCanvas = Colors.white;
 const adminGreen = Color(0xFF0D9488);
 const adminHeaderBg = Color(0xFF0F172A);
 const adminSurfaceTint = Color(0xFFF6F5FF);
+
+class AdminBanner extends StatelessWidget {
+  const AdminBanner({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    this.imageAsset = 'assets/images/room_types/interior.webp',
+  });
+  final String title, subtitle, imageAsset;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 170),
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: adminHeaderBg,
+      borderRadius: BorderRadius.circular(16),
+      image: DecorationImage(
+        image: AssetImage(imageAsset),
+        fit: BoxFit.cover,
+        colorFilter: ColorFilter.mode(
+          adminHeaderBg.withValues(alpha: .62),
+          BlendMode.srcATop,
+        ),
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .16),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  height: 1.25,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Ảnh minh họa',
+          style: TextStyle(color: Colors.white, fontSize: 10),
+        ),
+      ],
+    ),
+  );
+}
 
 class AdminSyncBar extends StatelessWidget {
   const AdminSyncBar({super.key});
@@ -31,20 +104,9 @@ class AdminSyncBar extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [Color(0xFFFFFFFF), Color(0xFFF3F9FD)],
-          ),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: adminLine),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x080B192C),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
         ),
         child: Row(
           children: [
@@ -141,10 +203,10 @@ class AdminFrame extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 26,
+                    fontSize: 24,
                     height: 1.2,
-                    letterSpacing: -0.6,
-                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    fontWeight: FontWeight.w700,
                     color: adminInk,
                   ),
                 ),
@@ -188,7 +250,7 @@ class AdminPanel extends StatelessWidget {
     decoration: BoxDecoration(
       color: gradient == null ? backgroundColor : null,
       gradient: gradient,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       border: Border.all(
         color: backgroundColor == Colors.white && gradient == null
             ? adminLine
@@ -196,21 +258,6 @@ class AdminPanel extends StatelessWidget {
             ? const Color(0xFF1E3A5F)
             : backgroundColor,
       ),
-      boxShadow: backgroundColor == Colors.white && gradient == null
-          ? const [
-              BoxShadow(
-                color: Color(0x090B192C),
-                blurRadius: 14,
-                offset: Offset(0, 5),
-              ),
-            ]
-          : const [
-              BoxShadow(
-                color: Color(0x140B192C),
-                blurRadius: 16,
-                offset: Offset(0, 6),
-              ),
-            ],
     ),
     child: Material(type: MaterialType.transparency, child: child),
   );
