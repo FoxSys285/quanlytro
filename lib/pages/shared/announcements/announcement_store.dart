@@ -53,6 +53,7 @@ class AnnouncementStore extends ChangeNotifier {
       () => AnnouncementStore(rental: rental),
     );
   }
+
   final LandlordDemoStore rental;
   final ViewingStore viewings;
   final _sent = <LandlordAnnouncement>[];
@@ -197,13 +198,31 @@ class AnnouncementStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<LandlordAnnouncement> forTenant(String tenantId) => _sent
-      .where((item) => _recipients[item.id]?.contains(tenantId) ?? false)
-      .toList();
+  List<LandlordAnnouncement> forTenant(String tenantId) => [
+    ..._sent.where((item) => _recipients[item.id]?.contains(tenantId) ?? false),
+    for (final payment in rental.paymentsForTenant(tenantId))
+      if (payment.status == LandlordPaymentStatus.rejected)
+        LandlordAnnouncement(
+          id: 'payment-rejected:${payment.id}',
+          propertyId: rental.property.id,
+          title: 'Thanh toán chưa được duyệt',
+          content:
+              'Khoản ${payment.id} cho hóa đơn ${payment.invoiceId} chưa được duyệt. Lý do: ${payment.rejectionReason ?? 'Chủ trọ chưa ghi lý do.'} Vui lòng kiểm tra và nộp lại.',
+          category: AnnouncementCategory.finance,
+          priority: AnnouncementPriority.high,
+          createdAt: payment.reviewedAt ?? payment.paidAt,
+          recipients: [tenantId],
+          audienceLabel: 'Phòng ${payment.room}',
+        ),
+  ];
   bool isRead(String announcementId, String tenantId) =>
       _readByTenant[tenantId]?.contains(announcementId) ?? false;
   void markTenantRead(String announcementId, String tenantId) {
-    if (!(_recipients[announcementId]?.contains(tenantId) ?? false)) {
+    final isPaymentRejection = announcementId.startsWith('payment-rejected:');
+    final belongsToTenant = isPaymentRejection
+        ? forTenant(tenantId).any((item) => item.id == announcementId)
+        : (_recipients[announcementId]?.contains(tenantId) ?? false);
+    if (!belongsToTenant) {
       throw ArgumentError('Thông báo không thuộc người thuê.');
     }
     _readByTenant.putIfAbsent(tenantId, () => {}).add(announcementId);

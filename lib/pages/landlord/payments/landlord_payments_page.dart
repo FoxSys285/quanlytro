@@ -8,9 +8,21 @@ import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_glass.dart';
 import '../landlord_ui.dart';
+import '../../../layouts/role_layout.dart';
 
 class LandlordPaymentsPage extends StatefulWidget {
-  const LandlordPaymentsPage({super.key});
+  const LandlordPaymentsPage({super.key, this.focusPaymentId});
+
+  final String? focusPaymentId;
+
+  static String? _requestedPaymentId;
+
+  static bool navigateToPayment(BuildContext context, String paymentId) {
+    _requestedPaymentId = paymentId;
+    final navigated = RoleLayoutShell.tryNavigateTo(context, 'payments');
+    if (!navigated) _requestedPaymentId = null;
+    return navigated;
+  }
 
   @override
   State<LandlordPaymentsPage> createState() => _LandlordPaymentsPageState();
@@ -19,6 +31,14 @@ class LandlordPaymentsPage extends StatefulWidget {
 class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
   final _store = LandlordDemoStore.activeInstance;
   String _filter = 'Chờ duyệt';
+  late final String? _focusPaymentId =
+      widget.focusPaymentId ?? LandlordPaymentsPage._requestedPaymentId;
+
+  @override
+  void initState() {
+    super.initState();
+    LandlordPaymentsPage._requestedPaymentId = null;
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -36,18 +56,23 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
       final rejectedCount = _store.payments
           .where((payment) => payment.status == LandlordPaymentStatus.rejected)
           .length;
-      final payments = _store.payments.where((payment) {
-        if (_filter == 'Chờ duyệt') {
-          return payment.status == LandlordPaymentStatus.pending;
-        }
-        if (_filter == 'Đã xác nhận') {
-          return payment.status == LandlordPaymentStatus.approved;
-        }
-        if (_filter == 'Từ chối') {
-          return payment.status == LandlordPaymentStatus.rejected;
-        }
-        return true;
-      }).toList()..sort((a, b) => b.paidAt.compareTo(a.paidAt));
+      final payments =
+          _store.payments.where((payment) {
+            if (_filter == 'Chờ duyệt') {
+              return payment.status == LandlordPaymentStatus.pending;
+            }
+            if (_filter == 'Đã xác nhận') {
+              return payment.status == LandlordPaymentStatus.approved;
+            }
+            if (_filter == 'Từ chối') {
+              return payment.status == LandlordPaymentStatus.rejected;
+            }
+            return true;
+          }).toList()..sort((a, b) {
+            if (a.id == _focusPaymentId) return -1;
+            if (b.id == _focusPaymentId) return 1;
+            return b.paidAt.compareTo(a.paidAt);
+          });
       return LandlordFeaturePage(
         title: 'Duyệt thanh toán',
         subtitle: 'Đối soát giao dịch và cập nhật hóa đơn người thuê.',
@@ -165,8 +190,12 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
           ),
           const SizedBox(height: 10),
           LandlordGlassSection(
-            title: 'Khoản thanh toán',
-            subtitle: '${payments.length} khoản trong danh sách này.',
+            title: _focusPaymentId == null
+                ? 'Khoản thanh toán'
+                : 'Phiếu thu cần đối soát',
+            subtitle: _focusPaymentId != null
+                ? 'Đã mở phiếu thu được chọn. Kiểm tra giao dịch để duyệt hoặc không duyệt.'
+                : '${payments.length} khoản trong danh sách này.',
           ),
           if (payments.isEmpty)
             const LandlordGlassCard(
@@ -365,13 +394,24 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
             ],
             if (payment.status == LandlordPaymentStatus.pending) ...[
               const SizedBox(height: 9),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => _review(payment),
-                  icon: Icon(Icons.fact_check_outlined, size: 18),
-                  label: Text('Kiểm tra và xử lý'),
-                ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _review(payment),
+                    icon: const Icon(Icons.fact_check_outlined, size: 18),
+                    label: const Text('Kiểm tra và duyệt'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _reject(payment),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    label: const Text('Không duyệt'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFD64545),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],
@@ -432,6 +472,65 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
           'Đã từ chối khoản thanh toán và lưu lý do.',
         );
       }
+    } on ArgumentError catch (error) {
+      showLandlordMessage(context, error.message.toString());
+    }
+  }
+
+  Future<void> _reject(LandlordPayment payment) async {
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Không duyệt khoản thanh toán'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${payment.tenantName} · phòng ${payment.room}'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                autofocus: true,
+                minLines: 2,
+                maxLines: 4,
+                onChanged: (_) => setDialogState(() {}),
+                decoration: const InputDecoration(
+                  labelText: 'Lý do không duyệt',
+                  hintText: 'Nêu rõ thông tin người thuê cần bổ sung',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Quay lại'),
+            ),
+            FilledButton(
+              onPressed: reasonController.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(
+                      dialogContext,
+                      reasonController.text.trim(),
+                    ),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFD64545),
+              ),
+              child: const Text('Gửi lý do'),
+            ),
+          ],
+        ),
+      ),
+    );
+    reasonController.dispose();
+    if (reason == null || !mounted) return;
+    try {
+      _store.rejectPayment(payment, reason);
+      showLandlordMessage(context, 'Đã gửi lý do không duyệt cho người thuê.');
     } on ArgumentError catch (error) {
       showLandlordMessage(context, error.message.toString());
     }
@@ -592,7 +691,7 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
           },
           style: TextButton.styleFrom(foregroundColor: const Color(0xFFD64545)),
           icon: const Icon(Icons.close_rounded, size: 17),
-          label: const Text('Từ chối'),
+          label: const Text('Không duyệt'),
         ),
         FilledButton.icon(
           onPressed: () {

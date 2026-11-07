@@ -186,6 +186,8 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
                           ),
                           const SizedBox(height: 17),
                           _roomFacts(room),
+                          const SizedBox(height: 18),
+                          _priceAndServices(room),
                           const SizedBox(height: 22),
                           _highlights(room),
                           const SizedBox(height: 19),
@@ -417,6 +419,113 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
       ),
     );
   }
+
+  Widget _priceAndServices(TenantRoomListing room) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Row(
+        children: [
+          Icon(Icons.receipt_long_rounded, color: tenantGreenDark, size: 22),
+          SizedBox(width: 8),
+          Text(
+            'Bảng giá & dịch vụ',
+            style: TextStyle(
+              color: tenantInk,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 11),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: tenantLine),
+        ),
+        child: Column(
+          children: [
+            _priceRow(
+              name: 'Giá thuê phòng',
+              price: room.price,
+              unit: 'tháng',
+              emphasized: true,
+            ),
+            for (final service in room.priceList) ...[
+              const Divider(height: 1, color: tenantLine),
+              _priceRow(
+                name: service.name,
+                price: service.price,
+                unit: service.unit,
+                basis: service.basis,
+              ),
+            ],
+            if (room.priceList.isEmpty) ...[
+              const Divider(height: 1, color: tenantLine),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Chủ nhà chưa cập nhật dịch vụ cho phòng này.',
+                    style: TextStyle(color: tenantMuted, fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ],
+  );
+
+  Widget _priceRow({
+    required String name,
+    required int price,
+    required String unit,
+    String? basis,
+    bool emphasized = false,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 11),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                style: TextStyle(
+                  color: tenantInk,
+                  fontSize: 14,
+                  fontWeight: emphasized ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+              if (basis != null && basis.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  basis,
+                  style: const TextStyle(color: tenantMuted, fontSize: 11),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          '${formatTenantMoney(price)}${unit.isEmpty ? '' : ' / $unit'}',
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            color: emphasized ? tenantGreenDark : tenantInk,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _highlights(TenantRoomListing room) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,

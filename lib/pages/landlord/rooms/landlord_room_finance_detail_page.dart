@@ -242,6 +242,14 @@ class LandlordRoomFinanceDetailPage extends StatelessWidget {
         label: const Text('Duyệt'),
       ),
       OutlinedButton.icon(
+        onPressed: () => _reject(context, payment),
+        icon: const Icon(Icons.close_rounded),
+        label: const Text('Không duyệt'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFD64545),
+        ),
+      ),
+      OutlinedButton.icon(
         onPressed: lease == null
             ? null
             : () => _contact(context, lease.phone, call: true),
@@ -291,6 +299,57 @@ class LandlordRoomFinanceDetailPage extends StatelessWidget {
             : payment.reportedAmount,
       );
       showLandlordMessage(context, 'Đã duyệt phiếu thu ${payment.id}.');
+    } on ArgumentError catch (error) {
+      showLandlordMessage(context, error.message.toString());
+    }
+  }
+
+  Future<void> _reject(BuildContext context, LandlordPayment payment) async {
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Không duyệt phiếu thu'),
+          content: TextField(
+            controller: reasonController,
+            autofocus: true,
+            minLines: 2,
+            maxLines: 4,
+            onChanged: (_) => setDialogState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Lý do không duyệt',
+              hintText: 'Nhập lý do để người thuê biết cách nộp lại',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Quay lại'),
+            ),
+            FilledButton(
+              onPressed: reasonController.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(
+                      dialogContext,
+                      reasonController.text.trim(),
+                    ),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFD64545),
+              ),
+              child: const Text('Gửi lý do'),
+            ),
+          ],
+        ),
+      ),
+    );
+    reasonController.dispose();
+    if (reason == null || !context.mounted) return;
+    try {
+      store.rejectPayment(payment, reason);
+      showLandlordMessage(context, 'Đã gửi lý do không duyệt cho người thuê.');
     } on ArgumentError catch (error) {
       showLandlordMessage(context, error.message.toString());
     }

@@ -6,6 +6,7 @@ import '../tenant_inbox_hero.dart';
 import '../../shared/announcements/announcement_store.dart';
 import '../../shared/rental/tenant_session.dart';
 import '../../landlord/announcements/models/landlord_announcement.dart';
+import '../invoices/tenant_invoice_detail_page.dart';
 import 'components/tenant_announcement_card.dart';
 import 'models/tenant_announcement.dart';
 
@@ -50,6 +51,22 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
 
   void _open(TenantAnnouncement item) {
     _store.markTenantRead(item.id, widget.tenantId);
+    if (item.id.startsWith('payment-rejected:')) {
+      final paymentId = item.id.substring('payment-rejected:'.length);
+      for (final payment in _store.rental.paymentsForTenant(widget.tenantId)) {
+        if (payment.id != paymentId) continue;
+        Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => TenantInvoiceDetailPage(
+              invoiceId: payment.invoiceId,
+              store: _store.rental,
+              tenantId: widget.tenantId,
+            ),
+          ),
+        );
+        return;
+      }
+    }
     showDialog<void>(
       context: context,
       builder: (context) => TenantDetailTheme(

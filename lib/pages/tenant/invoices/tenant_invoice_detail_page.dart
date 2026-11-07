@@ -46,6 +46,9 @@ class TenantInvoiceDetailPage extends StatelessWidget {
           final pending = payments.any(
             (payment) => payment.status == LandlordPaymentStatus.pending,
           );
+          final rejected = payments.any(
+            (payment) => payment.status == LandlordPaymentStatus.rejected,
+          );
           return TenantDetailFrame(
             children: [
               Container(
@@ -138,6 +141,8 @@ class TenantInvoiceDetailPage extends StatelessWidget {
                     label: Text(
                       pending
                           ? 'Đang chờ duyệt thanh toán'
+                          : rejected
+                          ? 'Nộp lại thanh toán'
                           : 'Thanh toán hóa đơn',
                     ),
                   ),

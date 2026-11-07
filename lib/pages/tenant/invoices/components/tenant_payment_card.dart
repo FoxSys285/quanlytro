@@ -17,7 +17,10 @@ class TenantPaymentCard extends StatelessWidget {
         const Color(0xFFB57920),
       ),
       LandlordPaymentStatus.approved => ('Đã xác nhận', tenantGreen),
-      LandlordPaymentStatus.rejected => ('Bị từ chối', const Color(0xFFD64545)),
+      LandlordPaymentStatus.rejected => (
+        'Chưa được duyệt',
+        const Color(0xFFD64545),
+      ),
     };
     return TenantSurface(
       child: Column(
@@ -58,7 +61,9 @@ class TenantPaymentCard extends StatelessWidget {
               emphasized: true,
             ),
           if (payment.status == LandlordPaymentStatus.rejected)
-            TenantDetailNote('Từ chối: ${payment.rejectionReason}'),
+            TenantDetailNote(
+              'Chưa được duyệt. Lý do: ${payment.rejectionReason ?? 'Chủ trọ chưa ghi lý do.'} Hãy kiểm tra thông tin và nộp lại.',
+            ),
           if (payment.proofName != null)
             TenantDetailRow(label: 'Minh chứng', value: payment.proofName!),
         ],

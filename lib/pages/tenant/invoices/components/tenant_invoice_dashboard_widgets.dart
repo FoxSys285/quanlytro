@@ -602,7 +602,7 @@ List<TenantInvoiceTransaction> tenantInvoiceTransactions(
         Icons.schedule_rounded,
       ),
       LandlordPaymentStatus.rejected => (
-        'Bị từ chối',
+        'Chưa được duyệt',
         const Color(0xFFCF4A4A),
         Icons.cancel_rounded,
       ),

@@ -20,6 +20,16 @@ class LocalAuth extends ChangeNotifier {
   bool get isCloudMode => _gateway != null;
   Future<void> _closing = Future.value();
 
+  Future<TenantAccountContact?> lookupTenantContact(String tenantId) async {
+    final gateway = _gateway;
+    if (gateway is TenantAccountLookupGateway) {
+      return (gateway as TenantAccountLookupGateway).lookupTenantContact(
+        tenantId,
+      );
+    }
+    return null;
+  }
+
   AccountProviderGateway get _providers {
     final gateway = _gateway;
     if (gateway is AccountProviderGateway) {

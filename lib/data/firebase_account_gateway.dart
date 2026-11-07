@@ -98,7 +98,8 @@ class FirebaseAccountGateway
     implements
         AccountGateway,
         AccountRegistrationGateway,
-        AccountProviderGateway {
+        AccountProviderGateway,
+        TenantAccountLookupGateway {
   FirebaseAccountGateway({FirebaseAuth? auth, FirebaseFirestore? firestore})
     : _auth = auth ?? FirebaseAuth.instance,
       _firestore = firestore ?? FirebaseFirestore.instance;
@@ -150,11 +151,13 @@ class FirebaseAccountGateway
         role: requestedRole,
         phoneNumber: normalizeVietnamesePhone(phoneNumber),
       );
-      return FirebaseAccountSession.fromProfile(
+      final session = FirebaseAccountSession.fromProfile(
         user.uid,
         profile,
         authEmail: user.email ?? email,
       );
+      await _syncTenantContact(session);
+      return session;
     } on FirebaseAuthException catch (error) {
       throw ArgumentError(_message(error.code));
     } on FirebaseException catch (error) {
@@ -244,6 +247,37 @@ class FirebaseAccountGateway
   }
 
   @override
+  Future<TenantAccountContact?> lookupTenantContact(String tenantId) async {
+    final code = tenantId.trim().toUpperCase();
+    if (!RegExp(r'^[A-Z0-9]{8}$').hasMatch(code)) return null;
+    final snapshot = await _firestore
+        .collection('tenant_contacts')
+        .doc(code)
+        .get(const GetOptions(source: Source.server));
+    final data = snapshot.data();
+    if (data == null) return null;
+    return TenantAccountContact(
+      name: data['displayName'] as String? ?? '',
+      phoneNumber: data['phoneNumber'] as String? ?? '',
+    );
+  }
+
+  Future<void> _syncTenantContact(FirebaseAccountSession session) async {
+    final tenantId = session.tenantId;
+    if (session.role != AppRole.tenant || tenantId == null) return;
+    try {
+      await _firestore.collection('tenant_contacts').doc(tenantId).set({
+        'displayName': session.displayName,
+        'phoneNumber': session.phoneNumber,
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (error) {
+      // Profile sync must remain available even before contact lookup rules are
+      // deployed; the next sign-in can retry this noncritical directory entry.
+      debugPrint('Tenant contact sync warning: $error');
+    }
+  }
+
+  @override
   Future<void> requestPasswordReset(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
@@ -309,11 +343,13 @@ class FirebaseAccountGateway
       }
     }
     if (profileData == null && allowNewProfile) return null;
-    return FirebaseAccountSession.fromProfile(
+    final session = FirebaseAccountSession.fromProfile(
       user.uid,
       profileData,
       authEmail: user.email ?? '',
     );
+    await _syncTenantContact(session);
+    return session;
   }
 
   @override
@@ -563,11 +599,13 @@ class FirebaseAccountGateway
         phoneVerified:
             user.phoneNumber == normalizeVietnamesePhone(phoneNumber),
       );
-      return FirebaseAccountSession.fromProfile(
+      final session = FirebaseAccountSession.fromProfile(
         user.uid,
         saved,
         authEmail: user.email ?? '',
       );
+      await _syncTenantContact(session);
+      return session;
     } catch (error) {
       throw _friendlyError(error);
     }

@@ -20,6 +20,16 @@ service cloud.firestore {
             (data.phoneVerified == false ||
               data.phoneNumber == request.auth.token.get('phone_number', ''))));
     }
+    function tenantContactOwner(code) {
+      return active() && profile().role == 'tenant' && profile().tenantId == code;
+    }
+    function validTenantContact(data) {
+      return data.keys().hasOnly(['displayName', 'phoneNumber']) &&
+        data.keys().hasAll(['displayName', 'phoneNumber']) &&
+        data.displayName == profile().displayName &&
+        data.phoneNumber ==
+          (profile().keys().hasAny(['phoneNumber']) ? profile().phoneNumber : '');
+    }
     function validTenantCode(code) {
       return code is string && code.matches('^[A-Z0-9]{8}$');
     }
@@ -77,6 +87,23 @@ service cloud.firestore {
         getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tenant' &&
         getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == code;
       allow update, delete: if false;
+    }
+    match /tenant_contacts/{code} {
+      // Landlords can resolve a tenant code to the contact fields needed by a
+      // lease form. Tenants can read and maintain only their own directory row.
+      allow get: if active() && (
+        profile().role in ['admin', 'landlord'] ||
+        (profile().role == 'tenant' && profile().tenantId == code)
+      );
+      allow list: if false;
+      allow create: if tenantContactOwner(code) &&
+        validTenantContact(request.resource.data);
+      allow update: if tenantContactOwner(code) &&
+        validTenantContact(request.resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName', 'phoneNumber'
+        ]);
+      allow delete: if false;
     }
     match /account_requests/{uid} {
       // Legacy signup requests are read once to activate accounts created by

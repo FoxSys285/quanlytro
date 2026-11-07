@@ -624,7 +624,7 @@ class TenantHomePage extends StatelessWidget {
           const Color(0xFF8A5A00),
         ),
         LandlordPaymentStatus.rejected => (
-          'Thanh toán bị từ chối',
+          'Thanh toán chưa được duyệt',
           _formatVnd(payment.reportedAmount),
           const Color(0xFFD64545),
           const Color(0xFFFFE7E7),

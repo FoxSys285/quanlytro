@@ -189,6 +189,18 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
           4000;
       final roomWaterPrice =
           typeServicePrices[roomWater?['id']] ?? roomWater?['price'] ?? 15000;
+      final publicServiceRates = <Map<String, dynamic>>[];
+      for (final serviceId in typeServiceIds) {
+        final service = services[serviceId];
+        if (service == null || service['active'] == false) continue;
+        publicServiceRates.add({
+          'id': serviceId,
+          'name': service['name'] as String? ?? 'Dịch vụ',
+          'unit': service['unit'] as String? ?? '',
+          'basis': service['basis'] as String? ?? '',
+          'price': typeServicePrices[serviceId] ?? service['price'] ?? 0,
+        });
+      }
       final waterBasis = roomWater?['basis'] as String? ?? '';
       final waterUnit = roomWater?['unit'] as String? ?? '';
       output['public_rooms/${Uri.encodeComponent('$id:${room['code']}')}'] = {
@@ -222,6 +234,7 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
             ? 'Theo tháng'
             : 'Theo m³',
         'waterPrice': roomWaterPrice,
+        'services': publicServiceRates,
         'published': !hidden.contains(id),
         'available': !taken,
       };

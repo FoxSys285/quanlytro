@@ -216,6 +216,15 @@ TenantRoomListing catalogListingFromMap(String id, Map<String, dynamic> data) =>
       electricityPrice: (data['electricityPrice'] as num).toInt(),
       waterType: data['waterType'] as String,
       waterPrice: (data['waterPrice'] as num).toInt(),
+      roomServices: data.containsKey('services')
+          ? (data['services'] as List? ?? const [])
+                .map(
+                  (service) => TenantRoomPrice.fromMap(
+                    Map<String, dynamic>.from(service as Map),
+                  ),
+                )
+                .toList()
+          : null,
       variant: 0,
       rating: '—',
       tags: List<String>.from(data['tags'] as List? ?? []),

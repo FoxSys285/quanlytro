@@ -7,6 +7,7 @@ import '../landlord_theme.dart';
 
 import '../landlord_demo_store.dart';
 import '../landlord_glass.dart';
+import '../payments/landlord_payments_page.dart';
 
 import 'components/landlord_announcement_card.dart';
 import 'components/landlord_announcement_composer.dart';
@@ -95,6 +96,10 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
   final _search = TextEditingController();
 
   void _open(LandlordAnnouncement item) {
+    if (item.id.startsWith('payment:')) {
+      _goTo(item);
+      return;
+    }
     if (!_showSent && !item.isRead) {
       _store.markLandlordRead(item.id);
     }
@@ -145,6 +150,16 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
 
   void _goTo(LandlordAnnouncement item) {
     if (!item.isRead) _store.markLandlordRead(item.id);
+    if (item.id.startsWith('payment:')) {
+      final paymentId = item.id.substring('payment:'.length);
+      if (LandlordPaymentsPage.navigateToPayment(context, paymentId)) return;
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => LandlordPaymentsPage(focusPaymentId: paymentId),
+        ),
+      );
+      return;
+    }
     final destination = switch (item.category) {
       AnnouncementCategory.finance => 'billing',
       AnnouncementCategory.incident => 'incidents',

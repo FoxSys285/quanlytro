@@ -8,6 +8,30 @@ import '../../../landlord/rooms/models/landlord_room.dart';
 import '../../../landlord/services/models/landlord_service.dart';
 import '../../../shared/media/room_photo.dart';
 
+class TenantRoomPrice {
+  const TenantRoomPrice({
+    required this.id,
+    required this.name,
+    required this.unit,
+    required this.basis,
+    required this.price,
+  });
+
+  final String id;
+  final String name;
+  final String unit;
+  final String basis;
+  final int price;
+
+  factory TenantRoomPrice.fromMap(Map<String, dynamic> map) => TenantRoomPrice(
+    id: map['id'] as String? ?? '',
+    name: map['name'] as String? ?? 'Dịch vụ',
+    unit: map['unit'] as String? ?? '',
+    basis: map['basis'] as String? ?? '',
+    price: (map['price'] as num?)?.toInt() ?? 0,
+  );
+}
+
 LandlordService? _roomTypeService(
   LandlordDemoStore store,
   LandlordRoomType type, {
@@ -73,6 +97,7 @@ class TenantRoomListing {
     this.description = '',
     this.imageBytes,
     this.imageUrl = '',
+    this.roomServices,
     List<RoomPhoto> photos = const [],
     List<RoomTypeImage>? images,
   }) : photos = images ?? photos;
@@ -99,8 +124,32 @@ class TenantRoomListing {
   final String description;
   final Uint8List? imageBytes;
   final String imageUrl;
+  final List<TenantRoomPrice>? roomServices;
   final List<RoomPhoto> photos;
   List<RoomTypeImage> get images => photos;
+
+  List<TenantRoomPrice> get priceList =>
+      roomServices ??
+      [
+        TenantRoomPrice(
+          id: 'electricity',
+          name: 'Điện',
+          unit: 'kWh',
+          basis: 'Theo chỉ số',
+          price: electricityPrice,
+        ),
+        TenantRoomPrice(
+          id: 'water',
+          name: 'Nước',
+          unit: waterType == 'Theo tháng'
+              ? 'tháng'
+              : waterType == 'Theo người'
+              ? 'người'
+              : 'm³',
+          basis: waterType,
+          price: waterPrice,
+        ),
+      ];
   List<RoomPhoto> get gallery {
     if (photos.isNotEmpty) return photos;
     if (imageBytes != null || imageUrl.isNotEmpty) {
@@ -388,6 +437,19 @@ class TenantRoomDemoData {
           electricityPrice: _roomTypeRate(store, details.type!, water: false),
           waterType: _roomTypeWaterBasis(store, details.type!),
           waterPrice: _roomTypeRate(store, details.type!, water: true),
+          roomServices: [
+            for (final serviceId in details.type!.serviceIds)
+              if (store.serviceRecordById(serviceId) case final service?
+                  when service.active)
+                TenantRoomPrice(
+                  id: service.id,
+                  name: service.name,
+                  unit: service.unit,
+                  basis: service.basis,
+                  price:
+                      details.type!.servicePrices[service.id] ?? service.price,
+                ),
+          ],
           variant: 0,
           rating: '—',
           tags: [

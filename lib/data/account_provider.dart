@@ -42,3 +42,14 @@ abstract interface class AccountProviderGateway {
     required AppRole requestedRole,
   });
 }
+
+class TenantAccountContact {
+  const TenantAccountContact({required this.name, required this.phoneNumber});
+
+  final String name;
+  final String phoneNumber;
+}
+
+abstract interface class TenantAccountLookupGateway {
+  Future<TenantAccountContact?> lookupTenantContact(String tenantId);
+}

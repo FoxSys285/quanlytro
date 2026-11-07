@@ -30,13 +30,15 @@ class LandlordAnnouncementCard extends StatelessWidget {
   final VoidCallback? onAction;
   final bool isSent;
 
-  String get _actionLabel => switch (announcement.category) {
-    AnnouncementCategory.finance => 'Xem hóa đơn',
-    AnnouncementCategory.incident => 'Xử lý sự cố',
-    AnnouncementCategory.viewing => 'Xem lịch hẹn',
-    AnnouncementCategory.lease => 'Xem hợp đồng',
-    _ => 'Xem chi tiết',
-  };
+  String get _actionLabel => announcement.id.startsWith('payment:')
+      ? 'Duyệt phiếu thu'
+      : switch (announcement.category) {
+          AnnouncementCategory.finance => 'Xem hóa đơn',
+          AnnouncementCategory.incident => 'Xử lý sự cố',
+          AnnouncementCategory.viewing => 'Xem lịch hẹn',
+          AnnouncementCategory.lease => 'Xem hợp đồng',
+          _ => 'Xem chi tiết',
+        };
 
   @override
   Widget build(BuildContext context) {

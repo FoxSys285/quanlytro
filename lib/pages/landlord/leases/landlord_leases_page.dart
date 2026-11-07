@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../../data/account_provider.dart';
+import '../../../data/local_auth.dart';
 import '../../../layouts/landlord_navigation.dart';
 import '../../../layouts/role_layout.dart';
 import '../landlord_theme.dart';
@@ -1676,23 +1680,42 @@ class _LeaseEditorState extends State<_LeaseEditor> {
   void _updateOccupantServiceAmounts() {
     final occupants = int.tryParse(_occupants.text) ?? 1;
     _selectedContractServices = _selectedContractServices
-        .map(
-          (service) => _isPerPersonBasis(service.basis)
-              ? _withServiceQuantity(service, occupants)
-              : service,
-        )
+        .map((service) {
+          if (!_isPerPersonBasis(service.basis) ||
+              _manualServiceQuantityOverrides.contains(service.serviceId)) {
+            return service;
+          }
+          final updated = _withServiceQuantity(service, occupants);
+          final controller = _serviceQuantityControllers[service.serviceId];
+          if (controller != null && controller.text != '$occupants') {
+            controller.value = TextEditingValue(
+              text: '$occupants',
+              selection: TextSelection.collapsed(offset: '$occupants'.length),
+            );
+          }
+          return updated;
+        })
         .toList(growable: false);
   }
 
-  void _setItemServiceQuantity(String serviceId, int quantity) {
+  void _setServiceQuantity(String serviceId, int quantity) {
     _selectedContractServices = _selectedContractServices
-        .map(
-          (service) => service.serviceId == serviceId
-              ? _withServiceQuantity(service, quantity)
-              : service,
-        )
+        .map((service) {
+          if (service.serviceId != serviceId) return service;
+          if (_isPerPersonBasis(service.basis)) {
+            _manualServiceQuantityOverrides.add(serviceId);
+          }
+          return _withServiceQuantity(service, quantity);
+        })
         .toList(growable: false);
   }
+
+  TextEditingController _serviceQuantityController(
+    LandlordLeaseService service,
+  ) => _serviceQuantityControllers.putIfAbsent(
+    service.serviceId,
+    () => TextEditingController(text: service.quantity.toString()),
+  );
 
   List<LandlordLeaseService> _legacyLeaseServices(LandlordLease lease) => [
     if (lease.vehicleFee > 0)
@@ -1726,6 +1749,11 @@ class _LeaseEditorState extends State<_LeaseEditor> {
     _water.text = _servicePriceForRoom(room, water).toString();
     _waterType = _waterTypeForService(water);
     _selectedContractServices = _servicesForRoom(room);
+    _manualServiceQuantityOverrides.clear();
+    for (final service in _selectedContractServices) {
+      final controller = _serviceQuantityControllers[service.serviceId];
+      if (controller != null) controller.text = service.quantity.toString();
+    }
   }
 
   int? _roomRent(String? code) {
@@ -1908,6 +1936,11 @@ class _LeaseEditorState extends State<_LeaseEditor> {
       : widget.lease!.services.isNotEmpty
       ? List<LandlordLeaseService>.from(widget.lease!.services)
       : _legacyLeaseServices(widget.lease!);
+  final Map<String, TextEditingController> _serviceQuantityControllers = {};
+  final Set<String> _manualServiceQuantityOverrides = {};
+  Timer? _tenantLookupTimer;
+  bool _tenantLookupPending = false;
+  String? _tenantLookupStatus;
   late String? _templateId = widget.lease == null
       ? (widget.initialTemplateId ?? _store.leaseTemplates.firstOrNull?.id)
       : (widget.lease!.templateId.isEmpty ||
@@ -1937,6 +1970,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
 
   @override
   void dispose() {
+    _tenantLookupTimer?.cancel();
     _landlordName.dispose();
     _landlordAddress.dispose();
     _landlordId.dispose();
@@ -1964,7 +1998,71 @@ class _LeaseEditorState extends State<_LeaseEditor> {
     _responsibilityA.dispose();
     _responsibilityB.dispose();
     _commonResponsibilities.dispose();
+    for (final controller in _serviceQuantityControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  void _scheduleTenantLookup(String value) {
+    _tenantLookupTimer?.cancel();
+    final code = value.trim().toUpperCase();
+    setState(() {
+      _tenantLookupPending = false;
+      _tenantLookupStatus = null;
+    });
+    if (!RegExp(r'^[A-Z0-9]{8}$').hasMatch(code)) return;
+    _tenantLookupTimer = Timer(const Duration(milliseconds: 350), () {
+      unawaited(_lookupTenantByCode(code));
+    });
+  }
+
+  Future<void> _lookupTenantByCode(String code) async {
+    if (!mounted || _tenantKey.text.trim().toUpperCase() != code) return;
+    setState(() => _tenantLookupPending = true);
+    TenantAccountContact? contact;
+    var lookupFailed = false;
+    try {
+      contact = await LocalAuth.instance.lookupTenantContact(code);
+    } catch (_) {
+      lookupFailed = true;
+      // Local property records may still provide a saved tenant contact.
+    }
+    contact ??= _tenantContactFromStore(code);
+    if (!mounted || _tenantKey.text.trim().toUpperCase() != code) return;
+    setState(() {
+      _tenantLookupPending = false;
+      if (contact == null) {
+        _tenantLookupStatus = lookupFailed
+            ? 'Không thể tra cứu hồ sơ. Kiểm tra kết nối hoặc quyền Firestore.'
+            : 'Không tìm thấy hồ sơ người thuê với mã này.';
+        return;
+      }
+      if (contact.name.isNotEmpty) _name.text = contact.name;
+      if (contact.phoneNumber.isNotEmpty) _phone.text = contact.phoneNumber;
+      _tenantLookupStatus =
+          'Đã tìm thấy hồ sơ; họ tên và số điện thoại đã được điền.';
+    });
+  }
+
+  TenantAccountContact? _tenantContactFromStore(String code) {
+    for (final lease in _store.leases) {
+      if (lease.tenantId.toUpperCase() == code) {
+        return TenantAccountContact(
+          name: lease.tenantName,
+          phoneNumber: lease.phone,
+        );
+      }
+    }
+    for (final member in _store.members) {
+      if (member.tenantId.toUpperCase() == code) {
+        return TenantAccountContact(
+          name: member.name,
+          phoneNumber: member.phone,
+        );
+      }
+    }
+    return null;
   }
 
   void _applyTemplate(LandlordLeaseTemplate template) {
@@ -2226,6 +2324,8 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                                   _tenantKey,
                                   'Mã người thuê (tenantId trong hồ sơ tài khoản)',
                                   readOnly: widget.lease != null,
+                                  capitalization: TextCapitalization.characters,
+                                  onChanged: _scheduleTenantLookup,
                                   validator: (value) =>
                                       value == null ||
                                           value.trim().isEmpty ||
@@ -2234,6 +2334,44 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                                       ? null
                                       : 'Mã người thuê không chứa khoảng trắng, / hoặc :.',
                                 ),
+                                if (_tenantLookupPending ||
+                                    _tenantLookupStatus != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 5),
+                                    child: Row(
+                                      children: [
+                                        if (_tenantLookupPending)
+                                          const SizedBox(
+                                            width: 13,
+                                            height: 13,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                        if (_tenantLookupPending)
+                                          const SizedBox(width: 7),
+                                        Expanded(
+                                          child: Text(
+                                            _tenantLookupPending
+                                                ? 'Đang tra cứu hồ sơ người thuê…'
+                                                : _tenantLookupStatus!,
+                                            style: TextStyle(
+                                              color:
+                                                  _tenantLookupStatus
+                                                          ?.startsWith(
+                                                            'Không tìm thấy',
+                                                          ) ==
+                                                      true
+                                                  ? const Color(0xFFB42318)
+                                                  : LandlordPalette.of(context)
+                                                        .muted,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 _textField(
                                   _name,
                                   'Họ tên bên B',
@@ -2354,7 +2492,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                                 Padding(
                                   padding: const EdgeInsets.only(top: 5),
                                   child: Text(
-                                    'Dịch vụ tính theo người sẽ tự nhân với số người ở; dịch vụ tính theo cái/xe có thể nhập số lượng riêng.',
+                                    'Số lượng dịch vụ theo người mặc định lấy theo số người ở; bạn có thể chỉnh riêng từng dịch vụ.',
                                     style: TextStyle(
                                       color: LandlordPalette.of(context).muted,
                                       fontSize: 11,
@@ -2735,18 +2873,19 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                         ],
                       ),
                     ),
-                    if (_isItemBasis(service.basis))
+                    if (_isItemBasis(service.basis) ||
+                        _isPerPersonBasis(service.basis))
                       SizedBox(
                         width: 94,
                         child: TextFormField(
                           key: ValueKey(
                             'quantity-${_room}-${service.serviceId}',
                           ),
-                          initialValue: service.quantity.toString(),
+                          controller: _serviceQuantityController(service),
                           keyboardType: TextInputType.number,
                           validator: _nonNegativeAmountValidator,
                           onChanged: (value) => setState(
-                            () => _setItemServiceQuantity(
+                            () => _setServiceQuantity(
                               service.serviceId,
                               _parseInt(value) ?? 0,
                             ),
@@ -2756,8 +2895,12 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
-                          decoration: _inputDecoration('Số ${service.unit}')
-                              .copyWith(
+                          decoration:
+                              _inputDecoration(
+                                _isPerPersonBasis(service.basis)
+                                    ? 'Số người'
+                                    : 'Số ${service.unit}',
+                              ).copyWith(
                                 isDense: true,
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -2766,7 +2909,9 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                               ),
                         ),
                       ),
-                    if (_isItemBasis(service.basis)) const SizedBox(width: 8),
+                    if (_isItemBasis(service.basis) ||
+                        _isPerPersonBasis(service.basis))
+                      const SizedBox(width: 8),
                     Text(
                       formatLandlordMoney(service.amount),
                       style: const TextStyle(
@@ -2831,6 +2976,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
       keyboardType: keyboardType,
       textCapitalization: capitalization,
       validator: validator,
+      onChanged: onChanged,
       style: const TextStyle(
         color: Color(0xFF102F67),
         fontSize: 15,
@@ -2981,7 +3127,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
     Navigator.pop(
       context,
       _LeaseDraft(
-        tenantKey: _tenantKey.text.trim(),
+        tenantKey: _tenantKey.text.trim().toUpperCase(),
         room: _room,
         rentalAddress: _rentalAddress.text,
         landlordName: _landlordName.text,
