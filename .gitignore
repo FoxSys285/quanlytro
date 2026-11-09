@@ -4,6 +4,9 @@
 *.pyc
 *.swp
 .DS_Store
+Thumbs.db
+Desktop.ini
+~$*
 .atom/
 .build/
 .buildlog/
@@ -76,6 +79,12 @@ migrate_working_dir/
 /android/build/
 /android/.kotlin/
 /coverage/
+
+# Firebase CLI/emulator cache and Cloud Functions dependencies.
+.firebase/
+.runtimeconfig.json
+**/node_modules/
+functions/.cache/
 
 # Symbolication related
 app.*.symbols
