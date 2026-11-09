@@ -1,4 +1,3 @@
-import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
 
 plugins {
@@ -19,7 +18,7 @@ val googleMapsApiKey = localProperties.getProperty("GOOGLE_MAPS_API_KEY", "").if
     "AIzaSyBRftbOlLWHE6egJTX1duxfbB-LIuV0EQI"
 }
 
-extensions.configure<ApplicationExtension> {
+android {
     namespace = "com.example.quanlytro"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
