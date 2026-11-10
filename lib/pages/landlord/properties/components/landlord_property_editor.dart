@@ -6,6 +6,7 @@ import '../../landlord_theme.dart';
 
 import '../models/landlord_property.dart';
 import '../services/property_image_picker.dart';
+import '../../../tenant/discovery/services/tenant_administrative_service.dart';
 import 'landlord_property_image.dart';
 import 'landlord_location_selector.dart';
 
@@ -14,11 +15,13 @@ class LandlordPropertyEditor extends StatefulWidget {
     super.key,
     required this.property,
     this.pickImage,
+    this.locationService,
     this.creating = false,
   });
   final LandlordProperty property;
   final bool creating;
   final Future<SelectedPropertyImage?> Function()? pickImage;
+  final TenantAdministrativeService? locationService;
 
   @override
   State<LandlordPropertyEditor> createState() => _LandlordPropertyEditorState();
@@ -32,6 +35,12 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
   late final _phone = TextEditingController(text: widget.property.phone);
   late final _city = TextEditingController(text: widget.property.city);
   late final _ward = TextEditingController(text: widget.property.ward);
+  late final _latitude = TextEditingController(
+    text: widget.property.latitude?.toStringAsFixed(6) ?? '',
+  );
+  late final _longitude = TextEditingController(
+    text: widget.property.longitude?.toStringAsFixed(6) ?? '',
+  );
   late final _description = TextEditingController(
     text: widget.property.description,
   );
@@ -52,6 +61,8 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
       _description,
       _city,
       _ward,
+      _latitude,
+      _longitude,
     ]) {
       controller.dispose();
     }
@@ -85,6 +96,27 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
 
   String? _required(String? value) =>
       value == null || value.trim().isEmpty ? 'Vui lòng nhập thông tin.' : null;
+
+  double? _parseCoordinate(String value) =>
+      double.tryParse(value.trim().replaceAll(',', '.'));
+
+  String? _validateCoordinate(String? value, {required bool isLatitude}) {
+    final current = value?.trim() ?? '';
+    final other = isLatitude ? _longitude.text.trim() : _latitude.text.trim();
+    if (current.isEmpty && other.isEmpty) return null;
+    if (current.isEmpty) return 'Nhập đủ vĩ độ và kinh độ.';
+    final number = _parseCoordinate(current);
+    final maximum = isLatitude ? 90 : 180;
+    if (number == null ||
+        !number.isFinite ||
+        number < -maximum ||
+        number > maximum) {
+      return isLatitude
+          ? 'Vĩ độ phải từ -90 đến 90.'
+          : 'Kinh độ phải từ -180 đến 180.';
+    }
+    return null;
+  }
 
   InputDecoration _decoration(String label, IconData icon) => InputDecoration(
     labelText: label,
@@ -128,6 +160,12 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
         amenities: _amenities.toList(),
         city: _city.text.trim(),
         ward: _ward.text.trim(),
+        latitude: _latitude.text.trim().isEmpty
+            ? null
+            : _parseCoordinate(_latitude.text),
+        longitude: _longitude.text.trim().isEmpty
+            ? null
+            : _parseCoordinate(_longitude.text),
         verificationDocuments: widget.property.verificationDocuments,
         verificationSubmittedAt: widget.property.verificationSubmittedAt,
         verificationIsOwner: widget.property.verificationIsOwner,
@@ -300,6 +338,66 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                       ),
                       validator: _required,
                     ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Tọa độ Google Maps (không bắt buộc)',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      'Nhập vĩ độ và kinh độ của đúng nhà trọ để chỉ đường chính xác. Có thể nhấn giữ vị trí trên Google Maps để lấy tọa độ.',
+                      style: TextStyle(fontSize: 12, color: Colors.blueGrey),
+                    ),
+                    const SizedBox(height: 10),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final latitude = TextFormField(
+                          key: const ValueKey('property-latitude'),
+                          controller: _latitude,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                            signed: true,
+                          ),
+                          decoration: _decoration(
+                            'Vĩ độ',
+                            Icons.place_outlined,
+                          ),
+                          validator: (value) =>
+                              _validateCoordinate(value, isLatitude: true),
+                        );
+                        final longitude = TextFormField(
+                          key: const ValueKey('property-longitude'),
+                          controller: _longitude,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                            signed: true,
+                          ),
+                          decoration: _decoration(
+                            'Kinh độ',
+                            Icons.place_outlined,
+                          ),
+                          validator: (value) =>
+                              _validateCoordinate(value, isLatitude: false),
+                        );
+                        if (constraints.maxWidth < 520) {
+                          return Column(
+                            children: [
+                              latitude,
+                              const SizedBox(height: 10),
+                              longitude,
+                            ],
+                          );
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: latitude),
+                            const SizedBox(width: 14),
+                            Expanded(child: longitude),
+                          ],
+                        );
+                      },
+                    ),
                     const SizedBox(height: 24),
                     const Text(
                       'Liên hệ chủ trọ',
@@ -397,6 +495,7 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                     LandlordLocationSelector(
                       initialCity: _city.text,
                       initialWard: _ward.text,
+                      service: widget.locationService,
                       onChanged: (city, ward) {
                         _city.text = city;
                         _ward.text = ward;

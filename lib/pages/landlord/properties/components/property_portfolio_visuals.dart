@@ -261,6 +261,7 @@ class PropertyPortfolioIntro extends StatelessWidget {
                   children: [
                     Image.asset(
                       'assets/images/landlord_property_house.png',
+                      cacheWidth: 256,
                       width: 84,
                       height: 64,
                       fit: BoxFit.fill,

@@ -346,6 +346,10 @@ class _AuthenticatedAppState extends State<_AuthenticatedApp>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       try {
+        // Avoid opening the Android permission sheet during the first frame of
+        // the newly authenticated screen and its registration route transition.
+        await Future<void>.delayed(const Duration(seconds: 2));
+        if (!mounted || LocalAuth.instance.session?.uid != session.uid) return;
         final enabled = AccountStore.instance.notificationsEnabled(role);
         final notificationsGranted = await AppNotificationService.instance
             .requestAndRegister(session, enabled: enabled);

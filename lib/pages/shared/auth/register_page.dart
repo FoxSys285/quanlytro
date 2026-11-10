@@ -62,6 +62,12 @@ class _RegisterPageState extends State<RegisterPage> {
       );
       if (!mounted) return;
       TextInput.finishAutofillContext(shouldSave: true);
+      // Let the authenticated home draw before removing the registration route.
+      // Popping it in the same frame as the auth notification can stall Android
+      // input focus while the first landlord screen is being built.
+      WidgetsBinding.instance.scheduleFrame();
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
       Navigator.of(context).pop();
     } catch (error) {
       if (mounted) {

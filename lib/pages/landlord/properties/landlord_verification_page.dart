@@ -162,6 +162,8 @@ class _LandlordVerificationPageState extends State<LandlordVerificationPage> {
           imageName: current.imageName,
           city: current.city,
           ward: current.ward,
+          latitude: current.latitude,
+          longitude: current.longitude,
           verificationDocuments: documents,
           verificationSubmittedAt: DateTime.now(),
           verificationIsOwner: _isOwner,

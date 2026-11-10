@@ -3,10 +3,13 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:quanlytro/pages/landlord/properties/components/landlord_property_editor.dart';
 import 'package:quanlytro/pages/landlord/properties/components/landlord_property_image.dart';
 import 'package:quanlytro/pages/landlord/properties/models/landlord_property.dart';
 import 'package:quanlytro/pages/landlord/properties/services/property_image_picker.dart';
+import 'package:quanlytro/pages/tenant/discovery/services/tenant_administrative_service.dart';
 
 const _property = LandlordProperty(
   id: 'may',
@@ -47,6 +50,17 @@ Future<void> _showEditor(
                 builder: (_) => LandlordPropertyEditor(
                   property: property,
                   pickImage: pickImage,
+                  locationService: TenantAdministrativeService(
+                    client: MockClient(
+                      (request) async => http.Response(
+                        request.url.path.endsWith('/p/')
+                            ? '[{"code":79,"name":"TP. Hồ Chí Minh"}]'
+                            : '{"wards":[{"code":1,"name":"Phường 25"}]}',
+                        200,
+                        headers: {'content-type': 'application/json; charset=utf-8'},
+                      ),
+                    ),
+                  ),
                 ),
               );
               onClosed(result);
@@ -99,6 +113,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Lưu thay đổi'));
       await tester.pumpAndSettle();
+      expect(find.text('Chọn tỉnh / thành phố từ danh sách.'), findsNothing);
+      expect(find.text('Chọn xã / phường từ danh sách.'), findsNothing);
       expect(saved!.imageBytes, bytes);
       expect(saved!.imageName, 'may-house.png');
       expect(saved!.imageUrl, isEmpty);
@@ -157,5 +173,52 @@ void main() {
     expect(saved!.imageBytes, bytes);
     expect(saved!.imageName, 'anh-cu.png');
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Property coordinates require a valid pair and survive a save', (
+    tester,
+  ) async {
+    LandlordProperty? saved;
+    await _showEditor(
+      tester,
+      property: _property,
+      pickImage: () async => null,
+      onClosed: (value) => saved = value,
+    );
+    final latitude = find.byKey(const ValueKey('property-latitude'));
+    final longitude = find.byKey(const ValueKey('property-longitude'));
+    await tester.ensureVisible(latitude);
+    await tester.enterText(latitude, '91');
+    await tester.tap(find.text('Lưu thay đổi'));
+    await tester.pumpAndSettle();
+    expect(saved, isNull);
+    expect(find.text('Vĩ độ phải từ -90 đến 90.'), findsOneWidget);
+    expect(find.text('Nhập đủ vĩ độ và kinh độ.'), findsOneWidget);
+
+    await tester.enterText(latitude, '10,812345');
+    await tester.enterText(longitude, '106.654321');
+    expect(
+      tester.widget<TextFormField>(latitude).controller!.text,
+      '10,812345',
+    );
+    expect(
+      tester.widget<TextFormField>(longitude).controller!.text,
+      '106.654321',
+    );
+    await tester.tap(find.text('Lưu thay đổi'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .stateList<FormFieldState<String>>(find.byType(TextFormField))
+          .map((field) => field.errorText)
+          .whereType<String>()
+          .toList(),
+      isEmpty,
+    );
+    expect(saved?.latitude, 10.812345);
+    expect(saved?.longitude, 106.654321);
+    final restored = LandlordProperty.fromMap(saved!.toMap());
+    expect(restored.latitude, 10.812345);
+    expect(restored.longitude, 106.654321);
   });
 }

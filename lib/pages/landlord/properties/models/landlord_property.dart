@@ -66,6 +66,8 @@ class LandlordProperty {
     this.imageName,
     this.city = 'TP. Hồ Chí Minh',
     this.ward = 'Phường 25',
+    this.latitude,
+    this.longitude,
     this.verificationDocuments = const [],
     this.verificationSubmittedAt,
     this.verificationIsOwner = true,
@@ -84,6 +86,8 @@ class LandlordProperty {
   final String? imageName;
   final String city;
   final String ward;
+  final double? latitude;
+  final double? longitude;
   final List<PropertyVerificationDocument> verificationDocuments;
   final DateTime? verificationSubmittedAt;
   final bool verificationIsOwner;
@@ -102,6 +106,8 @@ class LandlordProperty {
     'imageName': imageName,
     'city': city,
     'ward': ward,
+    if (latitude != null) 'latitude': latitude,
+    if (longitude != null) 'longitude': longitude,
     'verificationDocuments': verificationDocuments
         .map((document) => document.toMap())
         .toList(),
@@ -126,6 +132,8 @@ class LandlordProperty {
         imageName: map['imageName'] as String?,
         city: map['city'] as String,
         ward: map['ward'] as String,
+        latitude: (map['latitude'] as num?)?.toDouble(),
+        longitude: (map['longitude'] as num?)?.toDouble(),
         verificationDocuments:
             (map['verificationDocuments'] as List? ?? const [])
                 .map(

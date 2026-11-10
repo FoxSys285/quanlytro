@@ -171,6 +171,7 @@ class LandlordDashboardHero extends StatelessWidget {
       children: [
         Image.asset(
           'assets/images/landlord_home_hero.png',
+          cacheWidth: 960,
           fit: BoxFit.cover,
           alignment: Alignment.centerRight,
           excludeFromSemantics: true,
@@ -316,6 +317,7 @@ class LandlordWorkspaceIntroCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               child: Image.asset(
                 imageAsset,
+                cacheWidth: 192,
                 width: 62,
                 height: 62,
                 fit: BoxFit.cover,
@@ -421,6 +423,7 @@ class LandlordHeroBanner extends StatelessWidget {
           children: [
             Image.asset(
               'assets/images/landlord_home_hero.png',
+              cacheWidth: 960,
               fit: BoxFit.cover,
               alignment: Alignment.centerRight,
               excludeFromSemantics: true,

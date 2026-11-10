@@ -18,6 +18,22 @@ void main() {
     expect(uri.fragment, isEmpty);
   });
 
+  test('Google Maps directions use exact coordinates when available', () {
+    final uri = googleMapsDirectionsUri(
+      '25 Nguyễn Gia Trí',
+      latitude: 10.812345,
+      longitude: 106.654321,
+    );
+    expect(uri.path, '/maps/dir/');
+    expect(uri.queryParameters['destination'], '10.812345,106.654321');
+    expect(uri.queryParameters['travelmode'], 'driving');
+    expect(
+      googleMapsDirectionsUri('25 Nguyễn Gia Trí')
+          .queryParameters['destination'],
+      '25 Nguyễn Gia Trí',
+    );
+  });
+
   testWidgets('Map launch failure offers copy and copies complete URL', (
     tester,
   ) async {

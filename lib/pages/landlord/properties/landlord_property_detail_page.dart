@@ -6,6 +6,7 @@ import '../landlord_theme.dart';
 import '../room_types/landlord_room_types_page.dart';
 import '../rooms/landlord_rooms_page.dart';
 import 'components/landlord_property_image.dart';
+import 'components/property_contact_actions.dart';
 
 /// Property details replace the portfolio content without opening a nested Scaffold.
 class LandlordPropertyDetailPage extends StatefulWidget {
@@ -149,6 +150,24 @@ class _LandlordPropertyDetailPageState
                                 ],
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      LandlordGlassCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Vị trí và liên hệ',
+                              style: TextStyle(
+                                color: palette.ink,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            PropertyContactActions(property: property),
                           ],
                         ),
                       ),

@@ -8,9 +8,9 @@ import '../landlord_ui.dart';
 import '../landlord_demo_store.dart';
 import 'components/landlord_property_editor.dart';
 import 'components/landlord_property_image.dart';
+import 'components/property_contact_actions.dart';
 import 'models/landlord_property.dart';
 import 'property_portfolio_page.dart';
-import '../../shared/widgets/google_maps_actions.dart';
 
 class LandlordPropertiesPage extends StatelessWidget {
   const LandlordPropertiesPage({super.key, this.store, this.profileName});
@@ -87,13 +87,6 @@ class LandlordPropertiesPage extends StatelessWidget {
                     label: 'Vị trí',
                     value: property.address,
                   ),
-                  GoogleMapsActions(
-                    address: [
-                      property.address,
-                      property.ward,
-                      property.city,
-                    ].where((part) => part.trim().isNotEmpty).join(', '),
-                  ),
                   const SizedBox(height: 16),
                   _Detail(
                     icon: Icons.person_outline,
@@ -106,6 +99,8 @@ class LandlordPropertiesPage extends StatelessWidget {
                     label: 'Số điện thoại',
                     value: property.phone,
                   ),
+                  const SizedBox(height: 16),
+                  PropertyContactActions(property: property),
                   if (property.description.isNotEmpty) ...[
                     const Divider(height: 32),
                     const Text(
