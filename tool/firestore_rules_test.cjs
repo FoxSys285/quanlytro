@@ -13,6 +13,7 @@ const { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, write
       for (const [uid, role, tenantId] of [['owner-a','landlord',null], ['owner-b','landlord',null], ['tenant-a','tenant','tenant-a'], ['tenant-b','tenant','tenant-b'], ['admin-a','admin',null], ['disabled-a','tenant','tenant-a']]) {
         await setDoc(doc(db, 'users', uid), {role, tenantId, disabled: uid === 'disabled-a'});
       }
+      await setDoc(doc(db, 'tenant_codes/MEMBER01'), {createdAt: new Date()});
       await setDoc(doc(db, 'rental_properties/may'), {ownerUid: 'owner-a', data: {property: {name:'May'}}});
       await setDoc(doc(db, 'rental_records/may:leases:HD-1'), row('leases', {id:'HD-1', tenantId:'tenant-a', status:'active'}));
       await setDoc(doc(db, 'rental_records/may:invoices:INV-1'), row('invoices', {id:'INV-1', leaseId:'HD-1', paidAmount:0, cancelled:false}));
@@ -52,8 +53,8 @@ const { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, write
     await assertFails(setDoc(doc(tenant, 'rental_records/payment-c'), {...payment, data:{...payment.data,status:'approved',approvedAmount:100000}}));
     await assertFails(updateDoc(doc(tenant, 'rental_records/payment-a'), {'data.status':'approved'}));
     await assertSucceeds(updateDoc(doc(owner, 'rental_records/payment-a'), {'data.status':'approved','data.approvedAmount':100000}));
-    await assertSucceeds(setDoc(doc(tenant, 'rental_records/member-a'), row('members', {leaseId:'HD-1',requestedBy:'tenant-a',status:'pending',isRepresentative:false})));
-    await assertFails(setDoc(doc(tenant, 'rental_records/member-b'), row('members', {leaseId:'NOT-MINE',requestedBy:'tenant-a',status:'pending',isRepresentative:false})));
+    await assertSucceeds(setDoc(doc(tenant, 'rental_records/member-a'), row('members', {leaseId:'HD-1',tenantId:'MEMBER01',requestedBy:'tenant-a',status:'pending',isRepresentative:false})));
+    await assertFails(setDoc(doc(tenant, 'rental_records/member-b'), row('members', {leaseId:'NOT-MINE',tenantId:'MEMBER01',requestedBy:'tenant-a',status:'pending',isRepresentative:false})));
     await assertSucceeds(setDoc(doc(tenant, 'rental_records/message-a'), row('messages', {conversationKey:'chat-a', conversationId:'chat-a', index:0,text:'Hello',time:'09:00',fromLandlord:false})));
     await assertFails(setDoc(doc(tenant, 'rental_records/message-forged'), row('messages', {conversationKey:'chat-a',index:1,text:'Fake owner',fromLandlord:true})));
     await assertFails(setDoc(doc(tenant, 'rental_records/message-cross-chat'), row('messages', {conversationKey:'chat-a',conversationId:'victim-chat',index:1,text:'Wrong recipient',fromLandlord:false})));
@@ -69,9 +70,20 @@ const { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, write
     await assertFails(updateDoc(doc(owner, 'rental_properties/may'), {published:true}));
     await assertFails(setDoc(doc(owner, 'public_rooms/hidden-new-room'), {ownerUid:'owner-a',propertyId:'may',published:true}));
     await assertSucceeds(setDoc(doc(owner, 'public_rooms/hidden-unpublished-room'), {ownerUid:'owner-a',propertyId:'may',published:false}));
+    const newId = 'property-owner-a-1';
+    const newData = {
+      ownerUid: 'owner-a', published: true, verified: false, verificationProof: '',
+      data: {schemaVersion: 2, property: {id: newId, name: 'New house'}, rooms: [], roomTypes: [], services: []},
+    };
+    await assertFails(setDoc(doc(owner, 'rental_properties/forged-owner'), {...newData, ownerUid: 'owner-b'}));
+    await assertFails(setDoc(doc(owner, 'rental_properties/forged-id'), {...newData, data: {...newData.data, property: {id: 'different'}}}));
+    await assertFails(setDoc(doc(owner, 'rental_properties/forged-verified'), {...newData, verified: true}));
+    await assertFails(setDoc(doc(foreignOwner, 'rental_properties/foreign-create'), newData));
     const newProperty = writeBatch(owner);
-    newProperty.set(doc(owner, 'rental_properties/new-house'), {ownerUid:'owner-a',published:true});
-    newProperty.set(doc(owner, 'public_rooms/new-house-room'), {ownerUid:'owner-a',propertyId:'new-house',published:true});
+    newProperty.set(doc(owner, `rental_properties/${newId}`), newData);
+    for (let i = 1; i <= 18; i++) {
+      newProperty.set(doc(owner, `public_rooms/new-house-room-${i}`), {ownerUid:'owner-a',propertyId:newId,published:true});
+    }
     await assertSucceeds(newProperty.commit());
     await assertSucceeds(updateDoc(doc(tenant, 'rental_records/notices-a'), {'data.readByTenant':{'tenant-a':['notice-1']}}));
     await assertFails(updateDoc(doc(tenant, 'rental_records/notices-a'), {'data.readByTenant':{'tenant-b':['notice-1']}}));
@@ -84,7 +96,7 @@ const { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, write
     await assertSucceeds(updateDoc(doc(owner, 'rental_records/may:invoices:INV-1'), {'data.cancelled':true}));
     await assertFails(setDoc(doc(tenant, 'rental_records/payment-cancelled-invoice'), payment));
     await assertSucceeds(updateDoc(doc(owner, 'rental_records/may:leases:HD-1'), {'data.status':'terminated'}));
-    await assertFails(setDoc(doc(tenant, 'rental_records/member-ended-lease'), row('members', {leaseId:'HD-1',requestedBy:'tenant-a',status:'pending',isRepresentative:false})));
+    await assertFails(setDoc(doc(tenant, 'rental_records/member-ended-lease'), row('members', {leaseId:'HD-1',tenantId:'MEMBER01',requestedBy:'tenant-a',status:'pending',isRepresentative:false})));
     await assertSucceeds(getDoc(doc(admin, 'rental_records/may:leases:HD-1')));
     assert.equal((await getDoc(doc(owner, 'rental_records/payment-a'))).data().data.status, 'approved');
     console.log('RULES_CHECKS_PASSED: public catalog, scoped queries, role escalation, cross-user isolation, payment approval and immutable messages');

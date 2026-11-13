@@ -69,7 +69,7 @@ class LandlordDemoStore extends ChangeNotifier {
     address: '25 Nguyễn Gia Trí, Bình Thạnh, TP. Hồ Chí Minh',
     ownerName: 'Nguyễn Văn An',
     phone: '0900000000',
-    description:
+    description:  
         'Nhà trọ có không gian thoáng, giờ giấc tự do và chỗ để xe. '
         'Liên hệ chủ trọ để biết thêm thông tin phòng và nội quy.',
   );

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:quanlytro/data/app_persistence.dart';
 import 'package:quanlytro/data/local_database.dart';
 import 'package:quanlytro/data/rental_cloud_codec.dart';
@@ -15,6 +16,9 @@ class _UnavailableRepository extends Fake implements RentalRepository {
   @override
   Future<Map<String, Map<String, dynamic>>> readAll() async =>
       throw StateError('Firebase unavailable');
+
+  @override
+  Future<void> close() async {}
 }
 
 class _ControlledRepository extends Fake implements RentalRepository {
@@ -34,6 +38,69 @@ class _ControlledRepository extends Fake implements RentalRepository {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('A denied write keeps the session, a revoked read closes it', () {
+    final denied = FirebaseException(
+      plugin: 'cloud_firestore',
+      code: 'permission-denied',
+    );
+    final expired = FirebaseException(
+      plugin: 'cloud_firestore',
+      code: 'unauthenticated',
+    );
+    expect(
+      AppPersistence.shouldSignOutForFailure(denied, fromWrite: true),
+      isFalse,
+    );
+    expect(AppPersistence.shouldSignOutForFailure(denied), isTrue);
+    expect(
+      AppPersistence.shouldSignOutForFailure(expired, fromWrite: true),
+      isTrue,
+    );
+  });
+
+  test('Firebase save errors identify connection and permissions separately', () {
+    final offline = FirebaseException(
+      plugin: 'cloud_firestore',
+      code: 'unavailable',
+    );
+    final denied = FirebaseException(
+      plugin: 'cloud_firestore',
+      code: 'permission-denied',
+    );
+    expect(AppPersistence.saveFailureMessage(offline), contains('kết nối'));
+    expect(AppPersistence.saveFailureMessage(denied), contains('quyền Firestore'));
+  });
+
+  test('A second property produces a Firestore document owned by the landlord', () {
+    final portfolio = RentalPortfolio([LandlordDemoStore.demo()]);
+    addTearDown(portfolio.dispose);
+    const property = LandlordProperty(
+      id: 'property-1234567890123456',
+      name: 'Nhà trọ mới',
+      address: 'Địa chỉ mới',
+      ownerName: 'Chủ trọ',
+      phone: '0900000000',
+      description: '',
+    );
+    portfolio.add(property, floors: 3, roomsPerFloor: 6);
+    final documents = encodeCloudDocuments(
+      {'portfolio': portfolio.toMap()},
+      owners: {'may': 'owner-a', property.id: 'owner-a'},
+    );
+    final created = documents['rental_properties/${property.id}']!;
+    expect(created['ownerUid'], 'owner-a');
+    expect(created['verified'], isFalse);
+    expect(created['verificationProof'], '');
+    expect((created['data'] as Map)['property']['id'], property.id);
+    expect(
+      documents.values.where(
+        (document) => document['propertyId'] == property.id &&
+            document.containsKey('available'),
+      ),
+      hasLength(18),
+    );
+  });
 
   if (const bool.fromEnvironment('PROPERTY_CRUD_EXPORT')) {
     test(
@@ -115,8 +182,15 @@ void main() {
         _UnavailableRepository(),
         cloudMode: true,
       );
-      await expectLater(persistence.initializeAsync(), throwsStateError);
-      expect(RentalPortfolio.instance, same(original));
+      addTearDown(() async {
+        await persistence.dispose();
+        RentalPortfolio.instance = original;
+      });
+      await persistence.initializeAsync();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(persistence.initialSyncFailed, isTrue);
+      expect(persistence.error.value, contains('Không tải được dữ liệu'));
+      expect(RentalPortfolio.instance.stores, isEmpty);
     },
   );
 

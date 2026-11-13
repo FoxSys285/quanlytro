@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../data/app_persistence.dart';
+import '../../../../data/local_auth.dart';
 import '../../landlord_theme.dart';
 import '../../landlord_demo_store.dart';
 import '../models/landlord_room.dart';
@@ -25,6 +27,8 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
   late String? _type =
       widget.room?.roomTypeId ?? widget.store.roomTypes.firstOrNull?.id;
   String? _error;
+  bool _saving = false;
+  bool _applied = false;
 
   @override
   void dispose() {
@@ -35,23 +39,45 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
     super.dispose();
   }
 
-  void _save() {
-    if (!_form.currentState!.validate()) return;
+  Future<void> _save() async {
+    if (_saving || (!_applied && !_form.currentState!.validate())) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
-      widget.store.saveRoom(
-        LandlordRoom(
-          code: _code.text.trim().toUpperCase(),
-          floor: int.parse(_floor.text),
-          area: int.parse(_area.text),
-          capacity: int.parse(_capacity.text),
-          roomTypeId: _type!,
-          leaseRoomCode: widget.room?.leaseRoomCode,
-        ),
-        existingCode: widget.room?.code,
-      );
-      Navigator.pop(context);
-    } on ArgumentError catch (e) {
-      setState(() => _error = e.message.toString());
+      if (!_applied) {
+        widget.store.saveRoom(
+          LandlordRoom(
+            code: _code.text.trim().toUpperCase(),
+            floor: int.parse(_floor.text),
+            area: int.parse(_area.text),
+            capacity: int.parse(_capacity.text),
+            roomTypeId: _type!,
+            leaseRoomCode: widget.room?.leaseRoomCode,
+          ),
+          existingCode: widget.room?.code,
+        );
+        _applied = true;
+      }
+      final persistence = AppPersistence.current;
+      if (persistence == null && LocalAuth.instance.isCloudMode) {
+        throw StateError('Chưa kết nối được phiên lưu Firebase.');
+      }
+      await persistence?.saveChanges();
+      if (mounted) Navigator.pop(context);
+    } catch (failure) {
+      if (mounted) {
+        setState(
+          () => _error = switch (failure) {
+            ArgumentError() => failure.message.toString(),
+            StateError() => failure.message.toString(),
+            _ => 'Không lưu được phòng. Vui lòng thử lại.',
+          },
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -109,99 +135,108 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
       content: SizedBox(
         width: 440,
         child: SingleChildScrollView(
-          child: Form(
-            key: _form,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.store.property.name,
-                  style: TextStyle(
-                    color: palette.muted,
-                    fontWeight: FontWeight.w600,
+          child: AbsorbPointer(
+            absorbing: _applied,
+            child: Form(
+              key: _form,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.store.property.name,
+                    style: TextStyle(
+                      color: palette.muted,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _code,
-                  maxLength: 20,
-                  decoration: const InputDecoration(
-                    labelText: 'Tên / mã phòng',
-                    prefixIcon: Icon(Icons.tag_outlined),
-                    helperText: 'Tên hiển thị duy nhất, ví dụ: 101 hoặc A.101',
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _code,
+                    maxLength: 20,
+                    decoration: const InputDecoration(
+                      labelText: 'Tên / mã phòng',
+                      prefixIcon: Icon(Icons.tag_outlined),
+                      helperText:
+                          'Tên hiển thị duy nhất, ví dụ: 101 hoặc A.101',
+                    ),
+                    validator: (v) =>
+                        (v ?? '').trim().isEmpty ? 'Nhập mã phòng.' : null,
                   ),
-                  validator: (v) =>
-                      (v ?? '').trim().isEmpty ? 'Nhập mã phòng.' : null,
-                ),
-                const SizedBox(height: 16),
-                _number(_floor, 'Tầng', 1, 30),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: widget.store.roomTypes.any((t) => t.id == _type)
-                      ? _type
-                      : null,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Loại phòng'),
-                  items: [
-                    for (final t in widget.store.roomTypes)
-                      DropdownMenuItem(
-                        value: t.id,
-                        child: Text(t.name, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 16),
+                  _number(_floor, 'Tầng', 1, 30),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue:
+                        widget.store.roomTypes.any((t) => t.id == _type)
+                        ? _type
+                        : null,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Loại phòng'),
+                    items: [
+                      for (final t in widget.store.roomTypes)
+                        DropdownMenuItem(
+                          value: t.id,
+                          child: Text(t.name, overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _type = v),
+                    validator: (v) => v == null ? 'Chọn loại phòng.' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _number(_area, 'Diện tích (m²)', 6, 500),
+                  const SizedBox(height: 16),
+                  _number(_capacity, 'Số người tối đa', 1, 20),
+                  const SizedBox(height: 16),
+                  if (widget.store.roomTypes.any(
+                    (type) => type.id == _type,
+                  )) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: RoomPhotoGallery(
+                        photos: widget.store.roomTypes
+                            .firstWhere((type) => type.id == _type)
+                            .photos,
+                        label: 'Ảnh của loại phòng đã chọn',
+                        height: 130,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Ảnh phòng lấy từ album của loại phòng đã chọn.',
+                      style: TextStyle(fontSize: 12, color: Colors.blueGrey),
+                    ),
+                    const SizedBox(height: 12),
                   ],
-                  onChanged: (v) => setState(() => _type = v),
-                  validator: (v) => v == null ? 'Chọn loại phòng.' : null,
-                ),
-                const SizedBox(height: 16),
-                _number(_area, 'Diện tích (m²)', 6, 500),
-                const SizedBox(height: 16),
-                _number(_capacity, 'Số người tối đa', 1, 20),
-                const SizedBox(height: 16),
-                if (widget.store.roomTypes.any((type) => type.id == _type)) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: RoomPhotoGallery(
-                      photos: widget.store.roomTypes
-                          .firstWhere((type) => type.id == _type)
-                          .photos,
-                      label: 'Ảnh của loại phòng đã chọn',
-                      height: 130,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   const Text(
-                    'Ảnh phòng lấy từ album của loại phòng đã chọn.',
-                    style: TextStyle(fontSize: 12, color: Colors.blueGrey),
+                    'Giá niêm yết lấy từ loại phòng. Phòng đã có hợp đồng giữ giá đã thỏa thuận.',
+                    style: TextStyle(fontSize: 12, height: 1.45),
                   ),
-                  const SizedBox(height: 12),
-                ],
-                const Text(
-                  'Giá niêm yết lấy từ loại phòng. Phòng đã có hợp đồng giữ giá đã thỏa thuận.',
-                  style: TextStyle(fontSize: 12, height: 1.45),
-                ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.red),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        _applied
+                            ? '$_error\nThay đổi đang chờ lưu lên Firebase. Nhấn Lưu phòng để thử lại.'
+                            : _error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: Text(_applied ? 'Đóng' : 'Hủy'),
         ),
         FilledButton.icon(
-          onPressed: _save,
+          onPressed: _saving ? null : _save,
           icon: const Icon(Icons.check_rounded, size: 17),
-          label: const Text('Lưu phòng'),
+          label: Text(_saving ? 'Đang lưu...' : 'Lưu phòng'),
         ),
       ],
     );

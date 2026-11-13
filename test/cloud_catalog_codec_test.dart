@@ -14,6 +14,10 @@ void main() {
         snapshot,
         owners: {for (final s in portfolio.stores) s.property.id: 'owner-a'},
       );
+      expect(
+        (docs['rental_properties/may']!['data'] as Map)['schemaVersion'],
+        2,
+      );
       final public = docs.entries.where(
         (e) => e.key.startsWith('public_rooms/'),
       );

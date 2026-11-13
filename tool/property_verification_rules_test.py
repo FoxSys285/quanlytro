@@ -41,11 +41,11 @@ for uid, role in [('owner-a', 'landlord'), ('admin-a', 'admin')]:
 owner, admin = token('owner-a'), token('admin-a')
 path = 'rental_properties/owner-a'
 write(path, {'ownerUid': 'owner-a', 'published': True, 'verified': True, 'verificationProof': 'forged'}, owner, 403)
-write(path, {'ownerUid': 'owner-a', 'published': True, 'verified': False, 'verificationProof': '', 'data': {'property': {'name': 'Test'}}}, owner, 200)
+write(path, {'ownerUid': 'owner-a', 'published': True, 'verified': False, 'verificationProof': '', 'data': {'property': {'id': 'owner-a', 'name': 'Test'}}}, owner, 200)
 write(path, {'verified': True}, owner, 403, update=True)
 write(path, {'verified': True, 'verificationProof': 'approved-proof'}, admin, 200, update=True)
 write(path, {'verificationProof': 'forged'}, owner, 403, update=True)
-write(path, {'data': {'property': {'name': 'Edited property'}}}, owner, 200, update=True)
+write(path, {'data': {'property': {'id': 'owner-a', 'name': 'Edited property'}}}, owner, 200, update=True)
 response = requests.get(BASE + path, timeout=15)
 assert response.status_code == 200
 assert response.json()['fields']['verified']['booleanValue'] is True

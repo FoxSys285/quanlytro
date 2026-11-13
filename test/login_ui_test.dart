@@ -132,7 +132,13 @@ void main() {
       expect(find.byType(LandlordLayout), findsOneWidget);
       expect(find.byType(LoginPage), findsNothing);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byTooltip('Tài khoản'));
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.label == 'Mở danh mục chức năng',
+        ).first,
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Đăng xuất').last);
       await tester.pumpAndSettle();

@@ -14,7 +14,6 @@ import 'local_database.dart';
 import 'local_auth.dart';
 import 'admin_store.dart';
 import 'firestore_repository.dart';
-import 'scoped_firestore_repository.dart';
 import 'rental_cloud_codec.dart';
 import '../layouts/role_layout.dart';
 
@@ -44,6 +43,7 @@ class AppPersistence {
   bool get isDisposed => _disposed;
   bool get initialSyncCompleted => _initialSyncCompleted;
   bool get initialSyncFailed => _initialSyncFailed;
+  bool get hasPendingChanges => _dirty || _scheduled;
 
   /// Khởi tạo nhanh (bất đồng bộ) cho phiên đăng nhập Cloud để vào giao diện ngay lập tức,
   /// sau đó tải và đồng bộ dữ liệu từ Firestore trong nền mà không làm treo hoặc văng ứng dụng.
@@ -171,20 +171,13 @@ class AppPersistence {
           },
         );
       }
-      final scopedRepository = repository;
-      if (!_disposed &&
-          scopedRepository is ScopedFirestoreRentalRepository &&
-          scopedRepository.needsSchemaMigration &&
-          LocalAuth.instance.role == AppRole.landlord) {
-        save();
-      }
     } catch (failure, stackTrace) {
       debugPrint('Background cloud sync warning: $failure\n$stackTrace');
       if (!_disposed) {
         _closeRevokedSession(failure);
         _initialSyncCompleted = false;
         _initialSyncFailed = true;
-        error.value = null;
+        error.value = 'Không tải được dữ liệu Firebase. Kiểm tra kết nối hoặc quyền tài khoản rồi thử lại.';
         saveStatus.value = 'Chưa tải được dữ liệu Firebase · Thử kết nối lại';
       }
     } finally {
@@ -197,9 +190,25 @@ class AppPersistence {
   Future<void> retryInitialSync() async {
     if (_disposed || _initialSyncCompleted) return;
     _initialSyncFailed = false;
+    error.value = null;
     refreshing.value = true;
     saveStatus.value = 'Đang thử đồng bộ lại dữ liệu Firebase…';
     await _syncFromCloudInBackground();
+  }
+
+  /// Retry the operation that is still needed. A failed read must not be
+  /// treated as a successful write when there are no local edits to save.
+  Future<void> retrySync() async {
+    if (_disposed) return;
+    if (_initialSyncFailed) {
+      await retryInitialSync();
+    } else if (hasPendingChanges) {
+      save();
+      if (_scheduled) await Future<void>.delayed(Duration.zero);
+      await _pending;
+    } else {
+      await refresh();
+    }
   }
 
   Future<void> initialize() async {
@@ -292,15 +301,6 @@ class AppPersistence {
         },
       );
     }
-    final scopedRepository = repository;
-    if (scopedRepository is ScopedFirestoreRentalRepository &&
-        scopedRepository.needsSchemaMigration &&
-        LocalAuth.instance.role == AppRole.landlord) {
-      // Save the normalized model through the signed-in owner's normal
-      // Firestore permissions; unrelated users and Firebase collections are
-      // left untouched.
-      save();
-    }
   }
 
   void _listen(Listenable source) {
@@ -362,8 +362,9 @@ class AppPersistence {
           if (_remoteChanged) _scheduleRefresh();
         } catch (failure) {
           if (_disposed) return;
-          _closeRevokedSession(failure);
-          error.value = 'Chưa hoàn tất lưu dữ liệu. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+          debugPrint('Could not save rental data: $failure');
+          _closeRevokedSession(failure, fromWrite: true);
+          error.value = saveFailureMessage(failure);
           saveStatus.value = error.value!;
         }
       });
@@ -385,6 +386,23 @@ class AppPersistence {
     if (error.value != null) throw StateError(error.value!);
     if (_dirty || _scheduled) {
       throw StateError('Dữ liệu chưa được lưu. Vui lòng thử lại.');
+    }
+  }
+
+  /// Lifecycle notifications cannot report a save failure to the caller.
+  /// Keep the error in [error] for the visible retry action instead.
+  Future<void> flushInBackground() async {
+    if (_disposed ||
+        error.value != null ||
+        (cloudMode && !_initialSyncCompleted)) {
+      return;
+    }
+    try {
+      if (_dirty && !_scheduled) save();
+      if (_scheduled) await Future<void>.delayed(Duration.zero);
+      await _pending;
+    } catch (failure) {
+      debugPrint('Background save warning: $failure');
     }
   }
 
@@ -411,7 +429,11 @@ class AppPersistence {
         final data = await repository.readAll();
         if (_disposed) return;
         final fingerprint = cloudFingerprint(data);
-        if (fingerprint == _remoteFingerprint) return;
+        if (fingerprint == _remoteFingerprint) {
+          error.value = null;
+          saveStatus.value = 'Đã kết nối lại Firebase';
+          return;
+        }
         _restoring = true;
         try {
           RentalPortfolio.instance.restore(data['portfolio']!);
@@ -459,12 +481,37 @@ class AppPersistence {
     await _pending;
   }
 
-  void _closeRevokedSession(Object failure) {
+  @visibleForTesting
+  static bool shouldSignOutForFailure(
+    Object failure, {
+    bool fromWrite = false,
+  }) =>
+      failure is FirebaseException &&
+      (failure.code == 'unauthenticated' ||
+          (!fromWrite && failure.code == 'permission-denied'));
+
+  @visibleForTesting
+  static String saveFailureMessage(Object failure) {
+    if (failure is FirebaseException) {
+      switch (failure.code) {
+        case 'unavailable':
+        case 'deadline-exceeded':
+          return 'Không kết nối được Firebase (${failure.code}). Dữ liệu chưa lưu; kiểm tra mạng rồi thử lại.';
+        case 'permission-denied':
+          return 'Firebase từ chối lưu (permission-denied). Cần kiểm tra quyền Firestore; dữ liệu chưa lưu.';
+        case 'unauthenticated':
+          return 'Phiên Firebase đã hết hạn. Hãy đăng nhập lại để lưu dữ liệu.';
+      }
+    }
+    return 'Chưa hoàn tất lưu dữ liệu. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+  }
+
+  void _closeRevokedSession(Object failure, {bool fromWrite = false}) {
     if (cloudMode &&
         LocalAuth.instance.isCloudMode &&
-        failure is FirebaseException &&
-        ['unauthenticated', 'permission-denied'].contains(failure.code)) {
-      // A revoked or denied profile must not keep showing private cached data.
+        shouldSignOutForFailure(failure, fromWrite: fromWrite)) {
+      // A denied read may mean the profile was revoked. A denied write alone
+      // can also mean a field or document violated Rules, so keep the session.
       scheduleMicrotask(() => unawaited(LocalAuth.instance.signOut()));
     }
   }
@@ -508,7 +555,7 @@ class AppPersistence {
     try {
       await _remoteSubscription?.cancel();
       _remoteSubscription = null;
-      if (canFlush) await flush();
+      if (canFlush) await flushInBackground();
     } finally {
       _disposed = true;
       await _remoteSubscription?.cancel();

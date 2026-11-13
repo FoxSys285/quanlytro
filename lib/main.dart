@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -221,8 +223,14 @@ class MyApp extends StatelessWidget {
                           children: [
                             Expanded(child: Text(error)),
                             TextButton(
-                              onPressed: activePersistence.save,
-                              child: const Text('Thử lưu lại'),
+                              onPressed: activePersistence.retrySync,
+                              child: Text(
+                                activePersistence.initialSyncFailed
+                                    ? 'Thử tải lại'
+                                    : activePersistence.hasPendingChanges
+                                    ? 'Thử lưu lại'
+                                    : 'Thử kết nối lại',
+                              ),
                             ),
                             if (activePersistence.cloudMode)
                               TextButton(
@@ -327,8 +335,13 @@ class _AuthenticatedAppState extends State<_AuthenticatedApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     LocalAuth.instance.setForeground(state == AppLifecycleState.resumed);
-    if (state != AppLifecycleState.resumed) AppPersistence.current?.flush();
-    if (state == AppLifecycleState.resumed) AppPersistence.current?.refresh();
+    final persistence = AppPersistence.current;
+    if (persistence == null) return;
+    if (state != AppLifecycleState.resumed) {
+      unawaited(persistence.flushInBackground());
+    } else {
+      unawaited(persistence.refresh());
+    }
   }
 
   void _syncSessionPermissions() {
@@ -351,11 +364,13 @@ class _AuthenticatedAppState extends State<_AuthenticatedApp>
         await Future<void>.delayed(const Duration(seconds: 2));
         if (!mounted || LocalAuth.instance.session?.uid != session.uid) return;
         final enabled = AccountStore.instance.notificationsEnabled(role);
-        final notificationsGranted = await AppNotificationService.instance
-            .requestAndRegister(session, enabled: enabled);
-        if (enabled && !notificationsGranted) {
-          AccountStore.instance.setNotificationsEnabled(role, false);
-        }
+        // An OS permission denial is not a change to the user's saved
+        // preference. Persisting it here caused an unrelated Firestore write
+        // at every sign-in, which could block later room edits on a conflict.
+        await AppNotificationService.instance.requestAndRegister(
+          session,
+          enabled: enabled,
+        );
         _permissionSessionUid = session.uid;
       } catch (error) {
         debugPrint('Could not initialize session permissions: $error');

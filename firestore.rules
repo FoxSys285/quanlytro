@@ -152,13 +152,22 @@ service cloud.firestore {
     }
     match /rental_properties/{id} {
       allow read: if true;
-      // Landlord property document IDs are their Firebase UIDs, so a landlord
-      // can create only the one property document assigned to their account.
+      // A landlord can add properties under their own UID. Keep the document
+      // ID aligned with the property ID and leave verification to admin.
       allow create: if admin() ||
-        (request.auth != null && id == request.auth.uid &&
-          owner(request.resource.data) &&
-          request.resource.data.get('verified', false) == false &&
-          request.resource.data.get('verificationProof', '') == '');
+        (owner(request.resource.data) &&
+          request.resource.data.keys().hasOnly([
+            'ownerUid', 'published', 'verified', 'verificationProof', 'data'
+          ]) &&
+          request.resource.data.keys().hasAll([
+            'ownerUid', 'published', 'verified', 'verificationProof', 'data'
+          ]) &&
+          request.resource.data.published is bool &&
+          request.resource.data.verified == false &&
+          request.resource.data.verificationProof == '' &&
+          request.resource.data.data is map &&
+          request.resource.data.data.property is map &&
+          request.resource.data.data.property.id == id);
       allow update: if admin() || (owner(resource.data) && request.resource.data.ownerUid == resource.data.ownerUid &&
         request.resource.data.get('verified', false) == resource.data.get('verified', false) &&
         request.resource.data.get('verificationProof', '') == resource.data.get('verificationProof', '') &&

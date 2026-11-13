@@ -98,6 +98,8 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
       'verified': verified,
       'verificationProof': verified ? proof : '',
       'data': {
+        if (store['schemaVersion'] != null)
+          'schemaVersion': store['schemaVersion'],
         'property': publicProperty,
         'rooms': store['rooms'],
         'roomTypes': store['roomTypes'],
