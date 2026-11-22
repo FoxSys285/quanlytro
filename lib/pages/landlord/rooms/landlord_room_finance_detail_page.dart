@@ -1,6 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
+import '../../../data/app_persistence.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../layouts/landlord_navigation.dart';
@@ -12,6 +15,7 @@ import '../landlord_glass.dart';
 import '../landlord_theme.dart';
 import '../landlord_ui.dart';
 import '../meter_readings/landlord_chisodiennuoc_page.dart';
+import '../../shared/media/private_storage_image.dart';
 
 class LandlordRoomFinanceDetailPage extends StatelessWidget {
   const LandlordRoomFinanceDetailPage({
@@ -298,9 +302,15 @@ class LandlordRoomFinanceDetailPage extends StatelessWidget {
             ? invoice.remaining
             : payment.reportedAmount,
       );
+      await AppPersistence.current?.flush();
+      if (!context.mounted) return;
       showLandlordMessage(context, 'Đã duyệt phiếu thu ${payment.id}.');
-    } on ArgumentError catch (error) {
-      showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      if (!context.mounted) return;
+      final message = failure is ArgumentError
+          ? failure.message.toString()
+          : AppPersistence.saveFailureMessage(failure);
+      showLandlordMessage(context, message);
     }
   }
 
@@ -349,9 +359,15 @@ class LandlordRoomFinanceDetailPage extends StatelessWidget {
     if (reason == null || !context.mounted) return;
     try {
       store.rejectPayment(payment, reason);
+      await AppPersistence.current?.flush();
+      if (!context.mounted) return;
       showLandlordMessage(context, 'Đã gửi lý do không duyệt cho người thuê.');
-    } on ArgumentError catch (error) {
-      showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      if (!context.mounted) return;
+      final message = failure is ArgumentError
+          ? failure.message.toString()
+          : AppPersistence.saveFailureMessage(failure);
+      showLandlordMessage(context, message);
     }
   }
 
@@ -457,12 +473,11 @@ class _PaymentSubmissionCard extends StatelessWidget {
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
-              child: Image.network(
-                payment.proofUrl!,
+              child: PrivateStorageImage(
+                reference: payment.proofUrl!,
                 height: 220,
                 width: double.infinity,
                 fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => _proofPlaceholder(context),
               ),
             ),
           ] else if (payment.reference.isNotEmpty) ...[

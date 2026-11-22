@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../landlord/incidents/models/landlord_suco.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
@@ -23,8 +24,21 @@ class TenantBaoSuCoPage extends StatefulWidget {
 class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
   LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
 
-  void _updateStatus(LandlordIncident incident, IncidentStatus status) {
+  Future<void> _updateStatus(
+    LandlordIncident incident,
+    IncidentStatus status,
+  ) async {
     _store.updateIncident(incident, status, tenantId: widget.tenantId);
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+      return;
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text('Đã cập nhật: ${status.label}')));
   }
@@ -40,6 +54,16 @@ class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
       ),
     );
     if (sent == true && mounted) {
+      try {
+        await AppPersistence.current?.flush();
+      } catch (failure) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+        );
+        return;
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đã gửi yêu cầu cho chủ trọ.')),
       );

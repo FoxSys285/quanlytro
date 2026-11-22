@@ -9,20 +9,25 @@ import '../../tenant_ui.dart';
 
 class TenantLeaseNavigationBar extends StatelessWidget
     implements PreferredSizeWidget {
-  const TenantLeaseNavigationBar({super.key, required this.onBack});
+  const TenantLeaseNavigationBar({
+    super.key,
+    required this.onBack,
+    this.trailingAction,
+  });
   final VoidCallback onBack;
+  final Widget? trailingAction;
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
   @override
   Widget build(BuildContext context) => AppBar(
-    backgroundColor: const Color(0xFFF0FAF3),
+    backgroundColor: TenantUiPalette.of(context).header,
     surfaceTintColor: Colors.transparent,
     elevation: 0,
     centerTitle: true,
-    title: const Text(
+    title: Text(
       'Hợp đồng thuê',
       style: TextStyle(
-        color: tenantInk,
+        color: TenantUiPalette.of(context).ink,
         fontSize: 18,
         fontWeight: FontWeight.w800,
       ),
@@ -33,12 +38,13 @@ class TenantLeaseNavigationBar extends StatelessWidget
         onPressed: onBack,
         tooltip: 'Quay lại',
         style: IconButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: tenantInk,
+          backgroundColor: TenantUiPalette.of(context).surface,
+          foregroundColor: TenantUiPalette.of(context).ink,
         ),
         icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
       ),
     ),
+    actions: [?trailingAction],
   );
 }
 

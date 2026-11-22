@@ -14,6 +14,18 @@ void main() {
     area: 20,
     capacity: 2,
   );
+  LandlordLease activeLease() => LandlordLease(
+    id: 'lease',
+    room: 'A.101',
+    tenantName: 'Người thuê',
+    phone: '0901234567',
+    startDate: DateTime(2026, 1),
+    endDate: DateTime(2027, 1),
+    monthlyRent: 3000000,
+    deposit: 3000000,
+    termMonths: 12,
+    dueDay: 10,
+  );
   LandlordInvoice bill({
     int paid = 0,
     bool cancelled = false,
@@ -33,7 +45,7 @@ void main() {
   test('Partial payments remain unpaid; full payment is green', () {
     final invoice = bill(paid: 1000000);
     final balance = LandlordRoomBalance(
-      details: const LandlordRoomDetails(room: room),
+      details: LandlordRoomDetails(room: room, lease: activeLease()),
       invoices: [invoice],
       period: month,
     );
@@ -45,7 +57,7 @@ void main() {
   });
   test('Paid current month retains unpaid debt from earlier months', () {
     final balance = LandlordRoomBalance(
-      details: const LandlordRoomDetails(room: room),
+      details: LandlordRoomDetails(room: room, lease: activeLease()),
       invoices: [
         bill(paid: 3000000),
         bill(period: DateTime(2026, 10)),

@@ -10,6 +10,15 @@
   "storage": {
     "rules": "storage.rules"
   },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "TroPremium",
+        "supportEmail": "ntn200006@gmail.com"
+      }
+    }
+  },
   "emulators": {
     "firestore": {
       "port": 8080

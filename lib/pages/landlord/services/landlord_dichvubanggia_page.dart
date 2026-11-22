@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../landlord_theme.dart';
 
 import '../landlord_glass.dart';
@@ -265,6 +266,14 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
       basis: cachTinh,
       price: donGia,
     );
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      showLandlordMessage(context, AppPersistence.saveFailureMessage(failure));
+      return;
+    }
+    if (!mounted) return;
     showLandlordMessage(context, 'Đã lưu dịch vụ $tenDichVu.');
   }
 

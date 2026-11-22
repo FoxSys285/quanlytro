@@ -1,7 +1,10 @@
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+
+import '../../../../data/app_persistence.dart';
+
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../data/firebase_media_store.dart';
 import '../../../landlord/landlord_demo_store.dart';
 import '../../../landlord/finance/landlord_finance_models.dart';
 import '../../../shared/media/media_permission_service.dart';
@@ -54,17 +57,26 @@ class _TenantMemberAccountActionsState
       final path =
           'lease-member-identity/${Uri.encodeComponent(widget.store.property.id)}/${Uri.encodeComponent(widget.member.tenantId)}/${Uri.encodeComponent(widget.member.id)}/$slot.jpg';
       final bytes = await image.readAsBytes();
-      await FirebaseStorage.instance
-          .ref(path)
-          .putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      final uploadedPath = await FirebaseMediaStore().uploadPrivateImage(
+        bytes,
+        storagePath: path,
+        fileName: '$slot.jpg',
+        overwrite: true,
+      );
       widget.store.updateMemberIdentityDocuments(
         widget.member.tenantId,
-        identityFrontPath: slot == 'identity-front' ? path : null,
-        identityBackPath: slot == 'identity-back' ? path : null,
-        portraitPath: slot == 'portrait' ? path : null,
+        identityFrontPath: slot == 'identity-front' ? uploadedPath : null,
+        identityBackPath: slot == 'identity-back' ? uploadedPath : null,
+        portraitPath: slot == 'portrait' ? uploadedPath : null,
       );
+      await AppPersistence.current?.flush();
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) {
+        final message = error is FormatException
+            ? error.message
+            : AppPersistence.saveFailureMessage(error);
+        setState(() => _error = message);
+      }
     } finally {
       if (mounted) setState(() => _busySlot = null);
     }
@@ -116,8 +128,13 @@ class _TenantMemberAccountActionsState
         tenantId: widget.member.tenantId,
         reason: reason,
       );
-    } on ArgumentError catch (error) {
-      setState(() => _error = error.message.toString());
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      final message = failure is ArgumentError
+          ? failure.message.toString()
+          : AppPersistence.saveFailureMessage(failure);
+      setState(() => _error = message);
     }
   }
 

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../landlord_theme.dart';
-
+import '../../../data/app_persistence.dart';
+import '../../shared/payments/vietqr_service.dart';
 import '../finance/landlord_finance_models.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_glass.dart';
+import '../landlord_theme.dart';
 import '../landlord_ui.dart';
 
 class LandlordPaymentAccountsPage extends StatelessWidget {
@@ -265,14 +267,20 @@ class LandlordPaymentAccountsPage extends StatelessWidget {
         branch: result.branch,
         makeDefault: result.makeDefault,
       );
+      await AppPersistence.current?.flush();
+      if (!context.mounted) return;
       showLandlordMessage(
         context,
         account == null
             ? 'Đã thêm tài khoản nhận tiền.'
             : 'Đã cập nhật thông tin tài khoản.',
       );
-    } on ArgumentError catch (error) {
-      showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      if (!context.mounted) return;
+      final message = failure is ArgumentError
+          ? failure.message.toString()
+          : AppPersistence.saveFailureMessage(failure);
+      showLandlordMessage(context, message);
     }
   }
 }
@@ -301,6 +309,7 @@ class _PaymentAccountEditor extends StatefulWidget {
 }
 
 class _PaymentAccountEditorState extends State<_PaymentAccountEditor> {
+  final _form = GlobalKey<FormState>();
   late final _bank = TextEditingController(
     text: widget.account?.bankName ?? '',
   );
@@ -313,6 +322,8 @@ class _PaymentAccountEditorState extends State<_PaymentAccountEditor> {
   late final _branch = TextEditingController(
     text: widget.account?.branch ?? '',
   );
+  late final Future<List<Map<String, dynamic>>> _banks = VietQrService.instance
+      .loadBanks();
   late bool _makeDefault =
       widget.account?.isDefault ??
       (LandlordDemoStore.activeInstance.defaultPaymentAccount == null);
@@ -334,102 +345,293 @@ class _PaymentAccountEditorState extends State<_PaymentAccountEditor> {
     subtitle: 'Nhập thông tin để người thuê chuyển khoản chính xác.',
     icon: Icons.account_balance_outlined,
     footer: Row(
-      mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          onPressed: _save,
-          style: FilledButton.styleFrom(
-            backgroundColor: landlordBlue,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
+        Expanded(
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 50),
+              foregroundColor: const Color(0xFF526991),
+              side: const BorderSide(color: Color(0xFFC9D8EB)),
+              backgroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
           ),
-          icon: const Icon(Icons.save_outlined, size: 17),
-          label: const Text('Lưu tài khoản'),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: _save,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 50),
+              backgroundColor: landlordBlue,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.save_outlined, size: 18),
+            label: const Text('Lưu tài khoản'),
+          ),
         ),
       ],
     ),
-    child: Column(
-      children: [
-        TextField(
-          controller: _bank,
-          decoration: landlordModernInputDecoration(
-            'Ngân hàng',
-            hintText: 'Ví dụ: Vietcombank',
-            prefixIcon: const Icon(Icons.account_balance_outlined),
+    child: Form(
+      key: _form,
+      child: Column(
+        children: [
+          _bankField(),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _owner,
+            maxLength: 100,
+            textCapitalization: TextCapitalization.characters,
+            textInputAction: TextInputAction.next,
+            decoration: landlordModernInputDecoration(
+              'Tên chủ tài khoản',
+              hintText: 'Ví dụ: NGUYEN VAN A',
+              prefixIcon: const Icon(Icons.person_outline_rounded),
+            ),
+            validator: (value) {
+              final name = (value ?? '').trim();
+              if (name.isEmpty) return 'Nhập tên chủ tài khoản.';
+              if (name.length > 100) return 'Tên tối đa 100 ký tự.';
+              return null;
+            },
           ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _owner,
-          textCapitalization: TextCapitalization.characters,
-          decoration: landlordModernInputDecoration('Tên chủ tài khoản'),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _number,
-          keyboardType: TextInputType.number,
-          decoration: landlordModernInputDecoration(
-            'Số tài khoản',
-            helperText: 'Từ 6 đến 20 chữ số',
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _number,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: landlordModernInputDecoration(
+              'Số tài khoản',
+              hintText: 'Nhập số tài khoản ngân hàng',
+              helperText: 'Từ 6 đến 20 chữ số',
+              prefixIcon: const Icon(Icons.credit_card_rounded),
+            ),
+            validator: (value) => RegExp(r'^\d{6,20}$').hasMatch(
+              (value ?? '').replaceAll(RegExp(r'\s+'), ''),
+            )
+                ? null
+                : 'Số tài khoản cần có từ 6 đến 20 chữ số.',
           ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _branch,
-          decoration: landlordModernInputDecoration(
-            'Chi nhánh hoặc ghi chú',
-            hintText: 'Không bắt buộc',
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _branch,
+            maxLength: 100,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: landlordModernInputDecoration(
+              'Chi nhánh hoặc ghi chú',
+              hintText: 'Không bắt buộc',
+              prefixIcon: const Icon(Icons.notes_rounded),
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
-        CheckboxListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-          value: _makeDefault,
-          activeColor: landlordBlue,
-          tileColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(17),
-            side: const BorderSide(color: Color(0xFFD4E3FF)),
+          const SizedBox(height: 10),
+          CheckboxListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            value: _makeDefault,
+            activeColor: landlordBlue,
+            tileColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(17),
+              side: const BorderSide(color: Color(0xFFD4E3FF)),
+            ),
+            onChanged: (value) =>
+                setState(() => _makeDefault = value ?? false),
+            secondary: const Icon(Icons.star_outline_rounded),
+            title: const Text(
+              'Dùng làm tài khoản mặc định',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+            subtitle: const Text(
+              'Hiển thị trong hướng dẫn chuyển khoản mới.',
+              style: TextStyle(fontSize: 10),
+            ),
+            controlAffinity: ListTileControlAffinity.leading,
           ),
-          onChanged: (value) => setState(() => _makeDefault = value ?? false),
-          title: const Text(
-            'Dùng làm tài khoản mặc định',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          const SizedBox(height: 9),
+          Text(
+            'Thông tin tài khoản sẽ được che bớt trong danh sách.',
+            style: TextStyle(
+              color: LandlordPalette.of(context).muted,
+              fontSize: 10,
+            ),
           ),
-          subtitle: const Text(
-            'Hiển thị trong hướng dẫn chuyển khoản mới.',
-            style: TextStyle(fontSize: 10),
-          ),
-          controlAffinity: ListTileControlAffinity.leading,
-        ),
-        const SizedBox(height: 9),
-        Text(
-          'Thông tin tài khoản sẽ được che bớt trong danh sách.',
-          style: TextStyle(
-            color: LandlordPalette.of(context).muted,
-            fontSize: 10,
-          ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 
-  void _save() {
-    final number = _number.text.replaceAll(RegExp(r'\s+'), '');
-    if (_bank.text.trim().isEmpty ||
-        _owner.text.trim().isEmpty ||
-        !RegExp(r'^\d{6,20}$').hasMatch(number)) {
-      showLandlordMessage(
-        context,
-        'Kiểm tra tên ngân hàng, chủ tài khoản và số tài khoản.',
+  Widget _bankField() => FutureBuilder<List<Map<String, dynamic>>>(
+    future: _banks,
+    builder: (context, snapshot) {
+      final banks = snapshot.data ?? const <Map<String, dynamic>>[];
+      if (banks.isNotEmpty) return _bankPicker(banks);
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return InputDecorator(
+          decoration: landlordModernInputDecoration(
+            'Ngân hàng thụ hưởng',
+            prefixIcon: const Icon(Icons.account_balance_rounded),
+          ),
+          child: const Row(
+            children: [
+              SizedBox(
+                width: 17,
+                height: 17,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Text('Đang tải danh sách ngân hàng...'),
+            ],
+          ),
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF5DD),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE8C46C)),
+            ),
+            child: const Text(
+              'Chưa tải được danh sách ngân hàng. Nhập tên ngân hàng thủ công.',
+              style: TextStyle(color: Color(0xFF775512), fontSize: 12),
+            ),
+          ),
+          TextFormField(
+            controller: _bank,
+            textInputAction: TextInputAction.next,
+            decoration: landlordModernInputDecoration(
+              'Ngân hàng',
+              hintText: 'Ví dụ: Vietcombank',
+              prefixIcon: const Icon(Icons.account_balance_rounded),
+            ),
+            validator: (value) => (value ?? '').trim().isEmpty
+                ? 'Nhập tên ngân hàng.'
+                : null,
+          ),
+        ],
       );
+    },
+  );
+
+  Widget _bankPicker(List<Map<String, dynamic>> banks) {
+    final selectedBank = _matchingBank(banks, _bank.text);
+    return DropdownButtonFormField<String>(
+      initialValue: selectedBank == null ? null : '${selectedBank['bin']}',
+      isExpanded: true,
+      menuMaxHeight: 420,
+      decoration: landlordModernInputDecoration(
+        'Ngân hàng thụ hưởng',
+        prefixIcon: const Icon(Icons.account_balance_rounded),
+      ),
+      items: [
+        for (final bank in banks)
+          DropdownMenuItem(
+            value: '${bank['bin']}',
+            child: Row(
+              children: [
+                _bankLogo(bank),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '${_bankShortName(bank)} - ${bank['name'] ?? _bankShortName(bank)}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, height: 1.25),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+      validator: (value) => value == null ? 'Chọn ngân hàng thụ hưởng.' : null,
+      onChanged: (bin) {
+        if (bin == null) return;
+        final bank = banks.firstWhere((item) => '${item['bin']}' == bin);
+        setState(() => _bank.text = _bankShortName(bank));
+      },
+    );
+  }
+
+  Widget _bankLogo(Map<String, dynamic> bank) {
+    final logo = bank['logo'] as String?;
+    final shortName = _bankShortName(bank);
+    return Container(
+      width: 36,
+      height: 32,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F6FA),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFD4E3FF)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: logo != null && logo.startsWith('http')
+          ? Image.network(
+              logo,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => _bankInitial(shortName),
+            )
+          : _bankInitial(shortName),
+    );
+  }
+
+  Widget _bankInitial(String shortName) => Text(
+    shortName.length > 4 ? shortName.substring(0, 4) : shortName,
+    maxLines: 1,
+    overflow: TextOverflow.clip,
+    style: const TextStyle(
+      color: landlordBlue,
+      fontSize: 9,
+      fontWeight: FontWeight.w900,
+    ),
+  );
+
+  String _bankShortName(Map<String, dynamic> bank) =>
+      '${bank['shortName'] ?? bank['short_name'] ?? bank['code'] ?? bank['name'] ?? bank['bin']}';
+
+  Map<String, dynamic>? _matchingBank(
+    List<Map<String, dynamic>> banks,
+    String bankName,
+  ) {
+    final normalized = _normalizeBankName(bankName);
+    final exactName = bankName.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    for (final bank in banks) {
+      final names = [
+        bank['shortName'],
+        bank['short_name'],
+        bank['code'],
+        bank['name'],
+        bank['bin'],
+      ];
+      if (names.any(
+        (name) =>
+            name is String &&
+            (name.trim().toLowerCase() == exactName ||
+                _normalizeBankName(name) == normalized),
+      )) {
+        return bank;
+      }
+    }
+    return null;
+  }
+
+  String _normalizeBankName(String value) => value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  void _save() {
+    if (_form.currentState?.validate() != true) return;
+    if (_bank.text.trim().isEmpty) {
+      showLandlordMessage(context, 'Chọn ngân hàng thụ hưởng.');
       return;
     }
+    final number = _number.text.replaceAll(RegExp(r'\s+'), '');
     Navigator.pop(
       context,
       _PaymentAccountDraft(

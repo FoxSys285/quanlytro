@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../data/app_persistence.dart';
+import '../../../../data/landlord_subscription_service.dart';
 import '../../../../data/local_auth.dart';
 import '../../landlord_theme.dart';
 import '../../landlord_demo_store.dart';
@@ -47,6 +48,17 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
     });
     try {
       if (!_applied) {
+        final session = LocalAuth.instance.session;
+        if (widget.room == null && session != null) {
+          final plan = await LandlordSubscriptionService.instance.activePlanFor(
+            session.uid,
+          );
+          if (widget.store.catalog.length >= plan.maxRoomsPerProperty) {
+            throw ArgumentError(
+              'Gói ${plan.name} cho phép tối đa ${plan.maxRoomsPerProperty} phòng mỗi nhà trọ.',
+            );
+          }
+        }
         widget.store.saveRoom(
           LandlordRoom(
             code: _code.text.trim().toUpperCase(),

@@ -1,0 +1,62 @@
+{
+  "batch": "operating-20261122-v1",
+  "provinces": 34,
+  "properties": 680,
+  "accounts": 1497,
+  "roles": {
+    "admin": 1,
+    "landlord": 238,
+    "tenant": 1258
+  },
+  "plans": {
+    "free": 34,
+    "go": 68,
+    "plus": 102,
+    "ultra": 34
+  },
+  "propertiesPerOwner": {
+    "1": 68,
+    "2": 34,
+    "3": 34,
+    "4": 68,
+    "5": 34
+  },
+  "tenantScenarios": {
+    "Đang thuê phòng": 1088,
+    "Đang ở ghép": 34,
+    "Đã trả phòng · tìm chỗ ở mới": 34,
+    "Chưa thuê · đang tìm phòng": 102
+  },
+  "rooms": 3264,
+  "verified": 544,
+  "leases": 1122,
+  "invoices": 1632,
+  "payments": 1360,
+  "members": 102,
+  "incidents": 272,
+  "readings": 1088,
+  "conversations": 374,
+  "viewings": 170,
+  "firestoreWritesConfirmed": 18670,
+  "authAccountsVerified": 1497,
+  "subscriptionOrdersVerified": 340,
+  "subscriptionStatuses": {
+    "approved": 204,
+    "submitted": 34,
+    "awaiting_payment": 34,
+    "rejected": 34,
+    "cancelled": 34
+  },
+  "workingPhotoUrls": 559,
+  "localTestsPassed": 16,
+  "passwordSignInVerified": [
+    "admin",
+    "landlord",
+    "tenant"
+  ],
+  "firestoreReadBack": "blocked by daily free read quota (HTTP 429 RESOURCE_EXHAUSTED)",
+  "profileClientWriteVerification": "pending until read quota resets",
+  "approximateQuotaResetLocal": "2026-11-22 15:00 Asia/Bangkok",
+  "androidCacheReset": "not completed: connected device was disconnected",
+  "status": "published; Firestore read-back pending quota reset"
+}

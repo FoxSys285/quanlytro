@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../data/admin_store.dart';
+import '../../data/firebase_media_store.dart';
 import '../../data/local_auth.dart';
 import '../../layouts/role_layout.dart';
 import '../landlord/landlord_demo_store.dart';
@@ -418,40 +418,9 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
     BuildContext context,
     PropertyVerificationFile file,
   ) async {
-    Uint8List? bytes = file.bytes;
-    if (bytes == null && (file.storagePath ?? '').isNotEmpty) {
-      try {
-        bytes = await FirebaseStorage.instance
-            .ref(file.storagePath!)
-            .getData(10 * 1024 * 1024);
-      } catch (_) {
-        if (context.mounted) {
-          adminMessage(
-            context,
-            'Không tải được ảnh minh chứng. Kiểm tra quyền Storage.',
-          );
-        }
-        return;
-      }
-    }
-    if (!context.mounted || bytes == null) return;
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620, maxHeight: 620),
-          child: InteractiveViewer(
-            child: Image.memory(bytes!, fit: BoxFit.contain),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
-          ),
-        ],
-      ),
+      builder: (_) => _VerificationPreviewDialog(file: file),
     );
   }
 
@@ -462,4 +431,78 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
     'authorization' => 'Giấy ủy quyền cho thuê nhà',
     _ => 'Giấy tờ xác minh',
   };
+}
+
+class _VerificationPreviewDialog extends StatefulWidget {
+  const _VerificationPreviewDialog({required this.file});
+
+  final PropertyVerificationFile file;
+
+  @override
+  State<_VerificationPreviewDialog> createState() =>
+      _VerificationPreviewDialogState();
+}
+
+class _VerificationPreviewDialogState
+    extends State<_VerificationPreviewDialog> {
+  late Future<Uint8List?> _image = _loadImage();
+
+  Future<Uint8List?> _loadImage() async {
+    final bytes = widget.file.bytes;
+    if (bytes != null) return bytes;
+    final path = widget.file.storagePath;
+    if (path == null || path.isEmpty) return null;
+    return FirebaseMediaStore().downloadPrivateAsset(
+      path,
+      maxBytes: 10 * 1024 * 1024,
+    );
+  }
+
+  void _retry() => setState(() => _image = _loadImage());
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+    content: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 620, maxHeight: 620),
+      child: FutureBuilder<Uint8List?>(
+        future: _image,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final bytes = snapshot.data;
+          if (snapshot.hasError || bytes == null) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.broken_image_outlined, size: 36),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c \u1ea3nh minh ch\u1ee9ng.',
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _retry,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Th\u1eed l\u1ea1i'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return InteractiveViewer(
+            child: Image.memory(bytes, fit: BoxFit.contain, cacheWidth: 1200),
+          );
+        },
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('\u0110\u00f3ng'),
+      ),
+    ],
+  );
 }

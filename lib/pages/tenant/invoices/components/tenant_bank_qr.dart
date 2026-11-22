@@ -12,6 +12,7 @@ class TenantBankQr extends StatefulWidget {
     required this.bankName,
     required this.accountNumber,
     this.accountName = '',
+    this.bankBin,
     this.reference = '',
     this.amount,
     this.service,
@@ -19,6 +20,7 @@ class TenantBankQr extends StatefulWidget {
   final String bankName;
   final String accountNumber;
   final String accountName;
+  final String? bankBin;
   final String reference;
   final int? amount;
   final VietQrService? service;
@@ -41,6 +43,8 @@ class _TenantBankQrState extends State<TenantBankQr> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.bankName != widget.bankName ||
         oldWidget.accountNumber != widget.accountNumber ||
+        oldWidget.accountName != widget.accountName ||
+        oldWidget.bankBin != widget.bankBin ||
         oldWidget.reference != widget.reference ||
         oldWidget.amount != widget.amount ||
         oldWidget.service != widget.service) {
@@ -52,6 +56,8 @@ class _TenantBankQrState extends State<TenantBankQr> {
     _image = (widget.service ?? VietQrService.instance).load(
       bankName: widget.bankName,
       accountNumber: widget.accountNumber,
+      bankBin: widget.bankBin,
+      accountName: widget.accountName,
       reference: widget.reference,
       amount: widget.amount,
     );

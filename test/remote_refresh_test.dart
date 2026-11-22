@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:quanlytro/data/app_persistence.dart';
 import 'package:quanlytro/data/firestore_repository.dart';
 import 'package:quanlytro/data/local_auth.dart';
@@ -20,14 +21,21 @@ class MemoryRemote implements RentalRepository, RentalChangeSource {
   MemoryRemote(this.data);
   Map<String, Map<String, dynamic>> data;
   bool failWrites = false;
+  Object? writeFailure;
+  Object? readFailure;
   int writes = 0;
   final events = StreamController<void>.broadcast();
   @override
   Stream<void> get changes => events.stream;
   @override
-  Future<Map<String, Map<String, dynamic>>> readAll() async => copy(data);
+  Future<Map<String, Map<String, dynamic>>> readAll() async {
+    if (readFailure != null) throw readFailure!;
+    return copy(data);
+  }
+
   @override
   Future<void> saveAll(Map<String, Map<String, dynamic>> documents) async {
+    if (writeFailure != null) throw writeFailure!;
     if (failWrites) throw StateError('Offline');
     writes++;
     data = copy(documents);
@@ -152,6 +160,63 @@ void main() {
     final properties = repository.data['portfolio']!['properties'] as List;
     expect((properties.first['property'] as Map)['name'], 'Đã sửa');
   });
+
+  test(
+    'Quota failure explains the cause and preserves edits for retry',
+    () async {
+      final repository = await remote();
+      final persistence = AppPersistence(repository, cloudMode: true);
+      await persistence.initialize();
+      addTearDown(persistence.dispose);
+      repository.writeFailure = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'resource-exhausted',
+      );
+      final store = RentalPortfolio.instance.active;
+      store.updateProperty(
+        LandlordProperty.fromMap({
+          ...store.property.toMap(),
+          'name': 'Giữ bản sửa',
+        }),
+      );
+      await expectLater(persistence.flush(), throwsStateError);
+      expect(persistence.error.value, contains('hạn mức'));
+      expect(persistence.error.value, contains('resource-exhausted'));
+      expect(persistence.saveStatus.value, contains('resource-exhausted'));
+      expect(persistence.cloudConfirmed, isFalse);
+      expect(persistence.hasPendingChanges, isTrue);
+      await persistence.refresh();
+      expect(store.property.name, 'Giữ bản sửa');
+      repository.writeFailure = null;
+      await persistence.retrySync();
+      expect(persistence.error.value, isNull);
+      expect(persistence.hasPendingChanges, isFalse);
+      expect(repository.writes, 1);
+    },
+  );
+
+  test(
+    'Read quota failure stays explicit and clears after reconnecting',
+    () async {
+      final repository = await remote();
+      final persistence = AppPersistence(repository, cloudMode: true);
+      await persistence.initialize();
+      addTearDown(persistence.dispose);
+      repository.readFailure = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'resource-exhausted',
+      );
+      await persistence.refresh();
+      expect(persistence.error.value, contains('hạn mức'));
+      expect(persistence.error.value, contains('resource-exhausted'));
+      expect(persistence.saveStatus.value, contains('resource-exhausted'));
+      expect(persistence.hasPendingChanges, isFalse);
+      repository.readFailure = null;
+      await persistence.retrySync();
+      expect(persistence.error.value, isNull);
+      expect(repository.writes, 0);
+    },
+  );
 
   test(
     'Strict Firebase session never reports an offline save as confirmed',

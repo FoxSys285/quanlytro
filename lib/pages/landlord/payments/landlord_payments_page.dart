@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../landlord_theme.dart';
 
 import '../finance/landlord_finance_models.dart';
@@ -9,6 +10,7 @@ import '../landlord_demo_store.dart';
 import '../landlord_glass.dart';
 import '../landlord_ui.dart';
 import '../../../layouts/role_layout.dart';
+import '../../shared/media/private_storage_image.dart';
 
 class LandlordPaymentsPage extends StatefulWidget {
   const LandlordPaymentsPage({super.key, this.focusPaymentId});
@@ -461,19 +463,27 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
     try {
       if (result.action == _PaymentReviewAction.approve) {
         _store.approvePayment(payment, result.amount!);
+        await AppPersistence.current?.flush();
+        if (!mounted) return;
         showLandlordMessage(
           context,
           'Đã xác nhận ${formatLandlordMoney(result.amount!)} cho hóa đơn ${invoice.id}.',
         );
       } else {
         _store.rejectPayment(payment, result.reason ?? '');
+        await AppPersistence.current?.flush();
+        if (!mounted) return;
         showLandlordMessage(
           context,
           'Đã từ chối khoản thanh toán và lưu lý do.',
         );
       }
-    } on ArgumentError catch (error) {
-      showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      if (!mounted) return;
+      final message = failure is ArgumentError
+          ? failure.message.toString()
+          : AppPersistence.saveFailureMessage(failure);
+      showLandlordMessage(context, message);
     }
   }
 
@@ -530,9 +540,15 @@ class _LandlordPaymentsPageState extends State<LandlordPaymentsPage> {
     if (reason == null || !mounted) return;
     try {
       _store.rejectPayment(payment, reason);
+      await AppPersistence.current?.flush();
+      if (!mounted) return;
       showLandlordMessage(context, 'Đã gửi lý do không duyệt cho người thuê.');
-    } on ArgumentError catch (error) {
-      showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      if (!mounted) return;
+      final message = failure is ArgumentError
+          ? failure.message.toString()
+          : AppPersistence.saveFailureMessage(failure);
+      showLandlordMessage(context, message);
     }
   }
 }
@@ -669,13 +685,11 @@ class _PaymentReviewDialogState extends State<_PaymentReviewDialog> {
                     errorBuilder: (_, _, _) =>
                         const Text('Không đọc được ảnh minh chứng.'),
                   )
-                : Image.network(
-                    widget.payment.proofUrl!,
+                : PrivateStorageImage(
+                    reference: widget.payment.proofUrl!,
                     height: 180,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        const Text('Không tải được ảnh minh chứng.'),
                   ),
           ),
         ],

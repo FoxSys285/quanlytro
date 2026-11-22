@@ -49,35 +49,49 @@ class _AdminLandlordsPageState extends State<AdminLandlordsPage> {
             'Xem quy mô phòng, trạng thái xác minh và hồ sơ từng nhà trọ.',
         children: [
           const AdminSyncBar(),
-          Row(
-            children: [
-              Expanded(
-                child: _summary(
-                  '${stores.length}',
-                  'Chủ trọ',
-                  Icons.people_alt_rounded,
-                  adminBlue,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _summary(
-                  '$roomCount',
-                  'Phòng trong kết quả',
-                  Icons.door_front_door_rounded,
-                  adminPurple,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _summary(
-                  '${stores.where((s) => admin.isVerified(s.property.id)).length}',
-                  'Đã xác minh',
-                  Icons.verified_rounded,
-                  adminGreen,
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 900
+                  ? 3
+                  : constraints.maxWidth >= 540
+                  ? 2
+                  : 1;
+              final cardWidth =
+                  (constraints.maxWidth - (columns - 1) * 12) / columns;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  SizedBox(
+                    width: cardWidth,
+                    child: _summary(
+                      '${stores.length}',
+                      'Chủ trọ',
+                      Icons.people_alt_rounded,
+                      adminBlue,
+                    ),
+                  ),
+                  SizedBox(
+                    width: cardWidth,
+                    child: _summary(
+                      '$roomCount',
+                      'Phòng trong kết quả',
+                      Icons.door_front_door_rounded,
+                      adminPurple,
+                    ),
+                  ),
+                  SizedBox(
+                    width: cardWidth,
+                    child: _summary(
+                      '${stores.where((s) => admin.isVerified(s.property.id)).length}',
+                      'Đã xác minh',
+                      Icons.verified_rounded,
+                      adminGreen,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 18),
           AdminPanel(
@@ -134,7 +148,7 @@ class _AdminLandlordsPageState extends State<AdminLandlordsPage> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Các tài khoản hiện dùng Free mặc định. Hệ thống chưa lưu trạng thái đăng ký hoặc giao dịch nâng cấp gói trả phí.',
+            'Yêu cầu đăng ký, trạng thái thanh toán và thời hạn gói được quản lý tại mục Thống kê gói.',
             style: TextStyle(color: adminMuted, fontSize: 12, height: 1.45),
           ),
         ],
@@ -144,30 +158,57 @@ class _AdminLandlordsPageState extends State<AdminLandlordsPage> {
 
   Widget _summary(String value, String label, IconData icon, Color color) =>
       Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: adminLine),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: const TextStyle(
-                color: adminInk,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
+          color: Color.alphaBlend(color.withValues(alpha: .035), Colors.white),
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: color.withValues(alpha: .14)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0611233A),
+              blurRadius: 14,
+              offset: Offset(0, 4),
             ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: adminMuted, fontSize: 11),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color, size: 21),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: adminMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: adminInk,
+                      fontSize: 21,
+                      height: 1.1,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -225,32 +266,46 @@ class _AdminLandlordsPageState extends State<AdminLandlordsPage> {
               ],
             ),
             const Divider(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: _detail(
-                    'Nhà trọ',
-                    property.name,
-                    Icons.home_work_outlined,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _detail(
-                    'Số phòng',
-                    '${store.catalog.length} phòng',
-                    Icons.door_front_door_outlined,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _detail(
-                    'Gói hiện tại',
-                    'Free · mặc định',
-                    Icons.workspace_premium_outlined,
-                  ),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 760
+                    ? 3
+                    : constraints.maxWidth >= 480
+                    ? 2
+                    : 1;
+                final itemWidth =
+                    (constraints.maxWidth - (columns - 1) * 16) / columns;
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 14,
+                  children: [
+                    SizedBox(
+                      width: itemWidth,
+                      child: _detail(
+                        'Nhà trọ',
+                        property.name,
+                        Icons.home_work_outlined,
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _detail(
+                        'Số phòng',
+                        '${store.catalog.length} phòng',
+                        Icons.door_front_door_outlined,
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _detail(
+                        'Đăng ký gói',
+                        'Mục Thống kê gói',
+                        Icons.workspace_premium_outlined,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 12),
             Text(
@@ -312,48 +367,54 @@ class _AdminLandlordsPageState extends State<AdminLandlordsPage> {
     final property = store.property;
     showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(property.name),
-        content: SizedBox(
-          width: 520,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AdminStatus(
-                  verified ? 'Đã xác minh' : 'Chưa xác minh',
-                  color: verified ? adminGreen : adminGold,
-                ),
-                const SizedBox(height: 16),
-                _propertyLine('Chủ trọ', property.ownerName),
-                _propertyLine('Điện thoại', property.phone),
-                _propertyLine('Địa chỉ', property.address),
-                _propertyLine('Số phòng', '${store.catalog.length}'),
-                _propertyLine('Mã hồ sơ', property.id),
-                const SizedBox(height: 10),
-                Text(
-                  property.description,
-                  style: const TextStyle(color: adminMuted, height: 1.5),
-                ),
-              ],
+      builder: (context) {
+        final dialogWidth = (MediaQuery.sizeOf(context).width - 88)
+            .clamp(280.0, 520.0)
+            .toDouble();
+        return AlertDialog(
+          scrollable: true,
+          title: Text(property.name),
+          content: SizedBox(
+            width: dialogWidth,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AdminStatus(
+                    verified ? 'Đã xác minh' : 'Chưa xác minh',
+                    color: verified ? adminGreen : adminGold,
+                  ),
+                  const SizedBox(height: 16),
+                  _propertyLine('Chủ trọ', property.ownerName),
+                  _propertyLine('Điện thoại', property.phone),
+                  _propertyLine('Địa chỉ', property.address),
+                  _propertyLine('Số phòng', '${store.catalog.length}'),
+                  _propertyLine('Mã hồ sơ', property.id),
+                  const SizedBox(height: 10),
+                  Text(
+                    property.description,
+                    style: const TextStyle(color: adminMuted, height: 1.5),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
-          ),
-          FilledButton.tonalIcon(
-            onPressed: () {
-              Navigator.pop(context);
-              RoleLayoutShell.navigateTo(context, 'property_verification');
-            },
-            icon: const Icon(Icons.verified_user_outlined),
-            label: const Text('Tới trang xác minh'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đóng'),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: () {
+                Navigator.pop(context);
+                RoleLayoutShell.navigateTo(context, 'property_verification');
+              },
+              icon: const Icon(Icons.verified_user_outlined),
+              label: const Text('Tới trang xác minh'),
+            ),
+          ],
+        );
+      },
     );
   }
 

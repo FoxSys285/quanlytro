@@ -12,7 +12,11 @@ import 'rental_cloud_codec.dart';
 
 /// Chỉ tải nghiệp vụ của chủ trọ hoặc người thuê đã được Firebase cấp quyền.
 class ScopedFirestoreRentalRepository
-    implements RentalRepository, RentalChangeSource {
+    implements
+        RentalRepository,
+        RentalChangeSource,
+        RentalSnapshotBaseline,
+        RentalSnapshotCache {
   ScopedFirestoreRentalRepository({
     required this.session,
     FirebaseFirestore? firestore,
@@ -27,6 +31,73 @@ class ScopedFirestoreRentalRepository
   final _ticketAuthors = <String, String>{};
   final _localBaseline = <String, Map<String, dynamic>>{};
   Map<String, Map<String, dynamic>>? _lastReadSnapshot;
+  Map<String, Map<String, dynamic>>? _cachedSnapshot;
+  DateTime? _cachedSnapshotAt;
+  bool _cacheInvalidated = false;
+  int _externalChangeGeneration = 0;
+  String? _cachedSnapshotFingerprint;
+  final _pendingLocalWriteFingerprints = <String, Set<String>>{};
+
+  static const _snapshotCacheTtl = Duration(minutes: 2);
+
+  @override
+  String? get lastCloudSnapshotFingerprint => _cachedSnapshotFingerprint;
+
+  static Map<String, Map<String, dynamic>> _copySnapshot(
+    Map<String, Map<String, dynamic>> snapshot,
+  ) => {
+    for (final entry in snapshot.entries)
+      entry.key: Map<String, dynamic>.from(_copyValue(entry.value) as Map),
+  };
+
+  static Object? _copyValue(Object? value) {
+    if (value is Map) {
+      return {
+        for (final entry in value.entries) entry.key: _copyValue(entry.value),
+      };
+    }
+    if (value is List) return value.map(_copyValue).toList();
+    return value;
+  }
+
+  void _cacheSnapshot(Map<String, Map<String, dynamic>> snapshot) {
+    final remoteSnapshot = _copySnapshot(snapshot)..remove('auth');
+    _cachedSnapshot = remoteSnapshot;
+    _lastReadSnapshot = remoteSnapshot;
+    _cachedSnapshotAt = DateTime.now();
+    _cachedSnapshotFingerprint = cloudFingerprint(remoteSnapshot);
+    _cacheInvalidated = false;
+  }
+
+  bool _matchesKnownDocument(String path, Map<String, dynamic>? data) {
+    final fingerprint = data == null ? null : cloudFingerprint(data);
+    if (_pendingLocalWriteFingerprints[path]?.contains(fingerprint) == true) {
+      return true;
+    }
+    final baseline = _baseline[path];
+    return fingerprint == null
+        ? baseline == null
+        : baseline != null && cloudFingerprint(baseline) == fingerprint;
+  }
+
+  bool _isExternalSnapshot(Object? event) {
+    if (event is QuerySnapshot<Map<String, dynamic>>) {
+      for (final change in event.docChanges) {
+        if (change.type == DocumentChangeType.removed ||
+            !_matchesKnownDocument(
+              change.doc.reference.path,
+              change.doc.data(),
+            )) {
+          return true;
+        }
+      }
+      return false;
+    }
+    if (event is DocumentSnapshot<Map<String, dynamic>>) {
+      return !_matchesKnownDocument(event.reference.path, event.data());
+    }
+    return true;
+  }
 
   static List<List<String>> tenantPropertyGroups(
     Iterable<Map<String, dynamic>> records,
@@ -48,6 +119,7 @@ class ScopedFirestoreRentalRepository
 
   Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _tenantProperties(
     QuerySnapshot<Map<String, dynamic>> records,
+    GetOptions options,
   ) async {
     final groups = tenantPropertyGroups(records.docs.map((doc) => doc.data()));
     final snapshots = await Future.wait(
@@ -55,7 +127,7 @@ class ScopedFirestoreRentalRepository
         (ids) => _firestore
             .collection('rental_properties')
             .where(FieldPath.documentId, whereIn: ids)
-            .get(const GetOptions(source: Source.server)),
+            .get(options),
       ),
     );
     return [for (final snapshot in snapshots) ...snapshot.docs];
@@ -86,7 +158,10 @@ class ScopedFirestoreRentalRepository
       final subscription = stream
           .skip(1)
           .listen(
-            (_) {
+            (event) {
+              if (!_isExternalSnapshot(event)) return;
+              _cacheInvalidated = true;
+              _externalChangeGeneration++;
               if (!controller.isClosed) controller.add(null);
             },
             onError: (Object error) {
@@ -164,8 +239,48 @@ class ScopedFirestoreRentalRepository
   });
 
   @override
-  Future<Map<String, Map<String, dynamic>>> readAll() async {
-    const server = GetOptions(source: Source.server);
+  Future<Map<String, Map<String, dynamic>>> readAll() => _readSnapshot(
+    const GetOptions(source: Source.server),
+    useMemoryCache: true,
+    rememberSnapshot: true,
+  );
+
+  @override
+  Future<Map<String, Map<String, dynamic>>?> readCachedSnapshot() async {
+    if (session.role != AppRole.admin) return null;
+    try {
+      final snapshot = await _readSnapshot(
+        const GetOptions(source: Source.cache),
+        useMemoryCache: false,
+        rememberSnapshot: false,
+      );
+      final properties = snapshot['portfolio']?['properties'] as List?;
+      return properties == null || properties.isEmpty ? null : snapshot;
+    } on FirebaseException catch (failure) {
+      if (failure.code == 'unavailable' ||
+          failure.code == 'not-found' ||
+          failure.code == 'failed-precondition') {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _readSnapshot(
+    GetOptions options, {
+    required bool useMemoryCache,
+    required bool rememberSnapshot,
+  }) async {
+    final cached = _cachedSnapshot;
+    final cachedAt = _cachedSnapshotAt;
+    if (useMemoryCache &&
+        cached != null &&
+        !_cacheInvalidated &&
+        cachedAt != null &&
+        DateTime.now().difference(cachedAt) < _snapshotCacheTtl) {
+      return _copySnapshot(cached);
+    }
+
     Query<Map<String, dynamic>> properties = _firestore.collection(
       'rental_properties',
     );
@@ -188,20 +303,20 @@ class ScopedFirestoreRentalRepository
       tickets = tickets.where('accountUid', isEqualTo: session.uid);
     }
 
-    final recordRequest = records.get(server);
+    final recordRequest = records.get(options);
     final propertyRequest = session.role == AppRole.tenant
-        ? recordRequest.then(_tenantProperties)
-        : properties.get(server).then((snapshot) => snapshot.docs);
+        ? recordRequest.then((snapshot) => _tenantProperties(snapshot, options))
+        : properties.get(options).then((snapshot) => snapshot.docs);
     final futures = <Future<dynamic>>[
       propertyRequest,
       recordRequest,
-      _firestore.collection('user_state').doc(session.uid).get(server),
-      tickets.get(server),
-      _firestore.doc('public_settings/viewings').get(server),
+      _firestore.collection('user_state').doc(session.uid).get(options),
+      tickets.get(options),
+      _firestore.doc('public_settings/viewings').get(options),
       if (session.role == AppRole.admin)
-        _firestore.doc('management/system').get(server)
+        _firestore.doc('management/system').get(options)
       else if (session.role == AppRole.landlord)
-        _firestore.doc('management/${session.uid}').get(server),
+        _firestore.doc('management/${session.uid}').get(options),
     ];
     final results = await Future.wait(futures);
     final propertyDocs =
@@ -362,6 +477,10 @@ class ScopedFirestoreRentalRepository
       snapshot['admin']!,
       propertyDocs.map((document) => document.data()),
     );
+    restoreCloudPropertyReviews(
+      snapshot['admin']!,
+      recordSnap.docs.map((document) => document.data()),
+    );
     snapshot['admin']!['tickets'] = [
       for (final doc in savedTickets.docs)
         if (doc.data()['data'] != null) doc.data()['data'],
@@ -372,7 +491,7 @@ class ScopedFirestoreRentalRepository
       if (author != null) _ticketAuthors[doc.id] = author;
     }
     _localBaseline.clear();
-    _lastReadSnapshot = snapshot;
+    if (rememberSnapshot) _cacheSnapshot(snapshot);
     return snapshot;
   }
 
@@ -451,6 +570,10 @@ class ScopedFirestoreRentalRepository
       }
     }
     final ownPath = 'user_state/${session.uid}';
+    if (session.role != AppRole.admin) {
+      // Owners read admin feedback but never write or archive it.
+      encoded.removeWhere((path, row) => row['kind'] == 'verificationReview');
+    }
     encoded[ownPath] = {
       'accounts':
           documents['accounts'] ?? {'contacts': {}, 'notifications': {}},
@@ -477,13 +600,23 @@ class ScopedFirestoreRentalRepository
   }
 
   @override
+  void setLocalSnapshotBaseline(Map<String, Map<String, dynamic>> snapshot) {
+    _localBaseline
+      ..clear()
+      ..addAll(_encode(snapshot));
+    _cacheSnapshot(snapshot);
+  }
+
+  @override
   Future<void> saveAll(Map<String, Map<String, dynamic>> documents) async {
     if (_localBaseline.isEmpty && _lastReadSnapshot != null) {
       _localBaseline.addAll(_encode(_lastReadSnapshot!));
     }
     final prepared = await _mediaStore.prepareForCloud(
       documents,
-      uploadPropertyMedia: session.role != AppRole.tenant,
+      uploadPropertyMedia: session.role == AppRole.landlord,
+      uploadPaymentProofs: session.role == AppRole.tenant,
+      uploaderUid: session.uid,
     );
     if (session.role == AppRole.tenant) {
       await _prepareTenantRequestTargets(prepared);
@@ -503,39 +636,66 @@ class ScopedFirestoreRentalRepository
         'Thay đổi quá lớn. Chia nhỏ thao tác hoặc dùng công cụ nhập dữ liệu.',
       );
     }
-    final committed = await _firestore.runTransaction((transaction) async {
-      final live = await Future.wait(
-        changed.map((e) => transaction.get(_firestore.doc(e.key))),
+    final cacheWasFresh = !_cacheInvalidated;
+    final changeGeneration = _externalChangeGeneration;
+    for (final entry in changed) {
+      final expected = _pendingLocalWriteFingerprints.putIfAbsent(
+        entry.key,
+        () => <String>{},
       );
-      final merged = <String, Map<String, dynamic>>{};
-      for (var i = 0; i < changed.length; i++) {
-        final entry = changed[i];
-        final value = mergeCloudDocument(
-          _localBaseline[entry.key],
-          entry.value,
-          live[i].data(),
-          serverBefore: _baseline[entry.key],
-          atomic: [
-            'leases',
-            'invoices',
-            'payments',
-          ].contains(entry.value['kind']),
+      expected.add(cloudFingerprint(entry.value));
+      final oldValue = _baseline[entry.key];
+      if (oldValue != null) expected.add(cloudFingerprint(oldValue));
+    }
+    try {
+      final committed = await _firestore.runTransaction((transaction) async {
+        final live = await Future.wait(
+          changed.map((e) => transaction.get(_firestore.doc(e.key))),
         );
-        // Preserve moderation even when admin hides a room after our read.
-        if (session.role == AppRole.landlord &&
-            entry.key.startsWith('public_rooms/') &&
-            live[i].exists) {
-          value['published'] =
-              entry.value['published'] != false &&
-              live[i].data()!['published'] == true;
+        final merged = <String, Map<String, dynamic>>{};
+        for (var i = 0; i < changed.length; i++) {
+          final entry = changed[i];
+          final value = mergeCloudDocument(
+            // A normalized local default is not an existing server document.
+            // In particular, user_state may be absent until the first profile
+            // edit. Use a creation baseline so live == null is not a conflict.
+            _baseline.containsKey(entry.key) ? _localBaseline[entry.key] : null,
+            entry.value,
+            live[i].data(),
+            serverBefore: _baseline[entry.key],
+            atomic: [
+              'leases',
+              'invoices',
+              'payments',
+            ].contains(entry.value['kind']),
+          );
+          // Preserve moderation even when admin hides a room after our read.
+          if (session.role == AppRole.landlord &&
+              entry.key.startsWith('public_rooms/') &&
+              live[i].exists) {
+            value['published'] =
+                entry.value['published'] != false &&
+                live[i].data()!['published'] == true;
+          }
+          merged[entry.key] = value;
+          transaction.set(_firestore.doc(entry.key), value);
         }
-        merged[entry.key] = value;
-        transaction.set(_firestore.doc(entry.key), value);
+        return merged;
+      });
+      _baseline.addAll(committed);
+      _localBaseline.addAll(encoded);
+      for (final entry in committed.entries) {
+        _pendingLocalWriteFingerprints.remove(entry.key);
       }
-      return merged;
-    });
-    _baseline.addAll(committed);
-    _localBaseline.addAll(encoded);
+      if (cacheWasFresh && changeGeneration == _externalChangeGeneration) {
+        _cacheSnapshot(prepared);
+      }
+    } catch (_) {
+      for (final entry in changed) {
+        _pendingLocalWriteFingerprints.remove(entry.key);
+      }
+      rethrow;
+    }
   }
 
   /// A new chat/viewing can target a property not rented by this tenant. Load

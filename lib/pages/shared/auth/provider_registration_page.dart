@@ -4,6 +4,7 @@ import '../../../data/auth_validation.dart';
 import '../../../data/local_auth.dart';
 import '../../../layouts/role_layout.dart';
 import 'auth_flow_widgets.dart';
+import '../legal/legal_consent_checkbox.dart';
 
 class ProviderRegistrationPage extends StatefulWidget {
   const ProviderRegistrationPage({super.key, required this.auth});
@@ -79,6 +80,19 @@ class _ProviderRegistrationPageState extends State<ProviderRegistrationPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (widget.auth.pendingIdentity?.email.isNotEmpty ?? false) ...[
+              AuthNotice(
+                'Tài khoản này sẽ dùng Gmail ${widget.auth.pendingIdentity!.email}.',
+              ),
+              const SizedBox(height: 14),
+            ],
+            if (widget.auth.pendingIdentity?.phoneNumber.isNotEmpty ??
+                false) ...[
+              AuthNotice(
+                'Số điện thoại ${widget.auth.pendingIdentity!.phoneNumber} đã xác minh và được điền sẵn.',
+              ),
+              const SizedBox(height: 14),
+            ],
             AuthFlowField(
               controller: _name,
               label: 'Họ và tên',
@@ -109,7 +123,6 @@ class _ProviderRegistrationPageState extends State<ProviderRegistrationPage> {
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Đăng ký với tài khoản chủ trọ'),
-              subtitle: const Text('Bỏ chọn nếu bạn là người thuê trọ.'),
               value: _role == AppRole.landlord,
               onChanged: _busy
                   ? null
@@ -119,15 +132,10 @@ class _ProviderRegistrationPageState extends State<ProviderRegistrationPage> {
                           : AppRole.tenant,
                     ),
             ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'Tôi đồng ý với điều khoản sử dụng và chính sách bảo mật.',
-              ),
+            LegalConsentCheckbox(
               value: _accepted,
-              onChanged: _busy
-                  ? null
-                  : (value) => setState(() => _accepted = value ?? false),
+              enabled: !_busy,
+              onChanged: (value) => setState(() => _accepted = value ?? false),
             ),
             if (_error != null) AuthNotice(_error!, error: true),
             const SizedBox(height: 16),

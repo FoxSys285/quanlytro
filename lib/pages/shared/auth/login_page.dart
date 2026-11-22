@@ -10,6 +10,8 @@ import 'login_artwork.dart';
 import 'register_page.dart';
 import 'phone_login_page.dart';
 import 'provider_registration_page.dart';
+import '../legal/privacy_policy_page.dart';
+import '../legal/terms_of_service_page.dart';
 
 const _green = Color(0xFF009B65);
 const _ink = Color(0xFF25283F);
@@ -89,8 +91,39 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> _completeProviderProfile() async {
+  Future<void> _completeProviderProfile({required String provider}) async {
     if (!mounted) return;
+    final identity = _auth.pendingIdentity;
+    final identifier = provider == 'Google'
+        ? identity?.email
+        : identity?.phoneNumber;
+    final shouldCreate = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Chưa có hồ sơ TroPremium'),
+        content: Text(
+          identifier == null || identifier.isEmpty
+              ? 'Thông tin đăng nhập này chưa có hồ sơ. Bạn có muốn tạo tài khoản mới không?'
+              : '$provider $identifier chưa có hồ sơ TroPremium. Bạn có muốn tạo tài khoản mới không?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Để sau'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Tạo tài khoản'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (shouldCreate != true) {
+      await _auth.signOut();
+      return;
+    }
     final complete = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => ProviderRegistrationPage(auth: _auth)),
     );
@@ -105,9 +138,19 @@ class _LoginPageState extends State<LoginPage> {
     });
     try {
       final signedIn = await _auth.signInWithGoogle();
-      if (!signedIn && mounted) await _completeProviderProfile();
+      if (!signedIn && mounted) {
+        await _completeProviderProfile(provider: 'Google');
+      }
     } on AccountSignInCancelled {
-      // Closing the account chooser leaves the login page ready to retry.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Google chưa hoàn tất đăng nhập. Nếu bạn vừa chọn Gmail rồi quay lại, hãy cài bản app mới nhất.',
+            ),
+          ),
+        );
+      }
     } catch (error) {
       if (mounted) {
         setState(
@@ -135,7 +178,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
       if (result == PhoneLoginResult.needsProfile && mounted) {
-        await _completeProviderProfile();
+        await _completeProviderProfile(provider: 'Số điện thoại');
       }
     } catch (error) {
       if (mounted) {
@@ -148,22 +191,6 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  void _showInfo(String title, String content) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(content, style: const TextStyle(height: 1.5)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Đã hiểu'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _openAuthPage(Widget page) async {
@@ -295,13 +322,6 @@ class _LoginPageState extends State<LoginPage> {
             hint: 'Email hoặc số điện thoại',
             icon: Icons.mail_outline_rounded,
             controller: _email,
-          ),
-          const Padding(
-            padding: EdgeInsets.only(left: 4, top: 8),
-            child: Text(
-              'Email dùng mật khẩu. Số điện thoại dùng mã OTP qua SMS.',
-              style: TextStyle(color: _muted, fontSize: 11, height: 1.5),
-            ),
           ),
           const SizedBox(height: 18),
           _field(
@@ -491,10 +511,6 @@ class _LoginPageState extends State<LoginPage> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              Text(
-                _auth.isCloudMode ? 'Firebase Cloud' : 'Bản nội bộ',
-                style: const TextStyle(color: _muted, fontSize: 11),
-              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -505,17 +521,17 @@ class _LoginPageState extends State<LoginPage> {
                   ? [
                       (
                         role: AppRole.admin,
-                        email: 'admin@ex.com',
+                        email: 'demo-admin@example.com',
                         label: 'Quản trị viên',
                       ),
                       (
                         role: AppRole.landlord,
-                        email: 'landlord@ex.com',
+                        email: 'demo-owner-01-07@example.com',
                         label: 'Chủ trọ',
                       ),
                       (
                         role: AppRole.tenant,
-                        email: 'tentant@ex.com',
+                        email: 'demo-tenant-t0116001@example.com',
                         label: 'Người thuê',
                       ),
                     ]
@@ -555,7 +571,7 @@ class _LoginPageState extends State<LoginPage> {
                           : () => setState(() {
                               _email.text = acc.email;
                               _password.text = isCloud
-                                  ? 'Test123456'
+                                  ? 'TroDemo!o5rFqjmo6Va1NA'
                                   : 'Tro@2026';
                               _error = null;
                             }),
@@ -741,26 +757,18 @@ class _LoginPageState extends State<LoginPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Bằng việc đăng nhập, bạn đồng ý với',
-                style: TextStyle(color: _muted, fontSize: 10, height: 1.6),
+                'Tài liệu và chính sách của TroPremium:',
+                style: TextStyle(color: _muted, fontSize: 11, height: 1.6),
               ),
               Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  _legalLink(
-                    'Điều khoản sử dụng',
-                    'Bạn có trách nhiệm bảo mật thông tin đăng nhập và chỉ sử dụng dữ liệu đúng quyền tài khoản được cấp.',
-                  ),
+                  _legalLink('Điều khoản sử dụng', const TermsOfServicePage()),
                   const Text(
                     ' và ',
-                    style: TextStyle(color: _muted, fontSize: 10),
+                    style: TextStyle(color: _muted, fontSize: 11),
                   ),
-                  _legalLink(
-                    'Chính sách bảo mật',
-                    LocalAuth.instance.isCloudMode
-                        ? 'Dữ liệu và quyền truy cập được tải từ Firebase sau khi đăng nhập. Tài khoản chưa được admin cấp quyền sẽ không vào được dữ liệu nghiệp vụ.'
-                        : 'Bản dùng thử lưu dữ liệu trên thiết bị. Không dùng thông tin cá nhân thật khi trải nghiệm.',
-                  ),
+                  _legalLink('Chính sách bảo mật', const PrivacyPolicyPage()),
                 ],
               ),
             ],
@@ -770,8 +778,10 @@ class _LoginPageState extends State<LoginPage> {
     ),
   );
 
-  Widget _legalLink(String title, String content) => InkWell(
-    onTap: () => _showInfo(title, content),
+  Widget _legalLink(String title, Widget page) => InkWell(
+    onTap: () =>
+        Navigator.of(context)
+            .push<void>(MaterialPageRoute(builder: (_) => page)),
     borderRadius: BorderRadius.circular(4),
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -779,7 +789,7 @@ class _LoginPageState extends State<LoginPage> {
         title,
         style: const TextStyle(
           color: _green,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
           decoration: TextDecoration.underline,
           decorationColor: _green,

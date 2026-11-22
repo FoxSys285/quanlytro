@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../landlord_theme.dart';
 
 import '../../shared/profile/contact_details.dart';
@@ -25,6 +26,14 @@ class LandlordStaffPage extends StatelessWidget {
     );
     if (result == null || !context.mounted) return;
     _store.save(result, id: member?.id);
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!context.mounted) return;
+      showLandlordMessage(context, AppPersistence.saveFailureMessage(failure));
+      return;
+    }
+    if (!context.mounted) return;
     showLandlordMessage(
       context,
       member == null ? 'Đã thêm nhân viên.' : 'Đã cập nhật nhân viên.',

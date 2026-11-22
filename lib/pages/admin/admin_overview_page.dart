@@ -16,10 +16,31 @@ class AdminOverviewPage extends StatefulWidget {
 }
 
 class _AdminOverviewPageState extends State<AdminOverviewPage> {
+  static const _accountCountsCacheTtl = Duration(minutes: 5);
+  static final _accountCountsCache =
+      <String, ({int total, int active, DateTime savedAt})>{};
+
   int _ticketPage = 0;
   bool _grid = true;
   late final Future<({int total, int active})> _accountCounts =
-      _loadAccountCounts();
+      _loadAccountCountsWithCache();
+
+  Future<({int total, int active})> _loadAccountCountsWithCache() {
+    final key = LocalAuth.instance.session?.uid ?? 'local';
+    final cached = _accountCountsCache[key];
+    if (cached != null &&
+        DateTime.now().difference(cached.savedAt) < _accountCountsCacheTtl) {
+      return Future.value((total: cached.total, active: cached.active));
+    }
+    return _loadAccountCounts().then((counts) {
+      _accountCountsCache[key] = (
+        total: counts.total,
+        active: counts.active,
+        savedAt: DateTime.now(),
+      );
+      return counts;
+    });
+  }
 
   Future<({int total, int active})> _loadAccountCounts() async {
     final auth = LocalAuth.instance;

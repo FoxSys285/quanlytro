@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../landlord_theme.dart';
 
 import '../landlord_demo_store.dart';
@@ -184,8 +185,19 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
         color: selected ? Colors.white : LandlordPalette.of(context).ink,
         fontWeight: FontWeight.w700,
       ),
-      onSelected: (_) {
+      onSelected: (_) async {
         _store.updateIncident(suCo, trangThai);
+        try {
+          await AppPersistence.current?.flush();
+        } catch (failure) {
+          if (!mounted) return;
+          showLandlordMessage(
+            context,
+            AppPersistence.saveFailureMessage(failure),
+          );
+          return;
+        }
+        if (!mounted) return;
         close();
         showLandlordMessage(
           context,

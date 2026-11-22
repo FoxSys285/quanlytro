@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../tenant_inbox_hero.dart';
 import '../tenant_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
@@ -36,6 +37,15 @@ class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
     } else {
       setState(() => conversation.unread = 0);
     }
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
+    if (!mounted) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => TenantTinNhanPage(conversation: conversation),
@@ -106,7 +116,11 @@ class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
             'Cuộc trò chuyện',
             trailing: Text(
               '${conversations.length} hội thoại',
-              style: const TextStyle(color: Colors.green, fontSize: 11,fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.green,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           if (conversations.isEmpty)

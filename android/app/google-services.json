@@ -12,7 +12,28 @@
           "package_name": "com.example.quanlytro"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "101615894901-he37m60pvb9crag6g0rju3qjb5m0brup.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.quanlytro",
+            "certificate_hash": "c1aa58314ca151234b595185600a846d752e00d9"
+          }
+        },
+        {
+          "client_id": "101615894901-qb2ede8tb6ct9ahb2fdvnh373p798jtq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.quanlytro",
+            "certificate_hash": "017fdbc54f35c68591152c74990a1fbfef9aa5db"
+          }
+        },
+        {
+          "client_id": "101615894901-6gtr2c7cfnl18mapnv09cjlmet6d7d37.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyClzdlaSlp_cl1OpiMw42OJIuDyJkDDmx4"
@@ -20,7 +41,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "101615894901-6gtr2c7cfnl18mapnv09cjlmet6d7d37.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

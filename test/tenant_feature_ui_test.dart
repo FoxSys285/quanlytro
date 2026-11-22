@@ -311,8 +311,10 @@ void main() {
     await tester.tap(find.text('Gửi yêu cầu'));
     await tester.pumpAndSettle();
     expect(find.text('Nhập họ tên thành viên.'), findsOneWidget);
-    await tester.enterText(find.byType(TextFormField).first, 'Bạn ở cùng');
-    await tester.enterText(find.byType(TextFormField).last, '0905556666');
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'TENANT01');
+    await tester.enterText(fields.at(1), 'Bạn ở cùng');
+    await tester.enterText(fields.at(2), '0905556666');
     await tester.tap(find.text('Gửi yêu cầu'));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);

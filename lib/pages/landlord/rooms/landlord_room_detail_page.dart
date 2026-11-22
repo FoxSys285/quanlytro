@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../../layouts/landlord_navigation.dart';
 import '../../shared/announcements/announcement_store.dart';
 import '../../shared/conversations/conversation_store.dart';
@@ -542,7 +543,7 @@ class LandlordRoomDetailPage extends StatelessWidget {
     }
   }
 
-  void _chat(BuildContext context, LandlordRoomDetails details) {
+  Future<void> _chat(BuildContext context, LandlordRoomDetails details) async {
     final lease = details.lease!;
     final messages = ConversationStore.instance;
     final existing = messages
@@ -566,6 +567,15 @@ class LandlordRoomDetailPage extends StatelessWidget {
           tenantName: lease.tenantName,
         );
     messages.markRead(conversation, landlord: true);
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
+    if (!context.mounted) return;
     LandlordNavigation.push<void>(
       context,
       page: LandlordTinNhanPage(conversation: conversation),

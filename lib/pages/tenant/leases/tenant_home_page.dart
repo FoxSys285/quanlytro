@@ -3,6 +3,7 @@ import '../../shared/profile/account_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../../layouts/role_layout.dart';
 
 import '../../landlord/finance/landlord_finance_models.dart';
@@ -979,14 +980,23 @@ class TenantHomePage extends StatelessWidget {
     );
   }
 
-  void _showNotification(
+  Future<void> _showNotification(
     BuildContext context,
     AnnouncementStore notifications,
     LandlordAnnouncement item,
-  ) {
+  ) async {
     if (!notifications.isRead(item.id, tenantId)) {
       notifications.markTenantRead(item.id, tenantId);
+      try {
+        await AppPersistence.current?.flush();
+      } catch (failure) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+        );
+      }
     }
+    if (!context.mounted) return;
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(

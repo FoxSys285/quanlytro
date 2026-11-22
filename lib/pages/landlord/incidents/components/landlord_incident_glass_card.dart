@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../data/app_persistence.dart';
 import '../../landlord_demo_store.dart';
 import '../../landlord_glass.dart';
 import '../../landlord_theme.dart';
@@ -57,11 +58,16 @@ Future<void> showLandlordIncidentDetails(
                 ChoiceChip(
                   label: Text(status.label),
                   selected: incident.status == status,
-                  onSelected: (_) {
+                  onSelected: (_) async {
                     try {
                       store.updateIncident(incident, status);
-                    } on ArgumentError catch (error) {
-                      showLandlordMessage(context, error.message.toString());
+                      await AppPersistence.current?.flush();
+                    } catch (error) {
+                      if (!context.mounted) return;
+                      final message = error is ArgumentError
+                          ? error.message.toString()
+                          : AppPersistence.saveFailureMessage(error);
+                      showLandlordMessage(context, message);
                     }
                   },
                 ),

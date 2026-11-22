@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../data/app_persistence.dart';
 import '../../../../data/local_auth.dart';
 import '../../../../data/property_catalog.dart';
 
@@ -779,7 +780,7 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
     ),
   );
 
-  void _openConversation() {
+  Future<void> _openConversation() async {
     final room = widget.room;
     final owner = _ownerProperty;
     final source = ConversationStore.instance.forRoom(
@@ -791,6 +792,15 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
       tenantId: TenantSession.currentTenantId,
       tenantName: AccountStore.instance.profile(AppRole.tenant).name,
     );
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
+    if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => TenantTinNhanPage(

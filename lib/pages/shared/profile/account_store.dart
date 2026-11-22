@@ -79,12 +79,16 @@ class AccountStore extends ChangeNotifier {
     if (role == AppRole.landlord) {
       final property = rental.property;
       return ContactDetails(
-        name: property.ownerName.isNotEmpty
+        name: saved?.name.trim().isNotEmpty == true
+            ? saved!.name
+            : property.ownerName.isNotEmpty
             ? property.ownerName
-            : saved?.name ?? authSession?.displayName ?? '',
-        phone: property.phone.isNotEmpty
+            : authSession?.displayName ?? '',
+        phone: saved?.phone.trim().isNotEmpty == true
+            ? saved!.phone
+            : property.phone.isNotEmpty
             ? property.phone
-            : saved?.phone ?? authSession?.phoneNumber ?? '',
+            : authSession?.phoneNumber ?? '',
         email: saved?.email ?? authSession?.email ?? 'nguyenvanan@example.com',
         address: saved?.address ?? property.address,
       );

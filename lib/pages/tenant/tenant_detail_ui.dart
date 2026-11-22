@@ -17,28 +17,35 @@ class TenantDetailTheme extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = Theme.of(context);
-    final colors = landlordStyle
-        ? TenantUiColors.landlord
-        : TenantUiColors.tenant;
+    final dark = base.brightness == Brightness.dark;
+    final colors = switch ((landlordStyle, dark)) {
+      (true, true) => TenantUiColors.landlordDark,
+      (true, false) => TenantUiColors.landlord,
+      (false, true) => TenantUiColors.tenantDark,
+      (false, false) => TenantUiColors.tenant,
+    };
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide(color: colors.line),
     );
     return TenantUiPalette(
       landlordStyle: landlordStyle,
+      dark: dark,
       child: Theme(
         data: base.copyWith(
           colorScheme: base.colorScheme.copyWith(
             primary: colors.primary,
             secondary: colors.dark,
-            onPrimary: Colors.white,
-            surface: Colors.white,
-            onSurface: tenantInk,
+            onPrimary: dark ? const Color(0xFF102318) : Colors.white,
+            surface: colors.surface,
+            onSurface: colors.ink,
+            outline: colors.line,
+            surfaceTint: Colors.transparent,
           ),
           scaffoldBackgroundColor: colors.canvas,
           appBarTheme: AppBarTheme(
-            backgroundColor: colors.canvas,
-            foregroundColor: tenantInk,
+            backgroundColor: colors.header,
+            foregroundColor: colors.ink,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             scrolledUnderElevation: 0,
@@ -59,15 +66,15 @@ class TenantDetailTheme extends StatelessWidget {
             focusedBorder: border.copyWith(
               borderSide: BorderSide(color: colors.primary, width: 1.5),
             ),
-            labelStyle: const TextStyle(color: tenantMuted, fontSize: 13),
+            labelStyle: TextStyle(color: colors.muted, fontSize: 13),
             prefixIconColor: colors.dark,
-            suffixIconColor: tenantMuted,
+            suffixIconColor: colors.muted,
             errorMaxLines: 3,
           ),
           filledButtonTheme: FilledButtonThemeData(
             style: FilledButton.styleFrom(
               backgroundColor: colors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: dark ? const Color(0xFF102318) : Colors.white,
               minimumSize: const Size(0, 48),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -116,7 +123,7 @@ class TenantDetailTheme extends StatelessWidget {
             ),
             titleTextStyle: TextStyle(
               fontFamily: base.textTheme.titleLarge?.fontFamily,
-              color: tenantInk,
+              color: colors.ink,
               fontSize: 19,
               fontWeight: FontWeight.w800,
             ),
@@ -147,16 +154,21 @@ class TenantSubpageScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TenantDetailTheme(
     landlordStyle: landlordStyle,
-    child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar:
-          appBar ??
-          TenantNavigationBar(
-            title: title,
-            onBack: () => Navigator.of(context).maybePop(),
-            showNotifications: showNotifications,
-          ),
-      body: TenantPageBackdrop(child: child),
+    child: Builder(
+      builder: (context) {
+        final colors = TenantUiPalette.of(context);
+        return Scaffold(
+          backgroundColor: colors.canvas,
+          appBar:
+              appBar ??
+              TenantNavigationBar(
+                title: title,
+                onBack: () => Navigator.of(context).maybePop(),
+                showNotifications: showNotifications,
+              ),
+          body: SizedBox.expand(child: TenantPageBackdrop(child: child)),
+        );
+      },
     ),
   );
 }
@@ -184,41 +196,44 @@ class TenantDetailIntro extends StatelessWidget {
   final String subtitle;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    margin: const EdgeInsets.only(bottom: 22),
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFFE3F6E9), Color(0xFFF3FAF5)],
+  Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 22),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colors.bannerEnd, colors.header],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.line),
       ),
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: const Color(0xFFDCEEE2)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TenantDetailIcon(icon, size: 46),
-        const SizedBox(height: 14),
-        Text(
-          title,
-          style: const TextStyle(
-            color: Color(0xFF102B1B),
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.6,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TenantDetailIcon(icon, size: 46),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: TextStyle(
+              color: colors.bannerTitle,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          subtitle,
-          style: const TextStyle(color: tenantMuted, fontSize: 12, height: 1.5),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: TextStyle(color: colors.muted, fontSize: 12, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class TenantDetailIcon extends StatelessWidget {
@@ -318,8 +333,8 @@ class TenantDetailNote extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color: tenantMuted,
+              style: TextStyle(
+                color: TenantUiPalette.of(context).muted,
                 fontSize: 12,
                 height: 1.5,
               ),

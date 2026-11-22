@@ -479,6 +479,9 @@ class FirebaseAccountGateway
       return await _sessionForUser(result.user!, allowNewProfile: true);
     } on GoogleSignInException catch (error) {
       if (error.code == GoogleSignInExceptionCode.canceled) {
+        debugPrint(
+          'Google Sign-In closed or Android OAuth configuration was rejected.',
+        );
         throw const AccountSignInCancelled();
       }
       throw ArgumentError(
@@ -527,7 +530,7 @@ class FirebaseAccountGateway
                 linkingUser?.uid,
               );
             } catch (error) {
-              throw _friendlyError(error);
+              throw _friendlyPhoneError(error);
             }
           },
         );
@@ -579,7 +582,7 @@ class FirebaseAccountGateway
               linkingUser?.uid,
             );
           } catch (error) {
-            throw _friendlyError(error);
+            throw _friendlyPhoneError(error);
           }
         },
       );
@@ -595,7 +598,7 @@ class FirebaseAccountGateway
               },
               verificationFailed: (error) {
                 if (!completer.isCompleted) {
-                  completer.completeError(_friendlyError(error));
+                  completer.completeError(_friendlyPhoneError(error));
                 }
               },
               codeSent: (id, token) {
@@ -611,7 +614,7 @@ class FirebaseAccountGateway
             )
             .catchError((Object error) {
               if (!completer.isCompleted) {
-                completer.completeError(_friendlyError(error));
+                completer.completeError(_friendlyPhoneError(error));
               }
             }),
       );
@@ -692,6 +695,22 @@ class FirebaseAccountGateway
     return ArgumentError(
       'Chưa thể xác thực tài khoản. Vui lòng kiểm tra mạng và thử lại.',
     );
+  }
+
+  static ArgumentError _friendlyPhoneError(Object error) {
+    if (error is FirebaseAuthException) {
+      final message = switch (error.code) {
+        'operation-not-allowed' || 'billing-not-enabled' => 'Firebase chưa bật đăng nhập bằng số điện thoại hoặc chưa liên kết Cloud Billing. Để gửi OTP thật, hãy bật Phone trong Authentication và liên kết gói Blaze.',
+        'app-not-authorized' ||
+        'invalid-app-credential' ||
+        'missing-client-identifier' => 'Firebase chưa xác thực được ứng dụng Android. Hãy cài bản app mới nhất; nếu vẫn lỗi, kiểm tra SHA-1/SHA-256 của app trong Firebase.',
+        'captcha-check-failed' => 'Firebase không xác minh được ứng dụng. Hãy cập nhật Google Play services rồi thử lại.',
+        'region-not-allowed' => 'Firebase đang chặn gửi SMS tới khu vực/số điện thoại này. Kiểm tra SMS region policy trong Authentication.',
+        _ => _message(error.code),
+      };
+      return ArgumentError(message);
+    }
+    return _friendlyError(error);
   }
 
   @override

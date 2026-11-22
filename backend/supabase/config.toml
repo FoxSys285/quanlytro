@@ -1,0 +1,13 @@
+project_id = "tropremium-integrations"
+
+[functions.cloudinary-upload-signature]
+verify_jwt = false
+
+[functions.cloudinary-private-download-url]
+verify_jwt = false
+
+[functions.sepay-webhook]
+verify_jwt = false
+
+[functions.subscription-api]
+verify_jwt = false

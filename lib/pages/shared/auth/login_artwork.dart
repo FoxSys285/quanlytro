@@ -120,14 +120,6 @@ class LoginHero extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Đăng nhập để quản lý nhà trọ\nvà theo dõi việc thuê phòng.',
-                    style: TextStyle(
-                      color: const Color(0xFF454E67),
-                      fontSize: wide ? 16 : 12,
-                      height: 1.5,
-                    ),
-                  ),
                 ],
               ),
             ),

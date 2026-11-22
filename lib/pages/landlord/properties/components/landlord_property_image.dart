@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../../data/cloudinary_media_gateway.dart';
+
 class LandlordPropertyImage extends StatelessWidget {
   const LandlordPropertyImage({
     super.key,
@@ -73,7 +75,8 @@ class LandlordPropertyImage extends StatelessWidget {
               ],
             )
           : Image.network(
-              url,
+              CloudinaryMediaGateway.optimizedImageUrl(url, width: 1200),
+              cacheWidth: 1200,
               semanticLabel: semanticLabel,
               fit: BoxFit.cover,
               loadingBuilder: (context, child, progress) => progress == null

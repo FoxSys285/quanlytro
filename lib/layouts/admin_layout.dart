@@ -36,29 +36,55 @@ class AdminLayout extends StatelessWidget {
             .apply(bodyColor: adminInk, displayColor: adminInk),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
+          fillColor: const Color(0xFFF9FBFD),
+          isDense: true,
+          contentPadding: const EdgeInsets.fromLTRB(15, 17, 15, 17),
           labelStyle: Theme.of(context).textTheme.bodyLarge
-              ?.copyWith(color: adminMuted, fontSize: 14),
+              ?.copyWith(color: adminMuted, fontSize: 13),
+          floatingLabelStyle: const TextStyle(
+            color: adminBlue,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+          hintStyle: const TextStyle(color: Color(0xFF98A5B4), fontSize: 13),
+          helperStyle: const TextStyle(
+            color: adminMuted,
+            fontSize: 11,
+            height: 1.4,
+          ),
+          errorStyle: const TextStyle(
+            color: adminOrange,
+            fontSize: 11,
+            height: 1.35,
+          ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(13),
             borderSide: const BorderSide(color: adminLine),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(13),
             borderSide: const BorderSide(color: adminLine),
           ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: const BorderSide(color: Color(0xFFE9EDF2)),
+          ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: adminBlue, width: 1.5),
+            borderRadius: BorderRadius.circular(13),
+            borderSide: const BorderSide(color: adminBlue, width: 1.8),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: const BorderSide(color: adminOrange),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: const BorderSide(color: adminOrange, width: 1.8),
           ),
         ),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF0877B5),
+            backgroundColor: adminBlue,
             foregroundColor: Colors.white,
             minimumSize: const Size(48, 48),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -122,6 +148,33 @@ class AdminLayout extends StatelessWidget {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          elevation: 18,
+          shadowColor: const Color(0x2411263B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: const BorderSide(color: adminLine),
+          ),
+          titleTextStyle: const TextStyle(
+            color: adminInk,
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            height: 1.3,
+          ),
+          contentTextStyle: const TextStyle(
+            color: adminMuted,
+            fontSize: 13,
+            height: 1.55,
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 24,
+          ),
+          clipBehavior: Clip.antiAlias,
         ),
         bottomSheetTheme: const BottomSheetThemeData(
           backgroundColor: Colors.white,

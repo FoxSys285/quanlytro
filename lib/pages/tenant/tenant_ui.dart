@@ -11,6 +11,10 @@ class TenantUiColors {
   const TenantUiColors({
     required this.primary,
     required this.dark,
+    required this.ink,
+    required this.muted,
+    required this.surface,
+    required this.surfaceAlt,
     required this.softText,
     required this.light,
     required this.lighter,
@@ -33,6 +37,10 @@ class TenantUiColors {
 
   final Color primary;
   final Color dark;
+  final Color ink;
+  final Color muted;
+  final Color surface;
+  final Color surfaceAlt;
   final Color softText;
   final Color light;
   final Color lighter;
@@ -55,6 +63,10 @@ class TenantUiColors {
   static const tenant = TenantUiColors(
     primary: tenantGreen,
     dark: tenantGreenDark,
+    ink: tenantInk,
+    muted: tenantMuted,
+    surface: Colors.white,
+    surfaceAlt: Color(0xFFF7F9F8),
     softText: Color(0xFF4C6558),
     light: Color(0xFFEAF7EF),
     lighter: Color(0xFFE6F6ED),
@@ -78,6 +90,10 @@ class TenantUiColors {
   static const landlord = TenantUiColors(
     primary: Color(0xFF1679BC),
     dark: Color(0xFF0D5B91),
+    ink: Color(0xFF202A34),
+    muted: Color(0xFF68798A),
+    surface: Colors.white,
+    surfaceAlt: Color(0xFFF7FAFD),
     softText: Color(0xFF53697D),
     light: Color(0xFFEAF4FC),
     lighter: Color(0xFFE5F1FB),
@@ -97,27 +113,99 @@ class TenantUiColors {
     chipSelected: Color(0xFFDCECF8),
     chipLine: Color(0xFFE2EAF2),
   );
+
+  static const tenantDark = TenantUiColors(
+    primary: Color(0xFF65D897),
+    dark: Color(0xFF8AE5AF),
+    ink: Color(0xFFEAF3ED),
+    muted: Color(0xFFB5C5BA),
+    surface: Color(0xFF1C2B22),
+    surfaceAlt: Color(0xFF25372C),
+    softText: Color(0xFFB6D4C1),
+    light: Color(0xFF273D30),
+    lighter: Color(0xFF263B2E),
+    avatar: Color(0xFF2D4938),
+    formEnd: Color(0xFF1D2E24),
+    formTitle: Color(0xFFEAF3ED),
+    bannerEnd: Color(0xFF254632),
+    bannerTitle: Color(0xFFEAF3ED),
+    noteFill: Color(0xFF263D30),
+    header: Color(0xFF1C2B22),
+    headerMid: Color(0xE61C2B22),
+    headerFade: Color(0x001C2B22),
+    canvas: Color(0xFF111A15),
+    line: Color(0xFF34483A),
+    inputFill: Color(0xFF25372C),
+    chipFill: Color(0xFF25372C),
+    chipSelected: Color(0xFF2E503B),
+    chipLine: Color(0xFF3A5142),
+  );
+
+  static const landlordDark = TenantUiColors(
+    primary: Color(0xFF78C8F2),
+    dark: Color(0xFF9AD9F7),
+    ink: Color(0xFFEAF3F8),
+    muted: Color(0xFFB8C9D5),
+    surface: Color(0xFF1A2935),
+    surfaceAlt: Color(0xFF223746),
+    softText: Color(0xFFBDD5E5),
+    light: Color(0xFF23445A),
+    lighter: Color(0xFF213D51),
+    avatar: Color(0xFF29475A),
+    formEnd: Color(0xFF1B2B38),
+    formTitle: Color(0xFFEAF3F8),
+    bannerEnd: Color(0xFF294A60),
+    bannerTitle: Color(0xFFEAF3F8),
+    noteFill: Color(0xFF23445A),
+    header: Color(0xFF1A2935),
+    headerMid: Color(0xE61A2935),
+    headerFade: Color(0x001A2935),
+    canvas: Color(0xFF101B25),
+    line: Color(0xFF344B5C),
+    inputFill: Color(0xFF223746),
+    chipFill: Color(0xFF223746),
+    chipSelected: Color(0xFF2B4B60),
+    chipLine: Color(0xFF3A5365),
+  );
 }
 
 class TenantUiPalette extends InheritedWidget {
   const TenantUiPalette({
     super.key,
     required this.landlordStyle,
+    this.dark = false,
     required super.child,
   });
 
   final bool landlordStyle;
+  final bool dark;
 
-  TenantUiColors get colors =>
-      landlordStyle ? TenantUiColors.landlord : TenantUiColors.tenant;
+  TenantUiColors get colors => switch ((landlordStyle, dark)) {
+    (true, true) => TenantUiColors.landlordDark,
+    (true, false) => TenantUiColors.landlord,
+    (false, true) => TenantUiColors.tenantDark,
+    (false, false) => TenantUiColors.tenant,
+  };
 
-  static TenantUiColors of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<TenantUiPalette>()?.colors ??
-      TenantUiColors.tenant;
+  static TenantUiColors of(BuildContext context) {
+    final palette = context
+        .dependOnInheritedWidgetOfExactType<TenantUiPalette>();
+    if (palette != null) return palette.colors;
+    final theme = Theme.of(context);
+    final landlordStyle =
+        theme.colorScheme.primary == const Color(0xFF1682C4) ||
+        theme.colorScheme.primary == const Color(0xFF71C4F3);
+    return switch ((landlordStyle, theme.brightness == Brightness.dark)) {
+      (true, true) => TenantUiColors.landlordDark,
+      (true, false) => TenantUiColors.landlord,
+      (false, true) => TenantUiColors.tenantDark,
+      (false, false) => TenantUiColors.tenant,
+    };
+  }
 
   @override
   bool updateShouldNotify(TenantUiPalette oldWidget) =>
-      landlordStyle != oldWidget.landlordStyle;
+      landlordStyle != oldWidget.landlordStyle || dark != oldWidget.dark;
 }
 
 /// Shared mint backdrop for tenant screens, with a blue tint for landlord-style
@@ -221,7 +309,7 @@ class TenantProfileAvatar extends StatelessWidget {
         : '${parts.first[0]}${parts.last[0]}'.toUpperCase();
     return CircleAvatar(
       radius: radius,
-      backgroundColor: Colors.white,
+      backgroundColor: colors.surface,
       child: CircleAvatar(
         radius: radius - 2,
         backgroundColor: colors.avatar,
@@ -286,62 +374,65 @@ class TenantHeader extends StatelessWidget {
   final bool overlay;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    bottom: false,
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(14, 6, 14, 7),
-      child: Row(
-        children: [
-          Tooltip(
-            message: 'Mở danh mục chức năng',
-            child: Material(
-              color: Colors.white.withValues(alpha: overlay ? 0.9 : 1),
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: onAvatarTap,
-                child: SizedBox(
-                  width: 56,
-                  height: 56,
-                  child: Center(
-                    child: TenantProfileAvatar(name: profileName, radius: 26),
+  Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 6, 14, 7),
+        child: Row(
+          children: [
+            Tooltip(
+              message: 'Mở danh mục chức năng',
+              child: Material(
+                color: colors.surface.withValues(alpha: overlay ? 0.9 : 1),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onAvatarTap,
+                  child: SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: Center(
+                      child: TenantProfileAvatar(name: profileName, radius: 26),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              profileName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: tenantInk,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                profileName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.ink,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
-          ),
-          _TenantHeaderAction(
-            tooltip: 'Y\u00eau th\u00edch',
-            onTap: onFavoritesTap,
-            icon: Icons.favorite_rounded,
-            color: const Color(0xFFE93E78),
-            overlay: overlay,
-          ),
-          const SizedBox(width: 8),
-          _TenantHeaderAction(
-            tooltip: 'C\u00e0i \u0111\u1eb7t',
-            onTap: onSettingsTap,
-            icon: Icons.settings_rounded,
-            color: tenantInk,
-            overlay: overlay,
-          ),
-        ],
+            _TenantHeaderAction(
+              tooltip: 'Y\u00eau th\u00edch',
+              onTap: onFavoritesTap,
+              icon: Icons.favorite_rounded,
+              color: const Color(0xFFE93E78),
+              overlay: overlay,
+            ),
+            const SizedBox(width: 8),
+            _TenantHeaderAction(
+              tooltip: 'C\u00e0i \u0111\u1eb7t',
+              onTap: onSettingsTap,
+              icon: Icons.settings_rounded,
+              color: colors.ink,
+              overlay: overlay,
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _TenantHeaderAction extends StatelessWidget {
@@ -363,7 +454,8 @@ class _TenantHeaderAction extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
     message: tooltip,
     child: Material(
-      color: Colors.white.withValues(alpha: overlay ? 0.94 : 1),
+      color: TenantUiPalette.of(context).surface
+          .withValues(alpha: overlay ? 0.94 : 1),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -390,6 +482,7 @@ class TenantPageTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 19),
       child: Column(
@@ -397,8 +490,8 @@ class TenantPageTitle extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: tenantInk,
+            style: TextStyle(
+              color: colors.ink,
               fontSize: 23,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.45,
@@ -407,11 +500,7 @@ class TenantPageTitle extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: tenantMuted,
-              fontSize: 13,
-              height: 1.4,
-            ),
+            style: TextStyle(color: colors.muted, fontSize: 13, height: 1.4),
           ),
         ],
       ),
@@ -427,6 +516,7 @@ class TenantSectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -434,8 +524,8 @@ class TenantSectionHeading extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
-                color: tenantInk,
+              style: TextStyle(
+                color: colors.ink,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -466,7 +556,7 @@ class TenantSurface extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: tenantLine),
+        border: Border.all(color: TenantUiPalette.of(context).line),
         boxShadow: const [
           BoxShadow(
             color: Color(0x071B2935),
@@ -591,49 +681,51 @@ class TenantDataRow extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: emphasized ? tenantInk : tenantMuted,
-              fontSize: 11,
-              fontWeight: emphasized ? FontWeight.w700 : FontWeight.w400,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Flexible(
-          child: InkWell(
-            onTap: onTap,
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
             child: Text(
-              value,
-              textAlign: TextAlign.right,
+              label,
               style: TextStyle(
-                color:
-                    valueColor ??
-                    (emphasized ? tenantInk : const Color(0xFF43515D)),
+                color: emphasized ? tenantInk : tenantMuted,
                 fontSize: 11,
-                fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
+                fontWeight: emphasized ? FontWeight.w700 : FontWeight.w400,
               ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(width: 10),
+          Flexible(
+            child: InkWell(
+              onTap: onTap,
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color:
+                      valueColor ??
+                      (emphasized ? tenantInk : const Color(0xFF43515D)),
+                  fontSize: 11,
+                  fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class TenantThinDivider extends StatelessWidget {
   const TenantThinDivider({super.key});
 
   @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 7),
-    child: Divider(height: 1, color: tenantLine),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Divider(height: 1, color: TenantUiPalette.of(context).line),
   );
 }
 
@@ -642,21 +734,24 @@ class TenantFeatureTag extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF1F6F4),
-      borderRadius: BorderRadius.circular(9),
-    ),
-    child: Text(
-      label,
-      style: const TextStyle(
-        color: tenantGreenDark,
-        fontSize: 10,
-        fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.chipFill,
+        borderRadius: BorderRadius.circular(9),
       ),
-    ),
-  );
+      child: Text(
+        label,
+        style: TextStyle(
+          color: colors.dark,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
 }
 
 class TenantEmptyState extends StatelessWidget {

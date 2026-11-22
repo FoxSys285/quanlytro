@@ -12,6 +12,7 @@ import 'tenant_properties_page.dart';
 
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
 
@@ -868,6 +869,8 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         attendeeCount: request.attendeeCount,
         personalNeeds: request.personalNeeds,
       );
+      await AppPersistence.current?.flush();
+      if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -878,21 +881,30 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-    } on ArgumentError catch (error) {
+    } catch (error) {
+      if (!mounted) return;
+      final message = error is ArgumentError
+          ? error.message.toString()
+          : AppPersistence.saveFailureMessage(error);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          SnackBar(
-            content: Text(error.message.toString()),
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
         );
     }
   }
 
-  void _toggleFavorite(TenantRoomListing room) {
+  Future<void> _toggleFavorite(TenantRoomListing room) async {
     TenantFavoritesStore.remember(room);
     setState(() => TenantFavoritesStore.toggle(room.id));
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
   }
 
   Future<void> _openFavorites() async {

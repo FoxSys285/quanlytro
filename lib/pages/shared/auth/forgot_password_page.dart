@@ -73,9 +73,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   Widget build(BuildContext context) => AuthFlowScaffold(
     title: _sent ? 'Kiểm tra email của bạn' : 'Quên mật khẩu?',
-    subtitle: _sent
-        ? 'Chỉ còn một bước để lấy lại quyền\ntruy cập tài khoản của bạn.'
-        : 'Đừng lo, hãy nhập email đã đăng ký.\nChúng tôi sẽ giúp bạn đặt lại mật khẩu.',
+    subtitle: _sent ? '' : '',
     icon: _sent ? Icons.mark_email_read_outlined : Icons.lock_reset_rounded,
     child: _sent
         ? Column(

@@ -43,6 +43,8 @@ class VietQrService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> loadBanks() => _loadBanks();
+
   Future<List<Map<String, dynamic>>> _fetchBanks() async {
     final response = await _get(Uri.https('api.vietqr.io', '/v2/banks'));
     if (response.statusCode != 200) {
@@ -67,6 +69,8 @@ class VietQrService {
   Future<Uri> paymentUri({
     required String bankName,
     required String accountNumber,
+    String? bankBin,
+    String accountName = '',
     String reference = '',
     int? amount,
   }) async {
@@ -81,15 +85,25 @@ class VietQrService {
     if (amount != null && (amount <= 0 || amount > 9999999999999)) {
       throw const VietQrException('Số tiền tạo QR không hợp lệ.');
     }
-    final matches = (await _loadBanks()).where((bank) {
-      return ['bin', 'code', 'shortName', 'short_name', 'name'].any(
-        (key) => bank[key] is String && _normalize(bank[key] as String) == name,
-      );
-    }).toList();
-    if (matches.length != 1) {
-      throw const VietQrException(
-        'Chưa nhận diện được ngân hàng. Vui lòng nhờ chủ trọ kiểm tra tên ngân hàng.',
-      );
+    String resolvedBin;
+    if (bankBin != null && bankBin.isNotEmpty) {
+      if (!RegExp(r'^\d{6}$').hasMatch(bankBin)) {
+        throw const VietQrException('Mã BIN ngân hàng chưa hợp lệ.');
+      }
+      resolvedBin = bankBin;
+    } else {
+      final matches = (await _loadBanks()).where((bank) {
+        return ['bin', 'code', 'shortName', 'short_name', 'name'].any(
+          (key) =>
+              bank[key] is String && _normalize(bank[key] as String) == name,
+        );
+      }).toList();
+      if (matches.length != 1) {
+        throw const VietQrException(
+          'Chưa nhận diện được ngân hàng. Vui lòng kiểm tra tên ngân hàng.',
+        );
+      }
+      resolvedBin = '${matches.single['bin']}';
     }
     final description = _ascii(reference)
         .replaceAll(RegExp(r'[^a-zA-Z0-9 ]'), ' ')
@@ -97,9 +111,10 @@ class VietQrService {
         .trim();
     return Uri.https(
       'img.vietqr.io',
-      '/image/${matches.single['bin']}-$account-qr_only.svg',
+      '/image/$resolvedBin-$account-qr_only.svg',
       {
         if (amount != null) 'amount': '$amount',
+        if (accountName.trim().isNotEmpty) 'accountName': accountName.trim(),
         if (description.isNotEmpty)
           'addInfo': description.length > 50
               ? description.substring(0, 50).trimRight()
@@ -111,6 +126,8 @@ class VietQrService {
   Future<VietQrImage> load({
     required String bankName,
     required String accountNumber,
+    String? bankBin,
+    String accountName = '',
     String reference = '',
     int? amount,
   }) async {
@@ -118,6 +135,8 @@ class VietQrService {
       final uri = await paymentUri(
         bankName: bankName,
         accountNumber: accountNumber,
+        bankBin: bankBin,
+        accountName: accountName,
         reference: reference,
         amount: amount,
       );

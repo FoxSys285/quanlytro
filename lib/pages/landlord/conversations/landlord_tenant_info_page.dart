@@ -54,10 +54,7 @@ class LandlordTenantInfoPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    LandlordGlassSection(
-                      title: 'Thông tin cá nhân',
-                      subtitle: 'Thông tin liên hệ của người đang trò chuyện',
-                    ),
+                    LandlordGlassSection(title: 'Thông tin cá nhân'),
                     LandlordGlassCard(
                       child: Column(
                         children: [

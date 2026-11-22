@@ -17,6 +17,20 @@ abstract interface class RentalChangeSource {
   Stream<void> get changes;
 }
 
+/// Lets cloud repositories align their diff baseline with the normalized
+/// in-memory snapshot after models have restored a server read.
+abstract interface class RentalSnapshotBaseline {
+  void setLocalSnapshotBaseline(Map<String, Map<String, dynamic>> snapshot);
+
+  String? get lastCloudSnapshotFingerprint;
+}
+
+/// Optional fast path for hydrating a previously seen server snapshot while
+/// the authoritative cloud read runs in the background.
+abstract interface class RentalSnapshotCache {
+  Future<Map<String, Map<String, dynamic>>?> readCachedSnapshot();
+}
+
 class SqliteRentalRepository implements RentalRepository {
   SqliteRentalRepository._(this.database);
   final Database database;

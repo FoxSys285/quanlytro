@@ -241,9 +241,15 @@ class MyApp extends StatelessWidget {
                                         .overlay!
                                         .context,
                                     builder: (context) => AlertDialog(
-                                      title: const Text('Tải dữ liệu mới?'),
-                                      content: const Text(
-                                        'Bỏ thay đổi chưa lưu trên màn hình này và nhận bản mới từ Firebase.',
+                                      title: Text(
+                                        activePersistence.hasPendingChanges
+                                            ? 'Bỏ thay đổi chưa lưu?'
+                                            : 'Tải dữ liệu mới?',
+                                      ),
+                                      content: Text(
+                                        activePersistence.hasPendingChanges
+                                            ? 'Thao tác này sẽ bỏ các chỉnh sửa chưa lưu và thay dữ liệu hiện tại bằng bản từ Firebase.'
+                                            : 'Tải dữ liệu mới nhất từ Firebase.',
                                       ),
                                       actions: [
                                         TextButton(
@@ -254,7 +260,11 @@ class MyApp extends StatelessWidget {
                                         FilledButton(
                                           onPressed: () =>
                                               Navigator.pop(context, true),
-                                          child: const Text('Tải bản mới'),
+                                          child: Text(
+                                            activePersistence.hasPendingChanges
+                                                ? 'Bỏ thay đổi'
+                                                : 'Tải bản mới',
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -265,7 +275,11 @@ class MyApp extends StatelessWidget {
                                     );
                                   }
                                 },
-                                child: const Text('Tải bản mới'),
+                                child: Text(
+                                  activePersistence.hasPendingChanges
+                                      ? 'Bỏ thay đổi chưa lưu'
+                                      : 'Tải bản mới',
+                                ),
                               ),
                           ],
                         ),

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../../data/app_persistence.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../../landlord/landlord_demo_store.dart';
@@ -60,6 +63,20 @@ class TenantMemberRequests extends StatelessWidget {
                       ),
                     );
                     if (sent == true && context.mounted) {
+                      try {
+                        await AppPersistence.current?.flush();
+                      } catch (failure) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              AppPersistence.saveFailureMessage(failure),
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(

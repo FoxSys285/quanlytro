@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../tenant_ui.dart';
 import '../tenant_detail_ui.dart';
 import '../tenant_inbox_hero.dart';
@@ -49,8 +50,17 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
 
   bool _unreadOnly = false;
 
-  void _open(TenantAnnouncement item) {
+  Future<void> _open(TenantAnnouncement item) async {
     _store.markTenantRead(item.id, widget.tenantId);
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
+    if (!mounted) return;
     if (item.id.startsWith('payment-rejected:')) {
       final paymentId = item.id.substring('payment-rejected:'.length);
       for (final payment in _store.rental.paymentsForTenant(widget.tenantId)) {

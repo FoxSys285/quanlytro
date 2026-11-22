@@ -36,6 +36,8 @@ class _Media extends Fake implements FirebaseMediaStore {
   Future<Map<String, Map<String, dynamic>>> prepareForCloud(
     Map<String, Map<String, dynamic>> snapshot, {
     bool uploadPropertyMedia = true,
+    bool uploadPaymentProofs = true,
+    String? uploaderUid,
   }) async => snapshot;
 }
 

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../../data/account_provider.dart';
 import '../../../data/local_auth.dart';
 import '../../../layouts/landlord_navigation.dart';
@@ -1480,12 +1481,18 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
         templateId: result.templateId,
         rentalAddress: result.rentalAddress,
       );
+      await AppPersistence.current?.flush();
+      if (!mounted) return;
       showLandlordMessage(
         context,
         lease == null ? 'Đã tạo hợp đồng.' : 'Đã cập nhật hợp đồng.',
       );
-    } on ArgumentError catch (error) {
-      showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      if (!mounted) return;
+      final message = failure is ArgumentError
+          ? failure.message.toString()
+          : AppPersistence.saveFailureMessage(failure);
+      showLandlordMessage(context, message);
     }
   }
 
@@ -1521,12 +1528,18 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
         responsibilityB: result.responsibilityB,
         commonResponsibilities: result.commonResponsibilities,
       );
+      await AppPersistence.current?.flush();
+      if (!mounted) return;
       showLandlordMessage(
         context,
         template == null ? 'Đã tạo hợp đồng mẫu.' : 'Đã cập nhật hợp đồng mẫu.',
       );
-    } on ArgumentError catch (error) {
-      showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      if (!mounted) return;
+      final message = failure is ArgumentError
+          ? failure.message.toString()
+          : AppPersistence.saveFailureMessage(failure);
+      showLandlordMessage(context, message);
     }
   }
 

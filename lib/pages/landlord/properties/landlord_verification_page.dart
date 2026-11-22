@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import '../../../data/admin_store.dart';
 import '../../../data/app_persistence.dart';
 import '../landlord_demo_store.dart';
+import '../landlord_glass.dart';
 import '../landlord_theme.dart';
 import '../landlord_ui.dart';
+import 'components/landlord_property_image.dart';
+import 'components/verification_visuals.dart';
 import 'models/landlord_property.dart';
 import 'services/property_image_picker.dart';
 import 'services/property_verification_picker.dart';
@@ -189,182 +192,360 @@ class _LandlordVerificationPageState extends State<LandlordVerificationPage> {
     listenable: Listenable.merge([_store, AdminStore.instance]),
     builder: (context, _) {
       final palette = LandlordPalette.of(context);
-      final verified = AdminStore.instance.isVerified(_store.property.id);
-      return LandlordPageFrame(
+      final property = _store.property;
+      final verified = AdminStore.instance.isVerified(property.id);
+      final note = AdminStore.instance.reviewNote(property.id);
+      final submitted = property.verificationSubmittedAt != null;
+      final sections = _sections
+          .where((s) => s.id != 'authorization' || !_isOwner)
+          .toList();
+      final completed = sections.where((s) => _files[s.id]!.isNotEmpty).length;
+      final status = verified
+          ? 'Nhà trọ đã xác minh'
+          : note.isNotEmpty
+          ? 'Cần bổ sung hồ sơ'
+          : submitted
+          ? 'Hồ sơ đang chờ kiểm tra'
+          : 'Nhà trọ chưa xác minh';
+      return VerificationPageFrame(
+        title: 'Hồ sơ xác minh',
+        subtitle: 'Hoàn thiện giấy tờ để xác thực thông tin chủ trọ và quyền cho thuê.',
         children: [
-          LandlordPageTitle(
-            title: 'Xác minh nhà trọ',
-            subtitle: _store.property.name,
-          ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(17),
-            decoration: BoxDecoration(
-              color: verified ? const Color(0xFFE8F6EF) : palette.primarySoft,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: verified ? const Color(0xFFB9E4CB) : palette.line,
-              ),
-            ),
-            child: Row(
+          LandlordBluePanel(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  verified ? Icons.verified_rounded : Icons.shield_outlined,
-                  color: verified ? const Color(0xFF168456) : palette.primary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .17),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
                         verified
-                            ? 'Nhà trọ đã xác minh'
-                            : _store.property.verificationSubmittedAt == null
-                            ? 'Nhà trọ chưa xác minh'
-                            : AdminStore.instance
-                                  .reviewNote(_store.property.id)
-                                  .isNotEmpty
-                            ? 'Cần bổ sung hồ sơ'
-                            : 'Hồ sơ đang chờ kiểm tra',
-                        style: TextStyle(
-                          color: verified
-                              ? const Color(0xFF168456)
-                              : palette.ink,
-                          fontWeight: FontWeight.w800,
-                        ),
+                            ? Icons.verified_rounded
+                            : Icons.folder_shared_outlined,
+                        color: Colors.white,
+                        size: 27,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        verified ? 'Thông tin xác minh đã được duyệt.' : 'Gửi giấy tờ để quản trị viên đối chiếu thông tin chủ trọ và quyền cho thuê.',
-                        style: TextStyle(color: palette.muted, height: 1.45),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            property.name,
+                            style: const TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -.5,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Text(
+                            status,
+                            style: const TextStyle(
+                              color: Color(0xFFE0F3FF),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    _VerificationStep(
+                      number: 1,
+                      label: 'Chuẩn bị hồ sơ',
+                      complete: submitted || verified,
+                      active: !submitted && !verified,
+                    ),
+                    _VerificationStep(
+                      number: 2,
+                      label: 'Gửi xét duyệt',
+                      complete: verified,
+                      active: submitted && !verified,
+                    ),
+                    _VerificationStep(
+                      number: 3,
+                      label: 'Đã xác minh',
+                      complete: verified,
+                      active: verified,
+                      last: true,
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          if (AdminStore.instance.reviewNote(_store.property.id).isNotEmpty)
-            LandlordCard(
-              backgroundColor: const Color(0xFFFFF8E8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.info_outline_rounded,
-                    color: Color(0xFFB77716),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Quản trị viên yêu cầu bổ sung: ${AdminStore.instance.reviewNote(_store.property.id)}',
-                      style: const TextStyle(height: 1.45),
-                    ),
-                  ),
-                ],
-              ),
+          const SizedBox(height: 20),
+          if (submitted || verified || note.isNotEmpty) ...[
+            _AdminResponse(
+              verified: verified,
+              note: note,
+              submittedAt: property.verificationSubmittedAt,
             ),
+            const SizedBox(height: 20),
+          ],
+          const LandlordGlassSection(
+            title: 'Thông tin nhà trọ',
+            subtitle: 'Thông tin được đối chiếu khi xét duyệt hồ sơ.',
+          ),
+          LandlordGlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 68,
+                      child: LandlordPropertyImage(
+                        url: property.imageUrl,
+                        bytes: property.imageBytes,
+                        height: 74,
+                        borderRadius: 14,
+                        showIllustrationLabel: false,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tên nhà trọ: ${property.name}',
+                            style: TextStyle(
+                              color: palette.ink,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            property.address,
+                            style: TextStyle(
+                              color: palette.muted,
+                              fontSize: 12,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                Divider(height: 1, color: palette.line),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 24,
+                  runSpacing: 14,
+                  children: [
+                    _PropertyInfo(
+                      icon: Icons.person_outline_rounded,
+                      label: 'Chủ trọ',
+                      value: property.ownerName,
+                    ),
+                    _PropertyInfo(
+                      icon: Icons.phone_outlined,
+                      label: 'Số điện thoại',
+                      value: property.phone,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
           if (!verified) ...[
-            SwitchListTile.adaptive(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-              value: _isOwner,
-              onChanged: _busy
-                  ? null
-                  : (value) => setState(() {
-                      _isOwner = value;
-                      _dirty = true;
-                    }),
-              title: const Text('Tôi là chủ sở hữu nhà trọ'),
-              subtitle: Text(
-                _isOwner
-                    ? 'Nếu bạn là người đăng thay chủ nhà, hãy tắt mục này và gửi giấy ủy quyền.'
-                    : 'Cần có giấy ủy quyền hoặc văn bản cho phép cho thuê.',
-                style: TextStyle(color: palette.muted, height: 1.4),
+            LandlordGlassSection(
+              title: 'Giấy tờ xác minh',
+              subtitle: 'Ảnh rõ nét, đầy đủ thông tin và còn hiệu lực.',
+              trailing: VerificationBadge(
+                label: '$completed/${sections.length} mục',
+                color: completed == sections.length
+                    ? verificationGreen
+                    : palette.primary,
               ),
-              activeTrackColor: palette.primary,
             ),
-            const SizedBox(height: 6),
-            for (final section in _sections)
-              if (section.id != 'authorization' || !_isOwner)
-                _DocumentSection(
-                  id: section.id,
-                  title: section.title,
-                  description: section.description,
-                  files: _files[section.id]!,
-                  isRequired: section.id != 'authorization' || !_isOwner,
-                  busy: _busy,
-                  onPick: () => _pick(section.id),
-                  onRemove: (index) => _remove(section.id, index),
+            LandlordGlassCard(
+              padding: const EdgeInsets.fromLTRB(16, 6, 10, 6),
+              child: SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                value: _isOwner,
+                onChanged: _busy
+                    ? null
+                    : (value) => setState(() {
+                        _isOwner = value;
+                        _dirty = true;
+                      }),
+                title: Text(
+                  'Tôi là chủ sở hữu nhà trọ',
+                  style: TextStyle(
+                    color: palette.ink,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
                 ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(color: Color(0xFFB42318)),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(
+                    _isOwner
+                        ? 'Tắt nếu bạn cho thuê thay chủ sở hữu.'
+                        : 'Cần bổ sung giấy ủy quyền cho thuê.',
+                    style: TextStyle(
+                      color: palette.muted,
+                      fontSize: 11,
+                      height: 1.45,
+                    ),
+                  ),
                 ),
+                activeTrackColor: palette.primary,
               ),
-            LandlordCard(
-              backgroundColor: const Color(0xFFF4F7FC),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            const SizedBox(height: 14),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 680 ? 2 : 1;
+                final width =
+                    (constraints.maxWidth - (columns - 1) * 14) / columns;
+                return Wrap(
+                  spacing: 14,
+                  runSpacing: 14,
+                  children: [
+                    for (var index = 0; index < sections.length; index++)
+                      SizedBox(
+                        width: width,
+                        child: _DocumentSection(
+                          id: sections[index].id,
+                          number: index + 1,
+                          title: sections[index].title,
+                          description: sections[index].description,
+                          files: _files[sections[index].id]!,
+                          busy: _busy,
+                          onPick: () => _pick(sections[index].id),
+                          onRemove: (fileIndex) =>
+                              _remove(sections[index].id, fileIndex),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 22),
+            LandlordGlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.lock_outline_rounded, color: palette.primary),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: const Text(
-                      'Ảnh giấy tờ được lưu trong khu vực riêng và chỉ tài khoản chủ trọ cùng quản trị viên có quyền xem.',
-                      style: TextStyle(height: 1.45),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      VerificationIcon(
+                        icon: Icons.lock_outline_rounded,
+                        color: palette.primary,
+                        size: 38,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Giấy tờ của bạn được bảo mật',
+                              style: TextStyle(
+                                color: palette.ink,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              'Chỉ chủ trọ và Admin được xem. Giấy tờ không hiển thị với người thuê.',
+                              style: TextStyle(
+                                color: palette.muted,
+                                fontSize: 11,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Divider(height: 1, color: palette.line),
+                  CheckboxListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: _consent,
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() => _consent = value == true),
+                    title: Text(
+                      'Tôi đồng ý gửi giấy tờ để xác minh nhà trọ',
+                      style: TextStyle(
+                        color: palette.ink,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        height: 1.5,
+                      ),
+                    ),
+                    activeColor: palette.primary,
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                  if (_error != null) ...[
+                    Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 12,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: propertyBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: _busy || (!_dirty && submitted) ? null : _submit,
+                    icon: _busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.cloud_upload_outlined, size: 20),
+                    label: Text(
+                      submitted ? 'Nộp lại hồ sơ' : 'Gửi hồ sơ xác minh',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Kết quả xét duyệt sẽ hiển thị tại mục Phản hồi từ Admin.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: palette.muted,
+                      fontSize: 11,
+                      height: 1.5,
                     ),
                   ),
                 ],
-              ),
-            ),
-            CheckboxListTile.adaptive(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-              value: _consent,
-              onChanged: _busy
-                  ? null
-                  : (value) => setState(() => _consent = value == true),
-              title: const Text(
-                'Tôi đồng ý gửi giấy tờ để xác minh nhà trọ',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-              ),
-              subtitle: Text(
-                'Ảnh chỉ phục vụ việc xét duyệt; người thuê không xem được giấy tờ này.',
-                style: TextStyle(
-                  color: palette.muted,
-                  fontSize: 11,
-                  height: 1.4,
-                ),
-              ),
-              activeColor: palette.primary,
-              controlAffinity: ListTileControlAffinity.leading,
-            ),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed:
-                    _busy ||
-                        (!_dirty &&
-                            _store.property.verificationSubmittedAt != null)
-                    ? null
-                    : _submit,
-                icon: _busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.cloud_upload_outlined),
-                label: Text(
-                  _store.property.verificationSubmittedAt == null
-                      ? 'Gửi hồ sơ xác minh'
-                      : 'Cập nhật hồ sơ',
-                ),
               ),
             ),
           ],
@@ -374,99 +555,288 @@ class _LandlordVerificationPageState extends State<LandlordVerificationPage> {
   );
 }
 
-class _DocumentSection extends StatelessWidget {
-  const _DocumentSection({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.files,
-    required this.isRequired,
-    required this.busy,
-    required this.onPick,
-    required this.onRemove,
+class _VerificationStep extends StatelessWidget {
+  const _VerificationStep({
+    required this.number,
+    required this.label,
+    required this.complete,
+    required this.active,
+    this.last = false,
   });
+  final int number;
+  final String label;
+  final bool complete;
+  final bool active;
+  final bool last;
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 27,
+              height: 27,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: complete
+                    ? const Color(0xFFA5F0DB)
+                    : active
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: .15),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: active ? 1 : .3),
+                ),
+              ),
+              child: complete
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 16,
+                      color: Color(0xFF127258),
+                    )
+                  : Text(
+                      '$number',
+                      style: TextStyle(
+                        color: active ? propertyBlue : Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+            ),
+            if (!last)
+              Expanded(
+                child: Container(
+                  height: 1,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  color: Colors.white.withValues(alpha: .3),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: active || complete ? Colors.white : Colors.white70,
+            fontSize: 10,
+            fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
-  final String id;
-  final String title;
-  final String description;
-  final List<PropertyVerificationFile> files;
-  final bool isRequired;
-  final bool busy;
-  final VoidCallback onPick;
-  final ValueChanged<int> onRemove;
-
+class _AdminResponse extends StatelessWidget {
+  const _AdminResponse({
+    required this.verified,
+    required this.note,
+    this.submittedAt,
+  });
+  final bool verified;
+  final String note;
+  final DateTime? submittedAt;
   @override
   Widget build(BuildContext context) {
     final palette = LandlordPalette.of(context);
-    return LandlordCard(
-      padding: const EdgeInsets.all(16),
+    final color = verified
+        ? verificationGreen
+        : note.isNotEmpty
+        ? verificationAmber
+        : palette.primary;
+    return LandlordGlassCard(
+      tint: color,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: palette.primarySoft,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(_icon, color: palette.primary),
+              VerificationIcon(
+                icon: verified
+                    ? Icons.task_alt_rounded
+                    : note.isNotEmpty
+                    ? Icons.mark_chat_unread_outlined
+                    : Icons.schedule_rounded,
+                color: color,
+                size: 40,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              color: palette.ink,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          isRequired ? 'BẮT BUỘC' : 'NẾU CÓ',
-                          style: TextStyle(
-                            color: isRequired ? palette.primary : palette.muted,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: .4,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
                     Text(
-                      description,
+                      'Phản hồi từ Admin',
                       style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 12,
-                        height: 1.4,
+                        color: palette.ink,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
                       ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      verified
+                          ? 'Hồ sơ đã được duyệt'
+                          : note.isNotEmpty
+                          ? 'Vui lòng bổ sung theo hướng dẫn'
+                          : 'Hồ sơ đã được tiếp nhận',
+                      style: TextStyle(color: color, fontSize: 11),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          if (files.isNotEmpty) ...[
+          const SizedBox(height: 13),
+          SelectableText(
+            verified
+                ? 'Admin đã duyệt hồ sơ. Nhà trọ đã được xác minh.'
+                : note.isNotEmpty
+                ? note
+                : 'Đã tiếp nhận hồ sơ. Đang chờ Admin xét duyệt và phản hồi.',
+            style: TextStyle(color: palette.ink, fontSize: 13, height: 1.55),
+          ),
+          if (submittedAt != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Lần nộp gần nhất: ${submittedAt!.day}/${submittedAt!.month}/${submittedAt!.year}',
+              style: TextStyle(color: palette.muted, fontSize: 11),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PropertyInfo extends StatelessWidget {
+  const _PropertyInfo({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) {
+    final palette = LandlordPalette.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: palette.muted, size: 19),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(color: palette.muted, fontSize: 10)),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: TextStyle(
+                  color: palette.ink,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DocumentSection extends StatelessWidget {
+  const _DocumentSection({
+    required this.id,
+    required this.number,
+    required this.title,
+    required this.description,
+    required this.files,
+    required this.busy,
+    required this.onPick,
+    required this.onRemove,
+  });
+  final String id;
+  final int number;
+  final String title;
+  final String description;
+  final List<PropertyVerificationFile> files;
+  final bool busy;
+  final VoidCallback onPick;
+  final ValueChanged<int> onRemove;
+  @override
+  Widget build(BuildContext context) {
+    final palette = LandlordPalette.of(context);
+    final complete = files.isNotEmpty;
+    final color = complete ? verificationGreen : palette.primary;
+    return LandlordGlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              VerificationIcon(icon: _icon, color: color, size: 42),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'GIẤY TỜ 0$number',
+                      style: TextStyle(
+                        color: palette.muted,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: .8,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: palette.ink,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                complete ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: complete ? verificationGreen : palette.line,
+                size: 20,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            description,
+            style: TextStyle(color: palette.muted, fontSize: 12, height: 1.5),
+          ),
+          if (complete) ...[
             const SizedBox(height: 12),
             for (var index = 0; index < files.length; index++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+              Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(left: 10, right: 2),
+                decoration: BoxDecoration(
+                  color: verificationGreen.withValues(alpha: .06),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.image_outlined,
-                      size: 17,
-                      color: palette.primary,
+                    const Icon(
+                      Icons.insert_drive_file_outlined,
+                      color: verificationGreen,
+                      size: 18,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -478,20 +848,63 @@ class _DocumentSection extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      visualDensity: VisualDensity.compact,
                       tooltip: 'Xóa ảnh',
                       onPressed: busy ? null : () => onRemove(index),
-                      icon: const Icon(Icons.close_rounded, size: 18),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: palette.muted,
+                        size: 17,
+                      ),
                     ),
                   ],
                 ),
               ),
           ],
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: busy ? null : onPick,
-            icon: const Icon(Icons.add_photo_alternate_outlined, size: 19),
-            label: Text(files.isEmpty ? 'Chọn ảnh' : 'Thêm ảnh'),
+          const SizedBox(height: 12),
+          Material(
+            color: palette.primary.withValues(alpha: .045),
+            borderRadius: BorderRadius.circular(15),
+            child: InkWell(
+              onTap: busy ? null : onPick,
+              borderRadius: BorderRadius.circular(15),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 18,
+                  horizontal: 12,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: palette.primary.withValues(alpha: .2),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.add_photo_alternate_outlined,
+                      color: palette.primary,
+                      size: 25,
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      complete ? 'Thêm ảnh' : 'Chọn ảnh giấy tờ',
+                      style: TextStyle(
+                        color: palette.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      complete
+                          ? '${files.length} ảnh đã chọn'
+                          : 'Bắt buộc · JPG, PNG hoặc WebP',
+                      style: TextStyle(color: palette.muted, fontSize: 10),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -501,7 +914,7 @@ class _DocumentSection extends StatelessWidget {
   IconData get _icon => switch (id) {
     'portrait' => Icons.account_circle_outlined,
     'identity' => Icons.badge_outlined,
-    'ownership' => Icons.real_estate_agent_outlined,
+    'ownership' => Icons.home_work_outlined,
     _ => Icons.assignment_turned_in_outlined,
   };
 }

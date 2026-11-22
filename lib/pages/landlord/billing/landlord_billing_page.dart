@@ -1431,14 +1431,15 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                         if (confirmed == true) {
                           try {
                             _store.cancelInvoice(invoice);
+                            await AppPersistence.current?.flush();
+                            if (!context.mounted) return;
                             if (context.mounted) Navigator.pop(context);
-                          } on ArgumentError catch (error) {
-                            if (context.mounted) {
-                              showLandlordMessage(
-                                context,
-                                error.message.toString(),
-                              );
-                            }
+                          } catch (failure) {
+                            if (!context.mounted) return;
+                            final message = failure is ArgumentError
+                                ? failure.message.toString()
+                                : AppPersistence.saveFailureMessage(failure);
+                            showLandlordMessage(context, message);
                           }
                         }
                       },
@@ -1544,6 +1545,8 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
         dueDate: draft.dueDate,
         charges: charges,
       );
+      await AppPersistence.current?.flush();
+      if (!mounted) return;
       setState(() {
         _period = draft.period;
         _roomPage = 0;
@@ -1552,8 +1555,12 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
         context,
         'Đã lập phiếu thu ${invoice.id} · ${formatLandlordMoney(invoice.total)}.',
       );
-    } on ArgumentError catch (error) {
-      showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      if (!mounted) return;
+      final message = failure is ArgumentError
+          ? failure.message.toString()
+          : AppPersistence.saveFailureMessage(failure);
+      showLandlordMessage(context, message);
     }
   }
 }

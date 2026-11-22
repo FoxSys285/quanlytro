@@ -5,6 +5,7 @@ import '../../../data/auth_validation.dart';
 import '../../../data/local_auth.dart';
 import '../../../layouts/role_layout.dart';
 import 'auth_flow_widgets.dart';
+import '../legal/legal_consent_checkbox.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key, this.initialEmail = '', this.auth});
@@ -84,8 +85,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) => AuthFlowScaffold(
-    title: 'Tạo tài khoản',
-    subtitle: 'Bắt đầu hành trình tìm trọ và quản lý\nkhông gian sống của bạn.',
+    title: 'Đăng ký',
+    subtitle: '',
     icon: Icons.person_add_alt_1_rounded,
     child: AutofillGroup(
       child: Form(
@@ -110,35 +111,6 @@ class _RegisterPageState extends State<RegisterPage> {
               },
             ),
             const SizedBox(height: 16),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              activeColor: authGreen,
-              value: _requestedRole == AppRole.landlord,
-              onChanged: _busy
-                  ? null
-                  : (value) => setState(() {
-                      _requestedRole = value == true
-                          ? AppRole.landlord
-                          : AppRole.tenant;
-                    }),
-              title: const Text(
-                'Đăng ký với tài khoản chủ trọ',
-                style: TextStyle(
-                  color: authInk,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: const Text(
-                'Bỏ chọn nếu bạn đăng ký làm người thuê trọ.',
-                style: TextStyle(color: authMuted, fontSize: 12),
-              ),
-            ),
-            const AuthNotice(
-              'Tài khoản dùng được ngay sau khi đăng ký. Nhà trọ vẫn cần được xác minh trước khi công khai.',
-            ),
-            const SizedBox(height: 16),
             AuthFlowField(
               controller: _email,
               label: 'Email',
@@ -159,13 +131,6 @@ class _RegisterPageState extends State<RegisterPage> {
               enabled: !_busy,
               autofillHints: const [AutofillHints.telephoneNumberNational],
             ),
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                'Sau khi đăng ký, vào Cài đặt → Liên kết số điện thoại để xác minh OTP và bật đăng nhập bằng số điện thoại.',
-                style: TextStyle(color: authMuted, fontSize: 11, height: 1.5),
-              ),
-            ),
             const SizedBox(height: 16),
             AuthFlowField(
               controller: _password,
@@ -177,13 +142,7 @@ class _RegisterPageState extends State<RegisterPage> {
               enabled: !_busy,
               autofillHints: const [AutofillHints.newPassword],
             ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(4, 8, 4, 16),
-              child: Text(
-                'Ít nhất 8 ký tự, bao gồm chữ và số.',
-                style: TextStyle(color: authMuted, fontSize: 11, height: 1.5),
-              ),
-            ),
+            const SizedBox(height: 16),
             AuthFlowField(
               controller: _confirmation,
               label: 'Xác nhận mật khẩu',
@@ -205,17 +164,26 @@ class _RegisterPageState extends State<RegisterPage> {
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               activeColor: authGreen,
-              value: _accepted,
+              value: _requestedRole == AppRole.landlord,
               onChanged: _busy
                   ? null
                   : (value) => setState(() {
-                      _accepted = value ?? false;
-                      _error = null;
+                      _requestedRole = value == true
+                          ? AppRole.landlord
+                          : AppRole.tenant;
                     }),
               title: const Text(
-                'Tôi đồng ý với điều khoản sử dụng và chính sách bảo mật.',
+                'Đăng ký với tài khoản chủ trọ',
                 style: TextStyle(color: authMuted, fontSize: 12, height: 1.5),
               ),
+            ),
+            LegalConsentCheckbox(
+              value: _accepted,
+              enabled: !_busy,
+              onChanged: (value) => setState(() {
+                _accepted = value ?? false;
+                _error = null;
+              }),
             ),
             if (!_auth.isCloudMode) ...[
               const SizedBox(height: 8),

@@ -1,6 +1,6 @@
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
+import '../../../data/firebase_media_store.dart';
 import '../landlord_theme.dart';
 
 import '../landlord_glass.dart';
@@ -80,7 +80,10 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
       return ListTile(title: Text(label), subtitle: const Text('Chưa tải lên'));
     }
     return FutureBuilder(
-      future: FirebaseStorage.instance.ref(path).getData(10 * 1024 * 1024),
+      future: FirebaseMediaStore().downloadPrivateAsset(
+        path,
+        maxBytes: 10 * 1024 * 1024,
+      ),
       builder: (context, snapshot) {
         final bytes = snapshot.data;
         return Padding(

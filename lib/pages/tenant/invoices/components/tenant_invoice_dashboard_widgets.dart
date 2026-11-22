@@ -19,11 +19,13 @@ class TenantInvoiceNavigationBar extends StatelessWidget
     required this.onBack,
     this.onNotifications,
     this.store,
+    this.trailingAction,
     String? tenantId,
   }) : _tenantId = tenantId ?? '';
   final VoidCallback onBack;
   final VoidCallback? onNotifications;
   final LandlordDemoStore? store;
+  final Widget? trailingAction;
   final String _tenantId;
   String get tenantId =>
       _tenantId.isEmpty ? TenantSession.currentTenantId : _tenantId;
@@ -32,11 +34,12 @@ class TenantInvoiceNavigationBar extends StatelessWidget
 
   @override
   Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
     final notices = AnnouncementStore.forRental(
       store ?? LandlordDemoStore.instance,
     );
     return AppBar(
-      backgroundColor: invoiceMint,
+      backgroundColor: colors.header,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       centerTitle: true,
@@ -49,18 +52,18 @@ class TenantInvoiceNavigationBar extends StatelessWidget
           onPressed: onBack,
           tooltip: 'Quay lại',
           style: IconButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: tenantInk,
+            backgroundColor: colors.surface,
+            foregroundColor: colors.ink,
           ),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
         ),
       ),
-      title: const FittedBox(
+      title: FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
           'Hóa đơn và Thanh toán',
           style: TextStyle(
-            color: tenantInk,
+            color: colors.ink,
             fontSize: 17,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
@@ -96,8 +99,8 @@ class TenantInvoiceNavigationBar extends StatelessWidget
                           ),
                         ),
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: tenantInk,
+                      backgroundColor: colors.surface,
+                      foregroundColor: colors.ink,
                     ),
                     icon: const Icon(
                       Icons.notifications_none_rounded,
@@ -115,7 +118,7 @@ class TenantInvoiceNavigationBar extends StatelessWidget
                         decoration: BoxDecoration(
                           color: const Color(0xFFE6373E),
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white),
+                          border: Border.all(color: colors.surface),
                         ),
                       ),
                     ),
@@ -124,6 +127,7 @@ class TenantInvoiceNavigationBar extends StatelessWidget
             },
           ),
         ),
+        ?trailingAction,
       ],
     );
   }
@@ -244,18 +248,18 @@ class TenantCurrentInvoiceCard extends StatelessWidget {
               spacing: 9,
               runSpacing: 10,
               children: [
-                const Row(
+                Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.description_rounded,
                       color: Color(0xFF00A44B),
                       size: 26,
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        'Hóa đơn hiện tại',
+                        'Hóa đơn ${landlordMonth(invoice.period)}',
                         style: TextStyle(
                           color: tenantInk,
                           fontSize: 15,

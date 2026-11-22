@@ -1,4 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as paths;
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
 
 import '../pages/landlord/landlord_demo_store.dart';
 import '../pages/shared/profile/account_store.dart';
@@ -9,12 +14,13 @@ import '../pages/tenant/discovery/tenant_favorites_page.dart';
 import '../pages/tenant/tenant_settings_page.dart';
 import '../pages/tenant/tenant_page_router.dart';
 import '../pages/tenant/tenant_ui.dart';
+import '../pages/tenant/tenant_theme.dart';
 import '../pages/tenant/tenant_navigation_bar.dart';
 import '../pages/tenant/leases/components/tenant_lease_overview.dart';
 import '../pages/tenant/invoices/components/tenant_invoice_dashboard_widgets.dart';
 import 'role_layout.dart';
 
-class TenantLayout extends StatelessWidget {
+class TenantLayout extends StatefulWidget {
   const TenantLayout({
     super.key,
     this.displayName,
@@ -29,6 +35,61 @@ class TenantLayout extends StatelessWidget {
   final ValueChanged<AppRole>? onPreviewRoleSelected;
   final RolePageBuilder? pageBuilder;
   final VoidCallback? onLogout;
+
+  @override
+  State<TenantLayout> createState() => _TenantLayoutState();
+}
+
+class _TenantLayoutState extends State<TenantLayout> {
+  bool _dark = false;
+  bool _themeChanged = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  Future<File> _themeFile() async {
+    final factory = Platform.isWindows || Platform.isLinux
+        ? ffi.databaseFactoryFfi
+        : databaseFactory;
+    return File(
+      paths.join(await factory.getDatabasesPath(), 'tenant_theme.txt'),
+    );
+  }
+
+  Future<void> _loadTheme() async {
+    try {
+      final file = await _themeFile();
+      if (await file.exists() && mounted) {
+        final savedTheme = (await file.readAsString()).trim();
+        if (mounted && !_themeChanged) {
+          setState(() => _dark = savedTheme == 'dark');
+        }
+      }
+    } catch (_) {
+      // Keep the light theme when optional preference storage is unavailable.
+    }
+  }
+
+  Future<void> _toggleTheme() async {
+    final dark = !_dark;
+    _themeChanged = true;
+    setState(() => _dark = dark);
+    try {
+      final file = await _themeFile();
+      await file.writeAsString(dark ? 'dark' : 'light');
+    } catch (_) {
+      // Keep the selection for the current session if storage fails.
+    }
+  }
+
+  Widget _themeToggleAction() => IconButton(
+    tooltip: _dark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối',
+    onPressed: _toggleTheme,
+    icon: Icon(_dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -59,167 +120,189 @@ class TenantLayout extends StatelessWidget {
         destinationId: 'announcements',
       ),
     ];
-    return ListenableBuilder(
-      listenable: Listenable.merge([store, AccountStore.instance]),
-      builder: (context, _) => RoleLayoutShell(
-        role: AppRole.tenant,
-        notificationsEnabled: AccountStore.instance.notificationsEnabled(
-          AppRole.tenant,
-        ),
-        displayName:
-            displayName ?? AccountStore.instance.profile(AppRole.tenant).name,
-        contextLabel: contextLabel,
-        accentColor: const Color(0xFF08A94F),
-        initialDestinationId: 'discovery',
-        retainedDestinationIds: const {'discovery'},
-        showMoreTab: false,
-        hideAppBarOnDestinations: const {
-          'discovery',
-          'viewings',
-          'my_lease',
-          'lease_contract',
-          'members',
-          'invoices',
-          'conversations',
-          'announcements',
-          'incidents',
-          'support',
-          'settings',
-        },
-        topBarBuilder:
-            (context, destination, onOpenDrawer, onSelectDestination, onBack) {
-              if (destination.id == 'invoices') {
-                return TenantInvoiceNavigationBar(
-                  onBack: onBack,
-                  onNotifications: () => onSelectDestination('announcements'),
-                  store: store,
-                  tenantId: TenantSession.currentTenantId,
-                );
-              }
-              if (destination.id == 'lease_contract') {
-                return TenantLeaseNavigationBar(onBack: onBack);
-              }
-              if (const {
-                'discovery',
-                'my_lease',
-                'conversations',
-                'announcements',
-              }.contains(destination.id)) {
-                return const SizedBox.shrink();
-              }
-              if (const {
-                'settings',
-                'profile',
-                'notifications',
-                'viewings',
-                'members',
-                'incidents',
-                'support',
-              }.contains(destination.id)) {
-                return TenantNavigationBar(
-                  title: destination.label,
-                  onBack: onBack,
-                  onNotifications: () => onSelectDestination('announcements'),
-                  notifications: AnnouncementStore.forRental(store),
-                  tenantId: TenantSession.currentTenantId,
-                );
-              }
-              return TenantHeader(
-                profileName:
-                    displayName ??
-                    AccountStore.instance.profile(AppRole.tenant).name,
-                onAvatarTap: onOpenDrawer,
-                onFavoritesTap: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const TenantFavoritesPage(),
-                  ),
-                ),
-                onSettingsTap: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const TenantSettingsPage(),
-                  ),
-                ),
-              );
-            },
-        bottomNavigationBuilder: (context, selectedIndex, onSelected) =>
-            _TenantBottomNavigation(
-              tabs: tenantTabs,
-              selectedIndex: selectedIndex,
-              onSelected: onSelected,
+    return Theme(
+      data: tenantTheme(dark: _dark),
+      child: TenantUiPalette(
+        landlordStyle: false,
+        dark: _dark,
+        child: ListenableBuilder(
+          listenable: Listenable.merge([store, AccountStore.instance]),
+          builder: (context, _) => RoleLayoutShell(
+            role: AppRole.tenant,
+            notificationsEnabled: AccountStore.instance.notificationsEnabled(
+              AppRole.tenant,
             ),
-        onPreviewRoleSelected: onPreviewRoleSelected,
-        onLogout: onLogout,
-        tabs: tenantTabs,
-        destinations: const [
-          RoleDestination(
-            id: 'discovery',
-            label: 'Khám phá nhà trọ',
-            icon: Icons.travel_explore_rounded,
-            group: 'Bắt đầu',
+            displayName:
+                widget.displayName ??
+                AccountStore.instance.profile(AppRole.tenant).name,
+            contextLabel: widget.contextLabel,
+            accentColor: TenantUiPalette.of(context).primary,
+            themeAction: _themeToggleAction(),
+            initialDestinationId: 'discovery',
+            retainedDestinationIds: const {'discovery'},
+            showMoreTab: false,
+            hideAppBarOnDestinations: const {
+              'discovery',
+              'viewings',
+              'my_lease',
+              'lease_contract',
+              'members',
+              'invoices',
+              'conversations',
+              'announcements',
+              'incidents',
+              'support',
+              'settings',
+            },
+            topBarBuilder:
+                (
+                  context,
+                  destination,
+                  onOpenDrawer,
+                  onSelectDestination,
+                  onBack,
+                ) {
+                  if (destination.id == 'invoices') {
+                    return TenantInvoiceNavigationBar(
+                      onBack: onBack,
+                      onNotifications: () =>
+                          onSelectDestination('announcements'),
+                      store: store,
+                      tenantId: TenantSession.currentTenantId,
+                      trailingAction: _themeToggleAction(),
+                    );
+                  }
+                  if (destination.id == 'lease_contract') {
+                    return TenantLeaseNavigationBar(
+                      onBack: onBack,
+                      trailingAction: _themeToggleAction(),
+                    );
+                  }
+                  if (const {
+                    'discovery',
+                    'my_lease',
+                    'conversations',
+                    'announcements',
+                  }.contains(destination.id)) {
+                    return const SizedBox.shrink();
+                  }
+                  if (const {
+                    'settings',
+                    'profile',
+                    'notifications',
+                    'viewings',
+                    'members',
+                    'incidents',
+                    'support',
+                  }.contains(destination.id)) {
+                    return TenantNavigationBar(
+                      title: destination.label,
+                      onBack: onBack,
+                      onNotifications: () =>
+                          onSelectDestination('announcements'),
+                      notifications: AnnouncementStore.forRental(store),
+                      tenantId: TenantSession.currentTenantId,
+                      trailingAction: _themeToggleAction(),
+                    );
+                  }
+                  return TenantHeader(
+                    profileName:
+                        widget.displayName ??
+                        AccountStore.instance.profile(AppRole.tenant).name,
+                    onAvatarTap: onOpenDrawer,
+                    onFavoritesTap: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const TenantFavoritesPage(),
+                      ),
+                    ),
+                    onSettingsTap: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const TenantSettingsPage(),
+                      ),
+                    ),
+                  );
+                },
+            bottomNavigationBuilder: (context, selectedIndex, onSelected) =>
+                _TenantBottomNavigation(
+                  tabs: tenantTabs,
+                  selectedIndex: selectedIndex,
+                  onSelected: onSelected,
+                ),
+            onPreviewRoleSelected: widget.onPreviewRoleSelected,
+            onLogout: widget.onLogout,
+            tabs: tenantTabs,
+            destinations: const [
+              RoleDestination(
+                id: 'discovery',
+                label: 'Khám phá nhà trọ',
+                icon: Icons.travel_explore_rounded,
+                group: 'Bắt đầu',
+              ),
+              RoleDestination(
+                id: 'viewings',
+                label: 'Lịch xem phòng',
+                icon: Icons.calendar_month_outlined,
+                group: 'Bắt đầu',
+              ),
+              RoleDestination(
+                id: 'my_lease',
+                label: 'Chỗ ở của tôi',
+                icon: Icons.home_outlined,
+                group: 'Chỗ ở hiện tại',
+              ),
+              RoleDestination(
+                id: 'lease_contract',
+                label: 'Hợp đồng thuê',
+                icon: Icons.description_outlined,
+                group: 'Chỗ ở hiện tại',
+              ),
+              RoleDestination(
+                id: 'members',
+                label: 'Thành viên phòng',
+                icon: Icons.group_outlined,
+                group: 'Chỗ ở hiện tại',
+              ),
+              RoleDestination(
+                id: 'invoices',
+                label: 'Hóa đơn',
+                icon: Icons.receipt_long_outlined,
+                group: 'Thanh toán',
+                drawerLabel: 'Hóa đơn & thanh toán',
+              ),
+              RoleDestination(
+                id: 'conversations',
+                label: 'Tin nhắn',
+                icon: Icons.forum_outlined,
+                group: 'Trao đổi',
+              ),
+              RoleDestination(
+                id: 'announcements',
+                label: 'Thông báo nhà trọ',
+                icon: Icons.campaign_outlined,
+                group: 'Trao đổi',
+              ),
+              RoleDestination(
+                id: 'incidents',
+                label: 'Báo sự cố',
+                icon: Icons.build_outlined,
+                group: 'Trao đổi',
+              ),
+              RoleDestination(
+                id: 'support',
+                label: 'Trợ giúp',
+                icon: Icons.help_outline_rounded,
+                group: 'Tài khoản',
+              ),
+              RoleDestination(
+                id: 'settings',
+                label: 'Cài đặt',
+                icon: Icons.settings_outlined,
+                group: 'Tài khoản',
+              ),
+            ],
+            pageBuilder: widget.pageBuilder ?? buildTenantPage,
           ),
-          RoleDestination(
-            id: 'viewings',
-            label: 'Lịch xem phòng',
-            icon: Icons.calendar_month_outlined,
-            group: 'Bắt đầu',
-          ),
-          RoleDestination(
-            id: 'my_lease',
-            label: 'Chỗ ở của tôi',
-            icon: Icons.home_outlined,
-            group: 'Chỗ ở hiện tại',
-          ),
-          RoleDestination(
-            id: 'lease_contract',
-            label: 'Hợp đồng thuê',
-            icon: Icons.description_outlined,
-            group: 'Chỗ ở hiện tại',
-          ),
-          RoleDestination(
-            id: 'members',
-            label: 'Thành viên phòng',
-            icon: Icons.group_outlined,
-            group: 'Chỗ ở hiện tại',
-          ),
-          RoleDestination(
-            id: 'invoices',
-            label: 'Hóa đơn',
-            icon: Icons.receipt_long_outlined,
-            group: 'Thanh toán',
-            drawerLabel: 'Hóa đơn & thanh toán',
-          ),
-          RoleDestination(
-            id: 'conversations',
-            label: 'Tin nhắn',
-            icon: Icons.forum_outlined,
-            group: 'Trao đổi',
-          ),
-          RoleDestination(
-            id: 'announcements',
-            label: 'Thông báo nhà trọ',
-            icon: Icons.campaign_outlined,
-            group: 'Trao đổi',
-          ),
-          RoleDestination(
-            id: 'incidents',
-            label: 'Báo sự cố',
-            icon: Icons.build_outlined,
-            group: 'Trao đổi',
-          ),
-          RoleDestination(
-            id: 'support',
-            label: 'Trợ giúp',
-            icon: Icons.help_outline_rounded,
-            group: 'Tài khoản',
-          ),
-          RoleDestination(
-            id: 'settings',
-            label: 'Cài đặt',
-            icon: Icons.settings_outlined,
-            group: 'Tài khoản',
-          ),
-        ],
-        pageBuilder: pageBuilder ?? buildTenantPage,
+        ),
       ),
     );
   }
@@ -242,56 +325,59 @@ class _TenantBottomNavigation extends StatelessWidget {
       ConversationStore.instance,
       AnnouncementStore.instance,
     ]),
-    builder: (context, _) => Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x100D1C18),
-            blurRadius: 16,
-            offset: Offset(0, -5),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(4, 7, 4, 3),
-          child: Row(
-            children: [
-              for (var index = 0; index < tabs.length; index++)
-                Expanded(
-                  child: _TenantBottomNavigationItem(
-                    tab: tabs[index],
-                    selected: index == selectedIndex,
-                    unreadCount: switch (tabs[index].destinationId) {
-                      'conversations' =>
-                        ConversationStore.instance
-                            .forTenant(TenantSession.currentTenantId)
-                            .fold<int>(
-                              0,
-                              (sum, item) => sum + item.tenantUnread,
-                            ),
-                      'announcements' =>
-                        AnnouncementStore.instance
-                            .forTenant(TenantSession.currentTenantId)
-                            .where(
-                              (item) => !AnnouncementStore.instance.isRead(
-                                item.id,
-                                TenantSession.currentTenantId,
+    builder: (context, _) {
+      final colors = TenantUiPalette.of(context);
+      return Container(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 16,
+              offset: Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 7, 4, 3),
+            child: Row(
+              children: [
+                for (var index = 0; index < tabs.length; index++)
+                  Expanded(
+                    child: _TenantBottomNavigationItem(
+                      tab: tabs[index],
+                      selected: index == selectedIndex,
+                      unreadCount: switch (tabs[index].destinationId) {
+                        'conversations' =>
+                          ConversationStore.instance
+                              .forTenant(TenantSession.currentTenantId)
+                              .fold<int>(
+                                0,
+                                (sum, item) => sum + item.tenantUnread,
                               ),
-                            )
-                            .length,
-                      _ => 0,
-                    },
-                    onTap: () => onSelected(index),
+                        'announcements' =>
+                          AnnouncementStore.instance
+                              .forTenant(TenantSession.currentTenantId)
+                              .where(
+                                (item) => !AnnouncementStore.instance.isRead(
+                                  item.id,
+                                  TenantSession.currentTenantId,
+                                ),
+                              )
+                              .length,
+                        _ => 0,
+                      },
+                      onTap: () => onSelected(index),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
-    ),
+      );
+    },
   );
 }
 
@@ -310,7 +396,8 @@ class _TenantBottomNavigationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? const Color(0xFF08A94F) : const Color(0xFF676B78);
+    final colors = TenantUiPalette.of(context);
+    final color = selected ? colors.primary : colors.muted;
     return Semantics(
       button: true,
       selected: selected,
@@ -380,9 +467,7 @@ class _TenantBottomNavigationItem extends StatelessWidget {
                 width: 54,
                 height: 3,
                 decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0xFF08A94F)
-                      : Colors.transparent,
+                  color: selected ? colors.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),

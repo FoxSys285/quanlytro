@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../../layouts/role_layout.dart';
 import '../landlord_theme.dart';
 
@@ -88,6 +89,16 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
       _category = null;
       _urgentOnly = false;
     });
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+      return;
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Đã gửi thông báo đến người thuê.')),
     );
@@ -95,14 +106,27 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
 
   final _search = TextEditingController();
 
-  void _open(LandlordAnnouncement item) {
+  Future<void> _flushReadState() async {
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
+  }
+
+  Future<void> _open(LandlordAnnouncement item) async {
     if (item.id.startsWith('payment:')) {
-      _goTo(item);
+      await _goTo(item);
       return;
     }
     if (!_showSent && !item.isRead) {
       _store.markLandlordRead(item.id);
+      await _flushReadState();
     }
+    if (!mounted) return;
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -148,8 +172,12 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
     );
   }
 
-  void _goTo(LandlordAnnouncement item) {
-    if (!item.isRead) _store.markLandlordRead(item.id);
+  Future<void> _goTo(LandlordAnnouncement item) async {
+    if (!item.isRead) {
+      _store.markLandlordRead(item.id);
+      await _flushReadState();
+    }
+    if (!mounted) return;
     if (item.id.startsWith('payment:')) {
       final paymentId = item.id.substring('payment:'.length);
       if (LandlordPaymentsPage.navigateToPayment(context, paymentId)) return;
@@ -169,8 +197,13 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
     };
     if (destination == null ||
         !RoleLayoutShell.tryNavigateTo(context, destination)) {
-      _open(item);
+      await _open(item);
     }
+  }
+
+  Future<void> _markAllRead() async {
+    _store.markAllLandlordRead();
+    await _flushReadState();
   }
 
   @override
@@ -307,7 +340,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
           subtitle: '${items.length} thông báo',
           trailing: !_showSent
               ? TextButton.icon(
-                  onPressed: unread == 0 ? null : _store.markAllLandlordRead,
+                  onPressed: unread == 0 ? null : _markAllRead,
                   icon: const Icon(Icons.done_all_rounded, size: 17),
                   label: const Text('Đánh dấu đã đọc'),
                 )

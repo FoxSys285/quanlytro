@@ -32,7 +32,6 @@ class TenantInvoicesPage extends StatefulWidget {
 }
 
 class _TenantInvoicesPageState extends State<TenantInvoicesPage> {
-  String? _selectedInvoiceId;
   LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
 
   @override
@@ -46,19 +45,7 @@ class _TenantInvoicesPageState extends State<TenantInvoicesPage> {
               .where((invoice) => !invoice.cancelled && invoice.remaining > 0)
               .toList()
             ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
-      final selected = outstanding.where(
-        (invoice) => invoice.id == _selectedInvoiceId,
-      );
-      final current = selected.isNotEmpty
-          ? selected.first
-          : outstanding.firstOrNull;
-      final pending =
-          current != null &&
-          payments.any(
-            (payment) =>
-                payment.invoiceId == current.id &&
-                payment.status == LandlordPaymentStatus.pending,
-          );
+      final current = outstanding.firstOrNull;
       final transactions = tenantInvoiceTransactions(invoices, payments);
 
       return TenantDetailTheme(
@@ -84,19 +71,7 @@ class _TenantInvoicesPageState extends State<TenantInvoicesPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (current != null)
-                          TenantCurrentInvoiceCard(
-                            invoice: current,
-                            store: _store,
-                            pending: pending,
-                            onPay: () => showTenantPaymentInstructions(
-                              context,
-                              invoiceId: current.id,
-                              store: _store,
-                              tenantId: widget.tenantId,
-                            ),
-                          )
-                        else
+                        if (outstanding.isEmpty)
                           TenantSurface(
                             child: TenantEmptyState(
                               icon: invoices.isEmpty
@@ -107,21 +82,28 @@ class _TenantInvoicesPageState extends State<TenantInvoicesPage> {
                                   : 'Bạn không còn hóa đơn cần trả',
                               subtitle: 'Hóa đơn mới sẽ xuất hiện khi chủ trọ phát hành.',
                             ),
-                          ),
-                        if (outstanding.length > 1)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              onPressed: () => _chooseInvoice(outstanding),
-                              icon: const Icon(
-                                Icons.swap_horiz_rounded,
-                                size: 17,
+                          )
+                        else
+                          for (final invoice in outstanding) ...[
+                            TenantCurrentInvoiceCard(
+                              invoice: invoice,
+                              store: _store,
+                              pending: payments.any(
+                                (payment) =>
+                                    payment.invoiceId == invoice.id &&
+                                    payment.status ==
+                                        LandlordPaymentStatus.pending,
                               ),
-                              label: Text(
-                                'Còn ${outstanding.length} hóa đơn cần thanh toán',
+                              onPay: () => showTenantPaymentInstructions(
+                                context,
+                                invoiceId: invoice.id,
+                                store: _store,
+                                tenantId: widget.tenantId,
                               ),
                             ),
-                          ),
+                            if (invoice != outstanding.last)
+                              const SizedBox(height: 12),
+                          ],
                         const SizedBox(height: 13),
                         TenantInvoiceQuickActions(
                           onDetails: current == null
@@ -265,64 +247,4 @@ class _TenantInvoicesPageState extends State<TenantInvoicesPage> {
     ),
   );
 
-  void _chooseInvoice(List<LandlordInvoice> invoices) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => TenantDetailTheme(
-        child: TenantBottomSheetSurface(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const TenantSheetHandle(),
-              const Text(
-                'Chọn hóa đơn thanh toán',
-                style: TextStyle(
-                  color: tenantInk,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 12),
-              for (final invoice in invoices)
-                Material(
-                  type: MaterialType.transparency,
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(
-                      Icons.receipt_long_rounded,
-                      color: tenantGreenDark,
-                    ),
-                    title: Text(
-                      landlordMonth(invoice.period),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Phòng ${invoice.room} • Hạn ${landlordDate(invoice.dueDate)}',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    trailing: Text(
-                      formatTenantMoney(invoice.remaining),
-                      style: const TextStyle(
-                        color: tenantGreenDark,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    onTap: () {
-                      setState(() => _selectedInvoiceId = invoice.id);
-                      Navigator.pop(sheetContext);
-                    },
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

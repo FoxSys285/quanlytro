@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../data/app_persistence.dart';
 import '../pages/shared/widgets/app_brand.dart' as brand;
 import '../pages/tenant/tenant_ui.dart';
 
@@ -156,7 +157,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _drawerScrollController = ScrollController();
   final _drawerViewportKey = GlobalKey();
-  final _selectedDrawerItemKey = GlobalKey();
+  final _drawerItemKeys = <String, GlobalKey>{};
   late String _selectedDestinationId = widget.initialDestinationId;
   late int _selectedTabIndex = _tabIndexFor(widget.initialDestinationId);
   String? _previousDestinationId;
@@ -172,7 +173,8 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
     if (!isOpen) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _scaffoldKey.currentState?.isDrawerOpen != true) return;
-      final itemContext = _selectedDrawerItemKey.currentContext;
+      final itemContext =
+          _drawerItemKeys[_selectedDestinationId]?.currentContext;
       final item = itemContext?.findRenderObject();
       final viewport = _drawerViewportKey.currentContext?.findRenderObject();
       if (itemContext == null || item is! RenderBox || viewport is! RenderBox) {
@@ -246,7 +248,37 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
     _selectDestination(widget.tabs[index].destinationId);
   }
 
-  void _showLogoutMessage() {
+  Future<void> _showLogoutMessage() async {
+    final persistence = AppPersistence.current;
+    if (persistence?.hasPendingChanges == true) {
+      try {
+        await persistence!.flush();
+      } catch (failure) {
+        if (!mounted) return;
+        final discard = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Thay đổi chưa được đồng bộ'),
+            content: Text(
+              '${AppPersistence.saveFailureMessage(failure)}\n\n'
+              'Thay đổi này chỉ còn trong phiên ứng dụng và có thể mất nếu đăng xuất.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Ở lại và thử lại'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Đăng xuất và bỏ thay đổi'),
+              ),
+            ],
+          ),
+        );
+        if (discard != true || !mounted) return;
+      }
+    }
+    if (!mounted) return;
     if (widget.onLogout != null) {
       widget.onLogout!.call();
       return;
@@ -280,11 +312,26 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         ) ??
         widget.topBar;
     final landlordTheme = widget.role == AppRole.landlord;
+    final tenantTheme = widget.role == AppRole.tenant;
     final scheme = Theme.of(context).colorScheme;
+    // Only tenant layouts are wrapped in TenantUiPalette. Avoid registering
+    // the landlord/admin shell as a dependent of a palette that belongs to a
+    // different role and can be removed when the active role changes.
+    final tenantColors = tenantTheme
+        ? TenantUiPalette.of(context)
+        : TenantUiColors.tenant;
     final console = widget.role == AppRole.admin && widget.useSidebar;
     const consoleInk = Colors.white;
     final adminWide =
         widget.useSidebar && MediaQuery.sizeOf(context).width >= 1100;
+    final sidebarGroups = <String, List<RoleDestination>>{};
+    if (adminWide) {
+      for (final destination in widget.destinations) {
+        sidebarGroups
+            .putIfAbsent(destination.group, () => <RoleDestination>[])
+            .add(destination);
+      }
+    }
     final page =
         widget.pageBuilder?.call(context, destination) ??
         _LayoutPlaceholder(
@@ -335,7 +382,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
             switchOutCurve: Curves.easeInCubic,
             child: KeyedSubtree(key: ValueKey(destination.id), child: page),
           )
-        : page;
+        : KeyedSubtree(key: ValueKey(destination.id), child: page);
     final roleContent = widget.role == AppRole.tenant
         ? TenantPageBackdrop(child: content)
         : content;
@@ -343,15 +390,18 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: widget.role == AppRole.admin
-          ? Colors.white
-          : widget.role == AppRole.tenant
-          ? const Color(0xFFF7FAF8)
+          ? const Color(0xFFF4F7FB)
+          : tenantTheme
+          ? tenantColors.canvas
           : Theme.of(context).scaffoldBackgroundColor,
       onDrawerChanged: _onDrawerChanged,
       drawer: _RoleDrawer(
         scrollController: _drawerScrollController,
         viewportKey: _drawerViewportKey,
-        selectedItemKey: _selectedDrawerItemKey,
+        itemKeys: {
+          for (final item in widget.destinations)
+            item.id: _drawerItemKeys.putIfAbsent(item.id, () => GlobalKey()),
+        },
         role: widget.role,
         appName: widget.appName,
         displayName: widget.displayName,
@@ -363,9 +413,7 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         onDestinationSelected: _selectDestination,
         onPreviewRoleSelected: widget.onPreviewRoleSelected,
         onLogout: _showLogoutMessage,
-        themeAction: widget.role == AppRole.landlord
-            ? widget.themeAction
-            : null,
+        themeAction: landlordTheme || tenantTheme ? widget.themeAction : null,
       ),
       appBar:
           _selectedDestinationId == widget.hideAppBarOnDestination ||
@@ -377,13 +425,17 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
           : AppBar(
               backgroundColor: console
                   ? const Color(0xFF0F2537)
-                  : widget.role == AppRole.tenant
-                  ? const Color(0xFFFCFCFC)
+                  : tenantTheme
+                  ? tenantColors.header
                   : landlordTheme
                   ? scheme.surface
                   : Colors.white,
               foregroundColor: console ? consoleInk : null,
-              iconTheme: console ? IconThemeData(color: consoleInk) : null,
+              iconTheme: console
+                  ? IconThemeData(color: consoleInk)
+                  : tenantTheme
+                  ? IconThemeData(color: tenantColors.ink)
+                  : null,
               surfaceTintColor: Colors.transparent,
               elevation: 0,
               scrolledUnderElevation: 0,
@@ -407,6 +459,8 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                     style: TextStyle(
                       color: console
                           ? consoleInk
+                          : tenantTheme
+                          ? tenantColors.ink
                           : landlordTheme
                           ? scheme.onSurface
                           : const Color(0xFF17212B),
@@ -423,6 +477,8 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                       style: TextStyle(
                         color: landlordTheme
                             ? scheme.onSurface.withValues(alpha: 0.7)
+                            : tenantTheme
+                            ? tenantColors.muted
                             : const Color(0xFF788492),
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -540,11 +596,11 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                   ? Row(
                       children: [
                         Container(
-                          width: 224,
+                          width: 246,
                           decoration: const BoxDecoration(
-                            color: Color(0xFF0F2537),
+                            color: Color(0xFF0E2033),
                             border: Border(
-                              right: BorderSide(color: Color(0xFFDCE6F1)),
+                              right: BorderSide(color: Color(0xFF18324B)),
                             ),
                           ),
                           child: Material(
@@ -552,43 +608,112 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                             child: ListView(
                               padding: const EdgeInsets.all(16),
                               children: [
-                                const Padding(
-                                  padding: EdgeInsets.fromLTRB(12, 16, 12, 24),
-                                  child: Text(
-                                    'Quản trị trọ',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                    ),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    10,
+                                    10,
+                                    10,
+                                    22,
                                   ),
-                                ),
-                                for (final item in widget.destinations)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 4),
-                                    child: ListTile(
-                                      selected:
-                                          item.id == _selectedDestinationId,
-                                      selectedTileColor: const Color(
-                                        0xFF0284C7,
-                                      ),
-                                      selectedColor: Colors.white,
-                                      textColor: const Color(0xFFD0E4F5),
-                                      iconColor: const Color(0xFF93B8D8),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      leading: Icon(item.icon, size: 19),
-                                      title: Text(
-                                        item.label,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
+                                  child: Row(
+                                    children: [
+                                      const brand.AppLogo(size: 38),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              widget.appName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w800,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            const Text(
+                                              'ADMIN CONSOLE',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                letterSpacing: 1,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF94B3CC),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      onTap: () => _selectDestination(item.id),
+                                    ],
+                                  ),
+                                ),
+                                for (final group in sidebarGroups.entries) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      9,
+                                      12,
+                                      7,
+                                    ),
+                                    child: Text(
+                                      group.key.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 9,
+                                        letterSpacing: 1.1,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF7E9AB2),
+                                      ),
                                     ),
                                   ),
+                                  for (final item in group.value)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: ListTile(
+                                        selected:
+                                            item.id == _selectedDestinationId,
+                                        selectedTileColor: const Color(
+                                          0xFF087FC1,
+                                        ),
+                                        selectedColor: Colors.white,
+                                        textColor: const Color(0xFFD0E4F5),
+                                        iconColor: const Color(0xFF91AEC8),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                            ),
+                                        minVerticalPadding: 9,
+                                        horizontalTitleGap: 12,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        leading: Icon(item.icon, size: 20),
+                                        title: Text(
+                                          item.label,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            height: 1.2,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        trailing:
+                                            item.id == _selectedDestinationId
+                                            ? const Icon(
+                                                Icons.chevron_right_rounded,
+                                                size: 19,
+                                              )
+                                            : null,
+                                        onTap: () =>
+                                            _selectDestination(item.id),
+                                      ),
+                                    ),
+                                ],
                               ],
                             ),
                           ),
@@ -622,6 +747,8 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
                   height: 70,
                   backgroundColor: landlordTheme
                       ? scheme.surface
+                      : tenantTheme
+                      ? tenantColors.surface
                       : Colors.white,
                   surfaceTintColor: Colors.transparent,
                   indicatorColor: widget.accentColor.withValues(alpha: 0.12),
@@ -651,7 +778,7 @@ class _RoleDrawer extends StatelessWidget {
   const _RoleDrawer({
     required this.scrollController,
     required this.viewportKey,
-    required this.selectedItemKey,
+    required this.itemKeys,
     required this.role,
     required this.appName,
     required this.displayName,
@@ -669,7 +796,7 @@ class _RoleDrawer extends StatelessWidget {
   final AppRole role;
   final ScrollController scrollController;
   final GlobalKey viewportKey;
-  final GlobalKey selectedItemKey;
+  final Map<String, GlobalKey> itemKeys;
   final String appName;
   final String displayName;
   final String contextLabel;
@@ -685,7 +812,11 @@ class _RoleDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final landlordTheme = role == AppRole.landlord;
+    final tenantTheme = role == AppRole.tenant;
     final scheme = Theme.of(context).colorScheme;
+    final tenantColors = tenantTheme
+        ? TenantUiPalette.of(context)
+        : TenantUiColors.tenant;
     final groups = <String, List<RoleDestination>>{};
     for (final destination in destinations) {
       groups.putIfAbsent(destination.group, () => []).add(destination);
@@ -695,7 +826,11 @@ class _RoleDrawer extends StatelessWidget {
 
     return Drawer(
       width: drawerWidth,
-      backgroundColor: landlordTheme ? scheme.surface : const Color(0xFFFCFDFE),
+      backgroundColor: landlordTheme
+          ? scheme.surface
+          : tenantTheme
+          ? tenantColors.surface
+          : const Color(0xFFFCFDFE),
       child: SafeArea(
         child: Column(
           children: [
@@ -725,6 +860,8 @@ class _RoleDrawer extends StatelessWidget {
                             style: TextStyle(
                               color: landlordTheme
                                   ? scheme.onSurface.withValues(alpha: 0.58)
+                                  : tenantTheme
+                                  ? tenantColors.muted
                                   : const Color(0xFF8B97A4),
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
@@ -734,9 +871,7 @@ class _RoleDrawer extends StatelessWidget {
                         ),
                         for (final destination in entry.value)
                           _DrawerDestinationTile(
-                            itemKey: destination.id == selectedDestinationId
-                                ? selectedItemKey
-                                : null,
+                            itemKey: itemKeys[destination.id],
                             destination: destination,
                             selected: destination.id == selectedDestinationId,
                             accentColor: accentColor,
@@ -753,7 +888,11 @@ class _RoleDrawer extends StatelessWidget {
             ),
             Divider(
               height: 1,
-              color: landlordTheme ? scheme.outline : const Color(0xFFE9EDF2),
+              color: landlordTheme
+                  ? scheme.outline
+                  : tenantTheme
+                  ? tenantColors.line
+                  : const Color(0xFFE9EDF2),
             ),
             if (onPreviewRoleSelected != null)
               PopupMenuButton<AppRole>(
@@ -790,7 +929,7 @@ class _RoleDrawer extends StatelessWidget {
                   dense: true,
                 ),
               ),
-            if (themeAction != null)
+            if (themeAction != null && (landlordTheme || tenantTheme))
               ListTile(
                 leading: const Icon(Icons.palette_outlined),
                 title: const Text('Giao diện sáng / tối'),
@@ -837,6 +976,7 @@ class _DrawerHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final landlordTheme = role == AppRole.landlord;
+    final roleTheme = landlordTheme || role == AppRole.tenant;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 22, 18, 20),
@@ -844,7 +984,7 @@ class _DrawerHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: landlordTheme
+          colors: roleTheme
               ? [
                   Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
                   Theme.of(context).colorScheme.surface,
@@ -853,7 +993,7 @@ class _DrawerHeader extends StatelessWidget {
         ),
         border: Border(
           bottom: BorderSide(
-            color: landlordTheme
+            color: roleTheme
                 ? Theme.of(context).colorScheme.outline
                 : const Color(0xFFE9EDF2),
           ),
@@ -872,7 +1012,7 @@ class _DrawerHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: landlordTheme
+                    color: roleTheme
                         ? Theme.of(context).colorScheme.onSurface
                         : const Color(0xFF17212B),
                     fontSize: 17,
@@ -926,7 +1066,7 @@ class _DrawerHeader extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: landlordTheme
+                        color: roleTheme
                             ? Theme.of(context).colorScheme.onSurface
                             : const Color(0xFF17212B),
                         fontSize: 14,
@@ -939,7 +1079,7 @@ class _DrawerHeader extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: landlordTheme
+                        color: roleTheme
                             ? Theme.of(context).colorScheme.onSurface
                                   .withValues(alpha: 0.68)
                             : const Color(0xFF788492),

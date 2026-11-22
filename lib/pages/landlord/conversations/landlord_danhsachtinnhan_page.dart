@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../../layouts/landlord_navigation.dart';
 import '../../shared/conversations/conversation_store.dart';
 import '../../shared/widgets/list_pagination.dart';
@@ -27,6 +28,15 @@ class _LandlordDanhSachTinNhanPageState
 
   Future<void> _open(LandlordConversation conversation) async {
     _store.markRead(conversation, landlord: true);
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
+    if (!mounted) return;
     await LandlordNavigation.push<void>(
       context,
       page: LandlordTinNhanPage(conversation: conversation),
@@ -232,10 +242,7 @@ class _LandlordDanhSachTinNhanPageState
             ],
           ),
           const SizedBox(height: 20),
-          const LandlordGlassSection(
-            title: 'Trao đổi gần đây',
-            subtitle: 'Chạm cuộc trò chuyện để xem và trả lời',
-          ),
+          const LandlordGlassSection(title: 'Trao đổi gần đây'),
           if (conversations.isEmpty)
             LandlordGlassCard(
               child: Column(

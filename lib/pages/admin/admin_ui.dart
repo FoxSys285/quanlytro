@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/cloudinary_media_gateway.dart';
 import '../landlord/properties/models/landlord_property.dart';
 import '../../data/app_persistence.dart';
 import '../../data/local_auth.dart';
@@ -14,7 +15,7 @@ const adminOrange = Color(0xFFE11D48);
 const adminMuted = Color(0xFF5D6B7E);
 const adminGold = Color(0xFFD97706);
 const adminLine = Color(0xFFE1E7F0);
-const adminCanvas = Colors.white;
+const adminCanvas = Color(0xFFF4F7FB);
 const adminGreen = Color(0xFF0D9488);
 const adminHeaderBg = Color(0xFF0F172A);
 const adminSurfaceTint = Color(0xFFF6F5FF);
@@ -25,69 +26,79 @@ class AdminBanner extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.icon,
-    this.imageAsset = 'assets/images/room_types/interior.webp',
   });
-  final String title, subtitle, imageAsset;
+  final String title, subtitle;
   final IconData icon;
 
   @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minHeight: 170),
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: adminHeaderBg,
-      borderRadius: BorderRadius.circular(16),
-      image: DecorationImage(
-        image: AssetImage(imageAsset),
-        fit: BoxFit.cover,
-        colorFilter: ColorFilter.mode(
-          adminHeaderBg.withValues(alpha: .62),
-          BlendMode.srcATop,
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(22),
+    child: Container(
+      constraints: const BoxConstraints(minHeight: 154),
+      padding: const EdgeInsets.all(22),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF10253B), Color(0xFF0A4A6C), Color(0xFF087FC1)],
         ),
       ),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .16),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: Colors.white, size: 24),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -22,
+            top: -35,
+            child: Icon(
+              icon,
+              size: 150,
+              color: Colors.white.withValues(alpha: .07),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: .16),
+                      ),
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 23),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 21,
+                        height: 1.25,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.25,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 13),
+              Text(
+                subtitle,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  height: 1.25,
-                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFE2F2FC),
+                  fontSize: 13,
+                  height: 1.55,
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            height: 1.5,
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Ảnh minh họa',
-          style: TextStyle(color: Colors.white, fontSize: 10),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -192,34 +203,22 @@ class AdminFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
+      final compact = constraints.maxWidth < 600;
       return SingleChildScrollView(
-        padding: EdgeInsets.all(constraints.maxWidth < 600 ? 18 : 28),
+        padding: EdgeInsets.fromLTRB(
+          compact ? 16 : 28,
+          compact ? 18 : 26,
+          compact ? 16 : 28,
+          compact ? 24 : 32,
+        ),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1160),
+            constraints: const BoxConstraints(maxWidth: 1240),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    height: 1.2,
-                    letterSpacing: -0.4,
-                    fontWeight: FontWeight.w700,
-                    color: adminInk,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: adminMuted,
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 22),
+                _pageHeader(compact),
+                SizedBox(height: compact ? 18 : 24),
                 ...children,
                 const SizedBox(height: 24),
               ],
@@ -229,6 +228,83 @@ class AdminFrame extends StatelessWidget {
       );
     },
   );
+
+  Widget _pageHeader(bool compact) {
+    final normalizedTitle = title.toLowerCase();
+    final icon = switch (normalizedTitle) {
+      final value when value.contains('tổng quan') =>
+        Icons.space_dashboard_rounded,
+      final value when value.contains('chủ trọ') => Icons.apartment_rounded,
+      final value when value.contains('tài khoản') =>
+        Icons.manage_accounts_rounded,
+      final value
+          when value.contains('thống kê') || value.contains('thanh toán') =>
+        Icons.query_stats_rounded,
+      final value when value.contains('xác minh') =>
+        Icons.verified_user_rounded,
+      final value when value.contains('hỗ trợ') => Icons.support_agent_rounded,
+      final value when value.contains('nhật ký') => Icons.history_rounded,
+      final value when value.contains('cấu hình') => Icons.tune_rounded,
+      _ => Icons.admin_panel_settings_rounded,
+    };
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: compact ? 44 : 52,
+          height: compact ? 44 : 52,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [adminBlue.withValues(alpha: .16), Colors.white],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: adminBlue.withValues(alpha: .15)),
+          ),
+          child: Icon(icon, color: adminBlue, size: compact ? 22 : 25),
+        ),
+        SizedBox(width: compact ? 12 : 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'QUẢN TRỊ HỆ THỐNG',
+                style: TextStyle(
+                  color: adminBlue,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: compact ? 22 : 27,
+                  height: 1.2,
+                  letterSpacing: -.5,
+                  fontWeight: FontWeight.w800,
+                  color: adminInk,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: adminMuted,
+                  fontSize: compact ? 12 : 13,
+                  height: 1.55,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class AdminPanel extends StatelessWidget {
@@ -245,19 +321,24 @@ class AdminPanel extends StatelessWidget {
   final Gradient? gradient;
   @override
   Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 16),
+    margin: const EdgeInsets.only(bottom: 14),
     padding: padding,
     decoration: BoxDecoration(
       color: gradient == null ? backgroundColor : null,
       gradient: gradient,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(19),
       border: Border.all(
-        color: backgroundColor == Colors.white && gradient == null
-            ? adminLine
-            : backgroundColor == adminInk
-            ? const Color(0xFF1E3A5F)
-            : backgroundColor,
+        color: gradient != null
+            ? Colors.white.withValues(alpha: .14)
+            : Color.lerp(adminLine, backgroundColor, .18)!,
       ),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0711233A),
+          blurRadius: 16,
+          offset: Offset(0, 5),
+        ),
+      ],
     ),
     child: Material(type: MaterialType.transparency, child: child),
   );
@@ -275,7 +356,7 @@ class AdminStatus extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
     decoration: BoxDecoration(
       color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(20),
       border: Border.all(color: color.withValues(alpha: 0.2)),
     ),
     child: Text(
@@ -295,24 +376,47 @@ class AdminSection extends StatelessWidget {
   final String? caption;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 14, bottom: 16),
+    padding: const EdgeInsets.only(top: 18, bottom: 13),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: adminInk,
-            fontSize: 19,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.4,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 4,
+              height: 21,
+              decoration: BoxDecoration(
+                color: adminBlue,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: adminInk,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -.3,
+                ),
+              ),
+            ),
+          ],
         ),
         if (caption != null) ...[
           const SizedBox(height: 6),
-          Text(
-            caption!,
-            style: const TextStyle(color: adminMuted, height: 1.5),
+          Padding(
+            padding: const EdgeInsets.only(left: 14),
+            child: Text(
+              caption!,
+              style: const TextStyle(
+                color: adminMuted,
+                fontSize: 12,
+                height: 1.5,
+              ),
+            ),
           ),
         ],
       ],
@@ -436,7 +540,8 @@ class AdminPropertyPhoto extends StatelessWidget {
           )
         : url.isNotEmpty
         ? Image.network(
-            url,
+            CloudinaryMediaGateway.optimizedImageUrl(url, width: 560),
+            cacheWidth: 560,
             fit: BoxFit.cover,
             errorBuilder: (_, _, _) => fallback(),
           )
@@ -501,31 +606,84 @@ Future<String?> adminInput(
   final controller = TextEditingController(text: initial);
   final route = DialogRoute<String>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: SizedBox(
-        width: 400,
-        child: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: numeric
-              ? const TextInputType.numberWithOptions(decimal: true)
-              : TextInputType.multiline,
-          maxLines: numeric ? 1 : 3,
-          decoration: InputDecoration(labelText: label),
+    builder: (context) {
+      final dialogWidth = (MediaQuery.sizeOf(context).width - 88)
+          .clamp(280.0, 440.0)
+          .toDouble();
+      return AlertDialog(
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 10),
+        contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 4),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+        title: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: adminBlue.withValues(alpha: .1),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: const Icon(Icons.edit_note_rounded, color: adminBlue),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'CẬP NHẬT THÔNG TIN',
+                    style: TextStyle(
+                      color: adminBlue,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: adminInk,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
+        content: SizedBox(
+          width: dialogWidth,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: numeric
+                ? const TextInputType.numberWithOptions(decimal: true)
+                : TextInputType.multiline,
+            maxLines: numeric ? 1 : 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              labelText: label,
+              alignLabelWithHint: !numeric,
+              prefixIcon: Icon(
+                numeric ? Icons.numbers_rounded : Icons.edit_rounded,
+              ),
+            ),
+          ),
         ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, controller.text),
-          child: Text(action),
-        ),
-      ],
-    ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text(action),
+          ),
+        ],
+      );
+    },
   );
   final result = await Navigator.of(context, rootNavigator: true).push(route);
   await route.completed;
@@ -540,22 +698,53 @@ Future<bool> adminConfirm(
 ) async =>
     await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
+      builder: (context) {
+        final caution = RegExp(
+          r'khóa|thu hồi|ẩn tin|từ chối',
+          caseSensitive: false,
+        ).hasMatch(title);
+        final actionColor = caution ? adminOrange : adminBlue;
+        return AlertDialog(
+          icon: Container(
+            width: 54,
+            height: 54,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: actionColor.withValues(alpha: .1),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(
+              caution
+                  ? Icons.warning_amber_rounded
+                  : Icons.help_outline_rounded,
+              color: actionColor,
+              size: 27,
+            ),
           ),
-          FilledButton(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              Navigator.pop(context, true);
-            },
-            child: const Text('Xác nhận'),
+          title: Text(title, textAlign: TextAlign.center),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: adminMuted, height: 1.55),
+            ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: actionColor),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.pop(context, true);
+              },
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        );
+      },
     ) ??
     false;

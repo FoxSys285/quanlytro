@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../landlord_theme.dart';
 import '../landlord_glass.dart';
 
@@ -264,6 +265,14 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
     }
 
     _store.saveReading(chiSo, chiSoDienMoi, chiSoNuocMoi);
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      showLandlordMessage(context, AppPersistence.saveFailureMessage(failure));
+      return;
+    }
+    if (!mounted) return;
     showLandlordMessage(context, 'Đã lưu chỉ số phòng ${chiSo.room}.');
   }
 

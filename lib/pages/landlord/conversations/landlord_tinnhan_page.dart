@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../../layouts/landlord_navigation.dart';
 import '../landlord_theme.dart';
 import '../landlord_glass.dart';
@@ -52,11 +55,23 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
     if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
     if (widget.conversation.unread > 0) {
       ConversationStore.instance.markRead(widget.conversation, landlord: true);
+      unawaited(_flushReadState());
     }
   });
 
+  Future<void> _flushReadState() async {
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
+  }
+
   // Hàm gửi tin nhắn từ phía chủ trọ
-  void _guiTinNhan() {
+  Future<void> _guiTinNhan() async {
     final noiDung = _controller.text.trim();
     if (noiDung.isEmpty) {
       return;
@@ -72,6 +87,14 @@ class _LandlordTinNhanPageState extends State<LandlordTinNhanPage> {
     setState(() {
       _controller.clear();
     });
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
   }
 
   void _showTenantInfo() {

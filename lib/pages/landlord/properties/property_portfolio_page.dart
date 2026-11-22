@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../data/admin_store.dart';
 import '../../../data/app_persistence.dart';
 import '../../../data/local_auth.dart';
+import '../../../data/landlord_plans.dart';
+import '../../../data/landlord_subscription_service.dart';
 import '../../../layouts/role_layout.dart';
 import '../../shared/settings/account_settings_page.dart';
 import '../landlord_theme.dart';
@@ -79,6 +81,27 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
       );
       return;
     }
+    final LandlordPlan plan;
+    try {
+      plan = session == null
+          ? LandlordPlan.byId(null)
+          : await LandlordSubscriptionService.instance.activePlanFor(
+              session.uid,
+            );
+    } catch (error) {
+      if (mounted) {
+        showLandlordMessage(context, 'Chưa kiểm tra được gói hiện tại: $error');
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (session != null && _portfolio.stores.length >= plan.maxProperties) {
+      showLandlordMessage(
+        context,
+        'Gói ${plan.name} cho phép tối đa ${plan.maxProperties} nhà trọ. Hãy nâng cấp gói để thêm nhà mới.',
+      );
+      return;
+    }
     final property = await showDialog<LandlordProperty>(
       context: context,
       builder: (_) => LandlordPropertyEditor(
@@ -124,6 +147,9 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
     }
     var floors = 3;
     var rooms = 6;
+    if (floors * rooms > plan.maxRoomsPerProperty) {
+      rooms = (plan.maxRoomsPerProperty ~/ floors).clamp(1, 20);
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -181,6 +207,13 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
       ),
     );
     if (!mounted || confirmed != true) return;
+    if (floors * rooms > plan.maxRoomsPerProperty) {
+      showLandlordMessage(
+        context,
+        'Gói ${plan.name} cho phép tối đa ${plan.maxRoomsPerProperty} phòng mỗi nhà trọ.',
+      );
+      return;
+    }
     _portfolio.add(property, floors: floors, roomsPerFloor: rooms);
     await _save('Đã thêm ${property.name}.');
   }

@@ -14,6 +14,22 @@ typedef _AdminAccountRow = ({
   bool disabled,
 });
 
+class _CachedAdminAccountPage {
+  const _CachedAdminAccountPage({
+    required this.rows,
+    required this.total,
+    required this.hasMore,
+    required this.nextCursor,
+    required this.savedAt,
+  });
+
+  final List<_AdminAccountRow> rows;
+  final int total;
+  final bool hasMore;
+  final DocumentSnapshot<Map<String, dynamic>>? nextCursor;
+  final DateTime savedAt;
+}
+
 class AdminAccountsPage extends StatefulWidget {
   const AdminAccountsPage({super.key});
 
@@ -23,6 +39,9 @@ class AdminAccountsPage extends StatefulWidget {
 
 class _AdminAccountsPageState extends State<AdminAccountsPage> {
   static const _pageSize = 10;
+  static const _pageCacheTtl = Duration(minutes: 5);
+  static final _pageCache = <String, _CachedAdminAccountPage>{};
+
   String _role = 'all';
   int _page = 0;
   int _total = 0;
@@ -41,12 +60,30 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
 
   Future<void> _loadPage({bool refreshCount = false}) async {
     if (!mounted) return;
+    final auth = LocalAuth.instance;
+    final cacheKey = auth.isCloudMode && auth.session != null
+        ? '${auth.session!.uid}|$_role|$_page'
+        : null;
+    final cached = cacheKey == null ? null : _pageCache[cacheKey];
+    if (cached != null &&
+        DateTime.now().difference(cached.savedAt) < _pageCacheTtl) {
+      if (cached.nextCursor != null) {
+        _cursors[_page + 1] = cached.nextCursor;
+      }
+      setState(() {
+        _total = cached.total;
+        _rows = cached.rows;
+        _hasMore = cached.hasMore;
+        _error = null;
+        _loading = false;
+      });
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final auth = LocalAuth.instance;
       if (!auth.isCloudMode) {
         final all = auth.localAccounts
             .where((account) => _role == 'all' || account.role.name == _role)
@@ -99,19 +136,38 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
             disabled: document.data()['disabled'] == true,
           ),
       ];
-      if (snapshot.docs.isNotEmpty) {
-        _cursors[_page + 1] = snapshot.docs.last;
+      final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
+      if (nextCursor != null) _cursors[_page + 1] = nextCursor;
+      final hasMore =
+          snapshot.docs.length == _pageSize &&
+          (_page + 1) * _pageSize < _total;
+      if (cacheKey != null) {
+        _pageCache[cacheKey] = _CachedAdminAccountPage(
+          rows: rows,
+          total: _total,
+          hasMore: hasMore,
+          nextCursor: nextCursor,
+          savedAt: DateTime.now(),
+        );
       }
       if (!mounted) return;
       setState(() {
         _rows = rows;
-        _hasMore =
-            snapshot.docs.length == _pageSize &&
-            (_page + 1) * _pageSize < _total;
+        _hasMore = hasMore;
         _loading = false;
       });
     } catch (error) {
       if (!mounted) return;
+      if (cached != null) {
+        setState(() {
+          _total = cached.total;
+          _rows = cached.rows;
+          _hasMore = cached.hasMore;
+          _error = null;
+          _loading = false;
+        });
+        return;
+      }
       setState(() {
         _error = error;
         _loading = false;
@@ -165,6 +221,10 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
           (role) => role.name == account.role,
         );
         auth.setDisabled(role, !account.disabled);
+      }
+      final uid = auth.session?.uid;
+      if (uid != null) {
+        _pageCache.removeWhere((key, _) => key.startsWith('$uid|'));
       }
       await _loadPage();
       if (mounted) {

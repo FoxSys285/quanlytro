@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../landlord/finance/landlord_finance_models.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
@@ -93,12 +94,18 @@ Future<void> _requestRenewal(
       proposedEndDate: _endAfterMonths(lease.endDate, count),
       reason: reason.text.trim(),
     );
+    await AppPersistence.current?.flush();
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Đã gửi đề nghị gia hạn cho chủ trọ.')),
     );
-  } on ArgumentError catch (error) {
+  } catch (failure) {
+    if (!context.mounted) return;
+    final message = failure is ArgumentError
+        ? failure.message.toString()
+        : AppPersistence.saveFailureMessage(failure);
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(error.message.toString())));
+        .showSnackBar(SnackBar(content: Text(message)));
   } finally {
     reason.dispose();
   }
@@ -147,14 +154,20 @@ Future<void> _requestTermination(
       leaseId: lease.id,
       reason: reason.text.trim(),
     );
+    await AppPersistence.current?.flush();
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Đã gửi đề nghị kết thúc hợp đồng cho chủ trọ.'),
       ),
     );
-  } on ArgumentError catch (error) {
+  } catch (failure) {
+    if (!context.mounted) return;
+    final message = failure is ArgumentError
+        ? failure.message.toString()
+        : AppPersistence.saveFailureMessage(failure);
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(error.message.toString())));
+        .showSnackBar(SnackBar(content: Text(message)));
   } finally {
     reason.dispose();
   }

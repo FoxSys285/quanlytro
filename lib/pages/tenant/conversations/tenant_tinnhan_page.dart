@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../tenant_detail_ui.dart';
 import '../tenant_ui.dart';
 import '../../shared/conversations/conversation_store.dart';
@@ -38,9 +41,10 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
         : store?.leaseById(source.leaseId!);
     final currentLease =
         lease ??
-        (store?.leasesForTenant(source.tenantId)
-                  .where((item) => item.isCurrent)
-                  .firstOrNull);
+        (store
+            ?.leasesForTenant(source.tenantId)
+            .where((item) => item.isCurrent)
+            .firstOrNull);
     final phone = currentLease?.phone.trim();
     return phone == null || phone.isEmpty ? TenantSession.phone : phone;
   }
@@ -76,8 +80,20 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
     final source = _conversation.source;
     if (source != null && source.tenantUnread > 0) {
       ConversationStore.instance.markRead(source, landlord: false);
+      unawaited(_flushReadState());
     }
   });
+
+  Future<void> _flushReadState() async {
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
+  }
 
   void _showInfo() {
     Navigator.of(context).push<void>(
@@ -174,7 +190,7 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
     _focus.requestFocus();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     final time = TimeOfDay.now().format(context);
@@ -183,6 +199,14 @@ class _TenantTinNhanPageState extends State<TenantTinNhanPage> {
       _controller.clear();
     });
     _scrollToLatest();
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
   }
 
   @override

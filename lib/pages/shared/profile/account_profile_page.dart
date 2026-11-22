@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../../layouts/role_layout.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../landlord/landlord_ui.dart';
@@ -38,8 +39,19 @@ class AccountProfilePage extends StatelessWidget {
             ),
     );
     if (contact == null || !context.mounted) return;
-    _store.saveProfile(role, contact);
-    showLandlordMessage(context, 'Đã cập nhật hồ sơ cá nhân.');
+    final persistence = AppPersistence.current;
+    try {
+      await persistence?.waitForInitialSync();
+      if (!context.mounted) return;
+      _store.saveProfile(role, contact);
+      await persistence?.flush();
+      if (!context.mounted) return;
+      showLandlordMessage(context, 'Đã lưu hồ sơ cá nhân.');
+    } catch (error) {
+      if (!context.mounted) return;
+      final detail = error.toString().replaceFirst('Bad state: ', '');
+      showLandlordMessage(context, 'Chưa lưu được hồ sơ: $detail');
+    }
   }
 
   @override

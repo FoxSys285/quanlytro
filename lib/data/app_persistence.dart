@@ -21,6 +21,14 @@ class AppPersistence {
   AppPersistence(this.repository, {this.cloudMode = false});
   final RentalRepository repository;
   final bool cloudMode;
+  static const _quotaExceededMessage =
+      'Firebase đã hết hạn mức đọc/ghi (resource-exhausted). '
+      'Dữ liệu chưa đồng bộ; thử lại khi hạn mức được làm mới.';
+
+  static String? _quotaFailureMessage(Object failure) =>
+      failure is FirebaseException && failure.code == 'resource-exhausted'
+      ? _quotaExceededMessage
+      : null;
   static AppPersistence? current;
   final error = ValueNotifier<String?>(null);
   bool cloudConfirmed = false;
@@ -37,6 +45,7 @@ class AppPersistence {
   bool _initialSyncFailed = false;
   Timer? _refreshTimer;
   StreamSubscription<void>? _remoteSubscription;
+  Future<void>? _initialSyncTask;
   final refreshing = ValueNotifier<bool>(false);
   String? _remoteFingerprint;
   final _subscriptions = <Listenable>{};
@@ -101,7 +110,43 @@ class AppPersistence {
     } finally {
       _restoring = false;
     }
-    unawaited(_syncFromCloudInBackground());
+    if (cloudMode && repository is RentalSnapshotCache) {
+      try {
+        final cached = await (repository as RentalSnapshotCache)
+            .readCachedSnapshot();
+        if (!_disposed && cached != null) {
+          _restoring = true;
+          try {
+            _restoreCloudSnapshot(cached);
+            saveStatus.value = 'Đang cập nhật dữ liệu đã lưu…';
+          } finally {
+            _restoring = false;
+          }
+        }
+      } catch (failure) {
+        debugPrint('Could not restore cached cloud snapshot: $failure');
+      }
+    }
+    final initialSync = _syncFromCloudInBackground();
+    _initialSyncTask = initialSync;
+    unawaited(initialSync);
+  }
+
+  /// Wait until the first cloud snapshot is restored before applying an edit.
+  /// Otherwise the initial read can overwrite a profile change made moments
+  /// after sign-in, before the normal save listener is enabled.
+  Future<void> waitForInitialSync() async {
+    if (_disposed) throw StateError('Phiên lưu dữ liệu đã đóng.');
+    if (cloudMode && !_initialSyncCompleted) {
+      final task = _initialSyncTask;
+      if (task != null) await task;
+    }
+    if (cloudMode && !_initialSyncCompleted) {
+      throw StateError(
+        error.value ??
+            'Chưa tải xong dữ liệu Firebase. Hãy thử lại sau khi đồng bộ.',
+      );
+    }
   }
 
   Future<void> _syncFromCloudInBackground() async {
@@ -116,42 +161,9 @@ class AppPersistence {
       if (_disposed) return;
       _restoring = true;
       try {
-        if (data['portfolio'] != null) {
-          RentalPortfolio.instance.restore(data['portfolio']!);
-          if (!RentalPortfolio.instance.stores.contains(
-            LandlordDemoStore.instance,
-          )) {
-            LandlordDemoStore.instance = RentalPortfolio.instance.active;
-          }
-          AccountStore.instance.rebindRental(LandlordDemoStore.instance);
-        }
-        if (data['admin'] != null) {
-          AdminStore.instance.restore(data['admin']!);
-        }
-        if (data['conversations'] != null) {
-          ConversationStore.instance.restore(data['conversations']!);
-        }
-        if (data['viewings'] != null) {
-          ViewingStore.instance.restore(data['viewings']!);
-        }
-        AccountStore.instance.restore(
-          data['accounts'] ?? {'contacts': {}, 'notifications': {}},
-        );
-        if (data['staff'] != null) {
-          LandlordStaffStore.instance.restore(data['staff']!);
-        }
-        TenantFavoritesStore.roomNames
-          ..clear()
-          ..addAll(List<String>.from(data['favorites']?['ids'] as List? ?? []));
-        TenantFavoritesStore.changes.value++;
-        for (final store in RentalPortfolio.instance.stores) {
-          final announcements = AnnouncementStore.forRental(store);
-          final stored = data['announcements:${store.property.id}'];
-          if (stored != null) {
-            announcements.restore(stored);
-          }
-          _listen(announcements);
-        }
+        _restoreCloudSnapshot(data);
+        _updateRepositoryBaseline();
+        _remoteFingerprint = _repositoryFingerprint(cloudFingerprint(data));
         _dirty = false;
         _initialSyncCompleted = true;
         _initialSyncFailed = false;
@@ -167,7 +179,11 @@ class AppPersistence {
           (_) => _scheduleRefresh(),
           onError: (Object failure) {
             _closeRevokedSession(failure);
-            error.value = 'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối và quyền tài khoản.';
+            final message =
+                _quotaFailureMessage(failure) ??
+                'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối và quyền tài khoản.';
+            error.value = message;
+            saveStatus.value = message;
           },
         );
       }
@@ -177,7 +193,7 @@ class AppPersistence {
         _closeRevokedSession(failure);
         _initialSyncCompleted = false;
         _initialSyncFailed = true;
-        error.value = 'Không tải được dữ liệu Firebase. Kiểm tra kết nối hoặc quyền tài khoản rồi thử lại.';
+        error.value = _quotaFailureMessage(failure) ?? 'Không tải được dữ liệu Firebase. Kiểm tra kết nối hoặc quyền tài khoản rồi thử lại.';
         saveStatus.value = 'Chưa tải được dữ liệu Firebase · Thử kết nối lại';
       }
     } finally {
@@ -187,13 +203,54 @@ class AppPersistence {
     }
   }
 
+  void _restoreCloudSnapshot(Map<String, Map<String, dynamic>> data) {
+    if (data['portfolio'] != null) {
+      RentalPortfolio.instance.restore(data['portfolio']!);
+      if (!RentalPortfolio.instance.stores.contains(
+        LandlordDemoStore.instance,
+      )) {
+        LandlordDemoStore.instance = RentalPortfolio.instance.active;
+      }
+      AccountStore.instance.rebindRental(LandlordDemoStore.instance);
+    }
+    if (data['admin'] != null) {
+      AdminStore.instance.restore(data['admin']!);
+    }
+    if (data['conversations'] != null) {
+      ConversationStore.instance.restore(data['conversations']!);
+    }
+    if (data['viewings'] != null) {
+      ViewingStore.instance.restore(data['viewings']!);
+    }
+    AccountStore.instance.restore(
+      data['accounts'] ?? {'contacts': {}, 'notifications': {}},
+    );
+    if (data['staff'] != null) {
+      LandlordStaffStore.instance.restore(data['staff']!);
+    }
+    TenantFavoritesStore.roomNames
+      ..clear()
+      ..addAll(List<String>.from(data['favorites']?['ids'] as List? ?? []));
+    TenantFavoritesStore.changes.value++;
+    for (final store in RentalPortfolio.instance.stores) {
+      final announcements = AnnouncementStore.forRental(store);
+      final stored = data['announcements:${store.property.id}'];
+      if (stored != null) {
+        announcements.restore(stored);
+      }
+      _listen(announcements);
+    }
+  }
+
   Future<void> retryInitialSync() async {
     if (_disposed || _initialSyncCompleted) return;
     _initialSyncFailed = false;
     error.value = null;
     refreshing.value = true;
     saveStatus.value = 'Đang thử đồng bộ lại dữ liệu Firebase…';
-    await _syncFromCloudInBackground();
+    final retry = _syncFromCloudInBackground();
+    _initialSyncTask = retry;
+    await retry;
   }
 
   /// Retry the operation that is still needed. A failed read must not be
@@ -297,7 +354,11 @@ class AppPersistence {
         (_) => _scheduleRefresh(),
         onError: (Object failure) {
           _closeRevokedSession(failure);
-          error.value = 'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối/quyền tài khoản.';
+          final message =
+              _quotaFailureMessage(failure) ??
+              'Không thể nhận dữ liệu mới từ Firebase. Kiểm tra kết nối/quyền tài khoản.';
+          error.value = message;
+          saveStatus.value = message;
         },
       );
     }
@@ -320,6 +381,22 @@ class AppPersistence {
       'announcements:${store.property.id}': AnnouncementStore.forRental(store)
           .toMap(),
   };
+
+  void _updateRepositoryBaseline() {
+    final target = repository;
+    if (target is RentalSnapshotBaseline) {
+      (target as RentalSnapshotBaseline).setLocalSnapshotBaseline(_snapshot());
+    }
+  }
+
+  String _repositoryFingerprint(String fallback) {
+    final target = repository;
+    if (target is RentalSnapshotBaseline) {
+      return (target as RentalSnapshotBaseline).lastCloudSnapshotFingerprint ??
+          fallback;
+    }
+    return fallback;
+  }
 
   void save() {
     if (_disposed || _restoring || (cloudMode && !_initialSyncCompleted)) {
@@ -350,6 +427,9 @@ class AppPersistence {
             await target.saveAll(snapshot);
           }
           if (_disposed) return;
+          _remoteFingerprint = _repositoryFingerprint(
+            cloudFingerprint(snapshot),
+          );
           error.value = null;
           cloudConfirmed =
               cloudMode ||
@@ -460,7 +540,8 @@ class AppPersistence {
             announcements.restore(data['announcements:${store.property.id}']!);
             _listen(announcements);
           }
-          _remoteFingerprint = fingerprint;
+          _updateRepositoryBaseline();
+          _remoteFingerprint = _repositoryFingerprint(fingerprint);
           _dirty = false;
           error.value = null;
           saveStatus.value = 'Đã nhận dữ liệu mới từ Firebase';
@@ -471,7 +552,11 @@ class AppPersistence {
         if (_disposed) return;
         _closeRevokedSession(failure);
         _remoteChanged = true;
-        error.value = 'Chưa tải được dữ liệu mới. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+        final message =
+            _quotaFailureMessage(failure) ??
+            'Chưa tải được dữ liệu mới. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+        error.value = message;
+        saveStatus.value = message;
       } finally {
         if (!_disposed) {
           refreshing.value = false;
@@ -490,10 +575,11 @@ class AppPersistence {
       (failure.code == 'unauthenticated' ||
           (!fromWrite && failure.code == 'permission-denied'));
 
-  @visibleForTesting
   static String saveFailureMessage(Object failure) {
     if (failure is FirebaseException) {
       switch (failure.code) {
+        case 'resource-exhausted':
+          return _quotaExceededMessage;
         case 'unavailable':
         case 'deadline-exceeded':
           return 'Không kết nối được Firebase (${failure.code}). Dữ liệu chưa lưu; kiểm tra mạng rồi thử lại.';
@@ -502,6 +588,12 @@ class AppPersistence {
         case 'unauthenticated':
           return 'Phiên Firebase đã hết hạn. Hãy đăng nhập lại để lưu dữ liệu.';
       }
+    }
+    if (failure is StateError) {
+      return failure.message.toString();
+    }
+    if (failure is ArgumentError) {
+      return failure.message?.toString() ?? failure.toString();
     }
     return 'Chưa hoàn tất lưu dữ liệu. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
   }

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../data/app_persistence.dart';
 import '../../tenant_ui.dart';
 import '../../tenant_detail_ui.dart';
 import '../../../landlord/landlord_demo_store.dart';
@@ -55,6 +56,8 @@ class _TenantPaymentInstructionsSheetState
   Uint8List? _proof;
   String? _proofName;
   String? _error;
+  LandlordPayment? _submittedPayment;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -105,10 +108,12 @@ class _TenantPaymentInstructionsSheetState
     }
   }
 
-  void _submit() {
-    if (!_form.currentState!.validate()) return;
+  Future<void> _submit() async {
+    if (_submitting) return;
+    if (_submittedPayment == null && !_form.currentState!.validate()) return;
+    setState(() => _submitting = true);
     try {
-      _store.submitPayment(
+      _submittedPayment ??= _store.submitPayment(
         tenantId: widget.tenantId,
         invoiceId: widget.invoiceId,
         amount: int.parse(_amount.text.trim()),
@@ -117,6 +122,8 @@ class _TenantPaymentInstructionsSheetState
         proofBytes: _proof,
         proofName: _proofName,
       );
+      await AppPersistence.current?.flush();
+      if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -125,8 +132,14 @@ class _TenantPaymentInstructionsSheetState
           ),
         ),
       );
-    } on ArgumentError catch (error) {
-      setState(() => _error = error.message.toString());
+    } catch (failure) {
+      if (!mounted) return;
+      final message = failure is ArgumentError
+          ? failure.message.toString()
+          : AppPersistence.saveFailureMessage(failure);
+      setState(() => _error = message);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -273,13 +286,20 @@ class _TenantPaymentInstructionsSheetState
                   child: FilledButton(
                     onPressed:
                         methods.isEmpty ||
-                            pending ||
+                            _submitting ||
+                            (pending && _submittedPayment == null) ||
                             invoice.cancelled ||
                             invoice.remaining == 0
                         ? null
                         : _submit,
                     child: Text(
-                      pending ? 'Đang chờ chủ trọ duyệt' : 'Gửi thanh toán',
+                      _submitting
+                          ? 'Đang lưu…'
+                          : _submittedPayment != null
+                          ? 'Thử lưu lại'
+                          : pending
+                          ? 'Đang chờ chủ trọ duyệt'
+                          : 'Gửi thanh toán',
                     ),
                   ),
                 ),

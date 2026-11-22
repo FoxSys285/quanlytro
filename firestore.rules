@@ -137,9 +137,32 @@ service cloud.firestore {
       allow write: if admin() || (active() && profile().role == 'landlord' && uid == request.auth.uid &&
         request.resource.data.keys().hasOnly(['staff']));
     }
+    match /public_settings/subscription_payment {
+      allow read: if true;
+      // Subscription settings now live in Supabase. Keep this legacy document
+      // readable only as a source for the one-time import; never write here.
+      allow write: if false;
+    }
     match /public_settings/{id} {
       allow read: if true;
-      allow write: if admin() && request.resource.data.keys().hasOnly(['acceptingViewings']) && request.resource.data.acceptingViewings is bool;
+      allow write: if admin() && id == 'viewings' &&
+        request.resource.data.keys().hasOnly(['acceptingViewings']) &&
+        request.resource.data.acceptingViewings is bool;
+    }
+    match /subscription_orders/{orderId} {
+      // Orders moved to Supabase. Preserve legacy reads for the importer and
+      // old account history, but prevent new Firestore-only payment records.
+      allow read: if admin() ||
+        (active() && profile().role == 'landlord' &&
+          resource.data.landlordUid == request.auth.uid);
+      allow write: if false;
+    }
+    match /sepay_unmatched_transactions/{transactionId} {
+      allow read: if admin();
+      allow write: if false;
+    }
+    match /sepay_transactions/{transactionId} {
+      allow read, write: if false;
     }
     match /support_tickets/{id} {
       allow read: if admin() || (active() && resource.data.accountUid == request.auth.uid);
@@ -189,9 +212,11 @@ service cloud.firestore {
       allow read: if admin() || owner(resource.data) || tenant(resource.data);
       allow get: if active() && !exists(/databases/$(database)/documents/rental_records/$(id));
       allow create: if admin() || (owner(request.resource.data) && ownsProperty(request.resource.data.propertyId) &&
+        request.resource.data.kind != 'verificationReview' &&
         (request.resource.data.kind != 'messages' || landlordMessageCreate())) ||
         (tenant(request.resource.data) && tenantCreate());
       allow update: if admin() || (owner(resource.data) && resource.data.kind != 'messages' &&
+        resource.data.kind != 'verificationReview' &&
         request.resource.data.ownerUid == resource.data.ownerUid &&
         request.resource.data.propertyId == resource.data.propertyId &&
         request.resource.data.kind == resource.data.kind) ||

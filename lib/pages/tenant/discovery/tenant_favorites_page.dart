@@ -4,6 +4,7 @@ import '../../../data/admin_store.dart';
 
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
 
@@ -26,6 +27,21 @@ class TenantFavoritesPage extends StatefulWidget {
 }
 
 class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
+  Future<void> _toggleFavorite(TenantRoomListing room) async {
+    setState(() {
+      TenantFavoritesStore.remember(room);
+      TenantFavoritesStore.toggle(room.id);
+    });
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
+  }
+
   String _roomType = 'Tất cả';
   String _query = '';
 
@@ -162,18 +178,14 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
               TenantRoomCard(
                 room: room,
                 isFavorite: true,
-                onFavoriteToggle: () =>
-                    setState(() => TenantFavoritesStore.toggle(room.id)),
+                onFavoriteToggle: () => _toggleFavorite(room),
                 onTap: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
                     builder: (_) => TenantRoomDetailsPage(
                       room: room,
                       onBook: () => _openViewingRequest(room),
                       isFavorite: TenantFavoritesStore.contains(room.id),
-                      onFavoriteToggle: () => setState(() {
-                        TenantFavoritesStore.remember(room);
-                        TenantFavoritesStore.toggle(room.id);
-                      }),
+                      onFavoriteToggle: () => _toggleFavorite(room),
                     ),
                   ),
                 ),
@@ -227,6 +239,8 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
         attendeeCount: request.attendeeCount,
         personalNeeds: request.personalNeeds,
       );
+      await AppPersistence.current?.flush();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -235,12 +249,13 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } on ArgumentError catch (error) {
+    } catch (error) {
+      if (!mounted) return;
+      final message = error is ArgumentError
+          ? error.message.toString()
+          : AppPersistence.saveFailureMessage(error);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.message.toString()),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
     }
   }

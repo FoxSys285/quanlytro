@@ -14,6 +14,7 @@ class TenantNavigationBar extends StatelessWidget
     this.notifications,
     this.tenantId,
     this.showNotifications = true,
+    this.trailingAction,
   });
   final String title;
   final VoidCallback onBack;
@@ -21,6 +22,7 @@ class TenantNavigationBar extends StatelessWidget
   final AnnouncementStore? notifications;
   final String? tenantId;
   final bool showNotifications;
+  final Widget? trailingAction;
   @override
   Size get preferredSize => const Size.fromHeight(58);
   @override
@@ -40,8 +42,8 @@ class TenantNavigationBar extends StatelessWidget
           title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: tenantInk,
+          style: TextStyle(
+            color: colors.ink,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -53,8 +55,8 @@ class TenantNavigationBar extends StatelessWidget
           tooltip: 'Quay lại',
           onPressed: onBack,
           style: IconButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: tenantInk,
+            backgroundColor: colors.surface,
+            foregroundColor: colors.ink,
           ),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
         ),
@@ -69,8 +71,9 @@ class TenantNavigationBar extends StatelessWidget
               tenantId: tenantId,
             ),
           )
-        else
+        else if (trailingAction == null)
           const SizedBox(width: 56),
+        ?trailingAction,
       ],
     );
   }

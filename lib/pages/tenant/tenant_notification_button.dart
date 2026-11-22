@@ -19,6 +19,7 @@ class TenantNotificationButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = TenantUiPalette.of(context);
     final inbox = notifications ?? AnnouncementStore.instance;
     final recipient = tenantId ?? TenantSession.currentTenantId;
     return ListenableBuilder(
@@ -48,8 +49,8 @@ class TenantNotificationButton extends StatelessWidget {
                     ),
                   ),
               style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: tenantInk,
+                backgroundColor: colors.surface,
+                foregroundColor: colors.ink,
               ),
               icon: const Icon(Icons.notifications_none_rounded, size: 25),
             ),
@@ -64,7 +65,7 @@ class TenantNotificationButton extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFFE6373E),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white),
+                    border: Border.all(color: colors.surface),
                   ),
                 ),
               ),

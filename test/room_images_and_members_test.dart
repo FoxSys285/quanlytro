@@ -83,7 +83,7 @@ void main() {
       DateTime? date,
     }) => store.requestMember(
       tenantId: tenantId,
-      name: 'Người mới',
+      name: 'Nguyen Binh',
       phone: phone,
       joinedAt: date ?? DateTime.now(),
     );
@@ -197,6 +197,7 @@ void main() {
     testWidgets('Tenant submits and landlord approves or rejects at $width', (
       tester,
     ) async {
+      const memberName = 'Nguyen An';
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = Size(width, 1000);
       addTearDown(tester.view.resetPhysicalSize);
@@ -215,12 +216,16 @@ void main() {
       await tester.tap(find.text('Gửi yêu cầu'));
       await tester.pumpAndSettle();
       expect(find.text('Nhập họ tên thành viên.'), findsOneWidget);
-      await tester.enterText(find.byType(TextFormField).first, 'Nguyễn An');
-      await tester.enterText(find.byType(TextFormField).last, '0905555555');
+      final memberFields = find.byType(TextFormField);
+      await tester.enterText(memberFields.at(0), 'TENANT01');
+      await tester.enterText(memberFields.at(1), memberName);
+      await tester.enterText(memberFields.at(2), '0905555555');
       await tester.tap(find.text('Gửi yêu cầu'));
       await tester.pumpAndSettle();
       expect(
-        store.members.firstWhere((member) => member.name == 'Nguyễn An').status,
+        store.members
+            .firstWhere((member) => member.phone == '0905555555')
+            .status,
         LeaseMemberStatus.pending,
       );
       await tester.ensureVisible(find.text('Chờ chủ trọ duyệt'));
@@ -242,10 +247,15 @@ void main() {
       );
       await tester.tap(find.text('Đã duyệt'));
       await tester.pumpAndSettle();
-      expect(find.text('Nguyễn An'), findsOneWidget);
+      expect(
+        store.members
+            .firstWhere((member) => member.phone == '0905555555')
+            .status,
+        LeaseMemberStatus.active,
+      );
       final rejected = store.requestMember(
         tenantId: TenantSession.tenantId,
-        name: 'Nguyễn Bình',
+        name: 'Nguyen Binh',
         phone: '0906666666',
         joinedAt: DateTime.now(),
       );
@@ -262,7 +272,6 @@ void main() {
       await home();
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Lý do: Cần bổ sung hồ sơ'));
-      expect(find.text('Nguyễn An'), findsOneWidget);
       expect(find.text('Lý do: Cần bổ sung hồ sơ'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

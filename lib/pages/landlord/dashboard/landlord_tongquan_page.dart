@@ -22,7 +22,7 @@ import '../members/landlord_nguoithue_page.dart';
 import '../meter_readings/landlord_chisodiennuoc_page.dart';
 import '../payments/landlord_payments_page.dart';
 import '../properties/landlord_properties_page.dart';
-import '../properties/landlord_verification_page.dart';
+import '../properties/landlord_verification_list_page.dart';
 import '../room_types/landlord_room_types_page.dart';
 import '../rooms/landlord_floor_plan_page.dart';
 import '../rooms/landlord_rooms_page.dart';
@@ -82,7 +82,10 @@ class LandlordTongQuanPage extends StatelessWidget {
       final unread = ConversationStore.instance
           .forProperty(store.property.id)
           .fold<int>(0, (sum, c) => sum + c.unread);
-      final verified = AdminStore.instance.isVerified(store.property.id);
+      final verifiedCount = portfolio.stores
+          .where((s) => AdminStore.instance.isVerified(s.property.id))
+          .length;
+      final verified = verifiedCount == portfolio.stores.length;
       return LandlordGlassPage(
         title: 'Tổng quan nhà trọ',
         kicker: 'KHÔNG GIAN CHỦ TRỌ',
@@ -135,8 +138,7 @@ class LandlordTongQuanPage extends StatelessWidget {
             LandlordGlassCard(
               onTap: () => LandlordNavigation.push<void>(
                 context,
-                page: LandlordVerificationPage(store: store),
-                title: 'Xác minh nhà trọ',
+                page: const LandlordVerificationListPage(),
                 destinationId: 'properties',
               ),
               child: Row(
@@ -152,9 +154,7 @@ class LandlordTongQuanPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          verified
-                              ? 'Nhà trọ đã xác minh'
-                              : 'Hoàn thiện hồ sơ nhà trọ',
+                          'Xác minh nhà trọ',
                           style: TextStyle(
                             color: palette.ink,
                             fontWeight: FontWeight.w800,
@@ -162,15 +162,7 @@ class LandlordTongQuanPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          verified
-                              ? 'Hồ sơ đã được quản trị viên duyệt.'
-                              : AdminStore.instance
-                                    .reviewNote(store.property.id)
-                                    .isNotEmpty
-                              ? 'Quản trị viên yêu cầu bổ sung hồ sơ.'
-                              : store.property.verificationSubmittedAt == null
-                              ? 'Gửi thông tin để xác minh nhà trọ.'
-                              : 'Hồ sơ đang chờ quản trị viên xét duyệt.',
+                          '${portfolio.stores.length} nhà trọ · $verifiedCount đã xác minh · ${portfolio.stores.length - verifiedCount} chưa xác minh',
                           style: TextStyle(color: palette.muted, fontSize: 11),
                         ),
                       ],
@@ -232,10 +224,7 @@ class LandlordTongQuanPage extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 24),
-            const LandlordGlassSection(
-              title: 'Thao tác nhanh',
-              subtitle: 'Lối tắt quản lý nhà trọ mỗi ngày',
-            ),
+            const LandlordGlassSection(title: 'Thao tác nhanh'),
             LayoutBuilder(
               builder: (context, constraints) {
                 final columns = constraints.maxWidth >= 700 ? 4 : 2;
@@ -418,7 +407,6 @@ class LandlordTongQuanPage extends StatelessWidget {
             const SizedBox(height: 24),
             LandlordGlassSection(
               title: 'Thu tiền tháng ${now.month}/${now.year}',
-              subtitle: 'Khoản đã thu được tính sau khi xác nhận thanh toán',
             ),
             LandlordBluePanel(
               child: Column(

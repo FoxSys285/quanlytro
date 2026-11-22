@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../landlord_theme.dart';
 
@@ -9,6 +10,7 @@ import '../services/property_image_picker.dart';
 import '../../../tenant/discovery/services/tenant_administrative_service.dart';
 import 'landlord_property_image.dart';
 import 'landlord_location_selector.dart';
+import 'landlord_property_map_picker.dart';
 
 class LandlordPropertyEditor extends StatefulWidget {
   const LandlordPropertyEditor({
@@ -100,6 +102,38 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
   double? _parseCoordinate(String value) =>
       double.tryParse(value.trim().replaceAll(',', '.'));
 
+  Future<void> _chooseMapPoint() async {
+    final latitude = _parseCoordinate(_latitude.text);
+    final longitude = _parseCoordinate(_longitude.text);
+    final initialPosition =
+        latitude != null &&
+            longitude != null &&
+            latitude >= -90 &&
+            latitude <= 90 &&
+            longitude >= -180 &&
+            longitude <= 180
+        ? LatLng(latitude, longitude)
+        : null;
+    final position = await Navigator.of(context).push<LatLng>(
+      MaterialPageRoute<LatLng>(
+        builder: (_) => LandlordPropertyMapPickerPage(
+          initialCity: _city.text,
+          initialPosition: initialPosition,
+        ),
+      ),
+    );
+    if (!mounted || position == null) return;
+    setState(() {
+      _latitude.text = position.latitude.toStringAsFixed(6);
+      _longitude.text = position.longitude.toStringAsFixed(6);
+    });
+  }
+
+  void _clearCoordinates() => setState(() {
+    _latitude.clear();
+    _longitude.clear();
+  });
+
   String? _validateCoordinate(String? value, {required bool isLatitude}) {
     final current = value?.trim() ?? '';
     final other = isLatitude ? _longitude.text.trim() : _latitude.text.trim();
@@ -118,9 +152,14 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
     return null;
   }
 
-  InputDecoration _decoration(String label, IconData icon) => InputDecoration(
+  InputDecoration _decoration(
+    String label,
+    IconData icon, {
+    Widget? suffixIcon,
+  }) => InputDecoration(
     labelText: label,
     prefixIcon: Icon(icon, size: 20),
+    suffixIcon: suffixIcon,
     filled: true,
     fillColor: const Color(0xFFF8FAFD),
     counterText: '',
@@ -345,7 +384,7 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                     ),
                     const SizedBox(height: 5),
                     const Text(
-                      'Nhập vĩ độ và kinh độ của đúng nhà trọ để chỉ đường chính xác. Có thể nhấn giữ vị trí trên Google Maps để lấy tọa độ.',
+                      'Chạm vào một trong hai ô bên dưới để mở Google Maps. Chọn đúng điểm nhà trọ rồi xác nhận; vĩ độ và kinh độ sẽ được điền tự động.',
                       style: TextStyle(fontSize: 12, color: Colors.blueGrey),
                     ),
                     const SizedBox(height: 10),
@@ -354,13 +393,13 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                         final latitude = TextFormField(
                           key: const ValueKey('property-latitude'),
                           controller: _latitude,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                            signed: true,
-                          ),
+                          readOnly: true,
+                          showCursor: false,
+                          onTap: _chooseMapPoint,
                           decoration: _decoration(
                             'Vĩ độ',
                             Icons.place_outlined,
+                            suffixIcon: const Icon(Icons.map_outlined),
                           ),
                           validator: (value) =>
                               _validateCoordinate(value, isLatitude: true),
@@ -368,13 +407,13 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                         final longitude = TextFormField(
                           key: const ValueKey('property-longitude'),
                           controller: _longitude,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                            signed: true,
-                          ),
+                          readOnly: true,
+                          showCursor: false,
+                          onTap: _chooseMapPoint,
                           decoration: _decoration(
                             'Kinh độ',
                             Icons.place_outlined,
+                            suffixIcon: const Icon(Icons.map_outlined),
                           ),
                           validator: (value) =>
                               _validateCoordinate(value, isLatitude: false),
@@ -397,6 +436,29 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                           ],
                         );
                       },
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _chooseMapPoint,
+                          icon: const Icon(Icons.map_outlined, size: 18),
+                          label: Text(
+                            _latitude.text.isEmpty || _longitude.text.isEmpty
+                                ? 'Chọn điểm trên bản đồ'
+                                : 'Đổi vị trí trên bản đồ',
+                          ),
+                        ),
+                        if (_latitude.text.isNotEmpty ||
+                            _longitude.text.isNotEmpty)
+                          TextButton.icon(
+                            onPressed: _clearCoordinates,
+                            icon: const Icon(Icons.clear_rounded, size: 18),
+                            label: const Text('Bỏ tọa độ'),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 24),
                     const Text(

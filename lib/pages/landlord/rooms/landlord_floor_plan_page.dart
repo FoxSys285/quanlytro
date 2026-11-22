@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../data/app_persistence.dart';
+import '../../../data/landlord_subscription_service.dart';
+import '../../../data/local_auth.dart';
 import '../../../layouts/landlord_navigation.dart';
 import '../finance/landlord_finance_models.dart';
 import '../incidents/models/landlord_suco.dart';
@@ -79,6 +81,27 @@ class _LandlordFloorPlanSetupPageState
     if (total > 350) {
       setState(() => _error = 'Mỗi nhà trọ có thể tạo tối đa 350 phòng.');
       return;
+    }
+    final session = LocalAuth.instance.session;
+    if (session != null) {
+      try {
+        final plan = await LandlordSubscriptionService.instance.activePlanFor(
+          session.uid,
+        );
+        if (!mounted) return;
+        if (total > plan.maxRoomsPerProperty) {
+          setState(
+            () => _error =
+                'Gói ${plan.name} cho phép tối đa ${plan.maxRoomsPerProperty} phòng mỗi nhà trọ.',
+          );
+          return;
+        }
+      } catch (error) {
+        if (mounted) {
+          setState(() => _error = 'Chưa kiểm tra được gói hiện tại: $error');
+        }
+        return;
+      }
     }
     setState(() {
       _saving = true;

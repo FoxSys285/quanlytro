@@ -4,16 +4,24 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+import 'cloudinary_media_gateway.dart';
+
 class FirebaseMediaStore {
-  FirebaseMediaStore({FirebaseStorage? storage})
-    : _storage = storage ?? FirebaseStorage.instance;
+  FirebaseMediaStore({
+    FirebaseStorage? storage,
+    CloudinaryMediaGateway? cloudinary,
+  }) : _storage = storage ?? FirebaseStorage.instance,
+       _cloudinary = cloudinary ?? CloudinaryMediaGateway();
 
   final FirebaseStorage _storage;
+  final CloudinaryMediaGateway _cloudinary;
   final _downloadUrls = <String, String>{};
 
   Future<Map<String, Map<String, dynamic>>> prepareForCloud(
     Map<String, Map<String, dynamic>> snapshot, {
     bool uploadPropertyMedia = true,
+    bool uploadPaymentProofs = true,
+    String? uploaderUid,
   }) async {
     final prepared = _copy(snapshot);
     final stores = prepared['portfolio']?['properties'] as List? ?? [];
@@ -28,6 +36,7 @@ class FirebaseMediaStore {
         property['imageUrl'] = await uploadImage(
           List<int>.from(propertyBytes),
           'properties/${_segment(propertyId)}/cover',
+          cloudinaryOwnerUid: uploaderUid,
         );
         property['imageBytes'] = null;
       }
@@ -41,18 +50,19 @@ class FirebaseMediaStore {
         final photos = (type['photos'] as List? ?? [])
             .map((row) => Map<String, dynamic>.from(row as Map))
             .toList();
-        for (final photo in photos) {
+        await _runInParallelChunks(photos, (photo) async {
           final encoded = photo['bytes'];
-          if (encoded is! String || encoded.isEmpty) continue;
+          if (encoded is! String || encoded.isEmpty) return;
           final bytes = base64Decode(encoded);
           photo['url'] = await uploadImage(
             bytes,
             'properties/${_segment(propertyId)}/room-types/${_segment(type['id'] as String)}',
+            cloudinaryOwnerUid: uploaderUid,
           );
           photo
             ..remove('bytes')
             ..['assetPath'] = '';
-        }
+        });
         type['photos'] = photos;
       }
       store['roomTypes'] = roomTypes;
@@ -65,16 +75,16 @@ class FirebaseMediaStore {
         final files = (document['files'] as List? ?? [])
             .map((row) => Map<String, dynamic>.from(row as Map))
             .toList();
-        for (final file in files) {
+        await _runInParallelChunks(files, (file) async {
           final bytes = file['bytes'];
-          if (!uploadPropertyMedia || bytes is! List || bytes.isEmpty) continue;
+          if (!uploadPropertyMedia || bytes is! List || bytes.isEmpty) return;
           file['storagePath'] = await uploadVerificationImage(
             List<int>.from(bytes),
             propertyId: propertyId,
             documentId: document['id'] as String,
           );
           file['bytes'] = null;
-        }
+        });
         document['files'] = files;
       }
       property['verificationDocuments'] = verificationDocuments;
@@ -85,7 +95,7 @@ class FirebaseMediaStore {
           .toList();
       for (final payment in payments) {
         final proof = payment['proofBytes'];
-        if (proof is! List || proof.isEmpty) continue;
+        if (!uploadPaymentProofs || proof is! List || proof.isEmpty) continue;
         final invoiceId = payment['invoiceId'] as String?;
         final paymentId = payment['id'] as String?;
         if (invoiceId == null ||
@@ -96,10 +106,15 @@ class FirebaseMediaStore {
             'Chứng từ thanh toán thiếu mã hóa đơn hoặc khoản thu.',
           );
         }
-        payment['proofUrl'] = await uploadImage(
-          List<int>.from(proof),
-          'payment-proofs/${_segment(propertyId)}/${_segment(invoiceId)}/'
-          '${_segment(paymentId)}',
+        final proofContent = Uint8List.fromList(List<int>.from(proof));
+        final proofFormat = _formatForContentType(_contentType(proofContent));
+        final proofHash = sha256.convert(proofContent).toString();
+        payment['proofUrl'] = await uploadPrivateImage(
+          proofContent,
+          storagePath:
+              'payment-proofs/${_segment(propertyId)}/'
+              '${_segment(invoiceId)}/${_segment(paymentId)}/$proofHash',
+          fileName: '$paymentId.$proofFormat',
         );
         payment['proofBytes'] = null;
       }
@@ -111,7 +126,21 @@ class FirebaseMediaStore {
     return prepared;
   }
 
-  Future<String> uploadImage(List<int> bytes, String folder) async {
+  Future<void> _runInParallelChunks<T>(
+    List<T> items,
+    Future<void> Function(T item) operation, {
+    int chunkSize = 3,
+  }) async {
+    for (var start = 0; start < items.length; start += chunkSize) {
+      await Future.wait(items.skip(start).take(chunkSize).map(operation));
+    }
+  }
+
+  Future<String> uploadImage(
+    List<int> bytes,
+    String folder, {
+    String? cloudinaryOwnerUid,
+  }) async {
     if (bytes.isEmpty) throw ArgumentError('Ảnh tải lên đang trống.');
     if (bytes.length > 10 * 1024 * 1024) {
       throw ArgumentError('Mỗi ảnh cần có dung lượng tối đa 10 MB.');
@@ -125,27 +154,17 @@ class FirebaseMediaStore {
     final key = '$folder/$hash';
     final cached = _downloadUrls[key];
     if (cached != null) return cached;
-    try {
-      final reference = _storage.ref(key);
-      try {
-        final existingUrl = await reference.getDownloadURL();
-        _downloadUrls[key] = existingUrl;
-        return existingUrl;
-      } on FirebaseException catch (error) {
-        if (error.code != 'object-not-found') rethrow;
-      }
-      await reference.putData(
-        content,
-        SettableMetadata(contentType: contentType),
-      );
-      final url = await reference.getDownloadURL();
-      _downloadUrls[key] = url;
-      return url;
-    } on FirebaseException catch (error) {
-      throw StateError(
-        'Không tải được ảnh lên Firebase Storage: ${error.code}.',
-      );
-    }
+    final format = _formatForContentType(contentType);
+    final cloudinaryUrl = await _cloudinary.upload(
+      bytes: content,
+      assetPath: _cloudinaryPropertyPath(folder, cloudinaryOwnerUid, hash),
+      resourceType: 'image',
+      deliveryType: 'upload',
+      fileName: '$hash.$format',
+      format: format,
+    );
+    _downloadUrls[key] = cloudinaryUrl;
+    return cloudinaryUrl;
   }
 
   /// Uploads identity and ownership evidence to a private path. The caller
@@ -167,25 +186,171 @@ class FirebaseMediaStore {
     final key =
         'verification-proofs/${_segment(propertyId)}/'
         '${_segment(documentId)}/$hash';
-    try {
-      final reference = _storage.ref(key);
-      try {
-        await reference.getMetadata();
-        return key;
-      } on FirebaseException catch (error) {
-        if (error.code != 'object-not-found') rethrow;
+    final format = _formatForContentType(contentType);
+    return _cloudinary.upload(
+      bytes: content,
+      assetPath: _cloudinaryPath(key),
+      resourceType: 'image',
+      deliveryType: 'authenticated',
+      fileName: '$hash.$format',
+      format: format,
+    );
+  }
+
+  Future<String> uploadPrivateImage(
+    List<int> bytes, {
+    required String storagePath,
+    required String fileName,
+    bool overwrite = false,
+  }) async {
+    if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
+      throw ArgumentError('Mỗi ảnh riêng tư cần có dung lượng tối đa 10 MB.');
+    }
+    final content = Uint8List.fromList(bytes);
+    final contentType = _contentType(content);
+    if (!contentType.startsWith('image/')) {
+      throw ArgumentError('Chỉ chấp nhận ảnh JPG, PNG, WebP hoặc GIF.');
+    }
+    final format = _formatForContentType(contentType);
+    final cloudinaryPath = storagePath.replaceFirst(RegExp(r'\.[^.]+$'), '');
+    return _cloudinary.upload(
+      bytes: content,
+      assetPath: _cloudinaryPath(cloudinaryPath),
+      resourceType: 'image',
+      deliveryType: 'authenticated',
+      fileName: fileName,
+      format: format,
+      overwrite: overwrite,
+    );
+  }
+
+  Future<String> uploadAsset(
+    List<int> bytes, {
+    required String folder,
+    required String fileName,
+    required String resourceType,
+    String contentType = 'application/octet-stream',
+    bool private = false,
+  }) async {
+    if (bytes.isEmpty || bytes.length > 100 * 1024 * 1024) {
+      throw ArgumentError('Tài nguyên cần có dung lượng từ 1 byte đến 100 MB.');
+    }
+    if (!['image', 'video', 'raw'].contains(resourceType)) {
+      throw ArgumentError('Loại tài nguyên không được hỗ trợ.');
+    }
+    final safeFolder = folder
+        .split('/')
+        .map(_segment)
+        .where((part) => part.isNotEmpty)
+        .join('/');
+    final extension = fileName.contains('.')
+        ? _segment(fileName.split('.').last.toLowerCase())
+        : '';
+    if (resourceType == 'raw' && extension.isEmpty) {
+      throw ArgumentError('Tài liệu cần có phần mở rộng tệp.');
+    }
+    final hash = sha256.convert(bytes).toString();
+    final leaf = resourceType == 'raw' && extension.isNotEmpty
+        ? '$hash.$extension'
+        : hash;
+    final assetPath = _cloudinaryPath('$safeFolder/$leaf');
+    return _cloudinary.upload(
+      bytes: bytes,
+      assetPath: assetPath,
+      resourceType: resourceType,
+      deliveryType: private ? 'authenticated' : 'upload',
+      fileName: fileName,
+      format: extension.isNotEmpty
+          ? extension
+          : _formatForContentType(contentType),
+    );
+  }
+
+  Future<Uint8List?> downloadPrivateAsset(
+    String storagePath, {
+    int maxBytes = 10 * 1024 * 1024,
+  }) async {
+    final cached = _privateAssetCache[storagePath];
+    if (cached != null) {
+      if (cached.length > maxBytes) {
+        throw StateError(
+          'TÃ i liá»‡u vÆ°á»£t quÃ¡ giá»›i háº¡n kÃ­ch thÆ°á»›c.',
+        );
       }
-      await reference.putData(
-        content,
-        SettableMetadata(contentType: contentType),
-      );
-      return key;
-    } on FirebaseException catch (error) {
-      throw StateError(
-        'Không tải được ảnh minh chứng lên Firebase Storage: ${error.code}.',
-      );
+      _privateAssetCache
+        ..remove(storagePath)
+        ..[storagePath] = cached;
+      return cached;
+    }
+    final existing = _privateAssetDownloads[storagePath];
+    if (existing != null) {
+      final bytes = await existing;
+      if (bytes != null && bytes.length > maxBytes) {
+        throw StateError(
+          'TÃ i liá»‡u vÆ°á»£t quÃ¡ giá»›i háº¡n kÃ­ch thÆ°á»›c.',
+        );
+      }
+      return bytes;
+    }
+    final download = storagePath.startsWith('cloudinary://')
+        ? _cloudinary.downloadPrivateAsset(storagePath, maxBytes: maxBytes)
+        : _storage.ref(storagePath).getData(maxBytes);
+    _privateAssetDownloads[storagePath] = download;
+    try {
+      final bytes = await download;
+      if (bytes != null) {
+        _privateAssetCache
+          ..remove(storagePath)
+          ..[storagePath] = bytes;
+        while (_privateAssetCache.length > 12 ||
+            _privateAssetCache.values.fold<int>(
+                  0,
+                  (sum, value) => sum + value.length,
+                ) >
+                32 * 1024 * 1024) {
+          _privateAssetCache.remove(_privateAssetCache.keys.first);
+        }
+      }
+      return bytes;
+    } finally {
+      if (identical(_privateAssetDownloads[storagePath], download)) {
+        _privateAssetDownloads.remove(storagePath);
+      }
     }
   }
+
+  static final _privateAssetCache = <String, Uint8List>{};
+  static final _privateAssetDownloads = <String, Future<Uint8List?>>{};
+
+  static String _cloudinaryPath(String value) =>
+      'tropremium/${value.split('/').map(_segment).where((part) => part.isNotEmpty).join('/')}';
+
+  static String _cloudinaryPropertyPath(
+    String folder,
+    String? ownerUid,
+    String hash,
+  ) {
+    final parts = folder.split('/');
+    if (ownerUid == null ||
+        ownerUid.isEmpty ||
+        parts.length < 2 ||
+        parts[0] != 'properties') {
+      return _cloudinaryPath('$folder/$hash');
+    }
+    return _cloudinaryPath(
+      'properties/${parts[1]}/${_segment(ownerUid)}/'
+      '${parts.skip(2).join('/')}/$hash',
+    );
+  }
+
+  static String _formatForContentType(String contentType) =>
+      switch (contentType) {
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'image/gif' => 'gif',
+        _ => 'bin',
+      };
 
   static String _contentType(Uint8List bytes) {
     if (bytes.length >= 8 &&

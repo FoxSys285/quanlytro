@@ -42,6 +42,25 @@ void restoreCloudPropertyVerification(
   admin['verificationProofs'] = proofs;
 }
 
+/// Review notes are private records readable by the owner and admin only.
+void restoreCloudPropertyReviews(
+  Map<String, dynamic> admin,
+  Iterable<Map<String, dynamic>> records,
+) {
+  final notes = Map<String, String>.from(admin['reviewNotes'] as Map? ?? {});
+  for (final record in records) {
+    if (record['kind'] != 'verificationReview' || record['archived'] == true) {
+      continue;
+    }
+    final id = record['propertyId'];
+    final data = record['data'];
+    if (id is String && data is Map) {
+      notes[id] = data['note'] as String? ?? '';
+    }
+  }
+  admin['reviewNotes'] = notes;
+}
+
 /// Các document nhỏ dùng chung cho bước chuyển dữ liệu và repository Firebase.
 Map<String, Map<String, dynamic>> encodeCloudDocuments(
   Map<String, Map<String, dynamic>> snapshot, {
@@ -110,6 +129,10 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
       'counters': store['counters'],
       'paymentAccounts': store['paymentAccounts'],
     }, tenants);
+    // Always encode an empty note too, so approval clears a previous request.
+    record('verificationReview', id, {
+      'note': snapshot['admin']?['reviewNotes']?[id] ?? '',
+    }, const []);
     if (property['verificationSubmittedAt'] != null ||
         (property['verificationDocuments'] as List? ?? const []).isNotEmpty) {
       record('verification', id, {

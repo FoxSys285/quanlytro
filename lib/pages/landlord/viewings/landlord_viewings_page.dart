@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../../layouts/landlord_navigation.dart';
 import '../landlord_theme.dart';
 
@@ -61,8 +62,18 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
     super.dispose();
   }
 
-  void _confirm(LandlordViewing viewing) {
+  Future<void> _confirm(LandlordViewing viewing) async {
     if (_store.confirm(viewing.id, propertyId: _propertyId)) {
+      try {
+        await AppPersistence.current?.flush();
+      } catch (failure) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+        );
+        return;
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đã xác nhận lịch xem phòng.')),
       );
@@ -93,6 +104,16 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
     );
     if (!mounted || confirmed != true) return;
     if (_store.cancel(viewing.id, propertyId: _propertyId)) {
+      try {
+        await AppPersistence.current?.flush();
+      } catch (failure) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+        );
+        return;
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đã hủy lịch xem phòng.')));
