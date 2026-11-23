@@ -40,7 +40,7 @@ class TermsOfServicePage extends StatelessWidget {
       ),
       LegalDocumentSection(
         title: 'Gói dịch vụ và thanh toán',
-        body: 'Phiên bản đồ án hiện tại dùng thanh toán giả lập để trình bày luồng đăng ký gói. Khi xác nhận, hệ thống ghi nhận đơn và kích hoạt gói trong 30 ngày; không có chuyển khoản, thu tiền thật hoặc đối soát ngân hàng. Giá và quyền lợi được hiển thị trước khi xác nhận. Hóa đơn thuê giữa người dùng tuân theo thỏa thuận riêng của các bên.',
+        body: 'Phiên bản đồ án hiện tại dùng thanh toán giả lập để trình bày luồng đăng ký gói. Sau khi bấm “Giả lập thanh toán”, hệ thống ghi nhận đơn và kích hoạt gói trong 30 ngày; mã QR chỉ để minh họa, không dùng để chuyển khoản, thu tiền thật hoặc đối soát ngân hàng. Giá và thời hạn được hiển thị trước khi tiếp tục. Hóa đơn thuê giữa người dùng tuân theo thỏa thuận riêng của các bên.',
       ),
       LegalDocumentSection(
         title: 'Hành vi không được phép',

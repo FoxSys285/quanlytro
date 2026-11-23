@@ -66,14 +66,12 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
           builder: (context, constraints) {
             final columns = constraints.maxWidth >= 560 ? 2 : 1;
             final width = (constraints.maxWidth - (columns - 1) * 14) / columns;
-            final orders = const <LandlordPlanOrder>[];
             return StreamBuilder<List<LandlordPlanOrder>>(
               stream: _orders,
               builder: (context, snapshot) {
-                final current = LandlordSubscriptionService.activeOrder(
-                  snapshot.data ?? orders,
-                );
-                final openOrders = (snapshot.data ?? orders)
+                final orders = snapshot.data ?? const <LandlordPlanOrder>[];
+                final current = LandlordSubscriptionService.activeOrder(orders);
+                final openOrders = orders
                     .where((order) => order.isOpen)
                     .toList();
                 final openOrder = openOrders.isEmpty ? null : openOrders.first;
@@ -94,7 +92,12 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
                                   openOrder != null ||
                                   session?.role != AppRole.landlord
                               ? null
-                              : () => _startOrder(session!, plan, context),
+                              : () => _startOrder(
+                                  session!,
+                                  plan,
+                                  orders,
+                                  context,
+                                ),
                         ),
                       ),
                   ],
@@ -125,7 +128,8 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
                     _OrderCard(
                       order: order,
                       onContinue: order.isOpen
-                          ? () => _continueOrder(session, order, context)
+                          ? () =>
+                                _continueOrder(session, order, orders, context)
                           : null,
                       onCancel: order.status == 'awaiting_payment'
                           ? () => _cancelOrder(order, context)
@@ -210,36 +214,93 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
   Future<void> _startOrder(
     FirebaseAccountSession session,
     LandlordPlan plan,
+    List<LandlordPlanOrder> orders,
     BuildContext context,
   ) async {
-    await _openSimulation(session, plan: plan, context: context);
+    await _openPaymentFlow(
+      session,
+      plan: plan,
+      orders: orders,
+      context: context,
+    );
   }
 
   Future<void> _continueOrder(
     FirebaseAccountSession session,
     LandlordPlanOrder order,
+    List<LandlordPlanOrder> orders,
     BuildContext context,
   ) async {
-    await _openSimulation(session, order: order, context: context);
+    await _openPaymentFlow(
+      session,
+      order: order,
+      orders: orders,
+      context: context,
+    );
   }
 
-  Future<void> _openSimulation(
+  Future<void> _openPaymentFlow(
     FirebaseAccountSession session, {
     LandlordPlan? plan,
     LandlordPlanOrder? order,
+    required List<LandlordPlanOrder> orders,
     required BuildContext context,
   }) async {
-    final completed = await showDialog<LandlordPlanOrder>(
+    final period = _periodFor(orders, order: order);
+    final planId = order?.planId ?? plan?.id;
+    final isRenewal =
+        LandlordSubscriptionService.activeOrder(orders)?.planId == planId;
+    final shouldContinue = await showDialog<bool>(
       context: context,
-      builder: (_) =>
-          _SimulatedPaymentDialog(session: session, plan: plan, order: order),
+      builder: (_) => _SubscriptionPeriodDialog(
+        title: isRenewal ? 'Gia hạn gói' : 'Đăng ký gói',
+        planName: order?.planName ?? plan!.name,
+        amount: order?.amount ?? plan!.monthlyPrice,
+        startAt: period.startAt,
+        endAt: period.endAt,
+      ),
     );
-    if (completed != null && context.mounted) {
-      _message(
-        context,
-        'Đã giả lập thanh toán thành công cho gói ${completed.planName}.',
+    if (shouldContinue != true || !context.mounted) return;
+
+    try {
+      final prepared = await _subscriptions.prepareSimulatedPayment(
+        session: session,
+        plan: plan,
+        orderId: order?.id,
       );
+      if (!context.mounted) return;
+      final completed = await showDialog<LandlordPlanOrder>(
+        context: context,
+        builder: (_) => _FakePaymentQrDialog(session: session, order: prepared),
+      );
+      if (completed != null && context.mounted) {
+        _message(
+          context,
+          'Đã hoàn tất thanh toán giả lập gói ${completed.planName}.',
+        );
+      }
+    } catch (error) {
+      if (context.mounted) _message(context, _paymentError(error));
     }
+  }
+
+  _PlanPeriod _periodFor(
+    Iterable<LandlordPlanOrder> orders, {
+    LandlordPlanOrder? order,
+  }) {
+    if (order?.startsAt != null && order?.expiresAt != null) {
+      return _PlanPeriod(order!.startsAt!, order.expiresAt!);
+    }
+    var startAt = DateTime.now();
+    for (final existing in orders) {
+      final expiry = existing.expiresAt;
+      if (existing.status == 'approved' &&
+          expiry != null &&
+          expiry.isAfter(startAt)) {
+        startAt = expiry.toLocal();
+      }
+    }
+    return _PlanPeriod(startAt, startAt.add(const Duration(days: 30)));
   }
 
   Future<void> _cancelOrder(
@@ -452,9 +513,9 @@ class _OrderCard extends StatelessWidget {
               'Ngày tạo: ${_dateLabel(order.createdAt!)}',
               style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
             ),
-          if (order.expiresAt != null)
+          if (order.startsAt != null && order.expiresAt != null)
             Text(
-              'Hiệu lực đến: ${_dateLabel(order.expiresAt!)}',
+              'Thời hạn: ${_dateTimeLabel(order.startsAt!)} → ${_dateTimeLabel(order.expiresAt!)}',
               style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
             ),
           if (order.adminNote.isNotEmpty) ...[
@@ -489,36 +550,154 @@ class _OrderCard extends StatelessWidget {
   );
 }
 
-class _SimulatedPaymentDialog extends StatefulWidget {
-  const _SimulatedPaymentDialog({required this.session, this.plan, this.order});
+class _PlanPeriod {
+  const _PlanPeriod(this.startAt, this.endAt);
 
-  final FirebaseAccountSession session;
-  final LandlordPlan? plan;
-  final LandlordPlanOrder? order;
-
-  @override
-  State<_SimulatedPaymentDialog> createState() =>
-      _SimulatedPaymentDialogState();
+  final DateTime startAt;
+  final DateTime endAt;
 }
 
-class _SimulatedPaymentDialogState extends State<_SimulatedPaymentDialog> {
+class _SubscriptionPeriodDialog extends StatelessWidget {
+  const _SubscriptionPeriodDialog({
+    required this.title,
+    required this.planName,
+    required this.amount,
+    required this.startAt,
+    required this.endAt,
+  });
+
+  final String title;
+  final String planName;
+  final int amount;
+  final DateTime startAt;
+  final DateTime endAt;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('$title $planName'),
+    content: SizedBox(
+      width: (MediaQuery.sizeOf(context).width - 88)
+          .clamp(280.0, 460.0)
+          .toDouble(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Giá gói: ${_money(amount)} · Thời hạn: 30 ngày',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _PeriodPoint(
+                  label: 'Mốc bắt đầu',
+                  value: _dateTimeLabel(startAt),
+                  icon: Icons.play_arrow_rounded,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Color(0xFF7046D3),
+                ),
+              ),
+              Expanded(
+                child: _PeriodPoint(
+                  label: 'Mốc kết thúc',
+                  value: _dateTimeLabel(endAt),
+                  icon: Icons.flag_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Bấm tiếp tục để xem mã QR giả lập. Gói hiện tại còn hạn thì gói mới sẽ bắt đầu sau ngày hết hạn.',
+            style: TextStyle(fontSize: 12, height: 1.5),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context, false),
+        child: const Text('Để sau'),
+      ),
+      FilledButton.icon(
+        onPressed: () => Navigator.pop(context, true),
+        icon: const Icon(Icons.arrow_forward_rounded),
+        label: const Text('Tiếp tục'),
+      ),
+    ],
+  );
+}
+
+class _PeriodPoint extends StatelessWidget {
+  const _PeriodPoint({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFF7046D3).withValues(alpha: .07),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 19, color: const Color(0xFF7046D3)),
+        const SizedBox(height: 7),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        ),
+      ],
+    ),
+  );
+}
+
+class _FakePaymentQrDialog extends StatefulWidget {
+  const _FakePaymentQrDialog({required this.session, required this.order});
+
+  final FirebaseAccountSession session;
+  final LandlordPlanOrder order;
+
+  @override
+  State<_FakePaymentQrDialog> createState() => _FakePaymentQrDialogState();
+}
+
+class _FakePaymentQrDialogState extends State<_FakePaymentQrDialog> {
   bool _saving = false;
   String? _error;
+  LandlordPlanOrder? _completed;
 
-  Future<void> _submit() async {
+  Future<void> _simulatePayment() async {
     setState(() {
       _saving = true;
       _error = null;
     });
     try {
-      final order = await LandlordSubscriptionService.instance.simulatePayment(
-        session: widget.session,
-        plan: widget.plan,
-        orderId: widget.order?.id,
-      );
-      if (mounted) Navigator.pop(context, order);
+      final completed = await LandlordSubscriptionService.instance
+          .simulatePayment(session: widget.session, orderId: widget.order.id);
+      if (mounted) setState(() => _completed = completed);
     } catch (error) {
-      if (mounted) setState(() => _error = '$error');
+      if (mounted) setState(() => _error = _paymentError(error));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -526,77 +705,214 @@ class _SimulatedPaymentDialogState extends State<_SimulatedPaymentDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final planName = widget.order?.planName ?? widget.plan!.name;
-    final amount = widget.order?.amount ?? widget.plan!.monthlyPrice;
+    final completed = _completed;
+    final contentWidth = (MediaQuery.sizeOf(context).width - 88)
+        .clamp(280.0, 460.0)
+        .toDouble();
     return AlertDialog(
-      title: Text('Giả lập thanh toán gói $planName'),
-      content: SizedBox(
-        width: 460,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF7046D3).withValues(alpha: .08),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.play_circle_outline_rounded,
-                    color: Color(0xFF7046D3),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Mô phỏng thanh toán gói $planName trong 30 ngày.',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Giá gói: ${_money(amount)}',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Khi xác nhận, hệ thống sẽ ghi nhận giao dịch giả lập và kích hoạt gói. Không chuyển khoản; thao tác này không thu tiền thật.',
-              style: TextStyle(fontSize: 12, height: 1.5),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
-            ],
-          ],
-        ),
+      title: Text(
+        completed == null
+            ? 'Thanh toán gói ${widget.order.planName}'
+            : 'Thanh toán hoàn tất',
       ),
-      actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.pop(context),
-          child: const Text('Quay lại'),
-        ),
-        FilledButton.icon(
-          onPressed: _saving ? null : _submit,
-          icon: _saving
-              ? const SizedBox.square(
-                  dimension: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.check_circle_outline_rounded),
-          label: const Text('Xác nhận giả lập'),
-        ),
-      ],
+      content: SizedBox(
+        width: contentWidth,
+        child: completed == null
+            ? _paymentContent()
+            : _completionContent(completed),
+      ),
+      actions: completed == null
+          ? [
+              TextButton(
+                onPressed: _saving ? null : () => Navigator.pop(context),
+                child: const Text('Để sau'),
+              ),
+              FilledButton.icon(
+                onPressed: _saving ? null : _simulatePayment,
+                icon: _saving
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.play_circle_outline_rounded),
+                label: Text(_saving ? 'Đang xử lý...' : 'Giả lập thanh toán'),
+              ),
+            ]
+          : [
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(context, completed),
+                icon: const Icon(Icons.check_rounded),
+                label: const Text('Hoàn tất'),
+              ),
+            ],
     );
   }
+
+  Widget _paymentContent() => SingleChildScrollView(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(child: _FakePaymentQr(seed: widget.order.paymentReference)),
+        const SizedBox(height: 12),
+        const Center(
+          child: Text(
+            'QR GIẢ LẬP · KHÔNG DÙNG ĐỂ CHUYỂN TIỀN',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFFB45309),
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Gói ${widget.order.planName} · ${_money(widget.order.amount)}',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 5),
+        Text('Mã mô phỏng: ${widget.order.paymentReference}'),
+        if (widget.order.startsAt != null &&
+            widget.order.expiresAt != null) ...[
+          const SizedBox(height: 5),
+          Text(
+            'Thời hạn: ${_dateTimeLabel(widget.order.startsAt!)} → ${_dateTimeLabel(widget.order.expiresAt!)}',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+        const SizedBox(height: 9),
+        const Text(
+          'Nhấn “Giả lập thanh toán” để hoàn tất đăng ký. Không cần quét QR; không phát sinh giao dịch thật.',
+          style: TextStyle(fontSize: 12, height: 1.45),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 10),
+          Text(_error!, style: const TextStyle(color: Colors.red)),
+        ],
+      ],
+    ),
+  );
+
+  Widget _completionContent(LandlordPlanOrder order) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const Icon(
+        Icons.check_circle_rounded,
+        size: 64,
+        color: Color(0xFF15803D),
+      ),
+      const SizedBox(height: 10),
+      const Text(
+        'Gói dịch vụ đã được kích hoạt.',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+      ),
+      const SizedBox(height: 12),
+      Text('Gói ${order.planName} · ${_money(order.amount)}'),
+      if (order.startsAt != null && order.expiresAt != null) ...[
+        const SizedBox(height: 5),
+        Text(
+          'Thời hạn: ${_dateTimeLabel(order.startsAt!)} → ${_dateTimeLabel(order.expiresAt!)}',
+          style: const TextStyle(fontSize: 12),
+        ),
+      ],
+      const SizedBox(height: 10),
+      const Text(
+        'Đây là kết quả thanh toán giả lập cho đồ án. Không có khoản tiền nào được thu.',
+        style: TextStyle(fontSize: 12, height: 1.45),
+      ),
+    ],
+  );
+}
+
+class _FakePaymentQr extends StatelessWidget {
+  const _FakePaymentQr({required this.seed});
+
+  final String seed;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(9),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: const Color(0xFFD9DEE7)),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: CustomPaint(
+      size: const Size.square(190),
+      painter: _FakeQrPainter(seed),
+    ),
+  );
+}
+
+class _FakeQrPainter extends CustomPainter {
+  _FakeQrPainter(this.seed);
+
+  static const _size = 29;
+  final String seed;
+
+  bool _finderDark(int x, int y, int left, int top) {
+    final localX = x - left;
+    final localY = y - top;
+    if (localX < 0 || localX >= 7 || localY < 0 || localY >= 7) return false;
+    return localX == 0 ||
+        localX == 6 ||
+        localY == 0 ||
+        localY == 6 ||
+        (localX >= 2 && localX <= 4 && localY >= 2 && localY <= 4);
+  }
+
+  bool _darkAt(int x, int y, int seedHash) {
+    final finders = <(int, int)>[(0, 0), (_size - 7, 0), (0, _size - 7)];
+    for (final (left, top) in finders) {
+      final inReserved =
+          x >= left - (left == 0 ? 0 : 1) &&
+          x <= left + 7 &&
+          y >= top - (top == 0 ? 0 : 1) &&
+          y <= top + 7;
+      if (inReserved) return _finderDark(x, y, left, top);
+    }
+
+    var value = seedHash ^ ((x + 1) * 0x45d9f3b) ^ ((y + 1) * 0x119de1f3);
+    value = (value ^ (value >> 16)) * 0x45d9f3b;
+    value = (value ^ (value >> 16)) * 0x45d9f3b;
+    value ^= value >> 16;
+    return value.isOdd;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+    final side = size.width < size.height ? size.width : size.height;
+    final left = (size.width - side) / 2;
+    final top = (size.height - side) / 2;
+    final cell = side / _size;
+    var seedHash = 0;
+    for (final codeUnit in seed.codeUnits) {
+      seedHash = (seedHash * 31 + codeUnit) & 0x7fffffff;
+    }
+    final paint = Paint()..color = const Color(0xFF101827);
+    for (var y = 0; y < _size; y++) {
+      for (var x = 0; x < _size; x++) {
+        if (!_darkAt(x, y, seedHash)) continue;
+        canvas.drawRect(
+          Rect.fromLTWH(
+            left + x * cell,
+            top + y * cell,
+            cell + .15,
+            cell + .15,
+          ),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FakeQrPainter oldDelegate) =>
+      oldDelegate.seed != seed;
 }
 
 class _StatusChip extends StatelessWidget {
@@ -665,6 +981,22 @@ String _money(int amount) {
   return '${output.toString()} đ';
 }
 
+String _paymentError(Object error) {
+  final message = '$error';
+  if (message.contains('Thao tác đăng ký gói không hợp lệ') ||
+      message.contains('Không chuẩn bị được thanh toán giả lập') ||
+      message.contains('Không hoàn tất được thanh toán giả lập')) {
+    return 'Backend thanh toán chưa được cập nhật. Cần áp dụng migration Supabase mới và triển khai lại subscription-api.';
+  }
+  return message;
+}
+
 String _dateLabel(DateTime value) =>
-    '${value.day.toString().padLeft(2, '0')}/'
-    '${value.month.toString().padLeft(2, '0')}/${value.year}';
+    '${value.toLocal().day.toString().padLeft(2, '0')}/'
+    '${value.toLocal().month.toString().padLeft(2, '0')}/${value.toLocal().year}';
+
+String _dateTimeLabel(DateTime value) {
+  final local = value.toLocal();
+  return '${_dateLabel(local)} ${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}';
+}

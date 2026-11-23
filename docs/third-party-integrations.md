@@ -3,10 +3,11 @@
 ## Subscription payment demo
 
 Paid landlord plans use a simulated payment flow for the project demo. The app
-records a simulated order in Supabase and activates the plan for 30 days; it
-does not call a bank or SePay and does not collect money. Apply the latest SQL
-migration and deploy the updated `subscription-api` function for this flow.
-The SePay webhook and its secret are not required for simulated payments.
+shows a demo QR image, records the order in Supabase, and activates the plan
+for 30 days after the user presses the simulation button. The QR is not
+scannable and the flow does not call a bank or SePay or collect money. Apply
+the latest SQL migration and deploy the updated `subscription-api` function
+for this flow. The SePay webhook and its secret are not required.
 
 ## Data ownership
 

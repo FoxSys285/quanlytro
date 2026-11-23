@@ -189,19 +189,37 @@ export async function handleSubscriptionApi(request: Request): Promise<Response>
       return jsonResponse({ order: orderView(data) }, 201);
     }
 
-    if (action === "simulatePayment") {
+    if (action === "prepareSimulatedPayment") {
       requireLandlord(user.profile);
       const planId = String(body.planId ?? "").trim();
       const orderId = String(body.orderId ?? "").trim();
       if (Boolean(planId) === Boolean(orderId)) {
-        throw new HttpError(400, "Chọn gói hoặc yêu cầu cần giả lập thanh toán.");
+        throw new HttpError(400, "Chọn gói hoặc yêu cầu cần chuẩn bị thanh toán.");
       }
+      const { data, error } = await store.rpc(
+        "prepare_simulated_subscription_order",
+        {
+          p_landlord_uid: user.uid,
+          p_landlord_name: String(user.profile.displayName ?? "").trim(),
+          p_landlord_email: String(user.profile.email ?? "").trim(),
+          p_plan_id: planId || null,
+          p_order_id: orderId || null,
+        },
+      );
+      if (error) databaseFailure(error, "Không chuẩn bị được thanh toán giả lập.");
+      if (!data || typeof data !== "object") {
+        throw new HttpError(503, "Backend không trả về yêu cầu thanh toán hợp lệ.");
+      }
+      return jsonResponse({ order: orderView(data as DbOrder) });
+    }
+
+    if (action === "simulatePayment") {
+      requireLandlord(user.profile);
+      const orderId = String(body.orderId ?? "").trim();
+      if (!orderId) throw new HttpError(400, "Yêu cầu thanh toán không hợp lệ.");
       const { data, error } = await store.rpc("simulate_subscription_payment", {
         p_landlord_uid: user.uid,
-        p_landlord_name: String(user.profile.displayName ?? "").trim(),
-        p_landlord_email: String(user.profile.email ?? "").trim(),
-        p_plan_id: planId || null,
-        p_order_id: orderId || null,
+        p_order_id: orderId,
       });
       if (error) databaseFailure(error, "Không hoàn tất được thanh toán giả lập.");
       if (!data || typeof data !== "object") {

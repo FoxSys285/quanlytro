@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -98,6 +100,20 @@ class RoleLayoutShell extends StatefulWidget {
     return true;
   }
 
+  /// Registers an in-shell screen's own Back action ahead of role navigation.
+  static VoidCallback? registerBackHandler(
+    BuildContext context, {
+    required Object owner,
+    required VoidCallback handler,
+  }) {
+    final shell = context.findAncestorStateOfType<_RoleLayoutShellState>();
+    if (shell == null) return null;
+    shell._systemBackHandlers[owner] = handler;
+    return () {
+      shell._systemBackHandlers.remove(owner);
+    };
+  }
+
   const RoleLayoutShell({
     super.key,
     required this.role,
@@ -160,8 +176,10 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
   final _drawerItemKeys = <String, GlobalKey>{};
   late String _selectedDestinationId = widget.initialDestinationId;
   late int _selectedTabIndex = _tabIndexFor(widget.initialDestinationId);
-  String? _previousDestinationId;
+  late final List<String> _destinationHistory = [widget.initialDestinationId];
   final _visitedRetainedDestinations = <String>{};
+  final _systemBackHandlers = <Object, VoidCallback>{};
+  bool _exitConfirmationShowing = false;
 
   @override
   void dispose() {
@@ -219,8 +237,12 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
     }
 
     if (id != _selectedDestinationId) {
-      _previousDestinationId = _selectedDestinationId;
+      _destinationHistory.add(id);
     }
+    _setSelectedDestination(id);
+  }
+
+  void _setSelectedDestination(String id) {
     if (widget.role == AppRole.admin &&
         widget.useSidebar &&
         id != _selectedDestinationId) {
@@ -234,8 +256,63 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
   }
 
   void _goBackToPreviousDestination() {
-    final previous = _previousDestinationId ?? widget.initialDestinationId;
-    _selectDestination(previous);
+    if (_destinationHistory.length > 1 &&
+        _destinationHistory.last == _selectedDestinationId) {
+      _destinationHistory.removeLast();
+    }
+    final previous = _destinationHistory.isEmpty
+        ? widget.initialDestinationId
+        : _destinationHistory.last;
+    _setSelectedDestination(previous);
+  }
+
+  void _handleSystemBack() {
+    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+      _scaffoldKey.currentState?.closeDrawer();
+      return;
+    }
+
+    if (_systemBackHandlers.isNotEmpty) {
+      final handler = _systemBackHandlers.values.last;
+      handler();
+      return;
+    }
+
+    if (_selectedDestinationId == widget.initialDestinationId) {
+      unawaited(_showExitConfirmation());
+      return;
+    }
+
+    _goBackToPreviousDestination();
+  }
+
+  Future<void> _showExitConfirmation() async {
+    if (_exitConfirmationShowing) return;
+    _exitConfirmationShowing = true;
+    try {
+      final shouldExit = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Thoát ứng dụng?'),
+          content: const Text('Bạn có chắc chắn muốn thoát ứng dụng không?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Ở lại'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Thoát'),
+            ),
+          ],
+        ),
+      );
+      if (shouldExit == true && mounted) {
+        await SystemNavigator.pop();
+      }
+    } finally {
+      _exitConfirmationShowing = false;
+    }
   }
 
   void _onTabSelected(int index) {
@@ -586,6 +663,13 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
         top: false,
         child: Column(
           children: [
+            PopScope<Object?>(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, _) {
+                if (!didPop) _handleSystemBack();
+              },
+              child: const SizedBox.shrink(),
+            ),
             if (!(widget.hideTopBarOnDestinations?.contains(
                   _selectedDestinationId,
                 ) ??

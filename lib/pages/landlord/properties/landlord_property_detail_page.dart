@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../layouts/role_layout.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_glass.dart';
 import '../landlord_theme.dart';
@@ -28,6 +29,34 @@ class LandlordPropertyDetailPage extends StatefulWidget {
 class _LandlordPropertyDetailPageState
     extends State<LandlordPropertyDetailPage> {
   int _tab = 0;
+  VoidCallback? _unregisterBackHandler;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _registerBackHandler();
+  }
+
+  @override
+  void didUpdateWidget(covariant LandlordPropertyDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _registerBackHandler();
+  }
+
+  void _registerBackHandler() {
+    _unregisterBackHandler?.call();
+    _unregisterBackHandler = RoleLayoutShell.registerBackHandler(
+      context,
+      owner: this,
+      handler: widget.onBack,
+    );
+  }
+
+  @override
+  void dispose() {
+    _unregisterBackHandler?.call();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -38,7 +67,7 @@ class _LandlordPropertyDetailPageState
       return PopScope<Object?>(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) widget.onBack();
+          if (!didPop && _unregisterBackHandler == null) widget.onBack();
         },
         child: PropertyPortfolioBackdrop(
           child: SafeArea(

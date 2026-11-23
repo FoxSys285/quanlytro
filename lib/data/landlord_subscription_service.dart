@@ -226,7 +226,7 @@ class LandlordSubscriptionService {
     await _call('submitPayment', {'orderId': orderId, 'paymentNote': note});
   }
 
-  Future<LandlordPlanOrder> simulatePayment({
+  Future<LandlordPlanOrder> prepareSimulatedPayment({
     required FirebaseAccountSession session,
     LandlordPlan? plan,
     String? orderId,
@@ -235,19 +235,42 @@ class LandlordSubscriptionService {
       throw ArgumentError('Chỉ chủ trọ có thể đăng ký gói dịch vụ.');
     }
     if ((plan == null) == (orderId == null)) {
-      throw ArgumentError('Chọn gói hoặc yêu cầu cần giả lập thanh toán.');
+      throw ArgumentError('Chọn gói hoặc yêu cầu cần chuẩn bị thanh toán.');
     }
     if (plan != null && plan.id == 'free') {
       throw ArgumentError('Gói Free không cần thanh toán.');
     }
 
-    final response = await _call('simulatePayment', {
+    final response = await _call('prepareSimulatedPayment', {
       if (plan != null) 'planId': plan.id,
       if (orderId != null) 'orderId': orderId,
     });
     final data = response['order'];
     if (data is! Map<String, dynamic>) {
-      throw StateError('Backend không trả về đơn giả lập hợp lệ.');
+      throw StateError('Backend không trả về yêu cầu thanh toán hợp lệ.');
+    }
+    final order = LandlordPlanOrder.fromMap(
+      (data['id'] ?? '').toString(),
+      data,
+    );
+    _publishLandlordOrder(session.uid, order);
+    return order;
+  }
+
+  Future<LandlordPlanOrder> simulatePayment({
+    required FirebaseAccountSession session,
+    required String orderId,
+  }) async {
+    if (session.role != AppRole.landlord) {
+      throw ArgumentError('Chỉ chủ trọ có thể giả lập thanh toán.');
+    }
+    if (orderId.trim().isEmpty) {
+      throw ArgumentError('Yêu cầu thanh toán không hợp lệ.');
+    }
+    final response = await _call('simulatePayment', {'orderId': orderId});
+    final data = response['order'];
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Backend không trả về kết quả thanh toán hợp lệ.');
     }
     final order = LandlordPlanOrder.fromMap(
       (data['id'] ?? '').toString(),
