@@ -366,13 +366,23 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                       validator: _required,
                     ),
                     const SizedBox(height: 14),
+                    LandlordLocationSelector(
+                      initialCity: _city.text,
+                      initialWard: _ward.text,
+                      service: widget.locationService,
+                      onChanged: (city, ward) {
+                        _city.text = city;
+                        _ward.text = ward;
+                      },
+                    ),
+                    const SizedBox(height: 14),
                     TextFormField(
                       controller: _address,
                       minLines: 1,
                       maxLines: 2,
                       maxLength: 250,
                       decoration: _decoration(
-                        'Địa chỉ / vị trí',
+                        'Địa chỉ cụ thể',
                         Icons.location_on_outlined,
                       ),
                       validator: _required,
@@ -552,16 +562,6 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                             }),
                           ),
                       ],
-                    ),
-                    const SizedBox(height: 14),
-                    LandlordLocationSelector(
-                      initialCity: _city.text,
-                      initialWard: _ward.text,
-                      service: widget.locationService,
-                      onChanged: (city, ward) {
-                        _city.text = city;
-                        _ward.text = ward;
-                      },
                     ),
                   ],
                 ),

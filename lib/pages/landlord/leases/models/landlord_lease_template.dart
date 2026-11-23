@@ -22,6 +22,7 @@ class LandlordLeaseTemplate {
     required this.responsibilityA,
     required this.responsibilityB,
     required this.commonResponsibilities,
+    this.occupantCount = 1,
   });
 
   final String id;
@@ -46,6 +47,7 @@ class LandlordLeaseTemplate {
   final String responsibilityA;
   final String responsibilityB;
   final String commonResponsibilities;
+  final int occupantCount;
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -70,6 +72,7 @@ class LandlordLeaseTemplate {
     'responsibilityA': responsibilityA,
     'responsibilityB': responsibilityB,
     'commonResponsibilities': commonResponsibilities,
+    'occupantCount': occupantCount,
   };
 
   factory LandlordLeaseTemplate.fromMap(Map<String, dynamic> map) =>
@@ -103,5 +106,6 @@ class LandlordLeaseTemplate {
         responsibilityA: map['responsibilityA'] as String? ?? '',
         responsibilityB: map['responsibilityB'] as String? ?? '',
         commonResponsibilities: map['commonResponsibilities'] as String? ?? '',
+        occupantCount: (map['occupantCount'] as num?)?.toInt() ?? 1,
       );
 }

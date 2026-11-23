@@ -122,6 +122,27 @@ export async function handleSubscriptionApi(request: Request): Promise<Response>
       return jsonResponse({ orders: (data ?? []).map(orderView) });
     }
 
+    if (action === "activateScheduledOrder") {
+      requireLandlord(user.profile);
+      const orderId = String(body.orderId ?? "").trim();
+      if (!orderId) throw new HttpError(400, "Yêu cầu đăng ký gói không hợp lệ.");
+      const { data, error } = await store.rpc(
+        "activate_scheduled_subscription_order",
+        {
+          p_landlord_uid: user.uid,
+          p_order_id: orderId,
+        },
+      );
+      if (error?.code === "P0002") {
+        throw new HttpError(409, error.message ?? "Gói này không còn chờ kích hoạt.");
+      }
+      if (error) databaseFailure(error, "Không kích hoạt được gói đã duyệt.");
+      if (!data || typeof data !== "object") {
+        throw new HttpError(503, "Backend không trả về gói đã kích hoạt hợp lệ.");
+      }
+      return jsonResponse({ order: orderView(data as DbOrder) });
+    }
+
     if (action === "listUnmatched") {
       requireAdmin(user.profile);
       const { data, error } = await store.from("sepay_unmatched_transactions")

@@ -36,6 +36,17 @@ String _waterTypeForService(LandlordService? service) {
   return 'Theo m³';
 }
 
+const _defaultResponsibilityA =
+    '1. Bàn giao phòng và trang thiết bị theo hiện trạng đã thỏa thuận, đúng thời hạn; bảo đảm bên B được sử dụng phòng ổn định trong thời hạn thuê.\n'
+    '2. Thực hiện sửa chữa, bảo trì phần kết cấu và hệ thống chung thuộc trách nhiệm của bên A; thông báo trước cho bên B khi cần vào phòng, trừ trường hợp khẩn cấp.\n'
+    '3. Thông báo rõ các khoản tiền thuê, điện, nước và dịch vụ; xác nhận các khoản đã nhận, đối chiếu công nợ và hoàn trả tiền đặt cọc theo thỏa thuận khi kết thúc hợp đồng.';
+
+const _defaultResponsibilityB =
+    '1. Thanh toán tiền thuê, điện, nước và các khoản dịch vụ đúng hạn theo mức đã thỏa thuận trong hợp đồng.\n'
+    '2. Sử dụng phòng đúng mục đích, giữ gìn phòng và tài sản; không tự ý sửa chữa, cơi nới, cho thuê lại hoặc tăng số người ở thường xuyên vượt thỏa thuận khi chưa có sự đồng ý của bên A.\n'
+    '3. Tuân thủ nội quy nhà trọ, giữ gìn vệ sinh và trật tự; thông báo kịp thời khi có hư hỏng, sự cố; chịu chi phí khắc phục thiệt hại do mình hoặc người cùng ở gây ra.\n'
+    '4. Bàn giao lại phòng và tài sản khi hết hạn hoặc chấm dứt hợp đồng, đồng thời thanh toán các khoản còn thiếu.';
+
 bool _isElectricityService(LandlordService service) =>
     service.id == 'electricity' || service.name.toLowerCase().contains('điện');
 
@@ -1527,6 +1538,7 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
         responsibilityA: result.responsibilityA,
         responsibilityB: result.responsibilityB,
         commonResponsibilities: result.commonResponsibilities,
+        occupantCount: result.occupantCount,
       );
       await AppPersistence.current?.flush();
       if (!mounted) return;
@@ -2040,7 +2052,10 @@ class _LeaseEditorState extends State<_LeaseEditor> {
         '',
   );
   late final _occupants = TextEditingController(
-    text: widget.lease?.occupantCount.toString() ?? '1',
+    text:
+        widget.lease?.occupantCount.toString() ??
+        _initialTemplate?.occupantCount.toString() ??
+        '1',
   );
   late final _note = TextEditingController(text: widget.lease?.note ?? '');
   late final _responsibilityA = TextEditingController(
@@ -2221,6 +2236,7 @@ class _LeaseEditorState extends State<_LeaseEditor> {
 
   void _applyTemplate(LandlordLeaseTemplate template) {
     _templateId = template.id;
+    _occupants.text = template.occupantCount.toString();
     _landlordName.text = template.landlordName;
     _landlordAddress.text = template.landlordPermanentAddress;
     _landlordId.text = template.landlordCitizenId;
@@ -3359,6 +3375,7 @@ class _LeaseTemplateDraft {
     required this.responsibilityA,
     required this.responsibilityB,
     required this.commonResponsibilities,
+    required this.occupantCount,
   });
 
   final String name;
@@ -3382,6 +3399,7 @@ class _LeaseTemplateDraft {
   final String responsibilityA;
   final String responsibilityB;
   final String commonResponsibilities;
+  final int occupantCount;
 }
 
 class _LeaseTemplateEditor extends StatefulWidget {
@@ -3432,41 +3450,42 @@ class _LeaseTemplateEditorState extends State<_LeaseTemplateEditor> {
         '',
   );
   late final _electricity = TextEditingController(
-    text:
-        (_serviceRecord(_electricityServiceId)?.price ??
-                widget.template?.electricityPrice ??
-                3500)
-            .toString(),
+    text: formatLandlordMoney(
+      _serviceRecord(_electricityServiceId)?.price ??
+          widget.template?.electricityPrice ??
+          3500,
+    ),
   );
   late final _water = TextEditingController(
-    text:
-        (_serviceRecord(_waterServiceId)?.price ??
-                widget.template?.waterPrice ??
-                15000)
-            .toString(),
+    text: formatLandlordMoney(
+      _serviceRecord(_waterServiceId)?.price ??
+          widget.template?.waterPrice ??
+          15000,
+    ),
+  );
+  late final _occupants = TextEditingController(
+    text: '${widget.template?.occupantCount ?? 1}',
   );
   late final _responsibilityA = TextEditingController(
-    text: widget.template?.responsibilityA ?? '',
+    text: widget.template?.responsibilityA.trim().isNotEmpty == true
+        ? widget.template!.responsibilityA
+        : _defaultResponsibilityA,
   );
   late final _responsibilityB = TextEditingController(
-    text: widget.template?.responsibilityB ?? '',
+    text: widget.template?.responsibilityB.trim().isNotEmpty == true
+        ? widget.template!.responsibilityB
+        : _defaultResponsibilityB,
   );
   late final _commonResponsibilities = TextEditingController(
     text: widget.template?.commonResponsibilities ?? 'Hai bên cùng thực hiện đúng các thỏa thuận trong hợp đồng. Nếu có phát sinh, hai bên ưu tiên trao đổi và thống nhất; trường hợp không thống nhất được thì thực hiện theo quy định pháp luật.',
   );
   late DateTime? _birthDate = widget.template?.landlordBirthDate;
   late DateTime? _issueDate = widget.template?.landlordCitizenIssueDate;
-  late String _electricityServiceId =
-      widget.template?.electricityServiceId ??
-      widget.store.serviceById('electricity')?.id ??
-      '';
-  late String _waterServiceId =
-      widget.template?.waterServiceId ??
-      widget.store.serviceById('water')?.id ??
-      '';
-  late String _waterType =
-      widget.template?.waterType ??
-      _waterTypeForService(_serviceRecord(_waterServiceId));
+  late String _electricityServiceId = 'electricity';
+  late String _waterServiceId = 'water';
+  late String _waterType = _serviceRecord(_waterServiceId) == null
+      ? widget.template?.waterType ?? 'Theo m³'
+      : _waterTypeForService(_serviceRecord(_waterServiceId));
   late bool _cashEnabled = widget.template?.cashPaymentEnabled ?? true;
   late bool _bankEnabled =
       widget.template?.bankTransferEnabled ??
@@ -3474,29 +3493,6 @@ class _LeaseTemplateEditorState extends State<_LeaseTemplateEditor> {
 
   LandlordService? _serviceRecord(String? id) =>
       id == null || id.isEmpty ? null : widget.store.serviceRecordById(id);
-
-  List<LandlordService> _rateOptions({required bool water}) {
-    final matches = widget.store.services.where((service) {
-      if (!service.active) return false;
-      final name = service.name.toLowerCase();
-      final unit = service.unit.toLowerCase();
-      return water
-          ? service.id == 'water' ||
-                name.contains('nước') ||
-                unit.contains('m³')
-          : service.id == 'electricity' ||
-                name.contains('điện') ||
-                unit == 'kwh';
-    }).toList();
-    final selected = _serviceRecord(
-      water ? _waterServiceId : _electricityServiceId,
-    );
-    if (selected != null &&
-        !matches.any((service) => service.id == selected.id)) {
-      matches.add(selected);
-    }
-    return matches;
-  }
 
   @override
   void dispose() {
@@ -3511,6 +3507,7 @@ class _LeaseTemplateEditorState extends State<_LeaseTemplateEditor> {
     _bankAccount.dispose();
     _electricity.dispose();
     _water.dispose();
+    _occupants.dispose();
     _responsibilityA.dispose();
     _responsibilityB.dispose();
     _commonResponsibilities.dispose();
@@ -3626,23 +3623,31 @@ class _LeaseTemplateEditorState extends State<_LeaseTemplateEditor> {
                                 validator: _phone,
                               ),
                               _heading('GIÁ VÀ THANH TOÁN MẶC ĐỊNH'),
-                              _rateDropdown(water: false),
                               _field(
                                 _electricity,
-                                'Đơn giá điện / kWh',
+                                'Tiền điện (đ/kWh)',
                                 readOnly: true,
                               ),
-                              _rateDropdown(water: true),
-                              _field(_water, 'Đơn giá nước', readOnly: true),
+                              _field(
+                                _water,
+                                'Tiền nước (đ/${_waterUnit(_waterType)})',
+                                readOnly: true,
+                              ),
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: Text(
-                                  'Đơn vị nước: ${_waterUnit(_waterType)} · lấy theo dịch vụ đã chọn.',
+                                  'Tự động lấy giá và đơn vị từ bảng giá điện nước.',
                                   style: TextStyle(
                                     color: LandlordPalette.of(context).muted,
                                     fontSize: 11,
                                   ),
                                 ),
+                              ),
+                              _field(
+                                _occupants,
+                                'Số người ở theo hợp đồng',
+                                keyboardType: TextInputType.number,
+                                validator: _occupantsValidator,
                               ),
                               CheckboxListTile(
                                 contentPadding: const EdgeInsets.symmetric(
@@ -3774,48 +3779,6 @@ class _LeaseTemplateEditorState extends State<_LeaseTemplateEditor> {
     ),
   );
 
-  Widget _rateDropdown({required bool water}) {
-    final id = water ? _waterServiceId : _electricityServiceId;
-    final options = _rateOptions(water: water);
-    return Padding(
-      padding: const EdgeInsets.only(top: 7),
-      child: DropdownButtonFormField<String>(
-        initialValue: options.any((service) => service.id == id) ? id : '',
-        isExpanded: true,
-        decoration: _decoration(
-          water ? 'Dịch vụ nước trong bảng giá' : 'Dịch vụ điện trong bảng giá',
-        ),
-        items: [
-          const DropdownMenuItem(value: '', child: Text('Chọn dịch vụ')),
-          for (final service in options)
-            DropdownMenuItem(
-              value: service.id,
-              child: Text(
-                '${service.name} · ${formatLandlordMoney(service.price)}/${service.unit} · ${service.basis}',
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-        ],
-        validator: (value) => value == null || value.isEmpty
-            ? 'Chọn dịch vụ trong Bảng giá & dịch vụ.'
-            : null,
-        onChanged: (value) {
-          final selected = _serviceRecord(value);
-          setState(() {
-            if (water) {
-              _waterServiceId = value ?? '';
-              _water.text = (selected?.price ?? 0).toString();
-              _waterType = _waterTypeForService(selected);
-            } else {
-              _electricityServiceId = value ?? '';
-              _electricity.text = (selected?.price ?? 0).toString();
-            }
-          });
-        },
-      ),
-    );
-  }
-
   Widget _area(TextEditingController controller, String label) => Padding(
     padding: const EdgeInsets.only(top: 7),
     child: TextFormField(
@@ -3907,6 +3870,13 @@ class _LeaseTemplateEditorState extends State<_LeaseTemplateEditor> {
   int? _amount(String value) =>
       int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
 
+  String? _occupantsValidator(String? value) {
+    final count = value == null ? null : _amount(value);
+    return count != null && count >= 1 && count <= 30
+        ? null
+        : 'Số người ở từ 1 đến 30.';
+  }
+
   String? _account(String? value) {
     final digits = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
     return digits.length >= 6 && digits.length <= 20
@@ -3944,6 +3914,7 @@ class _LeaseTemplateEditorState extends State<_LeaseTemplateEditor> {
         responsibilityA: _responsibilityA.text,
         responsibilityB: _responsibilityB.text,
         commonResponsibilities: _commonResponsibilities.text,
+        occupantCount: _amount(_occupants.text)!,
       ),
     );
   }

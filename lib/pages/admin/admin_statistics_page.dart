@@ -284,7 +284,7 @@ class _ReviewDialogState extends State<_ReviewDialog> {
             if (widget.approve) ...[
               const SizedBox(height: 9),
               const Text(
-                'Gói có hiệu lực 30 ngày. Nếu đang còn gói đã duyệt, gói mới sẽ bắt đầu sau ngày hết hạn hiện tại.',
+                'Gói mới mặc định bắt đầu sau ngày hết hạn hiện tại. Chủ trọ có thể chọn “Kích hoạt ngay” trong lịch sử đăng ký để chuyển sớm; thời gian còn lại của gói hiện tại không được cộng bù.',
                 style: TextStyle(color: adminMuted, fontSize: 12, height: 1.4),
               ),
             ],
@@ -324,7 +324,11 @@ class _OrderCard extends StatelessWidget {
       'approved' =>
         order.isActive
             ? ('Đang hoạt động', adminGreen)
-            : ('Đã duyệt / hết hạn', adminTeal),
+            : order.isScheduled
+            ? ('Đã duyệt / chờ hiệu lực', adminTeal)
+            : order.isExpired
+            ? ('Đã hết hạn', adminMuted)
+            : ('Đã duyệt', adminTeal),
       'rejected' => ('Đã từ chối', adminOrange),
       'cancelled' => ('Đã hủy', adminMuted),
       _ => ('Không xác định', adminMuted),

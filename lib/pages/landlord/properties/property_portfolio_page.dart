@@ -81,21 +81,27 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
       );
       return;
     }
-    final LandlordPlan plan;
-    try {
-      plan = session == null
-          ? LandlordPlan.byId(null)
-          : await LandlordSubscriptionService.instance.activePlanFor(
-              session.uid,
-            );
-    } catch (error) {
-      if (mounted) {
-        showLandlordMessage(context, 'Chưa kiểm tra được gói hiện tại: $error');
+    final isFirstProperty = _portfolio.stores.isEmpty;
+    var plan = LandlordPlan.byId(null);
+    if (!isFirstProperty && session != null) {
+      try {
+        plan = await LandlordSubscriptionService.instance.activePlanFor(
+          session.uid,
+        );
+      } catch (error) {
+        if (mounted) {
+          showLandlordMessage(
+            context,
+            'Chưa kiểm tra được gói hiện tại: $error',
+          );
+        }
+        return;
       }
-      return;
     }
     if (!mounted) return;
-    if (session != null && _portfolio.stores.length >= plan.maxProperties) {
+    if (!isFirstProperty &&
+        session != null &&
+        _portfolio.stores.length >= plan.maxProperties) {
       showLandlordMessage(
         context,
         'Gói ${plan.name} cho phép tối đa ${plan.maxProperties} nhà trọ. Hãy nâng cấp gói để thêm nhà mới.',
@@ -669,6 +675,17 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                       Icons.door_front_door_outlined,
                     ),
                   ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: PropertyPortfolioActionButton(
+                    label: 'Xem nhà trọ',
+                    icon: Icons.home_work_outlined,
+                    onTap: () => _openProperty(store),
+                  ),
                 ),
               ),
               if (AdminStore.instance.reviewNote(property.id).isNotEmpty)

@@ -130,3 +130,58 @@ class GoogleMapsActions extends StatelessWidget {
     ],
   );
 }
+
+class GoogleMapsUrlFallbackButton extends StatelessWidget {
+  const GoogleMapsUrlFallbackButton({
+    super.key,
+    required this.address,
+    this.latitude,
+    this.longitude,
+    this.label = 'Mở bằng Google Maps',
+  });
+
+  final String address;
+  final double? latitude;
+  final double? longitude;
+  final String label;
+
+  Uri get _uri =>
+      googleMapsSearchUri(address, latitude: latitude, longitude: longitude);
+
+  Future<void> _open(BuildContext context) async {
+    try {
+      final opened = await launchUrl(
+        _uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không mở được Google Maps.')),
+        );
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không mở được Google Maps.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      TextButton.icon(
+        onPressed: () => _open(context),
+        icon: const Icon(Icons.open_in_new_rounded, size: 16),
+        label: Text(label),
+      ),
+      SelectableText(
+        _uri.toString(),
+        maxLines: 2,
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    ],
+  );
+}

@@ -28,12 +28,23 @@ class RoomTypeEditor extends StatefulWidget {
 }
 
 class _RoomTypeEditorState extends State<RoomTypeEditor> {
+  static const _borderColorOptions = <(String, int?)>[
+    ('Mặc định', null),
+    ('Đỏ', 0xFFE53935),
+    ('Cam', 0xFFEF7D32),
+    ('Vàng', 0xFFD5A300),
+    ('Xanh lá', 0xFF27966F),
+    ('Xanh dương', 0xFF3478D4),
+    ('Tím', 0xFF8054B8),
+  ];
+
   final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.type?.name);
   late final _price = TextEditingController(
     text: widget.type == null ? '' : _formatVnd(widget.type!.monthlyRent),
   );
   late final _photos = <RoomPhoto>[...?widget.type?.photos];
+  late int? _borderColorValue = widget.type?.borderColorValue;
   late final _serviceIds = <String>{
     ...(widget.type?.serviceIds ??
         widget.store.services
@@ -156,6 +167,8 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
         _name.text,
         monthlyRent: int.parse(_price.text.replaceAll(RegExp(r'\D'), '')),
         id: widget.type?.id,
+        borderColorValue: _borderColorValue,
+        resetBorderColor: _borderColorValue == null,
         serviceIds: _serviceIds.toList(),
         servicePrices: {
           for (final id in _serviceIds)
@@ -236,6 +249,43 @@ class _RoomTypeEditorState extends State<RoomTypeEditor> {
                         0
                     ? 'Nhập giá thuê lớn hơn 0.'
                     : null,
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Màu viền loại phòng',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Dùng màu này để nhận biết phòng ở danh sách Nhà trọ và Thu chi.',
+                style: TextStyle(
+                  color: LandlordPalette.of(context).muted,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 9),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: [
+                  for (final option in _borderColorOptions)
+                    ChoiceChip(
+                      selected: _borderColorValue == option.$2,
+                      onSelected: _saving
+                          ? null
+                          : (_) =>
+                                setState(() => _borderColorValue = option.$2),
+                      avatar: option.$2 == null
+                          ? const Icon(Icons.remove_circle_outline, size: 17)
+                          : CircleAvatar(
+                              backgroundColor: Color(option.$2!),
+                              radius: 8,
+                            ),
+                      label: Text(option.$1),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                ],
               ),
               const SizedBox(height: 22),
               Row(

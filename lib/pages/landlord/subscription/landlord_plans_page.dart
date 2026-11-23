@@ -116,6 +116,7 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
             builder: (context, snapshot) {
               final orders = snapshot.data ?? const <LandlordPlanOrder>[];
               if (orders.isEmpty) return const SizedBox.shrink();
+              final active = LandlordSubscriptionService.activeOrder(orders);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -134,6 +135,10 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
                       onCancel: order.status == 'awaiting_payment'
                           ? () => _cancelOrder(order, context)
                           : null,
+                      onActivate:
+                          order.isScheduled && active?.planId != order.planId
+                          ? () => _activateOrder(session, order, context)
+                          : null,
                     ),
                 ],
               );
@@ -151,6 +156,9 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
     final plan = LandlordPlan.byId(active?.planId);
     final pendingOrders = orders.where((order) => order.isOpen).toList();
     final pending = pendingOrders.isEmpty ? null : pendingOrders.first;
+    final scheduledSwitches = orders
+        .where((order) => order.isScheduled && active?.planId != order.planId)
+        .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -205,6 +213,14 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
             child: _InfoCard(
               message:
                   'Bạn có yêu cầu ${pending.paymentReference} chưa hoàn tất. Mở lịch sử đăng ký bên dưới và chọn “Giả lập thanh toán” để hoàn tất.',
+            ),
+          ),
+        if (scheduledSwitches.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: _InfoCard(
+              message:
+                  'Gói ${scheduledSwitches.first.planName} đã được duyệt và dự kiến có hiệu lực từ ${_dateTimeLabel(scheduledSwitches.first.startsAt!)}. Mở lịch sử đăng ký bên dưới, rồi chọn “Kích hoạt ngay” nếu muốn chuyển gói lúc này.',
             ),
           ),
       ],
@@ -332,6 +348,47 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
       if (context.mounted) _message(context, 'Đã hủy yêu cầu đăng ký.');
     } catch (error) {
       if (context.mounted) _message(context, '$error');
+    }
+  }
+
+  Future<void> _activateOrder(
+    FirebaseAccountSession session,
+    LandlordPlanOrder order,
+    BuildContext context,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Chuyển sang gói ${order.planName} ngay?'),
+        content: Text(
+          'Gói ${order.planName} sẽ có hiệu lực trong 30 ngày kể từ bây giờ. Gói hiện tại kết thúc ngay và thời gian còn lại không được cộng bù.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Để sau'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Kích hoạt ngay'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      final activated = await _subscriptions.activateScheduledOrder(
+        session: session,
+        orderId: order.id,
+      );
+      if (context.mounted) {
+        _message(
+          context,
+          'Đã chuyển sang gói ${activated.planName}. Gói có hiệu lực 30 ngày từ hôm nay.',
+        );
+      }
+    } catch (error) {
+      if (context.mounted) _message(context, _paymentError(error));
     }
   }
 
@@ -479,11 +536,17 @@ class _PlanFeature extends StatelessWidget {
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({required this.order, this.onContinue, this.onCancel});
+  const _OrderCard({
+    required this.order,
+    this.onContinue,
+    this.onCancel,
+    this.onActivate,
+  });
 
   final LandlordPlanOrder order;
   final VoidCallback? onContinue;
   final VoidCallback? onCancel;
+  final VoidCallback? onActivate;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -524,7 +587,7 @@ class _OrderCard extends StatelessWidget {
               '${order.isSimulated ? 'Ghi chú' : 'Phản hồi admin'}: ${order.adminNote}',
             ),
           ],
-          if (onContinue != null) ...[
+          if (onContinue != null || onCancel != null || onActivate != null) ...[
             const SizedBox(height: 8),
             Wrap(
               alignment: WrapAlignment.end,
@@ -536,11 +599,18 @@ class _OrderCard extends StatelessWidget {
                     icon: const Icon(Icons.close_rounded),
                     label: const Text('Hủy yêu cầu'),
                   ),
-                OutlinedButton.icon(
-                  onPressed: onContinue,
-                  icon: const Icon(Icons.play_circle_outline_rounded),
-                  label: const Text('Giả lập thanh toán'),
-                ),
+                if (onActivate != null)
+                  FilledButton.icon(
+                    onPressed: onActivate,
+                    icon: const Icon(Icons.bolt_rounded),
+                    label: const Text('Kích hoạt ngay'),
+                  ),
+                if (onContinue != null)
+                  OutlinedButton.icon(
+                    onPressed: onContinue,
+                    icon: const Icon(Icons.play_circle_outline_rounded),
+                    label: const Text('Giả lập thanh toán'),
+                  ),
               ],
             ),
           ],
@@ -927,6 +997,10 @@ class _StatusChip extends StatelessWidget {
       'approved' =>
         order.isActive
             ? ('Đang hoạt động', const Color(0xFF15803D))
+            : order.isScheduled
+            ? ('Đã duyệt · chờ hiệu lực', const Color(0xFF7046D3))
+            : order.isExpired
+            ? ('Đã kết thúc', Colors.blueGrey)
             : ('Đã duyệt', const Color(0xFF15803D)),
       'rejected' => ('Từ chối', const Color(0xFFB91C1C)),
       'cancelled' => ('Đã hủy', Colors.blueGrey),
@@ -985,8 +1059,9 @@ String _paymentError(Object error) {
   final message = '$error';
   if (message.contains('Thao tác đăng ký gói không hợp lệ') ||
       message.contains('Không chuẩn bị được thanh toán giả lập') ||
-      message.contains('Không hoàn tất được thanh toán giả lập')) {
-    return 'Backend thanh toán chưa được cập nhật. Cần áp dụng migration Supabase mới và triển khai lại subscription-api.';
+      message.contains('Không hoàn tất được thanh toán giả lập') ||
+      message.contains('Không kích hoạt được gói đã duyệt')) {
+    return 'Backend gói dịch vụ chưa được cập nhật. Cần áp dụng migration Supabase mới và triển khai lại subscription-api.';
   }
   return message;
 }

@@ -41,7 +41,22 @@ class LandlordDemoStore extends ChangeNotifier {
       ..['paymentAccounts'] = <dynamic>[]
       ..['members'] = <dynamic>[]
       ..['incidents'] = <dynamic>[]
-      ..['services'] = <dynamic>[]
+      ..['services'] = [
+        LandlordService(
+          id: 'electricity',
+          name: 'Tiền điện',
+          unit: 'kWh',
+          basis: 'Theo chỉ số',
+          price: 3500,
+        ).toMap(),
+        LandlordService(
+          id: 'water',
+          name: 'Tiền nước',
+          unit: 'm³',
+          basis: 'Theo chỉ số',
+          price: 15000,
+        ).toMap(),
+      ]
       ..['readings'] = <dynamic>[]
       ..['counters'] = List<int>.filled(7, 1);
     store.restore(data);
@@ -69,7 +84,7 @@ class LandlordDemoStore extends ChangeNotifier {
     address: '25 Nguyễn Gia Trí, Bình Thạnh, TP. Hồ Chí Minh',
     ownerName: 'Nguyễn Văn An',
     phone: '0900000000',
-    description:  
+    description:
         'Nhà trọ có không gian thoáng, giờ giấc tự do và chỗ để xe. '
         'Liên hệ chủ trọ để biết thêm thông tin phòng và nội quy.',
   );
@@ -288,6 +303,7 @@ class LandlordDemoStore extends ChangeNotifier {
     required String responsibilityA,
     required String responsibilityB,
     required String commonResponsibilities,
+    int occupantCount = 1,
   }) {
     if (existing != null && !_leaseTemplates.contains(existing)) {
       throw ArgumentError('Mẫu hợp đồng không tồn tại.');
@@ -304,6 +320,9 @@ class LandlordDemoStore extends ChangeNotifier {
     }
     if (electricityPrice <= 0 || waterPrice < 0) {
       throw ArgumentError('Kiểm tra đơn giá điện và nước.');
+    }
+    if (occupantCount < 1 || occupantCount > 30) {
+      throw ArgumentError('Số người ở theo hợp đồng từ 1 đến 30.');
     }
     if (!cashPaymentEnabled && !bankTransferEnabled) {
       throw ArgumentError('Chọn ít nhất một phương thức thanh toán.');
@@ -343,6 +362,7 @@ class LandlordDemoStore extends ChangeNotifier {
       responsibilityA: responsibilityA.trim(),
       responsibilityB: responsibilityB.trim(),
       commonResponsibilities: commonResponsibilities.trim(),
+      occupantCount: occupantCount,
     );
     if (existing == null) {
       _leaseTemplates.insert(0, template);
@@ -1159,6 +1179,8 @@ class LandlordDemoStore extends ChangeNotifier {
     String name, {
     required int monthlyRent,
     String? id,
+    int? borderColorValue,
+    bool resetBorderColor = false,
     List<String>? serviceIds,
     Map<String, int>? servicePrices,
     List<RoomPhoto>? photos,
@@ -1192,6 +1214,7 @@ class LandlordDemoStore extends ChangeNotifier {
           id: 'custom-${_nextType++}',
           name: trimmed,
           monthlyRent: monthlyRent,
+          borderColorValue: borderColorValue,
           serviceIds: List.unmodifiable(selected),
           servicePrices: Map.unmodifiable({
             for (final serviceId in selected)
@@ -1212,6 +1235,9 @@ class LandlordDemoStore extends ChangeNotifier {
         id: id,
         name: trimmed,
         monthlyRent: monthlyRent,
+        borderColorValue: resetBorderColor
+            ? null
+            : borderColorValue ?? _roomTypes[index].borderColorValue,
         serviceIds: List.unmodifiable(selected),
         servicePrices: Map.unmodifiable({
           for (final serviceId in selected)
@@ -1269,6 +1295,56 @@ class LandlordDemoStore extends ChangeNotifier {
       if (service.id == id) return service;
     }
     return null;
+  }
+
+  /// Keep the two non-removable utility rates present for new and restored
+  /// landlord accounts, while preserving prices that the owner already set.
+  void _ensureUtilityServices() {
+    const defaults = [
+      (
+        id: 'electricity',
+        name: 'Tiền điện',
+        unit: 'kWh',
+        basis: 'Theo chỉ số',
+        price: 3500,
+      ),
+      (
+        id: 'water',
+        name: 'Tiền nước',
+        unit: 'm³',
+        basis: 'Theo chỉ số',
+        price: 15000,
+      ),
+    ];
+    for (final value in defaults) {
+      final service = serviceRecordById(value.id);
+      if (service == null) {
+        final insertionIndex = value.id == 'electricity' ? 0 : 1;
+        _services.insert(
+          insertionIndex.clamp(0, _services.length).toInt(),
+          LandlordService(
+            id: value.id,
+            name: value.name,
+            unit: value.unit,
+            basis: value.basis,
+            price: value.price,
+          ),
+        );
+        continue;
+      }
+      service
+        ..name = value.name
+        ..active = true;
+      if (value.id == 'electricity') {
+        service
+          ..unit = value.unit
+          ..basis = value.basis;
+      } else if (service.unit.toLowerCase().contains('người')) {
+        service.basis = 'Theo người';
+      } else {
+        service.basis = 'Theo chỉ số';
+      }
+    }
   }
 
   List<LandlordLease> leasesForTenant(String tenantId) => List.unmodifiable(
@@ -1857,6 +1933,13 @@ class LandlordDemoStore extends ChangeNotifier {
       throw ArgumentError('Vui lòng nhập đầy đủ và đúng đơn giá.');
     }
     if (existing == null) {
+      final normalizedName = name.trim().toLowerCase();
+      if (normalizedName == 'điện' ||
+          normalizedName == 'tiền điện' ||
+          normalizedName == 'nước' ||
+          normalizedName == 'tiền nước') {
+        throw ArgumentError('Tiền điện và tiền nước đã có sẵn trong bảng giá.');
+      }
       _services.add(
         LandlordService(
           id: 'service-${_nextService++}',
@@ -1867,21 +1950,63 @@ class LandlordDemoStore extends ChangeNotifier {
         ),
       );
     } else {
-      existing
-        ..name = name.trim()
-        ..unit = unit.trim()
-        ..basis = basis
-        ..price = price;
+      final previousPrice = existing.price;
+      if (existing.id == 'electricity') {
+        existing
+          ..name = 'Tiền điện'
+          ..unit = 'kWh'
+          ..basis = 'Theo chỉ số'
+          ..price = price
+          ..active = true;
+      } else if (existing.id == 'water') {
+        final trimmedUnit = unit.trim();
+        final perPerson = trimmedUnit.toLowerCase().contains('người');
+        existing
+          ..name = 'Tiền nước'
+          ..unit = trimmedUnit
+          ..basis = perPerson ? 'Theo người' : 'Theo chỉ số'
+          ..price = price
+          ..active = true;
+      } else {
+        existing
+          ..name = name.trim()
+          ..unit = unit.trim()
+          ..basis = basis
+          ..price = price;
+      }
+      if ((existing.id == 'electricity' || existing.id == 'water') &&
+          previousPrice != price) {
+        for (var index = 0; index < _roomTypes.length; index++) {
+          final type = _roomTypes[index];
+          if (!type.serviceIds.contains(existing.id) ||
+              type.servicePrices[existing.id] != previousPrice) {
+            continue;
+          }
+          _roomTypes[index] = LandlordRoomType(
+            id: type.id,
+            name: type.name,
+            monthlyRent: type.monthlyRent,
+            borderColorValue: type.borderColorValue,
+            serviceIds: type.serviceIds,
+            servicePrices: Map.unmodifiable(
+              Map<String, int>.from(type.servicePrices)..[existing.id] = price,
+            ),
+            photos: type.photos,
+          );
+        }
+      }
     }
     notifyListeners();
   }
 
   void setServiceActive(LandlordService service, bool active) {
+    if (service.id == 'electricity' || service.id == 'water') return;
     service.active = active;
     notifyListeners();
   }
 
   void deleteService(LandlordService service) {
+    if (service.id == 'electricity' || service.id == 'water') return;
     _services.remove(service);
     for (var index = 0; index < _roomTypes.length; index++) {
       final type = _roomTypes[index];
@@ -1890,6 +2015,7 @@ class LandlordDemoStore extends ChangeNotifier {
         id: type.id,
         name: type.name,
         monthlyRent: type.monthlyRent,
+        borderColorValue: type.borderColorValue,
         serviceIds: List.unmodifiable(
           type.serviceIds.where((id) => id != service.id),
         ),

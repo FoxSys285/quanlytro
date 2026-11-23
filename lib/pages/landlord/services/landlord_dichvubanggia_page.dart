@@ -31,8 +31,6 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
 
   // Danh mục mẫu dịch vụ chuẩn bị sẵn để chọn nhanh khi tạo mới
   static const _mauDichVu = [
-    {'name': 'Điện', 'unit': 'kWh', 'price': '4000', 'basis': 'Theo chỉ số'},
-    {'name': 'Nước', 'unit': 'm³', 'price': '15000', 'basis': 'Theo chỉ số'},
     {
       'name': 'Internet',
       'unit': 'phòng',
@@ -53,7 +51,17 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
     },
   ];
 
-  List<LandlordService> get _danhSachDichVu => _store.services;
+  bool _isUtilityRate(LandlordService service) =>
+      service.id == 'electricity' || service.id == 'water';
+
+  List<LandlordService> get _danhSachTienIch =>
+      _store.services.where(_isUtilityRate).toList()..sort((a, b) {
+        if (a.id == b.id) return 0;
+        return a.id == 'electricity' ? -1 : 1;
+      });
+
+  List<LandlordService> get _danhSachDichVu =>
+      _store.services.where((service) => !_isUtilityRate(service)).toList();
 
   // 2. VÒNG ĐỜI VÀ LẮNG NGHE DỮ LIỆU
   @override
@@ -97,6 +105,101 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
     return _danhSachCachTinh
         .map((cach) => DropdownMenuItem(value: cach, child: Text(cach)))
         .toList();
+  }
+
+  Future<void> _moFormGiaTienIch(LandlordService service) async {
+    final isElectricity = service.id == 'electricity';
+    final priceController = TextEditingController(text: '${service.price}');
+    var unit = service.unit.toLowerCase().contains('người') ? 'người' : 'm³';
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => LandlordFormDialog(
+          title: isElectricity ? 'Bảng giá tiền điện' : 'Bảng giá tiền nước',
+          subtitle: isElectricity
+              ? 'Cập nhật đơn giá điện áp dụng cho kWh tiêu thụ.'
+              : 'Cập nhật đơn giá và cách tính tiền nước.',
+          icon: isElectricity ? Icons.bolt_outlined : Icons.water_drop_outlined,
+          footer: Row(
+            children: [
+              const Spacer(),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Hủy'),
+              ),
+              const SizedBox(width: 7),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: landlordBlue,
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.save_outlined, size: 17),
+                label: const Text('Lưu'),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: priceController,
+                keyboardType: TextInputType.number,
+                decoration: landlordModernInputDecoration(
+                  isElectricity
+                      ? 'Đơn giá tiền điện (đ/kWh)'
+                      : 'Đơn giá tiền nước (đ)',
+                  prefixIcon: const Icon(Icons.payments_outlined),
+                ),
+              ),
+              if (!isElectricity) ...[
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  key: ValueKey(unit),
+                  initialValue: unit,
+                  isExpanded: true,
+                  decoration: landlordModernInputDecoration('Đơn vị tính'),
+                  items: const [
+                    DropdownMenuItem(value: 'm³', child: Text('m³')),
+                    DropdownMenuItem(value: 'người', child: Text('người')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => unit = value);
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+    final price = int.tryParse(priceController.text.trim());
+    priceController.dispose();
+    if (saved != true || !mounted) return;
+    if (price == null || price < 0) {
+      showLandlordMessage(context, 'Vui lòng nhập đơn giá hợp lệ.');
+      return;
+    }
+    _store.saveService(
+      existing: service,
+      name: service.name,
+      unit: isElectricity ? service.unit : unit,
+      basis: isElectricity || unit == 'm³' ? 'Theo chỉ số' : 'Theo người',
+      price: price,
+    );
+    try {
+      await AppPersistence.current?.flush();
+    } catch (failure) {
+      if (!mounted) return;
+      showLandlordMessage(context, AppPersistence.saveFailureMessage(failure));
+      return;
+    }
+    if (mounted) {
+      showLandlordMessage(
+        context,
+        'Đã cập nhật ${isElectricity ? 'tiền điện' : 'tiền nước'}.',
+      );
+    }
   }
 
   // Hàm mở form thêm mới hoặc chỉnh sửa dịch vụ
@@ -259,13 +362,18 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
       return;
     }
 
-    _store.saveService(
-      existing: dichVuCanSua,
-      name: tenDichVu,
-      unit: donVi,
-      basis: cachTinh,
-      price: donGia,
-    );
+    try {
+      _store.saveService(
+        existing: dichVuCanSua,
+        name: tenDichVu,
+        unit: donVi,
+        basis: cachTinh,
+        price: donGia,
+      );
+    } on ArgumentError catch (failure) {
+      showLandlordMessage(context, failure.message.toString());
+      return;
+    }
     try {
       await AppPersistence.current?.flush();
     } catch (failure) {
@@ -282,11 +390,72 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
   Widget build(BuildContext context) {
     return LandlordFeaturePage(
       title: 'Dịch vụ & Bảng giá',
-      subtitle: 'Cấu hình đơn giá điện, nước và các dịch vụ khác.',
+      subtitle: 'Cấu hình đơn giá điện, nước và dịch vụ của nhà trọ.',
       icon: Icons.price_change_outlined,
       children: [
         LandlordGlassSection(
-          title: 'Bảng giá hiện tại',
+          title: 'Bảng giá điện nước',
+          subtitle: 'Hai khoản phí cơ bản luôn có sẵn và không thể xóa.',
+        ),
+        for (final dichVu in _danhSachTienIch)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: LandlordGlassCard(
+              onTap: () => _moFormGiaTienIch(dichVu),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE4EFFF),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Icon(
+                      _layIconDichVu(dichVu.name),
+                      color: landlordBlue,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dichVu.id == 'electricity'
+                              ? 'Tiền điện'
+                              : 'Tiền nước',
+                          style: TextStyle(
+                            color: LandlordPalette.of(context).ink,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${formatLandlordMoney(dichVu.price)} / ${dichVu.unit} · ${dichVu.basis}',
+                          style: TextStyle(
+                            color: LandlordPalette.of(context).muted,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip:
+                        'Chỉnh sửa ${dichVu.id == 'electricity' ? 'tiền điện' : 'tiền nước'}',
+                    onPressed: () => _moFormGiaTienIch(dichVu),
+                    icon: const Icon(Icons.edit_outlined),
+                    color: landlordBlue,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+        LandlordGlassSection(
+          title: 'Dịch vụ khác',
           subtitle: '${_danhSachDichVu.length} dịch vụ đang được quản lý.',
           trailing: FilledButton.icon(
             onPressed: () => _moFormDichVu(),
@@ -300,7 +469,7 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
         ),
         if (_danhSachDichVu.isEmpty)
           const LandlordGlassCard(
-            child: Center(child: Text('Chưa có dịch vụ nào.')),
+            child: Center(child: Text('Chưa có dịch vụ khác.')),
           ),
         for (final dichVu in _danhSachDichVu)
           Padding(

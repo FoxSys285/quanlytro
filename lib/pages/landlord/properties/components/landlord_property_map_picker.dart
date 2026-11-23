@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../tenant/discovery/services/tenant_location_service.dart';
+import '../../../shared/widgets/google_maps_actions.dart';
 
 class LandlordPropertyMapPickerPage extends StatefulWidget {
   const LandlordPropertyMapPickerPage({
@@ -101,10 +102,25 @@ class _LandlordPropertyMapPickerPageState
     if (!_supportsGoogleMaps) {
       return Scaffold(
         appBar: AppBar(title: const Text('Chọn vị trí nhà trọ')),
-        body: const Center(
+        body: Center(
           child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text('Bản đồ Google hiện khả dụng trên Android và iOS.'),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Bản đồ nhúng hiện khả dụng trên Android và iOS.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                GoogleMapsUrlFallbackButton(
+                  address: widget.initialCity,
+                  latitude: _initialTarget.latitude,
+                  longitude: _initialTarget.longitude,
+                  label: 'Mở vị trí bằng Google Maps URL',
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -199,6 +215,12 @@ class _LandlordPropertyMapPickerPageState
                     : 'Vĩ độ ${_selectedPosition!.latitude.toStringAsFixed(6)}  ·  Kinh độ ${_selectedPosition!.longitude.toStringAsFixed(6)}',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              GoogleMapsUrlFallbackButton(
+                address: widget.initialCity,
+                latitude: (_selectedPosition ?? _initialTarget).latitude,
+                longitude: (_selectedPosition ?? _initialTarget).longitude,
+                label: 'Nếu bản đồ lỗi, mở Google Maps URL',
               ),
               const SizedBox(height: 10),
               FilledButton.icon(

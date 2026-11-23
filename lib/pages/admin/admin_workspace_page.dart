@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../data/admin_store.dart';
+import '../../data/app_persistence.dart';
 import '../../data/firebase_media_store.dart';
 import '../../data/local_auth.dart';
 import '../../layouts/role_layout.dart';
@@ -24,6 +25,68 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
   String _query = '';
   String _filter = 'pending';
   int _page = 0;
+  final Set<String> _savingVerificationIds = {};
+
+  Future<void> _commitVerificationChange({
+    required String propertyId,
+    required String successMessage,
+    required VoidCallback apply,
+  }) async {
+    if (!_savingVerificationIds.add(propertyId)) return;
+    setState(() {});
+    var didApply = false;
+    Map<String, dynamic>? beforeChange;
+    try {
+      final persistence = AppPersistence.current;
+      if (persistence == null) {
+        throw StateError('Phiên lưu dữ liệu chưa được khởi tạo.');
+      }
+      await persistence.waitForInitialSync();
+      if (!mounted) return;
+      beforeChange = _copyAdminReviewState();
+      apply();
+      didApply = true;
+      await persistence.saveAdminChanges();
+      if (mounted) adminMessage(context, successMessage);
+    } catch (failure) {
+      if (didApply && beforeChange != null) {
+        _admin.restore(beforeChange);
+        try {
+          await AppPersistence.current?.saveAdminChanges();
+        } catch (_) {
+          // Keep the original save failure visible; the sync bar also exposes
+          // the outstanding persistence error for a later retry.
+        }
+      }
+      if (mounted) {
+        adminMessage(
+          context,
+          'Chưa lưu được kết quả xét duyệt: ${AppPersistence.saveFailureMessage(failure)}',
+        );
+      }
+    } finally {
+      _savingVerificationIds.remove(propertyId);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Map<String, dynamic> _copyAdminReviewState() {
+    final snapshot = _admin.toMap();
+    return {
+      ...snapshot,
+      'verificationProofs': Map<String, String>.from(
+        snapshot['verificationProofs'] as Map,
+      ),
+      'reviewNotes': Map<String, String>.from(snapshot['reviewNotes'] as Map),
+      'verified': Map<String, bool>.from(snapshot['verified'] as Map),
+      'commissionRates': Map<String, int>.from(
+        snapshot['commissionRates'] as Map,
+      ),
+      'logs': (snapshot['logs'] as List)
+          .map((entry) => Map<String, String>.from(entry as Map))
+          .toList(),
+    };
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -194,6 +257,7 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
     final admin = _admin;
     final p = store.property;
     final verified = admin.isVerified(p.id);
+    final saving = _savingVerificationIds.contains(p.id);
     final issues = AdminStore.verificationIssues(store);
     final authorized = LocalAuth.instance.role == AppRole.admin;
     return AdminPanel(
@@ -222,12 +286,18 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
                 ),
               ),
               AdminStatus(
-                verified
+                saving
+                    ? 'Đang lưu kết quả'
+                    : verified
                     ? 'Đã xác minh'
                     : issues.isEmpty
                     ? 'Sẵn sàng kiểm tra'
                     : 'Cần bổ sung',
-                color: verified ? adminGreen : adminGold,
+                color: saving
+                    ? adminBlue
+                    : verified
+                    ? adminGreen
+                    : adminGold,
               ),
             ],
           ),
@@ -326,7 +396,8 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
               runSpacing: 8,
               children: [
                 FilledButton.icon(
-                  onPressed: !authorized || (!verified && issues.isNotEmpty)
+                  onPressed:
+                      !authorized || saving || (!verified && issues.isNotEmpty)
                       ? null
                       : () async {
                           if (!await adminConfirm(
@@ -339,22 +410,37 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
                             return;
                           }
                           if (!context.mounted) return;
-                          try {
-                            admin.verify(p.id, !verified);
-                          } on ArgumentError catch (e) {
-                            adminMessage(context, '${e.message}');
-                          }
+                          final nextValue = !verified;
+                          await _commitVerificationChange(
+                            propertyId: p.id,
+                            successMessage: nextValue
+                                ? 'Đã duyệt và lưu trạng thái xác minh nhà trọ.'
+                                : 'Đã thu hồi và lưu trạng thái xác minh nhà trọ.',
+                            apply: () => admin.verify(p.id, nextValue),
+                          );
                         },
-                  icon: Icon(
-                    verified ? Icons.undo_rounded : Icons.verified_outlined,
-                    size: 18,
-                  ),
+                  icon: saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          verified
+                              ? Icons.undo_rounded
+                              : Icons.verified_outlined,
+                          size: 18,
+                        ),
                   label: Text(
-                    verified ? 'Thu hồi xác minh' : 'Xác minh thông tin',
+                    saving
+                        ? 'Đang lưu…'
+                        : verified
+                        ? 'Thu hồi xác minh'
+                        : 'Xác minh thông tin',
                   ),
                 ),
                 OutlinedButton(
-                  onPressed: !authorized
+                  onPressed: !authorized || saving
                       ? null
                       : () async {
                           final reason = await adminInput(
@@ -366,11 +452,11 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
                                 : 'Vui lòng bổ sung: ${issues.join(', ')}.',
                           );
                           if (reason == null || !context.mounted) return;
-                          try {
-                            admin.requestSupplement(p.id, reason);
-                          } on ArgumentError catch (e) {
-                            adminMessage(context, '${e.message}');
-                          }
+                          await _commitVerificationChange(
+                            propertyId: p.id,
+                            successMessage: 'Đã gửi yêu cầu bổ sung hồ sơ.',
+                            apply: () => admin.requestSupplement(p.id, reason),
+                          );
                         },
                   child: const Text('Yêu cầu bổ sung'),
                 ),

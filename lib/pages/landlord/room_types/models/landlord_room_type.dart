@@ -7,6 +7,7 @@ class LandlordRoomType {
     required this.id,
     required this.name,
     required this.monthlyRent,
+    this.borderColorValue,
     this.serviceIds = const [],
     this.servicePrices = const {},
     List<RoomPhoto> photos = const [],
@@ -15,6 +16,9 @@ class LandlordRoomType {
   final String id;
   final String name;
   final int monthlyRent;
+
+  /// ARGB value used to identify this room type in landlord room lists.
+  final int? borderColorValue;
   final List<String> serviceIds;
 
   /// A room type keeps its own rate for each selected service.
@@ -26,6 +30,7 @@ class LandlordRoomType {
     'id': id,
     'name': name,
     'monthlyRent': monthlyRent,
+    'borderColorValue': borderColorValue,
     'serviceIds': serviceIds,
     'servicePrices': servicePrices,
     'photos': photos.map((photo) => photo.toMap()).toList(),
@@ -36,6 +41,7 @@ class LandlordRoomType {
         id: map['id'] as String,
         name: map['name'] as String,
         monthlyRent: map['monthlyRent'] as int,
+        borderColorValue: (map['borderColorValue'] as num?)?.toInt(),
         serviceIds: List.unmodifiable(
           List<String>.from(
             map['serviceIds'] as List? ?? const ['electricity', 'water'],

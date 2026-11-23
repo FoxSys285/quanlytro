@@ -60,6 +60,20 @@ class LandlordPlanOrder {
         expiresAt!.isAfter(now);
   }
 
+  bool get isScheduled {
+    final now = DateTime.now();
+    return status == 'approved' &&
+        startsAt != null &&
+        expiresAt != null &&
+        startsAt!.isAfter(now) &&
+        expiresAt!.isAfter(now);
+  }
+
+  bool get isExpired =>
+      status == 'approved' &&
+      expiresAt != null &&
+      !expiresAt!.isAfter(DateTime.now());
+
   factory LandlordPlanOrder.fromMap(String id, Map<String, dynamic> data) {
     return LandlordPlanOrder(
       id: id,
@@ -278,6 +292,40 @@ class LandlordSubscriptionService {
     );
     _publishLandlordOrder(session.uid, order);
     return order;
+  }
+
+  Future<LandlordPlanOrder> activateScheduledOrder({
+    required FirebaseAccountSession session,
+    required String orderId,
+  }) async {
+    if (session.role != AppRole.landlord) {
+      throw ArgumentError('Chỉ chủ trọ có thể đổi gói dịch vụ.');
+    }
+    final response = await _call('activateScheduledOrder', {
+      'orderId': orderId,
+    });
+    final data = response['order'];
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Backend không trả về gói đã kích hoạt hợp lệ.');
+    }
+    final activated = LandlordPlanOrder.fromMap(
+      (data['id'] ?? '').toString(),
+      data,
+    );
+    try {
+      final orders = await _readOrders();
+      final channel = _pollers['landlord-orders:${session.uid}'];
+      if (channel is _PollingChannel<List<LandlordPlanOrder>>) {
+        channel.publish(orders);
+      }
+      return orders.firstWhere(
+        (order) => order.id == activated.id,
+        orElse: () => activated,
+      );
+    } catch (_) {
+      _publishLandlordOrder(session.uid, activated);
+      return activated;
+    }
   }
 
   Future<void> cancelUnpaidOrder(String orderId) async {

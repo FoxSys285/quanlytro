@@ -88,6 +88,9 @@ class LandlordRoomButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = LandlordPalette.of(context);
     final color = _statusColor;
+    final typeBorderColor = details.type?.borderColorValue == null
+        ? null
+        : Color(details.type!.borderColorValue!);
     final vacant = _state == LandlordRoomHighlight.vacant;
     final fill = vacant
         ? palette.surface
@@ -118,115 +121,127 @@ class LandlordRoomButton extends StatelessWidget {
       button: true,
       label: 'Phòng ${details.room.code}, ${details.typeName}, $_label',
       child: Container(
-        decoration: BoxDecoration(
-          color: fill,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: border),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: .07),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
+        padding: typeBorderColor == null ? null : const EdgeInsets.all(2.5),
+        decoration: typeBorderColor == null
+            ? null
+            : BoxDecoration(
+                borderRadius: BorderRadius.circular(23),
+                border: Border.all(color: typeBorderColor, width: 2.5),
+              ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: fill,
             borderRadius: BorderRadius.circular(20),
-            onTap: onTap,
-            child: Padding(
-              padding: EdgeInsets.all(compact ? 12 : 15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Phòng ${details.room.code}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: palette.ink,
-                            fontSize: compact ? 15 : 17,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -.25,
+            border: Border.all(color: border),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: .07),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: onTap,
+              child: Padding(
+                padding: EdgeInsets.all(compact ? 12 : 15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Phòng ${details.room.code}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: palette.ink,
+                              fontSize: compact ? 15 : 17,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -.25,
+                            ),
                           ),
                         ),
-                      ),
-                      if (!compact) ...[const SizedBox(width: 8), statusPill],
+                        if (!compact) ...[const SizedBox(width: 8), statusPill],
+                      ],
+                    ),
+                    if (compact) ...[
+                      const SizedBox(height: 6),
+                      Align(alignment: Alignment.centerLeft, child: statusPill),
                     ],
-                  ),
-                  if (compact) ...[
                     const SizedBox(height: 6),
-                    Align(alignment: Alignment.centerLeft, child: statusPill),
-                  ],
-                  const SizedBox(height: 6),
-                  Text(
-                    details.typeName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: palette.muted, fontSize: 12),
-                  ),
-                  if (secondaryText?.isNotEmpty == true) ...[
-                    const SizedBox(height: 4),
                     Text(
-                      secondaryText!,
+                      details.typeName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: palette.muted, fontSize: 11),
+                      style: TextStyle(color: palette.muted, fontSize: 12),
                     ),
-                  ],
-                  if (valueText?.isNotEmpty == true) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      valueText!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                    if (secondaryText?.isNotEmpty == true) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        secondaryText!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: palette.muted, fontSize: 11),
                       ),
-                    ),
-                  ],
-                  if (actions.isNotEmpty) ...[
-                    const SizedBox(height: 13),
-                    if (compact)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          for (
-                            var index = 0;
-                            index < actions.length;
-                            index++
-                          ) ...[
-                            if (index > 0) const SizedBox(height: 7),
-                            _ActionButton(action: actions[index], color: color),
-                          ],
-                        ],
-                      )
-                    else
-                      Row(
-                        children: [
-                          for (
-                            var index = 0;
-                            index < actions.length;
-                            index++
-                          ) ...[
-                            if (index > 0) const SizedBox(width: 8),
-                            Expanded(
-                              child: _ActionButton(
+                    ],
+                    if (valueText?.isNotEmpty == true) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        valueText!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                    if (actions.isNotEmpty) ...[
+                      const SizedBox(height: 13),
+                      if (compact)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (
+                              var index = 0;
+                              index < actions.length;
+                              index++
+                            ) ...[
+                              if (index > 0) const SizedBox(height: 7),
+                              _ActionButton(
                                 action: actions[index],
                                 color: color,
                               ),
-                            ),
+                            ],
                           ],
-                        ],
-                      ),
+                        )
+                      else
+                        Row(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < actions.length;
+                              index++
+                            ) ...[
+                              if (index > 0) const SizedBox(width: 8),
+                              Expanded(
+                                child: _ActionButton(
+                                  action: actions[index],
+                                  color: color,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),

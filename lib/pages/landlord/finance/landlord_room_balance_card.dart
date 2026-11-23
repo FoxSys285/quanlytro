@@ -27,116 +27,135 @@ class LandlordRoomBalanceCard extends StatelessWidget {
     final color = roomPaymentColor(balance.state);
     final palette = LandlordPalette.of(context);
     final details = balance.details;
+    final typeBorderColor = details.type?.borderColorValue == null
+        ? null
+        : Color(details.type!.borderColorValue!);
     return Semantics(
       label: 'Phòng ${details.room.code}, ${balance.label}',
-      child: LandlordGlassCard(
-        tint: color,
-        onTap: onTap,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 45,
-              height: 49,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: typeBorderColor == null ? null : const EdgeInsets.all(2.5),
+        decoration: typeBorderColor == null
+            ? null
+            : BoxDecoration(
+                borderRadius: BorderRadius.circular(23),
+                border: Border.all(color: typeBorderColor, width: 2.5),
               ),
-              child: Icon(
-                balance.state == RoomPaymentState.paid
-                    ? Icons.check_circle_rounded
-                    : balance.state == RoomPaymentState.pendingReview
-                    ? Icons.hourglass_top_rounded
-                    : Icons.meeting_room_rounded,
-                color: color,
-                size: 26,
+        child: LandlordGlassCard(
+          tint: color,
+          onTap: onTap,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 45,
+                height: 49,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  balance.state == RoomPaymentState.paid
+                      ? Icons.check_circle_rounded
+                      : balance.state == RoomPaymentState.pendingReview
+                      ? Icons.hourglass_top_rounded
+                      : Icons.meeting_room_rounded,
+                  color: color,
+                  size: 26,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Phòng ${details.room.code}',
-                          style: TextStyle(
-                            color: palette.ink,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Phòng ${details.room.code}',
+                            style: TextStyle(
+                              color: palette.ink,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
-                      ),
-                      Icon(Icons.chevron_right_rounded, color: color, size: 21),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${details.typeName} · Tầng ${details.room.floor}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: palette.muted, fontSize: 12),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 5,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        balance.label,
-                        style: TextStyle(
+                        Icon(
+                          Icons.chevron_right_rounded,
                           color: color,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
+                          size: 21,
                         ),
-                      ),
-                      if (details.lease != null)
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${details.typeName} · Tầng ${details.room.floor}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: palette.muted, fontSize: 12),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 5,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
                         Text(
-                          details.lease!.tenantName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: palette.muted, fontSize: 11),
-                        ),
-                      if (balance.state == RoomPaymentState.vacant)
-                        const SizedBox.shrink()
-                      else if (balance.pendingPayment != null)
-                        Text(
-                          formatLandlordMoney(
-                            balance.pendingPayment!.reportedAmount,
-                          ),
+                          balance.label,
                           style: TextStyle(
                             color: color,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                          ),
-                        )
-                      else if (balance.remaining > 0)
-                        Text(
-                          formatLandlordMoney(balance.remaining),
-                          style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                          ),
-                        )
-                      else if (balance.state == RoomPaymentState.paid)
-                        Text(
-                          formatLandlordMoney(balance.monthlyPaid),
-                          style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
                           ),
                         ),
-                    ],
-                  ),
-                ],
+                        if (details.lease != null)
+                          Text(
+                            details.lease!.tenantName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: palette.muted,
+                              fontSize: 11,
+                            ),
+                          ),
+                        if (balance.state == RoomPaymentState.vacant)
+                          const SizedBox.shrink()
+                        else if (balance.pendingPayment != null)
+                          Text(
+                            formatLandlordMoney(
+                              balance.pendingPayment!.reportedAmount,
+                            ),
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          )
+                        else if (balance.remaining > 0)
+                          Text(
+                            formatLandlordMoney(balance.remaining),
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          )
+                        else if (balance.state == RoomPaymentState.paid)
+                          Text(
+                            formatLandlordMoney(balance.monthlyPaid),
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

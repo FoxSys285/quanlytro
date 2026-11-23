@@ -31,7 +31,12 @@ class LandlordRoomCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: palette.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: palette.line),
+        border: Border.all(
+          color: details.type?.borderColorValue == null
+              ? palette.line
+              : Color(details.type!.borderColorValue!),
+          width: details.type?.borderColorValue == null ? 1 : 2.5,
+        ),
         boxShadow: const [
           BoxShadow(
             color: Color(0x07172B42),

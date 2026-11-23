@@ -169,9 +169,12 @@ class LandlordRoomTypesPage extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? LandlordPalette.of(context).line
-              : Colors.white,
+          color: type.borderColorValue == null
+              ? Theme.of(context).brightness == Brightness.dark
+                    ? LandlordPalette.of(context).line
+                    : Colors.white
+              : Color(type.borderColorValue!),
+          width: type.borderColorValue == null ? 1 : 2.5,
         ),
         boxShadow: const [
           BoxShadow(

@@ -386,6 +386,7 @@ class RentalPortfolio extends ChangeNotifier {
             monthlyRent: type.monthlyRent == basePrice
                 ? basePrice + index * 150000
                 : type.monthlyRent,
+            borderColorValue: type.borderColorValue,
             serviceIds: type.serviceIds,
             servicePrices: type.servicePrices,
             photos: samples,
@@ -582,6 +583,7 @@ LandlordDemoStore _seedProperty(
         id: type.id,
         name: type.name,
         monthlyRent: type.monthlyRent,
+        borderColorValue: type.borderColorValue,
         serviceIds: type.serviceIds,
         servicePrices: type.servicePrices,
         photos: const [],
@@ -794,6 +796,7 @@ extension RentalStorePersistence on LandlordDemoStore {
     _services
       ..clear()
       ..addAll(read('services', LandlordService.fromMap));
+    _ensureUtilityServices();
     // Older Firebase records only stored selected service IDs. Snapshot the
     // existing catalogue price into each type so future price edits stay local
     // to that type, and remove references to services that no longer exist.
@@ -809,6 +812,7 @@ extension RentalStorePersistence on LandlordDemoStore {
         id: type.id,
         name: type.name,
         monthlyRent: type.monthlyRent,
+        borderColorValue: type.borderColorValue,
         serviceIds: List.unmodifiable(linked.keys),
         servicePrices: Map.unmodifiable(linked),
         photos: type.photos,

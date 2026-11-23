@@ -9,6 +9,7 @@ import '../../tenant_ui.dart';
 import '../../tenant_detail_ui.dart';
 import '../models/tenant_area_selection.dart';
 import '../services/tenant_location_service.dart';
+import '../../../shared/widgets/google_maps_actions.dart';
 
 export '../models/tenant_area_selection.dart';
 
@@ -222,6 +223,12 @@ class _TenantAreaPickerPageState extends State<TenantAreaPickerPage> {
                 style: const TextStyle(color: tenantMuted, fontSize: 10),
               ),
             ],
+            GoogleMapsUrlFallbackButton(
+              address: '',
+              latitude: _selectedPosition.latitude,
+              longitude: _selectedPosition.longitude,
+              label: 'Nếu bản đồ lỗi, mở Google Maps URL',
+            ),
             const SizedBox(height: 5),
             Text(
               'Tỉnh / Thành phố: ${selection?.city ?? 'Chưa xác định'}',
