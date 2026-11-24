@@ -308,15 +308,13 @@ class AdminStore extends ChangeNotifier {
   void restore(Map<String, dynamic> map) {
     _verificationProofs
       ..clear()
-      ..addAll(
-        Map<String, String>.from(map['verificationProofs'] as Map? ?? {}),
-      );
+      ..addAll(cloudTypedMap<String>(map['verificationProofs']));
     _reviewNotes
       ..clear()
-      ..addAll(Map<String, String>.from(map['reviewNotes'] as Map? ?? {}));
+      ..addAll(cloudTypedMap<String>(map['reviewNotes']));
     _commissionRates
       ..clear()
-      ..addAll(Map<String, int>.from(map['commissionRates'] as Map? ?? {}));
+      ..addAll(cloudTypedMap<int>(map['commissionRates']));
     _statements
       ..clear()
       ..addAll(
@@ -327,7 +325,7 @@ class AdminStore extends ChangeNotifier {
       );
     _verified
       ..clear()
-      ..addAll(Map<String, bool>.from(map['verified'] as Map? ?? {}));
+      ..addAll(cloudTypedMap<bool>(map['verified']));
     _hidden
       ..clear()
       ..addAll(List<String>.from(map['hidden'] as List? ?? const []));

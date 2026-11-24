@@ -29,6 +29,35 @@ class AppPersistence {
       failure is FirebaseException && failure.code == 'resource-exhausted'
       ? _quotaExceededMessage
       : null;
+
+  static String _cloudReadFailureMessage(
+    Object failure, {
+    required bool initial,
+  }) {
+    final quotaMessage = _quotaFailureMessage(failure);
+    if (quotaMessage != null) return quotaMessage;
+
+    if (failure is FirebaseException) {
+      final detail = switch (failure.code) {
+        'permission-denied' => 'Firebase từ chối quyền đọc. Kiểm tra vai trò và quyền Firestore của tài khoản.',
+        'unauthenticated' =>
+          'Phiên Firebase đã hết hạn. Hãy đăng nhập lại rồi thử tải dữ liệu.',
+        'unavailable' || 'deadline-exceeded' =>
+          'Không kết nối được Firebase. Kiểm tra mạng rồi thử tải lại.',
+        _ => 'Firebase gặp lỗi khi đọc dữ liệu.',
+      };
+      return '$detail (mã ${failure.code}).';
+    }
+
+    if (failure is TimeoutException) {
+      return 'Hết thời gian chờ tải dữ liệu Firebase. Kiểm tra mạng rồi thử lại.';
+    }
+
+    return initial
+        ? 'Không tải được dữ liệu Firebase. Kiểm tra kết nối hoặc quyền tài khoản rồi thử lại.'
+        : 'Chưa tải được dữ liệu mới. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+  }
+
   static AppPersistence? current;
   final error = ValueNotifier<String?>(null);
   bool cloudConfirmed = false;
@@ -193,7 +222,7 @@ class AppPersistence {
         _closeRevokedSession(failure);
         _initialSyncCompleted = false;
         _initialSyncFailed = true;
-        error.value = _quotaFailureMessage(failure) ?? 'Không tải được dữ liệu Firebase. Kiểm tra kết nối hoặc quyền tài khoản rồi thử lại.';
+        error.value = _cloudReadFailureMessage(failure, initial: true);
         saveStatus.value = 'Chưa tải được dữ liệu Firebase · Thử kết nối lại';
       }
     } finally {
@@ -243,7 +272,7 @@ class AppPersistence {
   }
 
   Future<void> retryInitialSync() async {
-    if (_disposed || _initialSyncCompleted) return;
+    if (_disposed || _initialSyncCompleted || refreshing.value) return;
     _initialSyncFailed = false;
     error.value = null;
     refreshing.value = true;
@@ -497,7 +526,9 @@ class AppPersistence {
 
   /// Không thay bản chỉnh sửa chưa lưu bằng dữ liệu thiết bị khác.
   Future<void> refresh({bool discardUnsaved = false}) async {
-    if (_disposed || !cloudMode || !_initialSyncCompleted || refreshing.value) {
+    if (_disposed || !cloudMode || refreshing.value) return;
+    if (!_initialSyncCompleted) {
+      await retryInitialSync();
       return;
     }
     _pending = _pending.then((_) async {
@@ -552,9 +583,7 @@ class AppPersistence {
         if (_disposed) return;
         _closeRevokedSession(failure);
         _remoteChanged = true;
-        final message =
-            _quotaFailureMessage(failure) ??
-            'Chưa tải được dữ liệu mới. Kiểm tra kết nối/quyền Firebase rồi thử lại.';
+        final message = _cloudReadFailureMessage(failure, initial: false);
         error.value = message;
         saveStatus.value = message;
       } finally {

@@ -75,6 +75,16 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
                     .where((order) => order.isOpen)
                     .toList();
                 final openOrder = openOrders.isEmpty ? null : openOrders.first;
+                final scheduledOrders = <String, LandlordPlanOrder>{};
+                for (final order in orders.where(
+                  (order) => order.isScheduled,
+                )) {
+                  final existing = scheduledOrders[order.planId];
+                  if (existing == null ||
+                      order.startsAt!.isBefore(existing.startsAt!)) {
+                    scheduledOrders[order.planId] = order;
+                  }
+                }
                 return Wrap(
                   spacing: 14,
                   runSpacing: 14,
@@ -85,6 +95,7 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
                         child: _PlanCard(
                           plan: plan,
                           current: current?.planId == plan.id,
+                          scheduledOrder: scheduledOrders[plan.id],
                           openOrder: openOrder != null,
                           canRegister: session?.role == AppRole.landlord,
                           onRegister:
@@ -96,6 +107,16 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
                                   session!,
                                   plan,
                                   orders,
+                                  context,
+                                ),
+                          onActivate:
+                              scheduledOrders[plan.id] == null ||
+                                  current?.planId == plan.id ||
+                                  session?.role != AppRole.landlord
+                              ? null
+                              : () => _activateOrder(
+                                  session!,
+                                  scheduledOrders[plan.id]!,
                                   context,
                                 ),
                         ),
@@ -116,7 +137,6 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
             builder: (context, snapshot) {
               final orders = snapshot.data ?? const <LandlordPlanOrder>[];
               if (orders.isEmpty) return const SizedBox.shrink();
-              final active = LandlordSubscriptionService.activeOrder(orders);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -134,10 +154,6 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
                           : null,
                       onCancel: order.status == 'awaiting_payment'
                           ? () => _cancelOrder(order, context)
-                          : null,
-                      onActivate:
-                          order.isScheduled && active?.planId != order.planId
-                          ? () => _activateOrder(session, order, context)
                           : null,
                     ),
                 ],
@@ -220,7 +236,7 @@ class _LandlordPlansPageState extends State<LandlordPlansPage> {
             padding: const EdgeInsets.only(top: 10),
             child: _InfoCard(
               message:
-                  'Gói ${scheduledSwitches.first.planName} đã được duyệt và dự kiến có hiệu lực từ ${_dateTimeLabel(scheduledSwitches.first.startsAt!)}. Mở lịch sử đăng ký bên dưới, rồi chọn “Kích hoạt ngay” nếu muốn chuyển gói lúc này.',
+                  'Gói ${scheduledSwitches.first.planName} đã được duyệt và dự kiến có hiệu lực từ ${_dateTimeLabel(scheduledSwitches.first.startsAt!)}. Mở Bảng giá bên dưới, rồi chọn “Kích hoạt” trên gói đó nếu muốn chuyển gói lúc này.',
             ),
           ),
       ],
@@ -402,16 +418,20 @@ class _PlanCard extends StatelessWidget {
   const _PlanCard({
     required this.plan,
     required this.current,
+    required this.scheduledOrder,
     required this.openOrder,
     required this.canRegister,
     required this.onRegister,
+    required this.onActivate,
   });
 
   final LandlordPlan plan;
   final bool current;
+  final LandlordPlanOrder? scheduledOrder;
   final bool openOrder;
   final bool canRegister;
   final VoidCallback? onRegister;
+  final VoidCallback? onActivate;
 
   @override
   Widget build(BuildContext context) {
@@ -439,7 +459,12 @@ class _PlanCard extends StatelessWidget {
               if (current)
                 const Chip(
                   visualDensity: VisualDensity.compact,
-                  label: Text('Đang dùng'),
+                  label: Text('Đang kích hoạt'),
+                )
+              else if (scheduledOrder != null)
+                const Chip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text('Đã có'),
                 ),
             ],
           ),
@@ -474,14 +499,20 @@ class _PlanCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: onRegister,
+                onPressed: scheduledOrder != null && !current
+                    ? onActivate
+                    : onRegister,
                 icon: Icon(
-                  current
+                  scheduledOrder != null && !current
+                      ? Icons.bolt_rounded
+                      : current
                       ? Icons.autorenew_rounded
                       : Icons.arrow_forward_rounded,
                 ),
                 label: Text(
-                  current
+                  scheduledOrder != null && !current
+                      ? 'Kích hoạt'
+                      : current
                       ? 'Gia hạn 30 ngày'
                       : openOrder
                       ? 'Đang có yêu cầu'
@@ -536,17 +567,11 @@ class _PlanFeature extends StatelessWidget {
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({
-    required this.order,
-    this.onContinue,
-    this.onCancel,
-    this.onActivate,
-  });
+  const _OrderCard({required this.order, this.onContinue, this.onCancel});
 
   final LandlordPlanOrder order;
   final VoidCallback? onContinue;
   final VoidCallback? onCancel;
-  final VoidCallback? onActivate;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -587,7 +612,7 @@ class _OrderCard extends StatelessWidget {
               '${order.isSimulated ? 'Ghi chú' : 'Phản hồi admin'}: ${order.adminNote}',
             ),
           ],
-          if (onContinue != null || onCancel != null || onActivate != null) ...[
+          if (onContinue != null || onCancel != null) ...[
             const SizedBox(height: 8),
             Wrap(
               alignment: WrapAlignment.end,
@@ -598,12 +623,6 @@ class _OrderCard extends StatelessWidget {
                     onPressed: onCancel,
                     icon: const Icon(Icons.close_rounded),
                     label: const Text('Hủy yêu cầu'),
-                  ),
-                if (onActivate != null)
-                  FilledButton.icon(
-                    onPressed: onActivate,
-                    icon: const Icon(Icons.bolt_rounded),
-                    label: const Text('Kích hoạt ngay'),
                   ),
                 if (onContinue != null)
                   OutlinedButton.icon(

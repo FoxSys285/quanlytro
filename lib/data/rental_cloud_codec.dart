@@ -2,6 +2,15 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
+/// Older merges could persist null for an unchanged, missing map entry.
+/// Ignore those entries rather than failing the entire cloud snapshot.
+Map<String, T> cloudTypedMap<T>(Object? value) => {
+  if (value is Map)
+    for (final entry in value.entries)
+      if (entry.key is String && entry.value is T)
+        entry.key as String: entry.value as T,
+};
+
 String propertyVerificationProof(Map<String, dynamic> store) => sha256
     .convert(
       utf8.encode(
@@ -23,10 +32,8 @@ void restoreCloudPropertyVerification(
   Map<String, dynamic> admin,
   Iterable<Map<String, dynamic>> documents,
 ) {
-  final flags = Map<String, bool>.from(admin['verified'] as Map? ?? {});
-  final proofs = Map<String, String>.from(
-    admin['verificationProofs'] as Map? ?? {},
-  );
+  final flags = cloudTypedMap<bool>(admin['verified']);
+  final proofs = cloudTypedMap<String>(admin['verificationProofs']);
   for (final document in documents) {
     final data = document['data'];
     if (data is! Map || data['property'] is! Map) continue;
@@ -47,7 +54,7 @@ void restoreCloudPropertyReviews(
   Map<String, dynamic> admin,
   Iterable<Map<String, dynamic>> records,
 ) {
-  final notes = Map<String, String>.from(admin['reviewNotes'] as Map? ?? {});
+  final notes = cloudTypedMap<String>(admin['reviewNotes']);
   for (final record in records) {
     if (record['kind'] != 'verificationReview' || record['archived'] == true) {
       continue;
@@ -378,6 +385,42 @@ String cloudFingerprint(Object? value) {
   return jsonEncode(canonical(value));
 }
 
+/// Persist an admin approval together with the exact data covered by its proof.
+Map<String, dynamic> mergeCloudAdminProperty(
+  Map<String, dynamic>? before,
+  Map<String, dynamic> edited,
+  Map<String, dynamic>? live, {
+  required Map<String, dynamic>? serverBefore,
+}) {
+  // A stale approval may already have the same proof on the server. The local
+  // transition back to verified still needs to persist the normalized payload.
+  final approving =
+      edited['verified'] == true &&
+      (before?['verified'] != true ||
+          edited['verificationProof'] != serverBefore?['verificationProof']);
+  final merged = mergeCloudDocument(
+    before,
+    edited,
+    live,
+    serverBefore: serverBefore,
+    atomic: approving,
+  );
+  if (!approving || live == null) return merged;
+  final currentData = live['data'];
+  final approvedData = edited['data'];
+  // An unchanged local default may still differ from the original document.
+  // Approval must save exactly the public fields used to calculate its proof.
+  return {
+    ...live,
+    ...merged,
+    if (currentData is Map && approvedData is Map)
+      'data': {
+        ...Map<String, dynamic>.from(currentData),
+        ...Map<String, dynamic>.from(approvedData),
+      },
+  };
+}
+
 /// Merge independent fields; never silently replace another device's edit.
 /// Lists (money lines, members, messages) remain atomic values.
 Map<String, dynamic> mergeCloudDocument(
@@ -407,6 +450,12 @@ Map<String, dynamic> mergeCloudDocument(
           }
           result.remove(key);
         } else {
+          // An unchanged local default must not recreate a missing server key
+          // as null (for example verified[propertyId] during admin approval).
+          if (!remote.containsKey(key) &&
+              cloudFingerprint(local[key]) == cloudFingerprint(old[key])) {
+            continue;
+          }
           result[key as String] = merge(
             old[key],
             local[key],

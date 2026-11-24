@@ -154,6 +154,17 @@ void main() {
     final map = store.toMap();
     (map['property'] as Map)['imageUrl'] =
         'assets/images/room_types/studio.webp';
+    (map['property'] as Map)['verificationSubmittedAt'] =
+        DateTime(2026, 11, 24).toIso8601String();
+    (map['property'] as Map)['verificationDocuments'] = [
+      for (final id in ['portrait', 'identity', 'ownership'])
+        {
+          'id': id,
+          'files': [
+            {'name': '$id.png', 'bytes': [1, 2, 3]},
+          ],
+        },
+    ];
     store.restore(map);
     expect(AdminStore.verificationIssues(store), isEmpty);
     admin.verify('may', true);

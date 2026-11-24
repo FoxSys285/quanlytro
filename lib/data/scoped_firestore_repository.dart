@@ -655,20 +655,34 @@ class ScopedFirestoreRentalRepository
         final merged = <String, Map<String, dynamic>>{};
         for (var i = 0; i < changed.length; i++) {
           final entry = changed[i];
-          final value = mergeCloudDocument(
-            // A normalized local default is not an existing server document.
-            // In particular, user_state may be absent until the first profile
-            // edit. Use a creation baseline so live == null is not a conflict.
-            _baseline.containsKey(entry.key) ? _localBaseline[entry.key] : null,
-            entry.value,
-            live[i].data(),
-            serverBefore: _baseline[entry.key],
-            atomic: [
-              'leases',
-              'invoices',
-              'payments',
-            ].contains(entry.value['kind']),
-          );
+          final isAdminProperty =
+              session.role == AppRole.admin &&
+              entry.key.startsWith('rental_properties/');
+          final before =
+              // A normalized local default is not an existing server document.
+              // In particular, user_state may be absent until the first profile
+              // edit. Use a creation baseline so live == null is not a conflict.
+              _baseline.containsKey(entry.key)
+              ? _localBaseline[entry.key]
+              : null;
+          final value = isAdminProperty
+              ? mergeCloudAdminProperty(
+                  before,
+                  entry.value,
+                  live[i].data(),
+                  serverBefore: _baseline[entry.key],
+                )
+              : mergeCloudDocument(
+                  before,
+                  entry.value,
+                  live[i].data(),
+                  serverBefore: _baseline[entry.key],
+                  atomic: [
+                    'leases',
+                    'invoices',
+                    'payments',
+                  ].contains(entry.value['kind']),
+                );
           // Preserve moderation even when admin hides a room after our read.
           if (session.role == AppRole.landlord &&
               entry.key.startsWith('public_rooms/') &&
