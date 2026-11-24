@@ -51,6 +51,8 @@ class AdminStore extends ChangeNotifier {
   final _verified = <String, bool>{};
   final _verificationProofs = <String, String>{};
   final _reviewNotes = <String, String>{};
+  final _reviewRequestedAt = <String, String>{};
+  final _reviewSubmissionAt = <String, String>{};
   final _commissionRates = <String, int>{};
   final _statements = <CommissionStatement>[];
   final _hidden = <String>{};
@@ -65,6 +67,18 @@ class AdminStore extends ChangeNotifier {
   }
 
   String reviewNote(String id) => _reviewNotes[id] ?? '';
+  DateTime? reviewRequestedAt(String id) =>
+      DateTime.tryParse(_reviewRequestedAt[id] ?? '');
+  bool verificationResubmitted(String id) {
+    final submittedAt = _portfolio.byId(id)?.property.verificationSubmittedAt;
+    return reviewNote(id).isNotEmpty &&
+        _reviewSubmissionAt.containsKey(id) &&
+        submittedAt != null &&
+        submittedAt.toIso8601String() != _reviewSubmissionAt[id];
+  }
+
+  String pendingReviewNote(String id) =>
+      verificationResubmitted(id) ? '' : reviewNote(id);
   int? commissionRate(String id) => _commissionRates[id];
   List<CommissionStatement> get statements => List.unmodifiable(_statements);
 
@@ -149,6 +163,14 @@ class AdminStore extends ChangeNotifier {
     }
     _verified[id] = false;
     _reviewNotes[id] = reason.trim();
+    _reviewRequestedAt[id] = DateTime.now().toIso8601String();
+    _reviewSubmissionAt[id] =
+        _portfolio
+            .byId(id)!
+            .property
+            .verificationSubmittedAt
+            ?.toIso8601String() ??
+        '';
     record('Yêu cầu nhà trọ $id bổ sung: ${reason.trim()}');
   }
 
@@ -245,6 +267,8 @@ class AdminStore extends ChangeNotifier {
     if (value) {
       _verificationProofs[id] = _proof(store);
       _reviewNotes.remove(id);
+      _reviewRequestedAt.remove(id);
+      _reviewSubmissionAt.remove(id);
     }
     record('${value ? 'Xác minh' : 'Thu hồi xác minh'} nhà trọ $id');
   }
@@ -297,6 +321,8 @@ class AdminStore extends ChangeNotifier {
   Map<String, dynamic> toMap() => {
     'verificationProofs': _verificationProofs,
     'reviewNotes': _reviewNotes,
+    'reviewRequestedAt': _reviewRequestedAt,
+    'reviewSubmissionAt': _reviewSubmissionAt,
     'commissionRates': _commissionRates,
     'commissionStatements': _statements.map((s) => s.toMap()).toList(),
     'verified': _verified,
@@ -312,6 +338,12 @@ class AdminStore extends ChangeNotifier {
     _reviewNotes
       ..clear()
       ..addAll(cloudTypedMap<String>(map['reviewNotes']));
+    _reviewRequestedAt
+      ..clear()
+      ..addAll(cloudTypedMap<String>(map['reviewRequestedAt']));
+    _reviewSubmissionAt
+      ..clear()
+      ..addAll(cloudTypedMap<String>(map['reviewSubmissionAt']));
     _commissionRates
       ..clear()
       ..addAll(cloudTypedMap<int>(map['commissionRates']));

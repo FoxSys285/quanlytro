@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../data/app_persistence.dart';
 import '../pages/shared/widgets/app_brand.dart' as brand;
 import '../pages/tenant/tenant_ui.dart';
+import '../pages/shared/notifications/landlord_notification_button.dart';
 
 enum AppRole { tenant, landlord, admin }
 
@@ -565,43 +566,48 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
               ),
               actions: [
                 ?widget.themeAction,
-                IconButton(
-                  tooltip: 'Thông báo',
-                  onPressed: () => _selectDestination(
-                    widget.role == AppRole.admin
-                        ? 'notifications'
-                        : 'announcements',
-                  ),
-                  icon: widget.role != AppRole.admin
-                      ? const Icon(Icons.notifications_none_rounded)
-                      : Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Icon(
-                              widget.notificationsEnabled
-                                  ? Icons.notifications_none_rounded
-                                  : Icons.notifications_off_outlined,
-                            ),
-                            if (widget.notificationsEnabled && !console)
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE45A65),
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 1.5,
+                if (widget.role == AppRole.landlord)
+                  LandlordNotificationButton(
+                    onPressed: () => _selectDestination('announcements'),
+                  )
+                else
+                  IconButton(
+                    tooltip: 'Thông báo',
+                    onPressed: () => _selectDestination(
+                      widget.role == AppRole.admin
+                          ? 'notifications'
+                          : 'announcements',
+                    ),
+                    icon: widget.role != AppRole.admin
+                        ? const Icon(Icons.notifications_none_rounded)
+                        : Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Icon(
+                                widget.notificationsEnabled
+                                    ? Icons.notifications_none_rounded
+                                    : Icons.notifications_off_outlined,
+                              ),
+                              if (widget.notificationsEnabled && !console)
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE45A65),
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 1.5,
+                                      ),
+                                      shape: BoxShape.circle,
                                     ),
-                                    shape: BoxShape.circle,
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
-                ),
+                            ],
+                          ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.only(left: 4, right: 16),
                   child: PopupMenuButton<String>(

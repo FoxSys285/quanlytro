@@ -246,7 +246,7 @@ class _PropertyVerificationCard extends StatelessWidget {
     final palette = LandlordPalette.of(context);
     final admin = AdminStore.instance;
     final verified = admin.isVerified(property.id);
-    final note = admin.reviewNote(property.id);
+    final note = admin.pendingReviewNote(property.id);
     final submitted = property.verificationSubmittedAt != null;
     return LandlordGlassCard(
       onTap: () => LandlordNavigation.push<void>(

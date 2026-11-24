@@ -78,6 +78,12 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
         snapshot['verificationProofs'] as Map,
       ),
       'reviewNotes': Map<String, String>.from(snapshot['reviewNotes'] as Map),
+      'reviewRequestedAt': Map<String, String>.from(
+        snapshot['reviewRequestedAt'] as Map,
+      ),
+      'reviewSubmissionAt': Map<String, String>.from(
+        snapshot['reviewSubmissionAt'] as Map,
+      ),
       'verified': Map<String, bool>.from(snapshot['verified'] as Map),
       'commissionRates': Map<String, int>.from(
         snapshot['commissionRates'] as Map,
@@ -122,6 +128,9 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
             children: [
               for (final item in [
                 (id: 'all', label: 'Tất cả'),
+                if (verification)
+                  (id: 'resubmitted', label: 'Đã gửi lại hồ sơ'),
+                if (verification) (id: 'supplement', label: 'Chờ bổ sung'),
                 (
                   id: 'pending',
                   label: verification ? 'Chờ xác minh' : 'Đang ẩn',
@@ -153,12 +162,32 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
                 _query,
               ) &&
               (_filter == 'all' ||
-                  (_filter == 'ready'
-                      ? ready
-                      : verification
-                      ? awaitingReview
-                      : !ready));
+                  (_filter == 'resubmitted' &&
+                      admin.verificationResubmitted(p.id)) ||
+                  (_filter == 'supplement' &&
+                      admin.pendingReviewNote(p.id).isNotEmpty) ||
+                  (['pending', 'ready'].contains(_filter) &&
+                      (_filter == 'ready'
+                          ? ready
+                          : verification
+                          ? awaitingReview &&
+                                admin.pendingReviewNote(p.id).isEmpty
+                          : !ready)));
         }).toList();
+        if (verification) {
+          matched.sort((a, b) {
+            final priority =
+                (admin.verificationResubmitted(b.property.id) ? 1 : 0)
+                    .compareTo(
+                      admin.verificationResubmitted(a.property.id) ? 1 : 0,
+                    );
+            if (priority != 0) return priority;
+            return (b.property.verificationSubmittedAt ?? DateTime(1970))
+                .compareTo(
+                  a.property.verificationSubmittedAt ?? DateTime(1970),
+                );
+          });
+        }
         children.add(
           Text(
             '${matched.length} nhà trọ',
@@ -290,6 +319,10 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
                     ? 'Đang lưu kết quả'
                     : verified
                     ? 'Đã xác minh'
+                    : admin.verificationResubmitted(p.id)
+                    ? 'Đã gửi lại hồ sơ'
+                    : admin.pendingReviewNote(p.id).isNotEmpty
+                    ? 'Chờ chủ trọ bổ sung'
                     : issues.isEmpty
                     ? 'Sẵn sàng kiểm tra'
                     : 'Cần bổ sung',
@@ -303,6 +336,18 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
           ),
           const SizedBox(height: 12),
           Text(p.address),
+          if (verification && admin.verificationResubmitted(p.id))
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                'Chủ trọ đã gửi lại hồ sơ ngày ${landlordDate(p.verificationSubmittedAt!)} '
+                '${TimeOfDay.fromDateTime(p.verificationSubmittedAt!).format(context)}. Cần kiểm tra lại.',
+                style: const TextStyle(
+                  color: adminBlue,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           const SizedBox(height: 6),
           Text(
             '${p.ownerName} · ${p.phone}',

@@ -688,11 +688,11 @@ class _PropertyPortfolioPageState extends State<PropertyPortfolioPage> {
                   ),
                 ),
               ),
-              if (AdminStore.instance.reviewNote(property.id).isNotEmpty)
+              if (AdminStore.instance.pendingReviewNote(property.id).isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
                   child: Text(
-                    'Yêu cầu từ quản trị viên: ${AdminStore.instance.reviewNote(property.id)}',
+                    'Yêu cầu từ quản trị viên: ${AdminStore.instance.pendingReviewNote(property.id)}',
                     style: const TextStyle(
                       color: Color(0xFF9B651A),
                       fontSize: 12,

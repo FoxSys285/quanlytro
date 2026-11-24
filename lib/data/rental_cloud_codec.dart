@@ -55,6 +55,8 @@ void restoreCloudPropertyReviews(
   Iterable<Map<String, dynamic>> records,
 ) {
   final notes = cloudTypedMap<String>(admin['reviewNotes']);
+  final requestedAt = cloudTypedMap<String>(admin['reviewRequestedAt']);
+  final submissionAt = cloudTypedMap<String>(admin['reviewSubmissionAt']);
   for (final record in records) {
     if (record['kind'] != 'verificationReview' || record['archived'] == true) {
       continue;
@@ -63,9 +65,22 @@ void restoreCloudPropertyReviews(
     final data = record['data'];
     if (id is String && data is Map) {
       notes[id] = data['note'] as String? ?? '';
+      for (final entry in {
+        'requestedAt': requestedAt,
+        'submissionAt': submissionAt,
+      }.entries) {
+        final value = data[entry.key];
+        if (value is String) {
+          entry.value[id] = value;
+        } else {
+          entry.value.remove(id);
+        }
+      }
     }
   }
   admin['reviewNotes'] = notes;
+  admin['reviewRequestedAt'] = requestedAt;
+  admin['reviewSubmissionAt'] = submissionAt;
 }
 
 /// Các document nhỏ dùng chung cho bước chuyển dữ liệu và repository Firebase.
@@ -139,6 +154,8 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
     // Always encode an empty note too, so approval clears a previous request.
     record('verificationReview', id, {
       'note': snapshot['admin']?['reviewNotes']?[id] ?? '',
+      'requestedAt': snapshot['admin']?['reviewRequestedAt']?[id],
+      'submissionAt': snapshot['admin']?['reviewSubmissionAt']?[id],
     }, const []);
     if (property['verificationSubmittedAt'] != null ||
         (property['verificationDocuments'] as List? ?? const []).isNotEmpty) {

@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const admin = require('firebase-admin');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { verificationNotification } = require('./verification_notifications');
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -70,6 +71,23 @@ exports.onRentalRecordWritten = onDocumentWritten('rental_records/{recordId}', a
   const id = item.id || event.params.recordId;
   const eventKey = event.id;
   const info = (type, route) => dataPayload(type, propertyId, id, route);
+
+  const verification = verificationNotification(before, after);
+  if (verification) {
+    const property = await db.collection('rental_properties').doc(propertyId).get();
+    const propertyName = property.get('data.property.name') || propertyId;
+    const body = `${propertyName}: ${verification.body}`;
+    const payload = info(verification.type, verification.route);
+    if (verification.audience === 'owner') {
+      await sendToUser(ownerUid, eventKey, verification.title, body, payload);
+    } else {
+      const admins = await db.collection('users').where('role', '==', 'admin').get();
+      await Promise.all(admins.docs
+        .filter((user) => user.get('disabled') === false)
+        .map((user) => sendToUser(user.id, eventKey, verification.title, body, payload)));
+    }
+    return;
+  }
 
   if (after.kind === 'messages' && !before) {
     if (item.fromLandlord) {

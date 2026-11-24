@@ -141,6 +141,7 @@ class _LandlordVerificationPageState extends State<LandlordVerificationPage> {
       _error = null;
     });
     try {
+      await AppPersistence.current?.waitForInitialSync();
       final current = _store.property;
       final documents = [
         for (final section in _sections)
@@ -172,13 +173,12 @@ class _LandlordVerificationPageState extends State<LandlordVerificationPage> {
           verificationIsOwner: _isOwner,
         ),
       );
-      await AppPersistence.current?.flush();
+      await AppPersistence.current?.saveChanges();
       if (!mounted) return;
-      final saveError = AppPersistence.current?.error.value;
       setState(() => _dirty = false);
       showLandlordMessage(
         context,
-        saveError ?? 'Đã gửi hồ sơ. Nhà trọ đang chờ quản trị viên kiểm tra.',
+        'Đã gửi hồ sơ. Nhà trọ đang chờ quản trị viên kiểm tra.',
       );
     } catch (error) {
       if (mounted) setState(() => _error = 'Chưa gửi được hồ sơ: $error');
@@ -194,7 +194,7 @@ class _LandlordVerificationPageState extends State<LandlordVerificationPage> {
       final palette = LandlordPalette.of(context);
       final property = _store.property;
       final verified = AdminStore.instance.isVerified(property.id);
-      final note = AdminStore.instance.reviewNote(property.id);
+      final note = AdminStore.instance.pendingReviewNote(property.id);
       final submitted = property.verificationSubmittedAt != null;
       final sections = _sections
           .where((s) => s.id != 'authorization' || !_isOwner)

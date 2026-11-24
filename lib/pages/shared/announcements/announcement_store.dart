@@ -1,4 +1,9 @@
 import 'package:flutter/foundation.dart';
+import 'package:crypto/crypto.dart';
+
+import 'dart:convert';
+
+import '../../../data/admin_store.dart';
 
 import '../../landlord/announcements/models/landlord_announcement.dart';
 import '../../landlord/finance/landlord_finance_models.dart';
@@ -15,6 +20,7 @@ class AnnouncementStore extends ChangeNotifier {
       viewings = viewings ?? ViewingStore.instance {
     this.rental.addListener(_refresh);
     this.viewings.addListener(_refresh);
+    AdminStore.instance.addListener(_refresh);
     _seed();
   }
   static AnnouncementStore instance = AnnouncementStore();
@@ -98,6 +104,7 @@ class AnnouncementStore extends ChangeNotifier {
   void dispose() {
     rental.removeListener(_refresh);
     viewings.removeListener(_refresh);
+    AdminStore.instance.removeListener(_refresh);
     super.dispose();
   }
 
@@ -240,6 +247,8 @@ class AnnouncementStore extends ChangeNotifier {
   }
 
   List<LandlordAnnouncement> get inbox => [
+    if (AdminStore.instance.reviewNote(rental.property.id).isNotEmpty)
+      _verificationNotice(),
     for (final payment in rental.payments)
       if (payment.status == LandlordPaymentStatus.pending)
         LandlordAnnouncement(
@@ -307,6 +316,28 @@ class AnnouncementStore extends ChangeNotifier {
           isRead: _landlordRead.contains('lease:${lease.id}'),
         ),
   ];
+  LandlordAnnouncement _verificationNotice() {
+    final admin = AdminStore.instance;
+    final property = rental.property;
+    final note = admin.reviewNote(property.id);
+    final requestedAt = admin.reviewRequestedAt(property.id);
+    final revision = sha256.convert(
+      utf8.encode('${requestedAt?.toIso8601String() ?? ''}:$note'),
+    );
+    final id = 'verification-review:${property.id}:$revision';
+    return LandlordAnnouncement(
+      id: id,
+      propertyId: property.id,
+      title: 'Cần bổ sung hồ sơ xác minh · ${property.name}',
+      content: 'Quản trị viên yêu cầu bổ sung: $note',
+      category: AnnouncementCategory.system,
+      priority: AnnouncementPriority.high,
+      createdAt:
+          requestedAt ?? property.verificationSubmittedAt ?? DateTime(1970),
+      isRead: _landlordRead.contains(id),
+    );
+  }
+
   DateTime _date(String value) {
     final parts = value.split('/').map(int.parse).toList();
     return DateTime(parts[2], parts[1], parts[0]);

@@ -66,10 +66,10 @@ class LandlordPropertiesPage extends StatelessWidget {
               onOpenDrawer: () => Scaffold.of(context).openDrawer(),
             ),
             const SizedBox(height: 18),
-            if (AdminStore.instance.reviewNote(property.id).isNotEmpty)
+            if (AdminStore.instance.pendingReviewNote(property.id).isNotEmpty)
               LandlordCard(
                 child: Text(
-                  'Yêu cầu từ quản trị viên: ${AdminStore.instance.reviewNote(property.id)}',
+                  'Yêu cầu từ quản trị viên: ${AdminStore.instance.pendingReviewNote(property.id)}',
                 ),
               ),
             LandlordPropertyImage(

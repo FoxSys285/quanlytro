@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../shared/notifications/landlord_notification_button.dart';
+
 import 'landlord_demo_store.dart';
 import 'landlord_theme.dart';
 
@@ -110,15 +112,7 @@ class LandlordCompactHeader extends StatelessWidget {
             size: 20,
           ),
         ),
-        IconButton(
-          tooltip: 'Thông báo',
-          onPressed: onNotifications,
-          icon: Icon(
-            Icons.notifications_none_rounded,
-            color: palette.ink,
-            size: 21,
-          ),
-        ),
+        LandlordNotificationButton(onPressed: onNotifications),
         InkWell(
           onTap: () => Scaffold.of(context).openDrawer(),
           customBorder: const CircleBorder(),

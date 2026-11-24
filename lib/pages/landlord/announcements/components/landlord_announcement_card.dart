@@ -30,7 +30,9 @@ class LandlordAnnouncementCard extends StatelessWidget {
   final VoidCallback? onAction;
   final bool isSent;
 
-  String get _actionLabel => announcement.id.startsWith('payment:')
+  String get _actionLabel => announcement.id.startsWith('verification-review:')
+      ? 'Bổ sung hồ sơ'
+      : announcement.id.startsWith('payment:')
       ? 'Duyệt phiếu thu'
       : switch (announcement.category) {
           AnnouncementCategory.finance => 'Xem hóa đơn',

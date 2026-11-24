@@ -74,6 +74,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           .where(
             (store) =>
                 !admin.isVerified(store.property.id) &&
+                admin.pendingReviewNote(store.property.id).isEmpty &&
                 store.property.verificationSubmittedAt != null,
           )
           .length;
@@ -106,6 +107,19 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                   final width =
                       (constraints.maxWidth - (columns - 1) * 12) / columns;
                   final metrics = <Widget>[
+                    _MetricCard(
+                      width: width,
+                      title: 'Hồ sơ gửi lại',
+                      value:
+                          '${stores.where((s) => admin.verificationResubmitted(s.property.id)).length}',
+                      detail: 'Chủ trọ đã bổ sung, cần kiểm tra lại',
+                      icon: Icons.mark_email_unread_outlined,
+                      color: adminBlue,
+                      onTap: () => RoleLayoutShell.navigateTo(
+                        context,
+                        'property_verification',
+                      ),
+                    ),
                     _MetricCard(
                       width: width,
                       title: 'Nhà trọ đã đăng ký',

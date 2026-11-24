@@ -9,6 +9,8 @@ import '../landlord_theme.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_glass.dart';
 import '../payments/landlord_payments_page.dart';
+import '../properties/landlord_verification_page.dart';
+import '../../../data/admin_store.dart';
 
 import 'components/landlord_announcement_card.dart';
 import 'components/landlord_announcement_composer.dart';
@@ -38,7 +40,13 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
   AnnouncementStore get _store =>
       widget.store ??
       AnnouncementStore.forRental(LandlordDemoStore.activeInstance);
-  List<LandlordAnnouncement> get _inbox => _store.inbox;
+  List<LandlordAnnouncement> get _inbox => [
+    ..._store.inbox,
+    for (final rental in RentalPortfolio.instance.stores)
+      if (rental.property.id != _store.rental.property.id)
+        ...AnnouncementStore.forRental(rental).inbox
+            .where((notice) => notice.id.startsWith('verification-review:')),
+  ];
   List<LandlordAnnouncement> get _sent => _store.sent;
   Timer? _timer;
   String _query = '';
@@ -51,6 +59,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
   void initState() {
     super.initState();
     _store.addListener(_refresh);
+    AdminStore.instance.addListener(_refresh);
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
   }
 
@@ -61,6 +70,7 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
   @override
   void dispose() {
     _store.removeListener(_refresh);
+    AdminStore.instance.removeListener(_refresh);
     _timer?.cancel();
     _search.dispose();
     super.dispose();
@@ -68,9 +78,10 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
 
   String _propertyName(String? id) => id == null
       ? 'Toàn hệ thống'
-      : LandlordAnnouncementDemoData.properties
-            .firstWhere((p) => p.id == id)
-            .name;
+      : RentalPortfolio.instance.byId(id)?.property.name ??
+            (id == _store.rental.property.id
+                ? _store.rental.property.name
+                : id);
 
   Future<void> _compose() async {
     final result = await showDialog<LandlordAnnouncement>(
@@ -118,6 +129,10 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
   }
 
   Future<void> _open(LandlordAnnouncement item) async {
+    if (item.id.startsWith('verification-review:')) {
+      await _goTo(item);
+      return;
+    }
     if (item.id.startsWith('payment:')) {
       await _goTo(item);
       return;
@@ -173,6 +188,19 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
   }
 
   Future<void> _goTo(LandlordAnnouncement item) async {
+    if (item.id.startsWith('verification-review:')) {
+      final rental =
+          RentalPortfolio.instance.byId(item.propertyId ?? '') ?? _store.rental;
+      AnnouncementStore.forRental(rental).markLandlordRead(item.id);
+      await _flushReadState();
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => LandlordVerificationPage(store: rental),
+        ),
+      );
+      return;
+    }
     if (!item.isRead) {
       _store.markLandlordRead(item.id);
       await _flushReadState();
@@ -202,7 +230,11 @@ class _LandlordAnnouncementsPageState extends State<LandlordAnnouncementsPage> {
   }
 
   Future<void> _markAllRead() async {
-    _store.markAllLandlordRead();
+    for (final item in _inbox) {
+      final rental = RentalPortfolio.instance.byId(item.propertyId ?? '');
+      (rental == null ? _store : AnnouncementStore.forRental(rental))
+          .markLandlordRead(item.id);
+    }
     await _flushReadState();
   }
 
