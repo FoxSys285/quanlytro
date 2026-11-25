@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
+import '../../../data/local_auth.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../landlord/finance/landlord_finance_models.dart';
 import '../../shared/rental/tenant_session.dart';
@@ -46,9 +48,16 @@ class TenantInvoiceDetailPage extends StatelessWidget {
           final pending = payments.any(
             (payment) => payment.status == LandlordPaymentStatus.pending,
           );
+          final pendingPayment = payments
+              .where(
+                (payment) => payment.status == LandlordPaymentStatus.pending,
+              )
+              .firstOrNull;
           final rejected = payments.any(
             (payment) => payment.status == LandlordPaymentStatus.rejected,
           );
+          final lease = data.leaseById(invoice.leaseId);
+          final transferAccount = data.defaultPaymentAccount;
           return TenantDetailFrame(
             children: [
               Container(
@@ -122,35 +131,118 @@ class TenantInvoiceDetailPage extends StatelessWidget {
               ),
               const SizedBox(height: 15),
               for (final payment in payments) ...[
-                TenantPaymentCard(payment: payment),
+                TenantPaymentCard(
+                  payment: payment,
+                  onCancel:
+                      payment.status == LandlordPaymentStatus.pending &&
+                          payment.method == 'Tiền mặt'
+                      ? () => _cancelPayment(context, data, payment, tenantId)
+                      : null,
+                ),
                 const SizedBox(height: 10),
               ],
-              if (!invoice.cancelled && invoice.remaining > 0)
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: pending
-                        ? null
-                        : () => showTenantPaymentInstructions(
-                            context,
-                            invoiceId: invoice.id,
-                            store: data,
-                            tenantId: tenantId,
-                          ),
-                    icon: const Icon(Icons.payments_outlined),
-                    label: Text(
-                      pending
-                          ? 'Đang chờ duyệt thanh toán'
-                          : rejected
-                          ? 'Nộp lại thanh toán'
-                          : 'Thanh toán hóa đơn',
+              if (!invoice.cancelled &&
+                  invoice.remaining > 0 &&
+                  pendingPayment != null)
+                TenantDetailNote(
+                  pendingPayment.method == 'Tiền mặt'
+                      ? 'Đang chờ xác nhận tiền mặt. Chưa ghi nhận khoản này vào hóa đơn.'
+                      : 'Đang chờ chủ trọ đối chiếu chuyển khoản.',
+                ),
+              if (!invoice.cancelled &&
+                  invoice.remaining > 0 &&
+                  pendingPayment == null)
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: !pending && lease?.cashPaymentEnabled == true
+                          ? () => _openPayment(
+                              context,
+                              data,
+                              tenantId,
+                              'Tiền mặt',
+                            )
+                          : null,
+                      icon: const Icon(Icons.payments_outlined),
+                      label: const Text('Thanh toán bằng tiền mặt'),
                     ),
-                  ),
+                    OutlinedButton.icon(
+                      onPressed:
+                          !pending &&
+                              lease?.bankTransferEnabled == true &&
+                              transferAccount != null
+                          ? () => _openPayment(
+                              context,
+                              data,
+                              tenantId,
+                              'Chuyển khoản',
+                            )
+                          : null,
+                      icon: const Icon(Icons.account_balance_outlined),
+                      label: const Text('Thanh toán chuyển khoản'),
+                    ),
+                    if (lease?.cashPaymentEnabled != true)
+                      const Text('Tiền mặt đã tắt trong hợp đồng.'),
+                    if (lease?.bankTransferEnabled != true)
+                      const Text('Chuyển khoản đã tắt trong hợp đồng.'),
+                    if (lease?.bankTransferEnabled == true &&
+                        transferAccount == null)
+                      const Text(
+                        'Chủ trọ chưa thiết lập tài khoản nhận chuyển khoản.',
+                      ),
+                    if (rejected)
+                      const Text(
+                        'Yêu cầu trước bị từ chối. Bạn có thể gửi yêu cầu mới.',
+                      ),
+                  ],
                 ),
             ],
           );
         },
       ),
     );
+  }
+
+  void _openPayment(
+    BuildContext context,
+    LandlordDemoStore data,
+    String tenantId,
+    String method,
+  ) => showTenantPaymentInstructions(
+    context,
+    invoiceId: invoiceId,
+    method: method,
+    store: data,
+    tenantId: tenantId,
+  );
+
+  Future<void> _cancelPayment(
+    BuildContext context,
+    LandlordDemoStore data,
+    LandlordPayment payment,
+    String tenantId,
+  ) async {
+    var changedLocally = false;
+    try {
+      data.cancelPayment(payment, tenantId: tenantId);
+      changedLocally = true;
+      final persistence = AppPersistence.current;
+      if (persistence == null && LocalAuth.instance.isCloudMode) {
+        throw StateError('Chưa kết nối phiên lưu Firebase.');
+      }
+      await persistence?.flush();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã hủy yêu cầu tiền mặt.')));
+    } catch (failure) {
+      if (changedLocally) data.restoreCancelledPayment(payment);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    }
   }
 }

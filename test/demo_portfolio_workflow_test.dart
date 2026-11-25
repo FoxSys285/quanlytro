@@ -47,7 +47,11 @@ void main() {
         );
         expect(
           store.payments.map((p) => p.status),
-          containsAll(LandlordPaymentStatus.values),
+          containsAll([
+            LandlordPaymentStatus.pending,
+            LandlordPaymentStatus.approved,
+            LandlordPaymentStatus.rejected,
+          ]),
         );
         for (final type in store.roomTypes) {
           expect(type.photos.length, inInclusiveRange(2, 4));

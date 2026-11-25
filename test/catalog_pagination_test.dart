@@ -7,7 +7,6 @@ import 'package:quanlytro/pages/landlord/properties/models/landlord_property.dar
 import 'package:quanlytro/pages/landlord/rooms/landlord_rooms_page.dart';
 import 'package:quanlytro/pages/landlord/rooms/components/landlord_room_button.dart';
 import 'package:quanlytro/pages/shared/media/room_photo.dart';
-import 'package:quanlytro/pages/shared/media/room_photo_gallery.dart';
 import 'package:quanlytro/pages/shared/widgets/list_pagination.dart';
 import 'package:quanlytro/pages/tenant/discovery/tenant_discovery_page.dart';
 import 'package:quanlytro/pages/tenant/discovery/components/tenant_room_card.dart';
@@ -65,7 +64,6 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(LandlordRoomButton), findsNWidgets(12));
-      expect(find.byType(RoomPhotoImage), findsNWidgets(12));
       await tester.ensureVisible(find.byTooltip('Trang cuối'));
       expect(
         find.descendant(

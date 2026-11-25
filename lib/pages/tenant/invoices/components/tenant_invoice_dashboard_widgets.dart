@@ -213,16 +213,21 @@ class TenantCurrentInvoiceCard extends StatelessWidget {
     required this.invoice,
     required this.store,
     required this.pending,
-    required this.onPay,
+    required this.onPayMethod,
   });
   final LandlordInvoice invoice;
   final LandlordDemoStore store;
   final bool pending;
-  final VoidCallback onPay;
+  final ValueChanged<String> onPayMethod;
 
   @override
   Widget build(BuildContext context) {
     final room = store.roomByCode(invoice.room);
+    final lease = store.leaseById(invoice.leaseId);
+    final transferAvailable =
+        lease?.bankTransferEnabled == true &&
+        store.defaultPaymentAccount != null;
+    final cashAvailable = lease?.cashPaymentEnabled == true;
     final types = store.roomTypes.where((type) => type.id == room?.roomTypeId);
     final photos = types.isEmpty ? const <RoomPhoto>[] : types.first.photos;
     return Container(
@@ -404,48 +409,39 @@ class TenantCurrentInvoiceCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  height: 36,
-                  child: FilledButton(
-                    key: const ValueKey('invoice-pay-now'),
-                    onPressed: pending ? null : onPay,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF009D42),
-                      disabledBackgroundColor: const Color(0xFFE2F2E8),
-                      disabledForegroundColor: tenantGreenDark,
-                      padding: const EdgeInsets.symmetric(horizontal: 9),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                if (pending)
+                  const Text('Đang chờ chủ trọ xử lý yêu cầu thanh toán.')
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        key: const ValueKey('invoice-pay-cash'),
+                        onPressed: cashAvailable
+                            ? () => onPayMethod('Tiền mặt')
+                            : null,
+                        icon: const Icon(Icons.payments_outlined),
+                        label: Text(
+                          cashAvailable
+                              ? 'Thanh toán bằng tiền mặt'
+                              : 'Tiền mặt (đã tắt)',
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          pending
-                              ? Icons.hourglass_top_rounded
-                              : Icons.credit_card_rounded,
-                          size: 23,
+                      FilledButton.icon(
+                        key: const ValueKey('invoice-pay-transfer'),
+                        onPressed: transferAvailable
+                            ? () => onPayMethod('Chuyển khoản')
+                            : null,
+                        icon: const Icon(Icons.account_balance_outlined),
+                        label: Text(
+                          transferAvailable
+                              ? 'Thanh toán chuyển khoản'
+                              : 'Chuyển khoản (không khả dụng)',
                         ),
-                        const SizedBox(width: 10),
-                        Flexible(
-                          child: Text(
-                            pending ? 'Đang chờ xác nhận' : 'Thanh toán ngay',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        if (!pending) ...[
-                          const SizedBox(width: 9),
-                          const Icon(Icons.arrow_forward_rounded, size: 21),
-                        ],
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ),
               ],
             ),
           ),
@@ -609,6 +605,11 @@ List<TenantInvoiceTransaction> tenantInvoiceTransactions(
         'Chưa được duyệt',
         const Color(0xFFCF4A4A),
         Icons.cancel_rounded,
+      ),
+      LandlordPaymentStatus.cancelled => (
+        'Đã hủy',
+        const Color(0xFF73788E),
+        Icons.remove_circle_outline_rounded,
       ),
     };
     final at = payment.paidAt;

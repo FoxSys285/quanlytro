@@ -343,7 +343,7 @@ class _ConversationCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "Người thuê trọ",
+                  'Người thuê · ${conversation.contextRoom} · ${conversation.contextPropertyName}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

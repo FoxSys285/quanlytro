@@ -96,6 +96,7 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   String? _selectedPropertyName;
   String _waterType = 'Tất cả';
   static const _pageSize = 8;
+  static const _maxEmptyCatalogBatches = 3;
   int _page = 0;
   double? _minArea;
   double? _maxArea;
@@ -110,6 +111,9 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   String? _catalogKey;
   bool _catalogLoading = false;
   bool _catalogError = false;
+  bool _catalogScanning = false;
+  int? _catalogScanIndex;
+  Object? _catalogScanCursor;
   bool _offlineFallback = false;
   bool _findingNearby = false;
   bool _openingSearch = false;
@@ -173,6 +177,9 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     _catalogPages.clear();
     _catalogIndex = 0;
     _catalogError = false;
+    _catalogScanning = false;
+    _catalogScanIndex = null;
+    _catalogScanCursor = null;
     _catalogLoading = true;
     final query = _catalogQuery;
     final generation = _catalogGeneration;
@@ -215,6 +222,9 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         _catalogIndex = 0;
         _catalogLoading = false;
         _catalogError = false;
+        _catalogScanning = false;
+        _catalogScanIndex = null;
+        _catalogScanCursor = null;
       });
     } catch (_) {
       if (!mounted || generation != _catalogGeneration) return;
@@ -255,15 +265,50 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     Object? after,
   }) async {
     try {
-      final result = await _catalogSource!.fetch(
-        query,
-        after: after,
-        limit: _pageSize,
-      );
+      var cursor = after;
+      late CatalogPage result;
+      var emptyBatches = 0;
+      do {
+        result = await _catalogSource!.fetch(
+          query,
+          after: cursor,
+          limit: _pageSize,
+        );
+        cursor = result.nextCursor;
+        if (result.items.isEmpty) emptyBatches++;
+      } while (result.items.isEmpty &&
+          result.nextCursor != null &&
+          emptyBatches < _maxEmptyCatalogBatches);
       if (!mounted || generation != _catalogGeneration) return;
       setState(() {
-        if (index == _catalogPages.length) _catalogPages.add(result);
-        _catalogIndex = index;
+        if (result.items.isEmpty && result.nextCursor != null) {
+          _catalogScanning = true;
+          _catalogScanIndex = index;
+          _catalogScanCursor = cursor;
+        } else if (result.items.isEmpty && index > 0) {
+          // End discovery on the previous populated page; don't append an
+          // empty page that looks like a false blank search result.
+          final previous = index - 1;
+          if (previous < _catalogPages.length) {
+            _catalogPages[previous] = CatalogPage(
+              items: _catalogPages[previous].items,
+            );
+          }
+          _catalogIndex = previous;
+          _catalogScanning = false;
+          _catalogScanIndex = null;
+          _catalogScanCursor = null;
+        } else {
+          if (index == _catalogPages.length) {
+            _catalogPages.add(result);
+          } else if (index < _catalogPages.length) {
+            _catalogPages[index] = result;
+          }
+          _catalogIndex = index;
+          _catalogScanning = false;
+          _catalogScanIndex = null;
+          _catalogScanCursor = null;
+        }
         _catalogLoading = false;
         _catalogError = false;
       });
@@ -277,6 +322,18 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
   }
 
   void _nextCatalogPage() {
+    if (_catalogScanning &&
+        _catalogScanIndex != null &&
+        _catalogScanCursor != null) {
+      setState(() => _catalogLoading = true);
+      _fetchCatalog(
+        _catalogQuery,
+        _catalogGeneration,
+        index: _catalogScanIndex!,
+        after: _catalogScanCursor,
+      );
+      return;
+    }
     if (_catalogIndex + 1 < _catalogPages.length) {
       setState(() => _catalogIndex++);
       return;
@@ -316,6 +373,9 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
     _page = saved['page'] as int;
     _catalogKey = saved['catalogKey'] as String?;
     _catalogIndex = saved['catalogIndex'] as int? ?? 0;
+    _catalogScanning = saved['catalogScanning'] as bool? ?? false;
+    _catalogScanIndex = saved['catalogScanIndex'] as int?;
+    _catalogScanCursor = saved['catalogScanCursor'];
     _catalogPages.addAll(
       saved['catalogPages'] as List<CatalogPage>? ?? const [],
     );
@@ -345,6 +405,9 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       'page': _page,
       'catalogKey': _catalogKey,
       'catalogIndex': _catalogIndex,
+      'catalogScanning': _catalogScanning,
+      'catalogScanIndex': _catalogScanIndex,
+      'catalogScanCursor': _catalogScanCursor,
       'catalogPages': [..._catalogPages],
     }, identifier: _storageIdentifier);
   }
@@ -500,9 +563,11 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
       localPage: page,
       pageSize: _pageSize,
       remoteHasNext:
-          _catalogPages.isNotEmpty &&
-          _catalogIndex < _catalogPages.length &&
-          _catalogPages[_catalogIndex].nextCursor != null,
+          _catalogScanning ||
+          (_catalogPages.isNotEmpty &&
+              _catalogIndex < _catalogPages.length &&
+              _catalogPages[_catalogIndex].nextCursor != null),
+      scanningMore: _catalogScanning,
       activeFilters: _activeFilterCount > 0 ? _activeFiltersBar() : null,
       onSearchChanged: _onSearchChanged,
       onSearchSubmitted: _submitSearch,
@@ -538,8 +603,14 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
         _fetchCatalog(
           _catalogQuery,
           _catalogGeneration,
-          index: _catalogPages.isEmpty ? 0 : _catalogIndex + 1,
-          after: _catalogPages.isEmpty
+          index: _catalogScanning && _catalogScanIndex != null
+              ? _catalogScanIndex!
+              : _catalogPages.isEmpty
+              ? 0
+              : _catalogIndex + 1,
+          after: _catalogScanning && _catalogScanCursor != null
+              ? _catalogScanCursor
+              : _catalogPages.isEmpty
               ? null
               : _catalogPages[_catalogIndex].nextCursor,
         );
@@ -829,6 +900,9 @@ class _TenantDiscoveryPageState extends State<TenantDiscoveryPage> {
             }
             return null;
           },
+          catalogSource: _catalogSource,
+          onBookRoom: _openViewingRequest,
+          onFavoriteToggleRoom: _toggleFavorite,
         ),
       ),
     );

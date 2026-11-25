@@ -62,5 +62,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'tropremium-d14ac.firebasestorage.app',
     measurementId: 'G-CWLKQZKKT1',
   );
-
 }

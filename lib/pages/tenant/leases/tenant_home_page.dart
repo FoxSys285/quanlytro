@@ -631,6 +631,13 @@ class TenantHomePage extends StatelessWidget {
           const Color(0xFFFFE7E7),
           const Color(0xFF9B2525),
         ),
+        LandlordPaymentStatus.cancelled => (
+          'Yêu cầu thanh toán đã bị hủy',
+          _formatVnd(payment.reportedAmount),
+          const Color(0xFF73788E),
+          const Color(0xFFF0F1F4),
+          const Color(0xFF596078),
+        ),
       };
       activities.add(
         _TenantActivityItem(

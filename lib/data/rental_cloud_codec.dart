@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 
 /// Older merges could persist null for an unchanged, missing map entry.
@@ -351,6 +352,7 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
           }
           data['messages'] = <dynamic>[];
         }
+        if (kind == 'conversations') data['ownerUid'] = owner;
         record(kind, data['id'] as String, data, recipients);
       }
     }
@@ -385,12 +387,40 @@ List<Map<String, dynamic>> decodeCloudMessages(
         'index': message['index'],
         if (message['id'] != null) 'id': message['id'],
         if (message['createdAt'] != null) 'createdAt': message['createdAt'],
+        if (message['contextId'] != null) 'contextId': message['contextId'],
+        if (message['roomContext'] is Map)
+          'roomContext': Map<String, dynamic>.from(
+            message['roomContext'] as Map,
+          ),
       },
   ];
 }
 
 String cloudFingerprint(Object? value) {
   Object? canonical(Object? item) {
+    if (item is Timestamp) {
+      return {
+        r'$firestore': 'timestamp',
+        'seconds': item.seconds,
+        'nanoseconds': item.nanoseconds,
+      };
+    }
+    if (item is DateTime) {
+      return {r'$dateTime': item.toUtc().toIso8601String()};
+    }
+    if (item is GeoPoint) {
+      return {
+        r'$firestore': 'geoPoint',
+        'latitude': item.latitude,
+        'longitude': item.longitude,
+      };
+    }
+    if (item is DocumentReference) {
+      return {r'$firestore': 'documentReference', 'path': item.path};
+    }
+    if (item is Blob) {
+      return {r'$firestore': 'blob', 'base64': base64Encode(item.bytes)};
+    }
     if (item is Map) {
       final keys = item.keys.map((key) => key.toString()).toList()..sort();
       return {for (final key in keys) key: canonical(item[key])};
@@ -400,6 +430,15 @@ String cloudFingerprint(Object? value) {
   }
 
   return jsonEncode(canonical(value));
+}
+
+class CloudMergeConflict extends StateError {
+  CloudMergeConflict(this.fieldPath)
+    : super(
+        'Dữ liệu đã thay đổi trên thiết bị khác. Tải lại trước khi sửa tiếp.',
+      );
+
+  final String fieldPath;
 }
 
 /// Persist an admin approval together with the exact data covered by its proof.
@@ -449,11 +488,15 @@ Map<String, dynamic> mergeCloudDocument(
 }) {
   if (atomic &&
       cloudFingerprint(live) != cloudFingerprint(serverBefore ?? before)) {
-    throw StateError(
-      'Chứng từ đã thay đổi trên thiết bị khác. Tải lại trước khi sửa tiếp.',
-    );
+    throw CloudMergeConflict('<document>');
   }
-  Object? merge(Object? old, Object? local, Object? remote, Object? remoteOld) {
+  Object? merge(
+    Object? old,
+    Object? local,
+    Object? remote,
+    Object? remoteOld, {
+    String fieldPath = '',
+  }) {
     if (cloudFingerprint(local) == cloudFingerprint(old)) return remote;
     if (old is Map && local is Map && remote is Map && remoteOld is Map) {
       final result = Map<String, dynamic>.from(remote);
@@ -461,8 +504,8 @@ Map<String, dynamic> mergeCloudDocument(
         if (!local.containsKey(key)) {
           if (cloudFingerprint(remote[key]) !=
               cloudFingerprint(remoteOld[key])) {
-            throw StateError(
-              'Dữ liệu đã thay đổi trên thiết bị khác. Tải lại trước khi sửa tiếp.',
+            throw CloudMergeConflict(
+              fieldPath.isEmpty ? key.toString() : '$fieldPath.$key',
             );
           }
           result.remove(key);
@@ -478,6 +521,7 @@ Map<String, dynamic> mergeCloudDocument(
             local[key],
             remote[key],
             remoteOld[key],
+            fieldPath: fieldPath.isEmpty ? key.toString() : '$fieldPath.$key',
           );
         }
       }
@@ -487,9 +531,7 @@ Map<String, dynamic> mergeCloudDocument(
         cloudFingerprint(remote) == cloudFingerprint(local)) {
       return local;
     }
-    throw StateError(
-      'Dữ liệu đã thay đổi trên thiết bị khác. Tải lại trước khi sửa tiếp.',
-    );
+    throw CloudMergeConflict(fieldPath.isEmpty ? '<document>' : fieldPath);
   }
 
   return Map<String, dynamic>.from(

@@ -256,8 +256,8 @@ class LandlordSubscriptionService {
     }
 
     final response = await _call('prepareSimulatedPayment', {
-      if (plan != null) 'planId': plan.id,
-      if (orderId != null) 'orderId': orderId,
+      'planId': ?plan?.id,
+      'orderId': ?orderId,
     });
     final data = response['order'];
     if (data is! Map<String, dynamic>) {

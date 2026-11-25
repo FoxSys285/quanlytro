@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../data/local_auth.dart';
 import '../../../data/account_provider.dart';
 import '../../../data/auth_validation.dart';
+import '../../../data/device_login_history.dart';
 import '../../../layouts/role_layout.dart';
 import 'forgot_password_page.dart';
 import 'login_artwork.dart';
@@ -32,10 +33,20 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordFocus = FocusNode();
   bool _busy = false;
   bool _obscure = true;
+  bool _phoneMode = false;
   String? _error;
   LocalAuth get _auth => widget.auth ?? LocalAuth.instance;
-  bool get _usingPhone =>
-      _email.text.trim().isNotEmpty && !_email.text.contains('@');
+  bool get _usingPhone => _phoneMode;
+
+  void _setPhoneMode(bool enabled) {
+    setState(() {
+      _phoneMode = enabled;
+      _email.clear();
+      _password.clear();
+      _error = null;
+    });
+    _emailFocus.requestFocus();
+  }
 
   @override
   void initState() {
@@ -89,6 +100,82 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _openDeviceAccountList(AppRole role) async {
+    final accounts = await DeviceLoginHistory.accountsFor(role);
+    if (!mounted) return;
+
+    final selected = await showDialog<DeviceLoginAccount>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Danh sách ${role.label}'),
+        content: SizedBox(
+          width: 380,
+          height: accounts.isEmpty ? 130 : 320,
+          child: accounts.isEmpty
+              ? Center(
+                  child: Text(
+                    'Chưa có tài khoản ${role.label.toLowerCase()} nào đăng nhập trên thiết bị này.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: _muted),
+                  ),
+                )
+              : ListView.separated(
+                  itemCount: accounts.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final account = accounts[index];
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        backgroundColor: const Color(0xFFEAF9F0),
+                        child: Icon(role.icon, color: _green, size: 20),
+                      ),
+                      title: Text(
+                        account.displayName.isEmpty
+                            ? role.label
+                            : account.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        account.identifier,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: const Icon(
+                        Icons.chevron_right_rounded,
+                        color: _muted,
+                      ),
+                      onTap: () => Navigator.of(dialogContext).pop(account),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected == null || !mounted) return;
+    setState(() {
+      _email.text = selected.identifier;
+      _password.clear();
+      _error = null;
+    });
+  }
+
+  void _fillQuickAccount(String email, String password) {
+    setState(() {
+      _email.text = email;
+      _password.text = password;
+      _error = null;
+    });
   }
 
   Future<void> _completeProviderProfile({required String provider}) async {
@@ -318,46 +405,68 @@ class _LoginPageState extends State<LoginPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _field(
-            label: 'Email hoặc số điện thoại',
-            hint: 'Email hoặc số điện thoại',
-            icon: Icons.mail_outline_rounded,
+            label: _usingPhone ? 'Số điện thoại' : 'Email',
+            hint: _usingPhone ? 'Nhập số điện thoại' : 'Nhập email',
+            icon: _usingPhone
+                ? Icons.phone_outlined
+                : Icons.mail_outline_rounded,
             controller: _email,
-          ),
-          const SizedBox(height: 18),
-          _field(
-            label: 'Mật khẩu',
-            hint: 'Nhập mật khẩu',
-            icon: Icons.lock_outline_rounded,
-            controller: _password,
-            password: true,
+            phone: _usingPhone,
           ),
           Align(
-            alignment: Alignment.centerRight,
+            alignment: Alignment.centerLeft,
             child: TextButton(
-              onPressed: _busy
-                  ? null
-                  : () => _openAuthPage(
-                      ForgotPasswordPage(
-                        initialEmail: _usingPhone ? '' : _email.text.trim(),
-                        auth: widget.auth,
-                      ),
-                    ),
+              key: const ValueKey('login-phone-mode'),
+              onPressed: _busy ? null : () => _setPhoneMode(!_usingPhone),
               style: TextButton.styleFrom(
                 foregroundColor: _green,
-                padding: const EdgeInsets.only(left: 12, top: 8, bottom: 8),
-                minimumSize: const Size(48, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text(
-                'Quên mật khẩu?',
-                style: TextStyle(
-                  fontSize: 12,
-                  decoration: TextDecoration.underline,
-                  decorationColor: _green,
-                ),
+              child: Text(
+                _usingPhone
+                    ? 'Đăng nhập bằng email'
+                    : 'Đăng nhập bằng số điện thoại',
               ),
             ),
           ),
+          if (!_usingPhone) ...[
+            const SizedBox(height: 6),
+            _field(
+              label: 'Mật khẩu',
+              hint: 'Nhập mật khẩu',
+              icon: Icons.lock_outline_rounded,
+              controller: _password,
+              password: true,
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _busy
+                    ? null
+                    : () => _openAuthPage(
+                        ForgotPasswordPage(
+                          initialEmail: _usingPhone ? '' : _email.text.trim(),
+                          auth: widget.auth,
+                        ),
+                      ),
+                style: TextButton.styleFrom(
+                  foregroundColor: _green,
+                  padding: const EdgeInsets.only(left: 12, top: 8, bottom: 8),
+                  minimumSize: const Size(48, 40),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Quên mật khẩu?',
+                  style: TextStyle(
+                    fontSize: 12,
+                    decoration: TextDecoration.underline,
+                    decorationColor: _green,
+                  ),
+                ),
+              ),
+            ),
+          ],
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -547,7 +656,9 @@ class _LoginPageState extends State<LoginPage> {
                 spacing: 8,
                 runSpacing: 6,
                 children: [
-                  for (final acc in accounts)
+                  for (final acc in accounts.where(
+                    (account) => account.role == AppRole.admin,
+                  ))
                     ActionChip(
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       avatar: Icon(acc.role.icon, size: 16, color: _green),
@@ -568,13 +679,34 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       onPressed: _busy
                           ? null
-                          : () => setState(() {
-                              _email.text = acc.email;
-                              _password.text = isCloud
-                                  ? 'TroDemo!o5rFqjmo6Va1NA'
-                                  : 'Tro@2026';
-                              _error = null;
-                            }),
+                          : () => _fillQuickAccount(
+                              acc.email,
+                              isCloud ? 'TroDemo!o5rFqjmo6Va1NA' : 'Tro@2026',
+                            ),
+                    ),
+                  for (final role in [AppRole.landlord, AppRole.tenant])
+                    ActionChip(
+                      key: ValueKey('quick-fill-${role.name}'),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      avatar: Icon(role.icon, size: 16, color: _green),
+                      label: Text(role.label),
+                      labelStyle: const TextStyle(
+                        color: _ink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      backgroundColor: const Color(0xFFEAF9F0),
+                      side: const BorderSide(color: Color(0xFFBFEDD4)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 6,
+                      ),
+                      onPressed: _busy
+                          ? null
+                          : () => _openDeviceAccountList(role),
                     ),
                 ],
               );
@@ -591,6 +723,7 @@ class _LoginPageState extends State<LoginPage> {
     required IconData icon,
     required TextEditingController controller,
     bool password = false,
+    bool phone = false,
   }) => DecoratedBox(
     decoration: BoxDecoration(
       color: const Color(0xFFFAFAFC),
@@ -608,7 +741,9 @@ class _LoginPageState extends State<LoginPage> {
       obscureText: password && _obscure,
       keyboardType: password
           ? TextInputType.visiblePassword
-          : TextInputType.text,
+          : phone
+          ? TextInputType.phone
+          : TextInputType.emailAddress,
       onChanged: password ? null : (_) => setState(() {}),
       textInputAction: password ? TextInputAction.done : TextInputAction.next,
       autofillHints: [

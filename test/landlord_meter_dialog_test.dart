@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
+import 'package:quanlytro/pages/landlord/landlord_glass.dart';
 import 'package:quanlytro/pages/landlord/landlord_theme.dart';
-import 'package:quanlytro/pages/landlord/landlord_ui.dart';
 import 'package:quanlytro/pages/landlord/meter_readings/landlord_chisodiennuoc_page.dart';
 
 void main() {
@@ -25,7 +25,13 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byType(LandlordCard).first);
+      final roomCard = find
+          .ancestor(
+            of: find.textContaining('Phòng '),
+            matching: find.byType(LandlordGlassCard),
+          )
+          .first;
+      await tester.tap(roomCard);
       await tester.pumpAndSettle();
 
       final dialog = find.byType(AlertDialog);

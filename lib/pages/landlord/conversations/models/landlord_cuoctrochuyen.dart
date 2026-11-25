@@ -8,6 +8,8 @@ class LandlordMessage {
     this.id,
     this.createdAt,
     this.index,
+    this.contextId,
+    this.roomContext,
   });
 
   // Nội dung tin nhắn
@@ -22,6 +24,8 @@ class LandlordMessage {
   final DateTime? createdAt;
   // Original ordering position stays stable after concurrent messages merge.
   final int? index;
+  final String? contextId;
+  final Map<String, dynamic>? roomContext;
 
   Map<String, dynamic> toMap() => {
     'text': text,
@@ -30,6 +34,8 @@ class LandlordMessage {
     if (id != null) 'id': id,
     if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     if (index != null) 'index': index,
+    if (contextId != null) 'contextId': contextId,
+    if (roomContext != null) 'roomContext': roomContext,
   };
 
   factory LandlordMessage.fromMap(Map<String, dynamic> map) => LandlordMessage(
@@ -41,6 +47,10 @@ class LandlordMessage {
         ? null
         : DateTime.parse(map['createdAt'] as String),
     index: map['index'] as int?,
+    contextId: map['contextId'] as String?,
+    roomContext: map['roomContext'] is Map
+        ? Map<String, dynamic>.from(map['roomContext'] as Map)
+        : null,
   );
 }
 
@@ -59,7 +69,10 @@ class LandlordConversation {
     this.propertyName = 'Mây House',
     this.leaseId,
     this.tenantUnread = 0,
-  });
+    this.ownerUid = '',
+    this.lastRoomContext,
+    List<Map<String, dynamic>>? roomContexts,
+  }) : roomContexts = List<Map<String, dynamic>>.of(roomContexts ?? const []);
 
   // Tên khách thuê trọ
   String tenantName;
@@ -75,6 +88,9 @@ class LandlordConversation {
 
   // Mã khách thuê
   final String tenantId;
+
+  /// Firebase owner identity; display names and phone numbers never key chats.
+  final String ownerUid;
 
   // Tên chủ trọ
   String landlordName;
@@ -93,6 +109,14 @@ class LandlordConversation {
 
   // Số lượng tin nhắn chưa đọc đối với người thuê
   int tenantUnread;
+  Map<String, dynamic>? lastRoomContext;
+  final List<Map<String, dynamic>> roomContexts;
+
+  String get contextRoom => lastRoomContext?['roomName'] as String? ?? room;
+  String get contextPropertyName =>
+      lastRoomContext?['propertyName'] as String? ?? propertyName;
+  String get contextPropertyId =>
+      lastRoomContext?['propertyId'] as String? ?? propertyId;
 
   // Lấy tin nhắn mới nhất trong cuộc trò chuyện
   LandlordMessage get lastMessage => messages.last;
@@ -103,12 +127,15 @@ class LandlordConversation {
     'id': id,
     'propertyId': propertyId,
     'tenantId': tenantId,
+    if (ownerUid.isNotEmpty) 'ownerUid': ownerUid,
     'landlordName': landlordName,
     'propertyName': propertyName,
     'leaseId': leaseId,
     'messages': messages.map((item) => item.toMap()).toList(),
     'unread': unread,
     'tenantUnread': tenantUnread,
+    if (lastRoomContext != null) 'lastRoomContext': lastRoomContext,
+    'roomContexts': roomContexts,
   };
 
   factory LandlordConversation.fromMap(Map<String, dynamic> map) =>
@@ -118,6 +145,7 @@ class LandlordConversation {
         id: map['id'] as String,
         propertyId: map['propertyId'] as String,
         tenantId: map['tenantId'] as String,
+        ownerUid: map['ownerUid'] as String? ?? '',
         landlordName: map['landlordName'] as String,
         propertyName: map['propertyName'] as String,
         leaseId: map['leaseId'] as String?,
@@ -130,6 +158,13 @@ class LandlordConversation {
             .toList(),
         unread: map['unread'] as int,
         tenantUnread: map['tenantUnread'] as int,
+        lastRoomContext: map['lastRoomContext'] is Map
+            ? Map<String, dynamic>.from(map['lastRoomContext'] as Map)
+            : null,
+        roomContexts: (map['roomContexts'] as List? ?? const [])
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList(),
       );
 }
 

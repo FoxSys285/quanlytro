@@ -43,16 +43,38 @@ void main() {
   });
 
   testWidgets('Landlord rooms tab opens the room list', (tester) async {
+    final originalPortfolio = RentalPortfolio.instance;
+    addTearDown(() => RentalPortfolio.instance = originalPortfolio);
+    final store = LandlordDemoStore.demo();
+    addTearDown(store.dispose);
+    RentalPortfolio.instance = RentalPortfolio([store]);
     await tester.pumpWidget(const MaterialApp(home: LandlordLayout()));
-    await tester.ensureVisible(find.text('Phòng'));
-    await tester.tap(find.text('Phòng'));
+    await tester.tap(find.byTooltip('Mở danh mục chức năng'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Phòng trọ'),
+      ),
+      250,
+      scrollable: find.descendant(
+        of: find.byType(Drawer),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Phòng trọ'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(LandlordRoomsPage), findsOneWidget);
     expect(
       find.byType(LandlordRoomButton),
-      findsNWidgets(LandlordDemoStore.rooms.length),
+      findsNWidgets(store.catalog.length),
     );
-    expect(find.text('A.302'), findsOneWidget);
+    expect(find.text('Phòng A.302'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

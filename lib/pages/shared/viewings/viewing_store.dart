@@ -274,6 +274,22 @@ class ViewingStore extends ChangeNotifier {
       _update(id, propertyId, ViewingStatus.confirmed);
   bool cancel(String id, {required String propertyId}) =>
       _update(id, propertyId, ViewingStatus.cancelled);
+
+  bool restoreStatus(
+    String id, {
+    required String propertyId,
+    required ViewingStatus expectedStatus,
+    required ViewingStatus status,
+  }) {
+    final index = _records.indexWhere(
+      (item) => item.id == id && item.propertyId == propertyId,
+    );
+    if (index == -1 || _records[index].status != expectedStatus) return false;
+    _records[index] = _records[index].withStatus(status);
+    notifyListeners();
+    return true;
+  }
+
   bool _update(String id, String propertyId, ViewingStatus status) {
     final index = _records.indexWhere(
       (item) => item.id == id && item.propertyId == propertyId,

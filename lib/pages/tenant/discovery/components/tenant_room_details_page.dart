@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../data/app_persistence.dart';
 import '../../../../data/local_auth.dart';
 import '../../../../data/property_catalog.dart';
+import '../../../../data/discovery_catalog.dart';
 
 import '../../../../layouts/role_layout.dart';
 import '../../../landlord/landlord_demo_store.dart';
@@ -18,6 +19,7 @@ import '../../conversations/models/tenant_cuoctrochuyen.dart';
 import '../../conversations/tenant_tinnhan_page.dart';
 import '../../tenant_ui.dart';
 import '../models/tenant_room_listing.dart';
+import '../tenant_favorites_store.dart';
 
 class TenantRoomDetailsPage extends StatefulWidget {
   const TenantRoomDetailsPage({
@@ -27,6 +29,9 @@ class TenantRoomDetailsPage extends StatefulWidget {
     required this.isFavorite,
     required this.onFavoriteToggle,
     this.propertyLoader,
+    this.catalogSource,
+    this.onBookRoom,
+    this.onFavoriteToggleRoom,
   });
 
   final TenantRoomListing room;
@@ -34,6 +39,9 @@ class TenantRoomDetailsPage extends StatefulWidget {
   final bool isFavorite;
   final VoidCallback onFavoriteToggle;
   final Future<LandlordProperty?> Function(String propertyId)? propertyLoader;
+  final TenantCatalogSource? catalogSource;
+  final ValueChanged<TenantRoomListing>? onBookRoom;
+  final ValueChanged<TenantRoomListing>? onFavoriteToggleRoom;
 
   @override
   State<TenantRoomDetailsPage> createState() => _TenantRoomDetailsPageState();
@@ -46,6 +54,17 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
   bool _expandedDescription = false;
   bool _highlightsCollapsed = false;
   LandlordProperty? _loadedProperty;
+  final List<TenantRoomListing> _relatedRooms = [];
+  Object? _relatedError;
+  Object? _availabilityError;
+  Object? _relatedCursor;
+  bool _relatedLoading = false;
+  bool _relatedLoadingMore = false;
+  bool _availabilityLoading = false;
+  bool _roomAvailable = true;
+  TenantCatalogSource? get _catalog =>
+      widget.catalogSource ??
+      (LocalAuth.instance.isCloudMode ? FirestoreTenantCatalogSource() : null);
   LandlordProperty? get _ownerProperty =>
       RentalPortfolio.instance.byId(widget.room.propertyId)?.property ??
       _loadedProperty;
@@ -57,6 +76,8 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
         (widget.propertyLoader != null || LocalAuth.instance.isCloudMode)) {
       _loadOwner();
     }
+    _loadRelated(reset: true);
+    _checkAvailability();
   }
 
   Future<void> _loadOwner() async {
@@ -69,6 +90,141 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
       if (mounted) setState(() => _loadedProperty = property);
     } catch (_) {
       // Room content remains usable if the optional owner contact cannot load.
+    }
+  }
+
+  TenantCatalogQuery _relatedQuery() => TenantCatalogQuery(
+    propertyId: widget.room.propertyId,
+    maxRent: 1000000000,
+    maxElectricity: 1000000,
+    sort: 'default',
+    onePerProperty: false,
+  );
+
+  Future<void> _loadRelated({bool reset = false}) async {
+    final source = _catalog;
+    if (source == null) {
+      final store = RentalPortfolio.instance.byId(widget.room.propertyId);
+      final local = store == null
+          ? const <TenantRoomListing>[]
+          : TenantRoomDemoData.forStore(store);
+      if (mounted) {
+        setState(() {
+          _relatedRooms
+            ..clear()
+            ..addAll(local.where((room) => room.id != widget.room.id));
+          _relatedLoading = false;
+          _relatedLoadingMore = false;
+          _relatedCursor = null;
+        });
+      }
+      return;
+    }
+    if (_relatedLoading || _relatedLoadingMore) return;
+    setState(() {
+      if (reset) {
+        _relatedRooms.clear();
+        _relatedCursor = null;
+      }
+      _relatedError = null;
+      _relatedLoading = reset && _relatedRooms.isEmpty;
+      _relatedLoadingMore = !reset;
+    });
+    try {
+      var cursor = reset ? null : _relatedCursor;
+      late CatalogPage page;
+      do {
+        page = await source.fetch(_relatedQuery(), after: cursor, limit: 8);
+        cursor = page.nextCursor;
+      } while (page.items.isEmpty && page.nextCursor != null);
+      if (!mounted) return;
+      setState(() {
+        final existing = _relatedRooms.map((room) => room.id).toSet();
+        for (final room in page.items) {
+          if (room.id != widget.room.id && existing.add(room.id)) {
+            _relatedRooms.add(room);
+          }
+        }
+        _relatedCursor = page.nextCursor;
+        _relatedLoading = false;
+        _relatedLoadingMore = false;
+      });
+    } catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _relatedError = failure;
+        _relatedLoading = false;
+        _relatedLoadingMore = false;
+      });
+    }
+  }
+
+  Future<void> _checkAvailability() async {
+    final source = _catalog;
+    final roomCode = widget.room.roomCode;
+    if (source == null || roomCode == null) return;
+    setState(() {
+      _availabilityLoading = true;
+      _availabilityError = null;
+    });
+    try {
+      final result = await source.fetch(
+        TenantCatalogQuery(
+          propertyId: widget.room.propertyId,
+          roomCode: roomCode,
+          maxRent: 1000000000,
+          maxElectricity: 1000000,
+          onePerProperty: false,
+        ),
+        limit: 1,
+      );
+      if (!mounted) return;
+      final available = result.items.any(
+        (room) =>
+            room.roomCode == roomCode &&
+            room.propertyId == widget.room.propertyId,
+      );
+      setState(() {
+        _roomAvailable = available;
+        _availabilityLoading = false;
+      });
+    } catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _roomAvailable = false;
+        _availabilityError = failure;
+        _availabilityLoading = false;
+      });
+    }
+  }
+
+  Future<void> _bookRoom() async {
+    if (_availabilityLoading) return;
+    final source = _catalog;
+    if (source != null && widget.room.roomCode != null) {
+      await _checkAvailability();
+      if (!mounted || !_roomAvailable) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _availabilityError == null
+                    ? 'Phòng này không còn được đăng cho thuê.'
+                    : 'Chưa xác minh được tình trạng phòng. Vui lòng thử lại.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    }
+    final book = widget.onBookRoom;
+    if (book == null) {
+      Navigator.of(context).pop();
+      widget.onBook();
+    } else {
+      Navigator.of(context).pop();
+      book(widget.room);
     }
   }
 
@@ -201,6 +357,8 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
                             ownerName: ownerName,
                             ownerPhone: ownerPhone,
                           ),
+                          const SizedBox(height: 20),
+                          _relatedRoomsSection(),
                           const SizedBox(height: 22),
                         ],
                       ),
@@ -428,12 +586,14 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
         children: [
           Icon(Icons.receipt_long_rounded, color: tenantGreenDark, size: 22),
           SizedBox(width: 8),
-          Text(
-            'Bảng giá & dịch vụ',
-            style: TextStyle(
-              color: tenantInk,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+          Expanded(
+            child: Text(
+              'Bảng giá & dịch vụ',
+              style: TextStyle(
+                color: tenantInk,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -515,13 +675,17 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
           ),
         ),
         const SizedBox(width: 12),
-        Text(
-          '${formatTenantMoney(price)}${unit.isEmpty ? '' : ' / $unit'}',
-          textAlign: TextAlign.right,
-          style: TextStyle(
-            color: emphasized ? tenantGreenDark : tenantInk,
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
+        Flexible(
+          child: Text(
+            '${formatTenantMoney(price)}${unit.isEmpty ? '' : ' / $unit'}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: emphasized ? tenantGreenDark : tenantInk,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ],
@@ -759,12 +923,17 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
           Expanded(
             flex: 2,
             child: FilledButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop();
-                widget.onBook();
-              },
+              onPressed: _availabilityLoading || !_roomAvailable
+                  ? null
+                  : _bookRoom,
               icon: const Icon(Icons.calendar_month_rounded, size: 19),
-              label: const Text('Đặt lịch xem phòng'),
+              label: Text(
+                _availabilityLoading
+                    ? 'Đang kiểm tra phòng'
+                    : _roomAvailable
+                    ? 'Đặt lịch xem phòng'
+                    : 'Phòng không còn trống',
+              ),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF079B4D),
                 foregroundColor: Colors.white,
@@ -780,6 +949,128 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
     ),
   );
 
+  Widget _relatedRoomsSection() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Các phòng còn trống cùng nhà trọ',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+      ),
+      const SizedBox(height: 10),
+      if (_relatedLoading)
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.all(18),
+            child: CircularProgressIndicator(),
+          ),
+        )
+      else if (_relatedError != null)
+        Row(
+          children: [
+            const Expanded(child: Text('Chưa tải được danh sách phòng.')),
+            TextButton(
+              onPressed: () => _loadRelated(reset: true),
+              child: const Text('Thử lại'),
+            ),
+          ],
+        )
+      else if (_relatedRooms.isEmpty)
+        const Text('Hiện không còn phòng trống nào khác trong nhà trọ này.')
+      else ...[
+        for (final room in _relatedRooms)
+          Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            color: Colors.white,
+            child: InkWell(
+              onTap: () => _openRelatedRoom(room),
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.all(11),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: room.gallery.isEmpty
+                            ? const RoomPhotoPlaceholder()
+                            : RoomPhotoImage(
+                                photo: room.gallery.first,
+                                label: room.name,
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            room.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${formatTenantMoney(room.price)}/tháng · ${room.size}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right_rounded),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        if (_relatedCursor != null)
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: _relatedLoadingMore ? null : () => _loadRelated(),
+              icon: _relatedLoadingMore
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.expand_more_rounded),
+              label: Text(_relatedLoadingMore ? 'Đang tải' : 'Tải thêm phòng'),
+            ),
+          ),
+      ],
+    ],
+  );
+
+  void _openRelatedRoom(TenantRoomListing room) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TenantRoomDetailsPage(
+          room: room,
+          onBook: () {
+            final callback = widget.onBookRoom;
+            if (callback != null) {
+              callback(room);
+            } else {
+              widget.onBook();
+            }
+          },
+          isFavorite: TenantFavoritesStore.contains(room.id),
+          onFavoriteToggle: () => widget.onFavoriteToggleRoom?.call(room),
+          propertyLoader: widget.propertyLoader,
+          catalogSource: widget.catalogSource,
+          onBookRoom: widget.onBookRoom,
+          onFavoriteToggleRoom: widget.onFavoriteToggleRoom,
+        ),
+      ),
+    );
+  }
+
   Future<void> _openConversation() async {
     final room = widget.room;
     final owner = _ownerProperty;
@@ -791,6 +1082,7 @@ class _TenantRoomDetailsPageState extends State<TenantRoomDetailsPage> {
       propertyName: owner?.name ?? room.name,
       tenantId: TenantSession.currentTenantId,
       tenantName: AccountStore.instance.profile(AppRole.tenant).name,
+      ownerUid: room.ownerUid,
     );
     try {
       await AppPersistence.current?.flush();

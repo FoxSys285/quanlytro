@@ -25,6 +25,30 @@ class _Source implements TenantCatalogSource {
   }
 }
 
+class _SparseSource implements TenantCatalogSource {
+  int calls = 0;
+  final cursors = <Object?>[];
+
+  @override
+  Future<CatalogPage> fetch(
+    TenantCatalogQuery query, {
+    Object? after,
+    int limit = 8,
+  }) async {
+    calls++;
+    cursors.add(after);
+    if (after == 'cursor-3') {
+      return CatalogPage(items: [TenantRoomDemoData.listings[0]]);
+    }
+    final next = after == null
+        ? 'cursor-1'
+        : after == 'cursor-1'
+        ? 'cursor-2'
+        : 'cursor-3';
+    return CatalogPage(items: const [], nextCursor: next);
+  }
+}
+
 void main() {
   testWidgets('Online next page uses cursor, previous uses saved page', (
     tester,
@@ -68,6 +92,33 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Sparse property groups pause within a read budget and resume explicitly',
+    (tester) async {
+      final source = _SparseSource();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TenantDiscoveryPage(catalogSource: source, resultsOnly: true),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(source.calls, 3);
+      expect(find.text('Tiếp tục tìm'), findsOneWidget);
+      expect(find.text('Chưa tìm thấy phòng phù hợp'), findsNothing);
+
+      await tester.ensureVisible(find.text('Tiếp tục tìm'));
+      await tester.tap(find.text('Tiếp tục tìm'));
+      await tester.pumpAndSettle();
+      expect(source.calls, 4);
+      expect(source.cursors, [null, 'cursor-1', 'cursor-2', 'cursor-3']);
+      expect(find.byType(TenantRoomCard), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Late old response cannot replace new filter results', (
     tester,
   ) async {

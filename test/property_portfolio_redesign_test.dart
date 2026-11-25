@@ -97,26 +97,27 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Property tab has one profile header and opens settings', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(home: LandlordLayout(displayName: 'Trần Nguyên')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.descendant(
-        of: find.byType(LandlordBottomNavigation),
-        matching: find.text('Nhà trọ'),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.byType(PropertyProfileHeader), findsOneWidget);
-    expect(find.text('Trần Nguyên'), findsOneWidget);
-    await tester.tap(find.byTooltip('Cài đặt'));
-    await tester.pumpAndSettle();
-    expect(find.text('Danh sách nhà trọ'), findsNothing);
-    expect(find.byType(LandlordBottomNavigation), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'Property tab has one profile header and settings hide bottom navigation',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: LandlordLayout(displayName: 'Trần Nguyên')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(LandlordBottomNavigation),
+          matching: find.text('Nhà trọ'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(PropertyProfileHeader), findsOneWidget);
+      expect(find.text('Trần Nguyên'), findsOneWidget);
+      await tester.tap(find.byTooltip('Cài đặt'));
+      await tester.pumpAndSettle();
+      expect(find.text('Danh sách nhà trọ'), findsNothing);
+      expect(find.byType(LandlordBottomNavigation), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

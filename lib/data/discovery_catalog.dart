@@ -19,11 +19,15 @@ class TenantCatalogQuery {
     this.amenities = const {},
     this.sort = 'default',
     this.propertyId,
+    this.roomCode,
+    this.onePerProperty = true,
   });
   final String query, waterType, sort;
   final int maxRent, minElectricity, maxElectricity;
   final String? city, ward;
   final String? propertyId;
+  final String? roomCode;
+  final bool onePerProperty;
   final double? minArea, maxArea;
   final Set<String> amenities;
 
@@ -33,6 +37,7 @@ class TenantCatalogQuery {
             .toLowerCase();
     return text.contains(query.trim().toLowerCase()) &&
         (propertyId == null || propertyId == room.propertyId) &&
+        (roomCode == null || roomCode == room.roomCode) &&
         room.price <= maxRent &&
         room.electricityPrice >= minElectricity &&
         room.electricityPrice <= maxElectricity &&
@@ -58,16 +63,36 @@ class DiscoveryHomeFeed {
     required this.trusted,
   });
   factory DiscoveryHomeFeed.fromRooms(List<TenantRoomListing> rooms) {
-    final preview = rooms.take(10).toList();
+    final preview = _uniqueRooms(rooms).take(10).toList();
+    final goodPrice = _uniqueRooms(
+      rooms,
+      compare: (a, b) => a.price.compareTo(b.price),
+    ).take(10).toList();
     return DiscoveryHomeFeed(
       featured: preview,
-      goodPrice: [...preview]..sort((a, b) => a.price.compareTo(b.price)),
+      goodPrice: goodPrice,
       trusted: const [],
     );
   }
   final List<TenantRoomListing> featured;
   final List<TenantRoomListing> goodPrice;
   final List<TenantRoomListing> trusted;
+}
+
+List<TenantRoomListing> _uniqueRooms(
+  Iterable<TenantRoomListing> rooms, {
+  int Function(TenantRoomListing, TenantRoomListing)? compare,
+}) {
+  final selected = <String, TenantRoomListing>{};
+  for (final room in rooms) {
+    final current = selected[room.propertyId];
+    if (current == null || (compare != null && compare(room, current) < 0)) {
+      selected[room.propertyId] = room;
+    }
+  }
+  final result = selected.values.toList();
+  if (compare != null) result.sort(compare);
+  return result;
 }
 
 abstract interface class TenantDiscoveryHomeSource {
@@ -113,18 +138,24 @@ class FirestoreTenantCatalogSource
     ).fetch(const TenantPropertyQuery(verifiedOnly: true), limit: limit);
     final ids = properties.items.map((item) => item.property.id).toList();
     if (ids.isEmpty) return const CatalogPage(items: []);
-    final snapshot = await _firestore
-        .collection('public_rooms')
-        .where('published', isEqualTo: true)
-        .where('available', isEqualTo: true)
-        .where('propertyId', whereIn: ids)
-        .orderBy(FieldPath.documentId)
-        .limit(limit)
-        .get(const GetOptions(source: Source.server));
+    final snapshots = await Future.wait(
+      ids.map(
+        (id) => _firestore
+            .collection('public_rooms')
+            .where('published', isEqualTo: true)
+            .where('available', isEqualTo: true)
+            .where('propertyId', isEqualTo: id)
+            .orderBy(FieldPath.documentId)
+            .limit(1)
+            .get(const GetOptions(source: Source.server)),
+      ),
+    );
     return CatalogPage(
-      items: snapshot.docs
-          .map((doc) => catalogListingFromMap(doc.id, doc.data()))
-          .toList(),
+      items: [
+        for (final snapshot in snapshots)
+          for (final doc in snapshot.docs)
+            catalogListingFromMap(doc.id, doc.data()),
+      ],
     );
   }
 
@@ -157,6 +188,9 @@ class FirestoreTenantCatalogSource
         );
       }
     }
+    if (query.roomCode != null) {
+      request = request.where('roomCode', isEqualTo: query.roomCode);
+    }
     request = switch (query.sort) {
       'rentAsc' => request.orderBy('price'),
       'rentDesc' => request.orderBy('price', descending: true),
@@ -164,7 +198,11 @@ class FirestoreTenantCatalogSource
       'areaDesc' => request.orderBy('area', descending: true),
       _ => request.orderBy(FieldPath.documentId),
     };
-    var cursor = after as DocumentSnapshot<Map<String, dynamic>>?;
+    final previous = after is _TenantCatalogCursor ? after : null;
+    var cursor =
+        previous?.document ??
+        (after is DocumentSnapshot<Map<String, dynamic>> ? after : null);
+    final seenProperties = <String>{...?previous?.seenProperties};
     DocumentSnapshot<Map<String, dynamic>>? pageEnd;
     final items = <TenantRoomListing>[];
     var remainingReads = 64;
@@ -183,24 +221,45 @@ class FirestoreTenantCatalogSource
         if (data['published'] != true || data['available'] != true) continue;
         final room = catalogListingFromMap(doc.id, data);
         if (!query.matches(room)) continue;
+        if (query.onePerProperty && seenProperties.contains(room.propertyId)) {
+          continue;
+        }
         if (items.length == limit) {
-          return CatalogPage(items: items, nextCursor: pageEnd);
+          return CatalogPage(
+            items: items,
+            nextCursor: pageEnd == null
+                ? null
+                : _TenantCatalogCursor(pageEnd, seenProperties),
+          );
         }
         items.add(room);
+        if (query.onePerProperty) seenProperties.add(room.propertyId);
         pageEnd = doc;
       }
       if (snapshot.docs.length < batchSize) return CatalogPage(items: items);
       if (remainingReads <= 0) {
-        return CatalogPage(items: items, nextCursor: cursor);
+        return CatalogPage(
+          items: items,
+          nextCursor: cursor == null
+              ? null
+              : _TenantCatalogCursor(cursor, seenProperties),
+        );
       }
     }
   }
+}
+
+class _TenantCatalogCursor {
+  const _TenantCatalogCursor(this.document, this.seenProperties);
+  final DocumentSnapshot<Map<String, dynamic>> document;
+  final Set<String> seenProperties;
 }
 
 TenantRoomListing catalogListingFromMap(String id, Map<String, dynamic> data) =>
     TenantRoomListing(
       listingId: Uri.decodeComponent(id),
       ownerPropertyId: data['propertyId'] as String,
+      ownerUid: data['ownerUid'] as String?,
       roomCode: data['roomCode'] as String,
       name: data['name'] as String,
       address: data['address'] as String,

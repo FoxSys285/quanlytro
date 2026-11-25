@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
@@ -153,6 +154,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: _appNavigatorKey,
+      locale: const Locale('vi', 'VN'),
+      supportedLocales: const [Locale('vi', 'VN'), Locale('en', 'US')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       title: appName,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

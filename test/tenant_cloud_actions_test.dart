@@ -122,11 +122,20 @@ void main() {
     chats.markRead(chats.conversations.single, landlord: false);
     var edited = _copy(loaded)..['conversations'] = chats.toMap();
     await repository.saveAll(edited);
-    expect(db.writes, ['rental_records/may:conversations:existing-chat']);
+    const canonicalPath =
+        'rental_records/may:conversations:owner%3Aowner-a%3ATENANT01';
+    expect(db.writes, [canonicalPath]);
     final after =
+        db.documents['rental_records']![canonicalPath.split('/').last]!;
+    expect(after['data']['id'], 'owner:owner-a:TENANT01');
+    expect(after['data']['tenantUnread'], 0);
+    expect(after['ownerUid'], 'owner-a');
+    expect(after['tenantIds'], ['TENANT01']);
+    // The unread update is written to the canonical thread. The legacy source
+    // remains untouched until the explicit, backed-up migration is applied.
+    final legacyAfter =
         db.documents['rental_records']!['may:conversations:existing-chat']!;
-    expect(after['data'], {...before['data'] as Map, 'tenantUnread': 0});
-    expect({...after}..remove('data'), {...before}..remove('data'));
+    expect(legacyAfter, before);
 
     db.writes.clear();
     edited = _copy(edited)

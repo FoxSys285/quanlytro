@@ -22,6 +22,7 @@ import 'rooms/landlord_rooms_page.dart';
 import 'services/landlord_dichvubanggia_page.dart';
 import 'viewings/landlord_viewings_page.dart';
 import 'subscription/landlord_plans_page.dart';
+import 'staff/landlord_staff_page.dart';
 
 Widget buildLandlordPage(BuildContext context, RoleDestination destination) {
   return switch (destination.id) {
@@ -30,6 +31,7 @@ Widget buildLandlordPage(BuildContext context, RoleDestination destination) {
     'profile' => const AccountProfilePage(role: AppRole.landlord),
     'notifications' => const NotificationSettingsPage(role: AppRole.landlord),
     'plans' => const LandlordPlansPage(),
+    'staff' => const LandlordStaffPage(),
     // Phần của Minh
     'dashboard' => const LandlordTongQuanPage(),
     'services' => const LandlordDichVuBangGiaPage(),

@@ -4,6 +4,8 @@ import '../../landlord/conversations/models/landlord_cuoctrochuyen.dart';
 import '../rental/tenant_session.dart';
 import '../rental/rental_record_id.dart';
 import '../../landlord/landlord_demo_store.dart';
+import '../../../data/local_auth.dart';
+import '../../../layouts/role_layout.dart';
 
 /// A conversation and its messages are shared; unread counts belong to each role.
 class ConversationStore extends ChangeNotifier {
@@ -143,7 +145,7 @@ class ConversationStore extends ChangeNotifier {
           conversation.leaseId,
         ): conversation,
     };
-    final restored = (map['records'] as List).map((raw) {
+    final decoded = (map['records'] as List).map((raw) {
       final incoming = LandlordConversation.fromMap(
         Map<String, dynamic>.from(raw as Map),
       );
@@ -166,8 +168,13 @@ class ConversationStore extends ChangeNotifier {
       current.messages
         ..clear()
         ..addAll(incoming.messages);
+      current.lastRoomContext = incoming.lastRoomContext;
+      current.roomContexts
+        ..clear()
+        ..addAll(incoming.roomContexts);
       return current;
     }).toList();
+    final restored = _mergeOwnerTenantThreads(decoded);
     _records
       ..clear()
       ..addAll(restored);
@@ -203,8 +210,18 @@ class ConversationStore extends ChangeNotifier {
   List<LandlordConversation> get conversations => List.unmodifiable(_records);
   List<LandlordConversation> forTenant(String id) =>
       _records.where((item) => item.tenantId == id).toList();
-  List<LandlordConversation> forProperty(String id) =>
-      _records.where((item) => item.propertyId == id).toList();
+  List<LandlordConversation> forProperty(String id) => _records.where((item) {
+    if (item.propertyId == id || item.contextPropertyId == id) return true;
+    if (item.roomContexts.any((context) => context['propertyId'] == id)) {
+      return true;
+    }
+    return item.messages.any(
+      (message) => message.roomContext?['propertyId'] == id,
+    );
+  }).toList();
+
+  static String canonicalId(String ownerUid, String tenantId) =>
+      'owner:${Uri.encodeComponent(ownerUid)}:${Uri.encodeComponent(tenantId)}';
 
   LandlordConversation forRoom({
     required String propertyId,
@@ -214,31 +231,198 @@ class ConversationStore extends ChangeNotifier {
     required String propertyName,
     required String tenantId,
     required String tenantName,
+    String? ownerUid,
   }) {
-    final id =
-        'room:${Uri.encodeComponent(propertyId)}:'
-        '${Uri.encodeComponent(tenantId)}:${Uri.encodeComponent(roomId)}';
-    for (final conversation in _records) {
-      if (conversation.propertyId == propertyId &&
-          conversation.tenantId == tenantId &&
-          (conversation.id == id ||
-              (conversation.id.startsWith('viewing:') &&
-                  conversation.room == roomName))) {
-        return conversation;
-      }
+    final owner = _ownerIdentity(propertyId, ownerUid);
+    final id = canonicalId(owner, tenantId);
+    final context = <String, dynamic>{
+      'propertyId': propertyId,
+      'roomId': roomId,
+      'roomName': roomName,
+      'propertyName': propertyName,
+    };
+    final existing = _records.where((conversation) {
+      if (conversation.tenantId != tenantId) return false;
+      return conversation.id == id ||
+          (conversation.ownerUid == owner && owner.isNotEmpty);
+    }).firstOrNull;
+    if (existing != null) {
+      existing
+        ..lastRoomContext = context
+        ..room = roomName
+        ..tenantName = tenantName
+        ..landlordName = landlordName
+        ..propertyName = propertyName;
+      _addRoomContext(existing, context);
+      notifyListeners();
+      return existing;
     }
     return getOrCreate(
       LandlordConversation(
         id: id,
         propertyId: propertyId,
+        ownerUid: owner,
         tenantId: tenantId,
         tenantName: tenantName,
         landlordName: landlordName,
         propertyName: propertyName,
         room: roomName,
+        lastRoomContext: context,
+        roomContexts: [context],
         messages: [],
       ),
     );
+  }
+
+  String _ownerIdentity(String propertyId, String? provided) {
+    if (provided != null && provided.trim().isNotEmpty) return provided.trim();
+    final session = LocalAuth.instance.session;
+    if (session != null && session.role == AppRole.landlord) return session.uid;
+    // Local preview data has no Firebase owner UID. Scope it to a single
+    // property instead of accidentally merging tenants across landlords.
+    return 'local-property:$propertyId';
+  }
+
+  List<LandlordConversation> _mergeOwnerTenantThreads(
+    List<LandlordConversation> decoded,
+  ) {
+    final groups = <String, List<LandlordConversation>>{};
+    for (final item in decoded) {
+      final key = item.ownerUid.isEmpty
+          ? 'legacy:${item.propertyId}:${item.id}:${item.tenantId}'
+          : '${item.ownerUid}\u0000${item.tenantId}';
+      (groups[key] ??= []).add(item);
+    }
+    final merged = <LandlordConversation>[];
+    for (final group in groups.values) {
+      if (group.length == 1 && group.single.ownerUid.isEmpty) {
+        merged.add(group.single);
+        continue;
+      }
+      final ownerUid = group.first.ownerUid;
+      final tenantId = group.first.tenantId;
+      final id = ownerUid.isEmpty
+          ? group.first.id
+          : canonicalId(ownerUid, tenantId);
+      group.sort((a, b) {
+        final aCanonical = a.id == id ? 0 : 1;
+        final bCanonical = b.id == id ? 0 : 1;
+        final canonicalOrder = aCanonical.compareTo(bCanonical);
+        return canonicalOrder != 0
+            ? canonicalOrder
+            : a.propertyId.compareTo(b.propertyId);
+      });
+      final primary = group.first;
+      final orderedMessages = <({LandlordMessage message, int order})>[];
+      var order = 0;
+      for (final thread in group) {
+        for (final message in thread.messages) {
+          orderedMessages.add((message: message, order: order++));
+        }
+      }
+      final seenIds = <String>{};
+      final seenLegacy = <String>{};
+      final uniqueMessages = <({LandlordMessage message, int order})>[];
+      for (final entry in orderedMessages) {
+        final message = entry.message;
+        final idKey = message.id;
+        if (idKey != null && idKey.isNotEmpty) {
+          if (!seenIds.add(idKey)) continue;
+        } else {
+          final key =
+              '${message.fromLandlord}\u0000${message.createdAt?.toUtc().toIso8601String() ?? message.time}\u0000${message.text}';
+          if (!seenLegacy.add(key)) continue;
+        }
+        uniqueMessages.add(entry);
+      }
+      uniqueMessages.sort((a, b) {
+        final aTime = a.message.createdAt?.millisecondsSinceEpoch ?? 0;
+        final bTime = b.message.createdAt?.millisecondsSinceEpoch ?? 0;
+        final timeOrder = aTime.compareTo(bTime);
+        return timeOrder != 0 ? timeOrder : a.order.compareTo(b.order);
+      });
+      final messages = [
+        for (var index = 0; index < uniqueMessages.length; index++)
+          LandlordMessage(
+            text: uniqueMessages[index].message.text,
+            time: uniqueMessages[index].message.time,
+            fromLandlord: uniqueMessages[index].message.fromLandlord,
+            id: uniqueMessages[index].message.id,
+            createdAt: uniqueMessages[index].message.createdAt,
+            index: index,
+            contextId: uniqueMessages[index].message.contextId,
+            roomContext: uniqueMessages[index].message.roomContext,
+          ),
+      ];
+      final latestContext = messages
+          .where((message) => message.roomContext != null)
+          .lastOrNull
+          ?.roomContext;
+      final contexts = <Map<String, dynamic>>[];
+      final contextKeys = <String>{};
+      void keepContext(Map<String, dynamic>? context) {
+        if (context == null) return;
+        final key = '${context['propertyId']}\u0000${context['roomId']}';
+        if (contextKeys.add(key)) {
+          contexts.add(Map<String, dynamic>.from(context));
+        }
+      }
+
+      for (final thread in group) {
+        for (final context in thread.roomContexts) {
+          keepContext(context);
+        }
+        keepContext(thread.lastRoomContext);
+      }
+      for (final message in messages) {
+        keepContext(message.roomContext);
+      }
+      final source = latestContext ?? contexts.lastOrNull;
+      LandlordConversation? current = _records
+          .where(
+            (thread) =>
+                thread.id == id &&
+                thread.propertyId == primary.propertyId &&
+                thread.tenantId == tenantId,
+          )
+          .firstOrNull;
+      current ??= LandlordConversation(
+        id: id,
+        propertyId: primary.propertyId,
+        ownerUid: ownerUid,
+        tenantId: tenantId,
+        tenantName: primary.tenantName,
+        landlordName: primary.landlordName,
+        propertyName: primary.propertyName,
+        room: primary.room,
+        leaseId: primary.leaseId,
+        messages: [],
+      );
+      current
+        ..tenantName = primary.tenantName
+        ..landlordName = primary.landlordName
+        ..propertyName =
+            latestContext?['propertyName'] as String? ?? primary.propertyName
+        ..room = latestContext?['roomName'] as String? ?? primary.room
+        ..lastRoomContext = latestContext ?? source
+        ..unread = group.fold<int>(
+          0,
+          (value, thread) => value > thread.unread ? value : thread.unread,
+        )
+        ..tenantUnread = group.fold<int>(
+          0,
+          (value, thread) =>
+              value > thread.tenantUnread ? value : thread.tenantUnread,
+        );
+      current.messages
+        ..clear()
+        ..addAll(messages);
+      current.roomContexts
+        ..clear()
+        ..addAll(contexts);
+      merged.add(current);
+    }
+    return merged;
   }
 
   LandlordConversation getOrCreate(LandlordConversation conversation) {
@@ -269,6 +453,7 @@ class ConversationStore extends ChangeNotifier {
         id: rentalRecordId('message'),
         createdAt: DateTime.now().toUtc(),
         index: conversation.messages.length,
+        roomContext: conversation.lastRoomContext,
       ),
     );
     if (fromLandlord) {
@@ -285,6 +470,68 @@ class ConversationStore extends ChangeNotifier {
     } else {
       conversation.tenantUnread = 0;
     }
+    notifyListeners();
+  }
+
+  void updateRoomContext(
+    LandlordConversation conversation,
+    Map<String, dynamic> context,
+  ) {
+    final copied = Map<String, dynamic>.from(context);
+    conversation
+      ..lastRoomContext = copied
+      ..room = context['roomName'] as String? ?? conversation.room
+      ..propertyName =
+          context['propertyName'] as String? ?? conversation.propertyName;
+    _addRoomContext(conversation, copied);
+    notifyListeners();
+  }
+
+  void _addRoomContext(
+    LandlordConversation conversation,
+    Map<String, dynamic> context,
+  ) {
+    final propertyId = context['propertyId'];
+    final roomId = context['roomId'];
+    if (conversation.roomContexts.any(
+      (existing) =>
+          existing['propertyId'] == propertyId && existing['roomId'] == roomId,
+    )) {
+      return;
+    }
+    conversation.roomContexts.add(Map<String, dynamic>.from(context));
+  }
+
+  void addContextMessage(
+    LandlordConversation conversation, {
+    required String contextId,
+    required String text,
+    required String time,
+    required Map<String, dynamic> roomContext,
+  }) {
+    if (conversation.messages.any(
+      (message) => message.contextId == contextId,
+    )) {
+      return;
+    }
+    conversation
+      ..lastRoomContext = roomContext
+      ..room = roomContext['roomName'] as String? ?? conversation.room
+      ..propertyName =
+          roomContext['propertyName'] as String? ?? conversation.propertyName;
+    conversation.messages.add(
+      LandlordMessage(
+        text: text,
+        time: time,
+        fromLandlord: false,
+        id: contextId,
+        contextId: contextId,
+        createdAt: DateTime.now().toUtc(),
+        index: conversation.messages.length,
+        roomContext: roomContext,
+      ),
+    );
+    conversation.unread++;
     notifyListeners();
   }
 }

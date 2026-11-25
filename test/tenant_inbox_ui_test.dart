@@ -131,14 +131,18 @@ void main() {
       expect(target.tenantUnread, 0);
       await tester.tap(find.byTooltip('Tin nhắn gợi ý'));
       await tester.pumpAndSettle();
-      const suggestion = 'Tôi đã thanh toán, nhờ chủ trọ kiểm tra giúp.';
-      await tester.ensureVisible(find.text(suggestion));
-      await tester.tap(find.text(suggestion));
-      await tester.pumpAndSettle();
-      expect(
-        tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        suggestion,
+      final suggestionTile = find.widgetWithText(
+        ListTile,
+        'Gửi mã người thuê trọ',
       );
+      await tester.ensureVisible(suggestionTile);
+      await tester.tap(suggestionTile);
+      await tester.pumpAndSettle();
+      final suggestion = tester
+          .widget<TextField>(find.byType(TextField))
+          .controller!
+          .text;
+      expect(suggestion, startsWith('Mã người thuê trọ của tôi là '));
       expect(target.messages.length, originalMessages.length);
       tester.view.viewInsets = const FakeViewPadding(bottom: 260);
       await tester.pumpAndSettle();
@@ -159,10 +163,11 @@ void main() {
       expect(target.tenantUnread, 0);
       tester.view.resetViewInsets();
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Thông tin cuộc trò chuyện'));
+      await tester.tap(find.byTooltip('Thông tin chủ trọ'));
       await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsOneWidget);
-      await tester.tap(find.text('Đóng'));
+      expect(find.text('Thông tin chủ trọ'), findsOneWidget);
+      await tester.pumpAndSettle();
+      await tester.pageBack();
       await tester.pumpAndSettle();
       await tester.pageBack();
       await tester.pumpAndSettle();

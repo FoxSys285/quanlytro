@@ -35,6 +35,57 @@ LandlordInvoice issue(
 );
 
 void main() {
+  testWidgets('Cash request needs no transfer reference and can be cancelled', (
+    tester,
+  ) async {
+    final rental = LandlordDemoStore.demo();
+    addTearDown(rental.dispose);
+    final invoice = issue(rental, 11);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TenantInvoiceDetailPage(
+          invoiceId: invoice.id,
+          store: rental,
+          tenantId: TenantSession.tenantId,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Thanh toán bằng tiền mặt'), findsOneWidget);
+    expect(find.text('Thanh toán chuyển khoản'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Thanh toán bằng tiền mặt'));
+    await tester.tap(find.text('Thanh toán bằng tiền mặt'));
+    await tester.pumpAndSettle();
+    expect(find.text('Thanh toán hóa đơn · Tiền mặt'), findsOneWidget);
+    expect(find.text('Mã giao dịch chuyển khoản'), findsNothing);
+    expect(find.text('Chọn ảnh minh chứng (tùy chọn)'), findsNothing);
+    await tester.tap(find.text('Gửi yêu cầu tiền mặt'));
+    await tester.pumpAndSettle();
+
+    final payment = rental.payments.singleWhere(
+      (item) => item.invoiceId == invoice.id,
+    );
+    expect(payment.method, 'Tiền mặt');
+    expect(payment.reference, isEmpty);
+    expect(payment.proofName, isNull);
+    expect(payment.status, LandlordPaymentStatus.pending);
+    expect(invoice.paidAmount, 0);
+    expect(invoice.pendingPaymentId, payment.id);
+    expect(find.text('Chờ chủ trọ duyệt'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Hủy yêu cầu tiền mặt'));
+    await tester.tap(find.text('Hủy yêu cầu tiền mặt'));
+    await tester.pumpAndSettle();
+    expect(payment.status, LandlordPaymentStatus.cancelled);
+    expect(invoice.paidAmount, 0);
+    expect(invoice.pendingPaymentId, isNull);
+    expect(find.text('Đã hủy yêu cầu'), findsOneWidget);
+    expect(find.text('Thanh toán bằng tiền mặt'), findsOneWidget);
+    expect(find.text('Thanh toán chuyển khoản'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [320.0, 390.0, 1280.0]) {
     testWidgets(
       'Invoice dashboard fits and quick actions open real flows at $width',
@@ -73,7 +124,10 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        expect(find.text('Hóa đơn hiện tại'), findsOneWidget);
+        expect(
+          find.text('Hóa đơn ${landlordMonth(current.period)}'),
+          findsOneWidget,
+        );
         expect(find.text('Hạn thanh toán: 25/11/2026'), findsOneWidget);
         expect(find.text('2.500.000đ'), findsOneWidget);
         expect(
@@ -121,18 +175,24 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.ensureVisible(
-          find.byKey(const ValueKey('invoice-pay-now')),
+          find.byKey(const ValueKey('invoice-pay-transfer')),
         );
-        await tester.tap(find.byKey(const ValueKey('invoice-pay-now')));
+        await tester.tap(find.byKey(const ValueKey('invoice-pay-transfer')));
         await tester.pumpAndSettle();
-        expect(find.text('Thanh toán hóa đơn'), findsOneWidget);
-        final fields = find.byType(TextFormField);
-        await tester.enterText(fields.last, 'UI-PAYMENT-TEST');
-        await tester.ensureVisible(find.text('Gửi thanh toán'));
-        await tester.tap(find.text('Gửi thanh toán'));
+        expect(find.text('Thanh toán hóa đơn · Chuyển khoản'), findsOneWidget);
+        expect(find.text('Mã giao dịch chuyển khoản'), findsOneWidget);
+        await tester.enterText(
+          find.byType(TextFormField).last,
+          'UI-PAYMENT-TEST',
+        );
+        await tester.ensureVisible(find.text('Gửi thông tin chuyển khoản'));
+        await tester.tap(find.text('Gửi thông tin chuyển khoản'));
         await tester.pumpAndSettle();
         expect(find.byType(BottomSheet), findsNothing);
-        expect(find.text('Đang chờ xác nhận'), findsOneWidget);
+        expect(
+          find.text('Đang chờ chủ trọ xử lý yêu cầu thanh toán.'),
+          findsOneWidget,
+        );
         expect(
           current.paidAmount,
           0,
@@ -141,46 +201,45 @@ void main() {
         final payment = rental.payments.firstWhere(
           (payment) => payment.invoiceId == current.id,
         );
+        expect(payment.reference, 'UI-PAYMENT-TEST');
+        expect(payment.status, LandlordPaymentStatus.pending);
         rental.approvePayment(payment, 1000000);
         await tester.pumpAndSettle();
         expect(find.text('1.500.000đ'), findsOneWidget);
-        expect(find.text('Thanh toán ngay'), findsOneWidget);
+        expect(find.text('Thanh toán bằng tiền mặt'), findsWidgets);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());
       },
     );
   }
 
-  testWidgets('Invoice selection and empty state follow outstanding balances', (
-    tester,
-  ) async {
-    final rental = LandlordDemoStore.demo();
-    addTearDown(rental.dispose);
-    final next = issue(rental, 11);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: TenantInvoicesPage(store: rental)),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Đang chờ xác nhận'), findsOneWidget);
-    await tester.ensureVisible(find.text('Còn 2 hóa đơn cần thanh toán'));
-    await tester.tap(find.text('Còn 2 hóa đơn cần thanh toán'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Tháng 11/2026'));
-    await tester.pumpAndSettle();
-    expect(find.text('Hạn thanh toán: 25/11/2026'), findsOneWidget);
-    expect(find.text('Thanh toán ngay'), findsOneWidget);
-    rental.approvePayment(
-      rental.payments.first,
-      rental.payments.first.reportedAmount,
-    );
-    rental.cancelInvoice(next);
-    await tester.pumpAndSettle();
-    expect(find.text('Bạn không còn hóa đơn cần trả'), findsOneWidget);
-    expect(find.byKey(const ValueKey('invoice-pay-now')), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'Outstanding invoice cards show both configured payment methods',
+    (tester) async {
+      final rental = LandlordDemoStore.demo();
+      addTearDown(rental.dispose);
+      final next = issue(rental, 11);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: TenantInvoicesPage(store: rental)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Hóa đơn ${landlordMonth(next.period)}'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('invoice-pay-cash')),
+        findsAtLeastNWidgets(1),
+      );
+      expect(
+        find.byKey(const ValueKey('invoice-pay-transfer')),
+        findsAtLeastNWidgets(1),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Tenant without invoices sees no other tenant amounts', (
     tester,

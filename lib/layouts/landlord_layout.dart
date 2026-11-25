@@ -118,6 +118,7 @@ class _LandlordLayoutState extends State<LandlordLayout> {
               'payments',
               'payment_accounts',
               'incidents',
+              'staff',
               'settings',
               'support',
             },
@@ -136,6 +137,7 @@ class _LandlordLayoutState extends State<LandlordLayout> {
               'payments',
               'payment_accounts',
               'incidents',
+              'staff',
             },
             hideBottomNavigationOnDestinations: const {'settings', 'support'},
             notificationsEnabled: AccountStore.instance.notificationsEnabled(
@@ -324,6 +326,12 @@ class _LandlordLayoutState extends State<LandlordLayout> {
                 id: 'incidents',
                 label: 'Yêu cầu sửa chữa',
                 icon: Icons.build_outlined,
+                group: 'Vận hành',
+              ),
+              RoleDestination(
+                id: 'staff',
+                label: 'Nhân viên',
+                icon: Icons.badge_outlined,
                 group: 'Vận hành',
               ),
               RoleDestination(

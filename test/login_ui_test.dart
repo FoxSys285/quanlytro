@@ -8,6 +8,7 @@ import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
 import 'package:quanlytro/pages/shared/auth/login_page.dart';
 import 'package:quanlytro/pages/shared/auth/forgot_password_page.dart';
 import 'package:quanlytro/pages/shared/auth/register_page.dart';
+import 'package:quanlytro/pages/shared/auth/phone_login_page.dart';
 
 void main() {
   setUpAll(() async {
@@ -67,6 +68,33 @@ void main() {
     });
   }
 
+  testWidgets(
+    'Partial email stays on email login until phone mode is selected',
+    (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+      final identifier = find.byType(TextField).first;
+      await tester.enterText(identifier, 'abc');
+      await tester.pump();
+      expect(find.widgetWithText(FilledButton, 'Đăng nhập'), findsOneWidget);
+      expect(find.text('Nhận mã OTP'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('login-phone-mode')));
+      await tester.pump();
+      expect(find.widgetWithText(FilledButton, 'Nhận mã OTP'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(identifier).keyboardType,
+        TextInputType.phone,
+      );
+      expect(find.byType(TextField), findsOneWidget);
+
+      await tester.enterText(identifier, 'not a phone');
+      await tester.tap(find.widgetWithText(FilledButton, 'Nhận mã OTP'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PhoneLoginPage), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Login opens registration and recovery with the entered email', (
     tester,
   ) async {
@@ -109,14 +137,11 @@ void main() {
       LocalAuth.instance.signOut();
       await tester.pumpWidget(const MyApp(requireLogin: true));
       expect(find.byType(LoginPage), findsOneWidget);
-      final landlord = find.widgetWithText(ActionChip, 'Chủ trọ');
-      await tester.ensureVisible(landlord);
-      await tester.tap(landlord);
-      await tester.pump();
-      expect(
-        tester.widget<TextField>(find.byType(TextField).last).controller!.text,
-        'Tro@2026',
+      await tester.enterText(
+        find.byType(TextField).first,
+        LocalAuth.emailFor(AppRole.landlord),
       );
+      await tester.enterText(find.byType(TextField).last, 'Tro@2026');
       await tester.ensureVisible(
         find.widgetWithText(FilledButton, 'Đăng nhập'),
       );
@@ -133,11 +158,13 @@ void main() {
       expect(find.byType(LoginPage), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.tap(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is Semantics &&
-              widget.properties.label == 'Mở danh mục chức năng',
-        ).first,
+        find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics &&
+                  widget.properties.label == 'Mở danh mục chức năng',
+            )
+            .first,
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Đăng xuất').last);

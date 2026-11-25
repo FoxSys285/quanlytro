@@ -31,7 +31,10 @@ void main() {
       'tenant-second',
     );
     expect(
-      const TenantPaymentInstructionsSheet(invoiceId: 'i').tenantId,
+      const TenantPaymentInstructionsSheet(
+        invoiceId: 'i',
+        method: 'Tiền mặt',
+      ).tenantId,
       'tenant-second',
     );
     expect(const TenantAnnouncementsPage().tenantId, 'tenant-second');

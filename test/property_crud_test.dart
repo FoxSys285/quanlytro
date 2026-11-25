@@ -187,7 +187,7 @@ void main() {
         RentalPortfolio.instance = original;
       });
       await persistence.initializeAsync();
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await expectLater(persistence.waitForInitialSync(), throwsStateError);
       expect(persistence.initialSyncFailed, isTrue);
       expect(persistence.error.value, contains('Không tải được dữ liệu'));
       expect(RentalPortfolio.instance.stores, isEmpty);

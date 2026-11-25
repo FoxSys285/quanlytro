@@ -5,7 +5,6 @@ import 'package:quanlytro/layouts/landlord_navigation.dart';
 import 'package:quanlytro/layouts/role_layout.dart';
 import 'package:quanlytro/pages/admin/admin_page_router.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
-import 'package:quanlytro/pages/landlord/landlord_theme.dart';
 import 'package:quanlytro/pages/landlord/properties/property_portfolio_page.dart';
 import 'package:quanlytro/pages/landlord/rooms/components/landlord_room_button.dart';
 import 'package:quanlytro/pages/landlord/rooms/components/landlord_room_editor.dart';
@@ -29,31 +28,36 @@ void main() {
       expect(find.text('Thao tác nhanh'), findsOneWidget);
       expect(find.text('Xem & quản lý phòng trọ'), findsOneWidget);
 
-      final before = tester.widget<Scaffold>(find.byType(Scaffold).first);
-      final switchTooltip =
-          before.backgroundColor == LandlordPalette.dark.canvas
-          ? 'Chuyển sang giao diện sáng'
-          : 'Chuyển sang giao diện tối';
-      await tester.tap(find.byTooltip(switchTooltip));
+      await tester.tap(find.byTooltip('Mở danh mục chức năng'));
       await tester.pumpAndSettle();
-      final after = tester.widget<Scaffold>(find.byType(Scaffold).first);
-      expect(after.backgroundColor, isNot(before.backgroundColor));
+      final lightTooltip = find.byTooltip('Chuyển sang giao diện sáng');
+      final darkTooltip = find.byTooltip('Chuyển sang giao diện tối');
+      final switchingToLight = lightTooltip.evaluate().isNotEmpty;
+      await tester.tap(switchingToLight ? lightTooltip : darkTooltip);
+      await tester.pumpAndSettle();
+      expect(switchingToLight ? darkTooltip : lightTooltip, findsOneWidget);
       expect(tester.takeException(), isNull);
 
-      await tester.tap(find.text('Xem & quản lý phòng trọ'));
-      await tester.pumpAndSettle();
-      expect(find.byType(LandlordRoomsPage), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.descendant(
+          of: find.byType(Drawer),
+          matching: find.text('Phòng trọ'),
+        ),
+        250,
+        scrollable: find.descendant(
+          of: find.byType(Drawer),
+          matching: find.byType(Scrollable),
+        ),
+      );
       await tester.tap(
         find.descendant(
-          of: find.byType(LandlordBottomNavigation),
-          matching: find.text('Tổng quan'),
+          of: find.byType(Drawer),
+          matching: find.text('Phòng trọ'),
         ),
       );
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Phòng'));
-      await tester.pumpAndSettle();
       expect(find.byType(LandlordRoomsPage), findsOneWidget);
+      expect(find.byType(LandlordBottomNavigation), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -78,24 +82,22 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(PropertyPortfolioPage), findsOneWidget);
-      expect(find.text('454'), findsOneWidget);
+      expect(
+        find.text('${RentalPortfolio.instance.active.catalog.length} phòng'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byType(DropdownButtonFormField<String>).first);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Nhà Nâu · 18 phòng').last);
+      final propertyName = find.text('Nhà Nâu').first;
+      await tester.ensureVisible(propertyName);
+      await tester.tap(propertyName);
       await tester.pumpAndSettle();
       expect(RentalPortfolio.instance.active.property.name, 'Nhà Nâu');
-      await tester.tap(find.text('Phòng'));
-      await tester.pumpAndSettle();
+      expect(find.text('Phòng trọ (18)'), findsOneWidget);
       expect(find.byType(LandlordRoomsPage), findsOneWidget);
       expect(find.byType(LandlordRoomButton), findsNWidgets(12));
-      final roomButton = find.byType(LandlordRoomButton).first;
-      await tester.ensureVisible(roomButton);
-      await tester.tap(roomButton);
+      await tester.ensureVisible(find.text('Thêm phòng mới'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Chỉnh sửa phòng'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Chỉnh sửa phòng'));
+      await tester.tap(find.text('Thêm phòng mới'));
       await tester.pumpAndSettle();
       expect(find.byType(LandlordRoomEditor), findsOneWidget);
       await tester.tap(find.text('Hủy'));

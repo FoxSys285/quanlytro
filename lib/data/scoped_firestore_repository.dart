@@ -217,6 +217,14 @@ class ScopedFirestoreRentalRepository
     } else {
       watch(properties.snapshots());
       watch(records.snapshots());
+      if (session.role == AppRole.landlord) {
+        watch(
+          _firestore
+              .collection('public_rooms')
+              .where('ownerUid', isEqualTo: session.uid)
+              .snapshots(),
+        );
+      }
     }
     watch(tickets.snapshots());
     watch(_firestore.doc('user_state/${session.uid}').snapshots());
@@ -317,6 +325,11 @@ class ScopedFirestoreRentalRepository
         _firestore.doc('management/system').get(options)
       else if (session.role == AppRole.landlord)
         _firestore.doc('management/${session.uid}').get(options),
+      if (session.role == AppRole.landlord)
+        _firestore
+            .collection('public_rooms')
+            .where('ownerUid', isEqualTo: session.uid)
+            .get(options),
     ];
     final results = await Future.wait(futures);
     final propertyDocs =
@@ -354,6 +367,12 @@ class ScopedFirestoreRentalRepository
           kind: <dynamic>[],
         'counters': List.filled(7, 1),
       };
+    }
+    if (session.role == AppRole.landlord) {
+      final publicRoomSnap = results[6] as QuerySnapshot<Map<String, dynamic>>;
+      for (final doc in publicRoomSnap.docs) {
+        _baseline[doc.reference.path] = doc.data();
+      }
     }
     final snapshot = <String, Map<String, dynamic>>{
       'viewings': {'records': <dynamic>[], 'nextId': 1},
@@ -397,6 +416,10 @@ class ScopedFirestoreRentalRepository
           reads.addAll(Map<String, dynamic>.from(data['readByTenant'] as Map));
         }
       } else if (kind == 'conversations' || kind == 'viewings') {
+        if (kind == 'conversations') {
+          data['ownerUid'] =
+              envelope['ownerUid'] as String? ?? data['ownerUid'] ?? '';
+        }
         (snapshot[kind]!['records'] as List).add(data);
       } else if ((kind == 'announcements' && session.role != AppRole.tenant) ||
           (kind == 'tenantAnnouncements' && session.role == AppRole.tenant)) {
@@ -532,6 +555,8 @@ class ScopedFirestoreRentalRepository
             !path.startsWith('rental_records/') ||
             ![
               'payments',
+              'invoices',
+              'leases',
               'members',
               'incidents',
               'viewings',
@@ -542,6 +567,51 @@ class ScopedFirestoreRentalRepository
       );
       for (final entry in encoded.entries) {
         final saved = _baseline[entry.key];
+        if (entry.value['kind'] == 'leases' && saved != null) {
+          final data = Map<String, dynamic>.from(entry.value['data'] as Map);
+          final savedData = Map<String, dynamic>.from(saved['data'] as Map);
+          const requestFields = [
+            'terminationRequestStatus',
+            'terminationRequestedAt',
+            'terminationRequestedBy',
+            'terminationRequestReason',
+            'terminationReviewedAt',
+            'terminationRejectionReason',
+            'renewalStatus',
+            'renewalRequestedAt',
+            'renewalRequestedBy',
+            'renewalProposedEndDate',
+            'renewalReason',
+            'renewalReviewedAt',
+            'renewalRejectionReason',
+          ];
+          entry.value['data'] = {
+            ...savedData,
+            for (final key in requestFields)
+              if (cloudFingerprint(data[key]) !=
+                  cloudFingerprint(savedData[key]))
+                key: data[key],
+          };
+        }
+        if (entry.value['kind'] == 'invoices' && saved != null) {
+          final data = Map<String, dynamic>.from(entry.value['data'] as Map);
+          final savedData = Map<String, dynamic>.from(saved['data'] as Map);
+          entry.value['data'] = {
+            ...savedData,
+            if (cloudFingerprint(data['pendingPaymentId']) !=
+                cloudFingerprint(savedData['pendingPaymentId']))
+              'pendingPaymentId': data['pendingPaymentId'],
+          };
+        }
+        if (entry.value['kind'] == 'payments' && saved != null) {
+          final data = Map<String, dynamic>.from(entry.value['data'] as Map);
+          final savedData = Map<String, dynamic>.from(saved['data'] as Map);
+          entry.value['data'] = {
+            ...savedData,
+            'status': data['status'],
+            'reviewedAt': data['reviewedAt'],
+          };
+        }
         if (entry.value['kind'] == 'conversations' && saved != null) {
           final data = entry.value['data'] as Map;
           // Rental-derived names are display data; tenants only change counters.
@@ -665,24 +735,36 @@ class ScopedFirestoreRentalRepository
               _baseline.containsKey(entry.key)
               ? _localBaseline[entry.key]
               : null;
-          final value = isAdminProperty
-              ? mergeCloudAdminProperty(
-                  before,
-                  entry.value,
-                  live[i].data(),
-                  serverBefore: _baseline[entry.key],
-                )
-              : mergeCloudDocument(
-                  before,
-                  entry.value,
-                  live[i].data(),
-                  serverBefore: _baseline[entry.key],
-                  atomic: [
-                    'leases',
-                    'invoices',
-                    'payments',
-                  ].contains(entry.value['kind']),
-                );
+          late final Map<String, dynamic> value;
+          try {
+            value = isAdminProperty
+                ? mergeCloudAdminProperty(
+                    before,
+                    entry.value,
+                    live[i].data(),
+                    serverBefore: _baseline[entry.key],
+                  )
+                : mergeCloudDocument(
+                    before,
+                    entry.value,
+                    live[i].data(),
+                    serverBefore: _baseline[entry.key],
+                    atomic: [
+                      'leases',
+                      'invoices',
+                      'payments',
+                    ].contains(entry.value['kind']),
+                  );
+          } on CloudMergeConflict catch (failure) {
+            final kind = entry.value['kind'];
+            final documentType = kind is String
+                ? kind
+                : entry.key.split('/').first;
+            debugPrint(
+              'Firestore sync conflict in $documentType at ${failure.fieldPath}',
+            );
+            rethrow;
+          }
           // Preserve moderation even when admin hides a room after our read.
           if (session.role == AppRole.landlord &&
               entry.key.startsWith('public_rooms/') &&

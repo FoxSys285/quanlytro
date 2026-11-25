@@ -281,6 +281,7 @@ class _TenantViewingRequestSheetState extends State<TenantViewingRequestSheet> {
     final today = _dateOnly(DateTime.now());
     final picked = await showDatePicker(
       context: context,
+      locale: const Locale('vi', 'VN'),
       initialDate: _viewingDate.isBefore(today) ? today : _viewingDate,
       firstDate: today,
       lastDate: today.add(const Duration(days: 60)),

@@ -494,7 +494,12 @@ class FirebaseAccountGateway
       ].contains(error.code)) {
         throw const AccountSignInCancelled();
       }
-      throw _friendlyError(error);
+      if (kDebugMode) {
+        debugPrint(
+          'Google sign-in diagnostic: ${error.code}; ${_safeGoogleDiagnostic(error.message)}',
+        );
+      }
+      throw _friendlyGoogleError(error);
     } catch (error) {
       throw _friendlyError(error);
     }
@@ -690,11 +695,70 @@ class FirebaseAccountGateway
   static ArgumentError _friendlyError(Object error) {
     if (error is ArgumentError) return error;
     if (error is FirebaseAuthException) {
-      return ArgumentError(_message(error.code));
+      return ArgumentError(
+        _authConfigurationError(error) ?? _message(error.code),
+      );
     }
     return ArgumentError(
       'Chưa thể xác thực tài khoản. Vui lòng kiểm tra mạng và thử lại.',
     );
+  }
+
+  static ArgumentError _friendlyGoogleError(FirebaseAuthException error) {
+    debugPrint('Google sign-in failed: ${error.code}');
+    final configurationError = _authConfigurationError(error);
+    if (configurationError != null) return ArgumentError(configurationError);
+    final message = switch (error.code) {
+      'operation-not-allowed' =>
+        'Đăng nhập bằng Google chưa được bật trong Firebase Authentication.',
+      'user-disabled' => 'Tài khoản Firebase này đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.',
+      'invalid-credential' || 'invalid-idp-response' => 'Google/Firebase từ chối thông tin xác thực. Hãy thử lại; nếu vẫn lỗi, quản trị viên cần kiểm tra cấu hình Google OAuth.',
+      'app-not-authorized' || 'invalid-oauth-client-id' => 'Ứng dụng chưa được Firebase cho phép đăng nhập Google. Quản trị viên cần kiểm tra cấu hình OAuth của ứng dụng.',
+      'account-exists-with-different-credential' => 'Email Google này đã có tài khoản bằng phương thức đăng nhập khác. Hãy đăng nhập bằng phương thức đó trước.',
+      'network-request-failed' => 'Không có kết nối mạng. Vui lòng thử lại.',
+      'too-many-requests' => 'Đã thử quá nhiều lần. Vui lòng thử lại sau.',
+      'unknown' || 'internal-error' => 'Chưa thể đăng nhập Google. Vui lòng thử lại; nếu vẫn lỗi, hãy báo quản trị viên kiểm tra nhật ký Firebase Authentication.',
+      _ =>
+        'Đăng nhập Google chưa thành công (mã lỗi: ${error.code}). Vui lòng thử lại hoặc báo quản trị viên mã lỗi này.',
+    };
+    return ArgumentError(message);
+  }
+
+  static String? _authConfigurationError(FirebaseAuthException error) {
+    final diagnostic = (error.message ?? '').toLowerCase();
+    if (diagnostic.contains('api_key_service_blocked') ||
+        (diagnostic.contains('requests to this api') &&
+            diagnostic.contains('are blocked'))) {
+      return 'Cấu hình khóa API của ứng dụng đang chặn Firebase Authentication. '
+          'Vui lòng cập nhật ứng dụng; quản trị viên cần kiểm tra khóa API '
+          'và quyền truy cập Identity Toolkit API, Secure Token API.';
+    }
+    if (error.code == 'unknown' || error.code == 'internal-error') {
+      return 'Chưa thể xác thực tài khoản. Vui lòng thử lại; nếu vẫn lỗi, '
+          'hãy báo quản trị viên kiểm tra nhật ký Firebase Authentication.';
+    }
+    return null;
+  }
+
+  static String _safeGoogleDiagnostic(String? message) {
+    if (message == null || message.isEmpty) return 'no diagnostic message';
+    final safe = message
+        .replaceAll(RegExp(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}'), '[email]')
+        .replaceAll(RegExp(r'\bAIza[\w-]{20,}\b'), '[API key]')
+        .replaceAll(
+          RegExp(r'\b[\w-]+\.apps\.googleusercontent\.com\b'),
+          '[OAuth client]',
+        )
+        .replaceAll(
+          RegExp(r'\beyJ[\w-]{20,}\.[\w-]{10,}(?:\.[\w-]+)?\b'),
+          '[token]',
+        )
+        .replaceAll(RegExp(r'https?://\S+'), '[URL]')
+        .replaceAll(RegExp(r'\+?\d[\d -]{7,}\d'), '[number]')
+        .replaceAll(RegExp(r'\b[A-Za-z0-9_-]{32,}\b'), '[identifier]')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return safe.length > 180 ? '${safe.substring(0, 180)}…' : safe;
   }
 
   static ArgumentError _friendlyPhoneError(Object error) {

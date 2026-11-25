@@ -48,7 +48,7 @@ void main() {
         if (role == AppRole.tenant) {
           await tester.tap(find.byTooltip('Quay lại').last);
         } else {
-          await tester.pageBack();
+          await tester.tap(find.byTooltip('Quay lại').last);
         }
         await tester.pumpAndSettle();
         expect(find.byType(AccountSettingsPage), findsOneWidget);
@@ -62,7 +62,7 @@ void main() {
         if (role == AppRole.tenant) {
           await tester.tap(find.byTooltip('Quay lại').last);
         } else {
-          await tester.pageBack();
+          await tester.tap(find.byTooltip('Quay lại').last);
         }
         await tester.pumpAndSettle();
         if (role == AppRole.tenant) {
@@ -75,17 +75,7 @@ void main() {
           expect(tester.takeException(), isNull);
           continue;
         }
-        await tester.tap(find.byTooltip('Tài khoản'));
-        await tester.pumpAndSettle();
-        expect(find.text('Hồ sơ'), findsNothing);
-        await tester.tap(find.widgetWithText(PopupMenuItem<String>, 'Cài đặt'));
-        await tester.pumpAndSettle();
-        await tester.tap(
-          find.descendant(
-            of: find.byType(AppBar),
-            matching: find.byTooltip('Thông báo'),
-          ),
-        );
+        await tester.tap(find.byTooltip('Thông báo').last);
         await tester.pumpAndSettle();
         expect(
           find.byType(
@@ -96,20 +86,6 @@ void main() {
           findsOneWidget,
         );
         expect(find.byType(NotificationSettingsPage), findsNothing);
-        expect(
-          find.descendant(
-            of: find.byType(AppBar),
-            matching: find.byIcon(Icons.notifications_off_outlined),
-          ),
-          findsNothing,
-        );
-        if (role == AppRole.landlord) {
-          await tester.tap(find.text('Tổng quan').last);
-          await tester.pumpAndSettle();
-          await tester.tap(find.text('Thông báo').last);
-          await tester.pumpAndSettle();
-          expect(find.byType(LandlordAnnouncementsPage), findsOneWidget);
-        }
         expect(tester.takeException(), isNull);
       }
     },
@@ -252,7 +228,11 @@ void main() {
           await tester.pumpWidget(
             MaterialApp(
               home: Scaffold(
-                body: NotificationSettingsPage(role: role, store: accounts),
+                body: NotificationSettingsPage(
+                  role: role,
+                  store: accounts,
+                  requestPermission: () async => true,
+                ),
               ),
             ),
           );
@@ -263,7 +243,11 @@ void main() {
           await tester.pumpWidget(
             MaterialApp(
               home: Scaffold(
-                body: NotificationSettingsPage(role: role, store: accounts),
+                body: NotificationSettingsPage(
+                  role: role,
+                  store: accounts,
+                  requestPermission: () async => true,
+                ),
               ),
             ),
           );

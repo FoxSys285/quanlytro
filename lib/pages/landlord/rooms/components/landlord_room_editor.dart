@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../data/app_persistence.dart';
 import '../../../../data/landlord_subscription_service.dart';
@@ -29,7 +28,7 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
       widget.room?.roomTypeId ?? widget.store.roomTypes.firstOrNull?.id;
   String? _error;
   bool _saving = false;
-  bool _applied = false;
+  String? _stagedCode;
 
   @override
   void dispose() {
@@ -41,37 +40,36 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
   }
 
   Future<void> _save() async {
-    if (_saving || (!_applied && !_form.currentState!.validate())) return;
+    if (_saving || !_form.currentState!.validate()) return;
     setState(() {
       _saving = true;
       _error = null;
     });
     try {
-      if (!_applied) {
-        final session = LocalAuth.instance.session;
-        if (widget.room == null && session != null) {
-          final plan = await LandlordSubscriptionService.instance.activePlanFor(
-            session.uid,
-          );
-          if (widget.store.catalog.length >= plan.maxRoomsPerProperty) {
-            throw ArgumentError(
-              'Gói ${plan.name} cho phép tối đa ${plan.maxRoomsPerProperty} phòng mỗi nhà trọ.',
-            );
-          }
-        }
-        widget.store.saveRoom(
-          LandlordRoom(
-            code: _code.text.trim().toUpperCase(),
-            floor: int.parse(_floor.text),
-            area: int.parse(_area.text),
-            capacity: int.parse(_capacity.text),
-            roomTypeId: _type!,
-            leaseRoomCode: widget.room?.leaseRoomCode,
-          ),
-          existingCode: widget.room?.code,
+      final session = LocalAuth.instance.session;
+      if (widget.room == null && _stagedCode == null && session != null) {
+        final plan = await LandlordSubscriptionService.instance.activePlanFor(
+          session.uid,
         );
-        _applied = true;
+        if (widget.store.catalog.length >= plan.maxRoomsPerProperty) {
+          throw ArgumentError(
+            'Gói ${plan.name} cho phép tối đa ${plan.maxRoomsPerProperty} phòng mỗi nhà trọ.',
+          );
+        }
       }
+      final room = LandlordRoom(
+        code: _code.text.trim().toUpperCase(),
+        floor: int.parse(_floor.text),
+        area: int.parse(_area.text),
+        capacity: int.parse(_capacity.text),
+        roomTypeId: _type!,
+        leaseRoomCode: widget.room?.leaseRoomCode,
+      );
+      widget.store.saveRoom(
+        room,
+        existingCode: _stagedCode ?? widget.room?.code,
+      );
+      _stagedCode = room.code;
       final persistence = AppPersistence.current;
       if (persistence == null && LocalAuth.instance.isCloudMode) {
         throw StateError('Chưa kết nối được phiên lưu Firebase.');
@@ -101,7 +99,6 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
   ) => TextFormField(
     controller: controller,
     keyboardType: TextInputType.number,
-    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
     decoration: InputDecoration(labelText: label),
     validator: (v) {
       final n = int.tryParse(v ?? '');
@@ -148,7 +145,7 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
         width: 440,
         child: SingleChildScrollView(
           child: AbsorbPointer(
-            absorbing: _applied,
+            absorbing: false,
             child: Form(
               key: _form,
               child: Column(
@@ -172,8 +169,25 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
                       helperText:
                           'Tên hiển thị duy nhất, ví dụ: 101 hoặc A.101',
                     ),
-                    validator: (v) =>
-                        (v ?? '').trim().isEmpty ? 'Nhập mã phòng.' : null,
+                    validator: (v) {
+                      final code = (v ?? '').trim();
+                      if (code.isEmpty) return 'Nhập mã phòng.';
+                      final currentCode = _stagedCode ?? widget.room?.code;
+                      final normalizedCode = widget.store.canonicalRoom(code);
+                      final normalizedCurrentCode = currentCode == null
+                          ? null
+                          : widget.store.canonicalRoom(currentCode);
+                      final duplicate = widget.store.catalog.any(
+                        (room) =>
+                            widget.store.canonicalRoom(room.code) ==
+                                normalizedCode &&
+                            widget.store.canonicalRoom(room.code) !=
+                                normalizedCurrentCode,
+                      );
+                      return duplicate
+                          ? 'Mã phòng này đã tồn tại.'
+                          : null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   _number(_floor, 'Tầng', 1, 30),
@@ -228,7 +242,7 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Text(
-                        _applied
+                        _stagedCode != null || widget.room != null
                             ? '$_error\nThay đổi đang chờ lưu lên Firebase. Nhấn Lưu phòng để thử lại.'
                             : _error!,
                         style: const TextStyle(color: Colors.red),
@@ -243,7 +257,7 @@ class _LandlordRoomEditorState extends State<LandlordRoomEditor> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context),
-          child: Text(_applied ? 'Đóng' : 'Hủy'),
+          child: Text(_stagedCode != null ? 'Đóng' : 'Hủy'),
         ),
         FilledButton.icon(
           onPressed: _saving ? null : _save,

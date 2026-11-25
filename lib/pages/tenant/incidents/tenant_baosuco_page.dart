@@ -290,6 +290,7 @@ class _IncidentRequestSheetState extends State<_IncidentRequestSheet> {
   Widget build(BuildContext context) => TenantBottomSheetSurface(
     child: Form(
       key: _form,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

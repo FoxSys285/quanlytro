@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/app_persistence.dart';
+import '../../../../data/local_auth.dart';
 
 import 'package:image_picker/image_picker.dart';
 
@@ -83,53 +84,35 @@ class _TenantMemberAccountActionsState
   }
 
   Future<void> _requestLeave() async {
-    final controller = TextEditingController();
     final reason = await showDialog<String>(
       context: context,
-      builder: (context) => TenantDetailTheme(
-        child: AlertDialog(
-          title: const Text('Yêu cầu rời phòng'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Vui lòng báo trước ít nhất 30 ngày để chủ trọ sắp xếp. '
-                'Bạn sẽ tiếp tục là thành viên trong thời gian báo trước.',
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                minLines: 2,
-                maxLines: 4,
-                maxLength: 300,
-                decoration: const InputDecoration(labelText: 'Lý do rời phòng'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Hủy'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, controller.text.trim()),
-              child: const Text('Gửi yêu cầu'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => const _MemberLeaveDialog(),
     );
-    controller.dispose();
     if (reason == null || !mounted) return;
+    final member = widget.member;
+    final previous = (
+      member.leaveReason,
+      member.leaveRequestedAt,
+      member.leaveEffectiveAt,
+      member.leaveAcknowledgedAt,
+    );
     try {
       widget.store.requestMemberLeave(
-        tenantId: widget.member.tenantId,
+        tenantId: member.tenantId,
         reason: reason,
       );
-      await AppPersistence.current?.flush();
+      final persistence = AppPersistence.current;
+      if (persistence == null && LocalAuth.instance.isCloudMode) {
+        throw StateError('Chưa kết nối phiên lưu Firebase.');
+      }
+      await persistence?.flush();
     } catch (failure) {
+      member
+        ..leaveReason = previous.$1
+        ..leaveRequestedAt = previous.$2
+        ..leaveEffectiveAt = previous.$3
+        ..leaveAcknowledgedAt = previous.$4;
+      widget.store.notifyStateRestored();
       if (!mounted) return;
       final message = failure is ArgumentError
           ? failure.message.toString()
@@ -213,6 +196,70 @@ class _TenantMemberAccountActionsState
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : Text(path == null ? 'Chọn ảnh' : 'Thay ảnh'),
+    ),
+  );
+}
+
+class _MemberLeaveDialog extends StatefulWidget {
+  const _MemberLeaveDialog();
+
+  @override
+  State<_MemberLeaveDialog> createState() => _MemberLeaveDialogState();
+}
+
+class _MemberLeaveDialogState extends State<_MemberLeaveDialog> {
+  final _form = GlobalKey<FormState>();
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TenantDetailTheme(
+    child: AlertDialog(
+      scrollable: true,
+      title: const Text('Yêu cầu rời phòng'),
+      content: Form(
+        key: _form,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Vui lòng báo trước ít nhất 30 ngày để chủ trọ sắp xếp. '
+              'Bạn sẽ tiếp tục là thành viên trong thời gian báo trước.',
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _reason,
+              autofocus: true,
+              minLines: 2,
+              maxLines: 4,
+              maxLength: 300,
+              decoration: const InputDecoration(labelText: 'Lý do rời phòng'),
+              validator: (value) => (value ?? '').trim().length < 5
+                  ? 'Nhập lý do (ít nhất 5 ký tự).'
+                  : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (!_form.currentState!.validate()) return;
+            Navigator.pop(context, _reason.text.trim());
+          },
+          child: const Text('Gửi yêu cầu'),
+        ),
+      ],
     ),
   );
 }

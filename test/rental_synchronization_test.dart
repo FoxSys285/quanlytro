@@ -169,7 +169,7 @@ void main() {
       tenantId: TenantSession.tenantId,
       invoiceId: invoice.id,
       amount: invoice.remaining,
-      reference: 'REF-3',
+      reference: '',
       method: 'Tiền mặt',
     );
     store.approvePayment(finalPayment, invoice.remaining);
@@ -180,7 +180,7 @@ void main() {
         tenantId: TenantSession.tenantId,
         invoiceId: invoice.id,
         amount: 1,
-        reference: 'REF-4',
+        reference: '',
         method: 'Tiền mặt',
       ),
       throwsArgumentError,
@@ -689,17 +689,24 @@ void main() {
         );
         expect(find.text('Điện · 10 kWh'), findsOneWidget);
         expect(find.text('35.000 đ'), findsOneWidget);
-        final pay = find.widgetWithText(FilledButton, 'Thanh toán hóa đơn');
+        final pay = find.widgetWithText(
+          FilledButton,
+          'Thanh toán bằng tiền mặt',
+        );
         await tester.ensureVisible(pay);
         await tester.tap(pay);
         await tester.pumpAndSettle();
-        await tester.enterText(find.byType(TextFormField).last, 'UI-REF');
-        final submit = find.widgetWithText(FilledButton, 'Gửi thanh toán');
+        expect(find.text('Thanh toán hóa đơn · Tiền mặt'), findsOneWidget);
+        final submit = find.widgetWithText(
+          FilledButton,
+          'Gửi yêu cầu tiền mặt',
+        );
         await tester.ensureVisible(submit);
         await tester.tap(submit);
         await tester.pumpAndSettle();
         final payment = store.payments.first;
-        expect(payment.reference, 'UI-REF');
+        expect(payment.method, 'Tiền mặt');
+        expect(payment.reference, isEmpty);
         expect(invoice.paidAmount, 0);
         expect(find.text('Chờ chủ trọ duyệt'), findsOneWidget);
         store.approvePayment(payment, payment.reportedAmount);

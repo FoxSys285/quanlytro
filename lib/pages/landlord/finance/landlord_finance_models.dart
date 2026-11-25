@@ -418,6 +418,8 @@ class LandlordInvoice {
     required this.charges,
     this.paidAmount = 0,
     this.cancelled = false,
+    this.pendingPaymentId,
+    this.lastApprovedPaymentId,
   });
 
   final String id;
@@ -429,6 +431,8 @@ class LandlordInvoice {
   final List<LandlordInvoiceCharge> charges;
   int paidAmount;
   bool cancelled;
+  String? pendingPaymentId;
+  String? lastApprovedPaymentId;
 
   int get total => charges.fold(0, (sum, charge) => sum + charge.amount);
   int get remaining {
@@ -465,6 +469,8 @@ class LandlordInvoice {
     'charges': charges.map((item) => item.toMap()).toList(),
     'paidAmount': paidAmount,
     'cancelled': cancelled,
+    'pendingPaymentId': pendingPaymentId,
+    'lastApprovedPaymentId': lastApprovedPaymentId,
   };
 
   factory LandlordInvoice.fromMap(Map<String, dynamic> map) => LandlordInvoice(
@@ -483,10 +489,12 @@ class LandlordInvoice {
         .toList(),
     paidAmount: map['paidAmount'] as int,
     cancelled: map['cancelled'] as bool,
+    pendingPaymentId: map['pendingPaymentId'] as String?,
+    lastApprovedPaymentId: map['lastApprovedPaymentId'] as String?,
   );
 }
 
-enum LandlordPaymentStatus { pending, approved, rejected }
+enum LandlordPaymentStatus { pending, approved, rejected, cancelled }
 
 class LandlordPayment {
   LandlordPayment({

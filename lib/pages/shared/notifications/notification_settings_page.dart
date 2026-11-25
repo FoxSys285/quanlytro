@@ -10,9 +10,15 @@ import '../../tenant/tenant_ui.dart';
 import '../../tenant/tenant_feature_ui.dart';
 
 class NotificationSettingsPage extends StatelessWidget {
-  const NotificationSettingsPage({super.key, required this.role, this.store});
+  const NotificationSettingsPage({
+    super.key,
+    required this.role,
+    this.store,
+    this.requestPermission,
+  });
   final AppRole role;
   final AccountStore? store;
+  final Future<bool> Function()? requestPermission;
   @override
   Widget build(BuildContext context) {
     final accounts = store ?? AccountStore.instance;
@@ -74,8 +80,10 @@ class NotificationSettingsPage extends StatelessWidget {
                     final granted = session != null && session.role == role
                         ? await AppNotificationService.instance
                               .requestAndRegister(session, enabled: true)
-                        : await AppNotificationService.instance
-                              .requestPermissionOnly();
+                        : await (requestPermission ??
+                              AppNotificationService
+                                  .instance
+                                  .requestPermissionOnly)();
                     accounts.setNotificationsEnabled(role, granted);
                   },
                 ),

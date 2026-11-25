@@ -87,6 +87,7 @@ class _Auth extends Fake implements FirebaseAuth {
   String? failure;
   User? registrationUser;
   String? signInFailure = 'invalid-credential';
+  String? signInMessage;
 
   @override
   Stream<User?> authStateChanges() => Stream.value(currentUser);
@@ -111,7 +112,7 @@ class _Auth extends Fake implements FirebaseAuth {
   }) async {
     events.add('signIn:$email');
     if (signInFailure != null) {
-      throw FirebaseAuthException(code: signInFailure!);
+      throw FirebaseAuthException(code: signInFailure!, message: signInMessage);
     }
     return _Credential(registrationUser);
   }
@@ -238,6 +239,51 @@ class _PhoneAuth extends _Auth {
 }
 
 void main() {
+  test('Blocked Auth API keys report configuration errors without leaking diagnostics', () async {
+    final auth = _Auth()
+      ..signInFailure = 'unknown'
+      ..signInMessage =
+          'Requests to this API identitytoolkit method '
+          'google.cloud.identitytoolkit.v1.AuthenticationService.SignInWithPassword '
+          'are blocked. private-diagnostic@example.com';
+    final gateway = FirebaseAccountGateway(auth: auth, firestore: _Firestore());
+    await expectLater(
+      gateway.signIn('tenant@example.com', 'Secret123'),
+      throwsA(
+        isA<ArgumentError>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('khóa API'), isNot(contains('private-diagnostic'))),
+        ),
+      ),
+    );
+    expect(auth.events.last, 'signOut');
+  });
+
+  test(
+    'Unknown Auth failures do not claim the password is incorrect',
+    () async {
+      final auth = _Auth()..signInFailure = 'unknown';
+      final gateway = FirebaseAccountGateway(
+        auth: auth,
+        firestore: _Firestore(),
+      );
+      await expectLater(
+        gateway.signIn('tenant@example.com', 'Secret123'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            allOf(
+              contains('nhật ký Firebase'),
+              isNot(contains('mật khẩu không đúng')),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
   test('Restores only a server profile with an active tenant role', () async {
     final auth = _RestoredAuth(_RestorableUser('tenant-uid'));
     final gateway = FirebaseAccountGateway(

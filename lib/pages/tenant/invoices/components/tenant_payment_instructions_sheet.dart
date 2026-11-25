@@ -4,16 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../data/app_persistence.dart';
+import '../../../../data/local_auth.dart';
 import '../../tenant_ui.dart';
 import '../../tenant_detail_ui.dart';
 import '../../../landlord/landlord_demo_store.dart';
 import '../../../landlord/finance/landlord_finance_models.dart';
 import '../../../shared/rental/tenant_session.dart';
 import '../../../shared/media/media_permission_service.dart';
+import 'tenant_bank_qr.dart';
 
 void showTenantPaymentInstructions(
   BuildContext context, {
   required String invoiceId,
+  required String method,
   LandlordDemoStore? store,
   String? tenantId,
 }) {
@@ -23,6 +26,7 @@ void showTenantPaymentInstructions(
     isScrollControlled: true,
     builder: (_) => TenantPaymentInstructionsSheet(
       invoiceId: invoiceId,
+      method: method,
       store: store,
       tenantId: tenantId,
     ),
@@ -33,10 +37,12 @@ class TenantPaymentInstructionsSheet extends StatefulWidget {
   const TenantPaymentInstructionsSheet({
     super.key,
     required this.invoiceId,
+    required this.method,
     this.store,
     String? tenantId,
   }) : _tenantId = tenantId ?? '';
   final String invoiceId;
+  final String method;
   final LandlordDemoStore? store;
   final String _tenantId;
   String get tenantId =>
@@ -52,7 +58,6 @@ class _TenantPaymentInstructionsSheetState
   final _amount = TextEditingController();
   final _reference = TextEditingController();
   final _form = GlobalKey<FormState>();
-  String? _method;
   Uint8List? _proof;
   String? _proofName;
   String? _error;
@@ -112,23 +117,32 @@ class _TenantPaymentInstructionsSheetState
     if (_submitting) return;
     if (_submittedPayment == null && !_form.currentState!.validate()) return;
     setState(() => _submitting = true);
+    var closed = false;
     try {
       _submittedPayment ??= _store.submitPayment(
         tenantId: widget.tenantId,
         invoiceId: widget.invoiceId,
         amount: int.parse(_amount.text.trim()),
-        reference: _reference.text,
-        method: _method!,
-        proofBytes: _proof,
-        proofName: _proofName,
+        reference: widget.method == 'Chuyển khoản' ? _reference.text : '',
+        method: widget.method,
+        proofBytes: widget.method == 'Chuyển khoản' ? _proof : null,
+        proofName: widget.method == 'Chuyển khoản' ? _proofName : null,
       );
-      await AppPersistence.current?.flush();
+      final persistence = AppPersistence.current;
+      if (persistence == null && LocalAuth.instance.isCloudMode) {
+        throw StateError('Chưa kết nối phiên lưu Firebase.');
+      }
+      await persistence?.flush();
       if (!mounted) return;
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.of(context).pop();
+      closed = true;
+      messenger.showSnackBar(
+        SnackBar(
           content: Text(
-            'Đã gửi thanh toán. Chờ chủ trọ đối chiếu và xác nhận.',
+            widget.method == 'Tiền mặt'
+                ? 'Đã gửi yêu cầu tiền mặt. Chờ chủ trọ xác nhận khi nhận tiền.'
+                : 'Đã gửi thông tin chuyển khoản. Chờ chủ trọ đối chiếu.',
           ),
         ),
       );
@@ -139,7 +153,7 @@ class _TenantPaymentInstructionsSheetState
           : AppPersistence.saveFailureMessage(failure);
       setState(() => _error = message);
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted && !closed) setState(() => _submitting = false);
     }
   }
 
@@ -156,13 +170,6 @@ class _TenantPaymentInstructionsSheetState
       }
       final lease = _store.leaseById(invoice.leaseId)!;
       final account = _store.defaultPaymentAccount;
-      final methods = [
-        if (lease.bankTransferEnabled && account != null) 'Chuyển khoản',
-        if (lease.cashPaymentEnabled) 'Tiền mặt',
-      ];
-      if (!methods.contains(_method)) {
-        _method = methods.isEmpty ? null : methods.first;
-      }
       final pending = _store.payments.any(
         (payment) =>
             payment.invoiceId == invoice.id &&
@@ -176,8 +183,8 @@ class _TenantPaymentInstructionsSheetState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const TenantSheetHandle(),
-                const Text(
-                  'Thanh toán hóa đơn',
+                Text(
+                  'Thanh toán hóa đơn · ${widget.method}',
                   style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 6),
@@ -194,22 +201,17 @@ class _TenantPaymentInstructionsSheetState
                         value: formatTenantMoney(invoice.remaining),
                         emphasized: true,
                       ),
-                      if (_method == 'Chuyển khoản') ...[
-                        TenantDetailRow(
-                          label: 'Ngân hàng nhận tiền hiện tại',
-                          value: account!.bankName,
+                      if (widget.method == 'Chuyển khoản' && account != null)
+                        TenantBankQr(
+                          bankName: account.bankName,
+                          accountName: account.accountName,
+                          accountNumber: account.accountNumber,
+                          reference: invoice.id,
+                          amount:
+                              int.tryParse(_amount.text.trim()) ??
+                              invoice.remaining,
                         ),
-                        TenantDetailRow(
-                          label: 'Chủ tài khoản',
-                          value: account.accountName,
-                        ),
-                        TenantDetailRow(
-                          label: 'Số tài khoản',
-                          value: account.accountNumber,
-                        ),
-                        TenantDetailRow(label: 'Nội dung', value: invoice.id),
-                      ],
-                      if (_method == 'Tiền mặt')
+                      if (widget.method == 'Tiền mặt')
                         TenantDetailRow(
                           label: 'Địa điểm',
                           value: lease.cashPaymentLocation,
@@ -217,30 +219,18 @@ class _TenantPaymentInstructionsSheetState
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                if (methods.isEmpty)
-                  const Text(
-                    'Chủ trọ chưa thiết lập phương thức nhận tiền khả dụng.',
+                if (widget.method == 'Tiền mặt') ...[
+                  const SizedBox(height: 10),
+                  const TenantDetailNote(
+                    'Yêu cầu tiền mặt chỉ chờ chủ trọ xác nhận. Hóa đơn chưa được ghi nhận đã thanh toán.',
                   ),
-                if (methods.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    key: ValueKey(_method),
-                    initialValue: _method,
-                    decoration: const InputDecoration(
-                      labelText: 'Phương thức',
-                      prefixIcon: Icon(Icons.payments_outlined),
-                    ),
-                    items: [
-                      for (final method in methods)
-                        DropdownMenuItem(value: method, child: Text(method)),
-                    ],
-                    onChanged: (value) => setState(() => _method = value),
-                  ),
+                ],
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _amount,
+                  enabled: _submittedPayment == null && !_submitting,
                   keyboardType: TextInputType.number,
+                  onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     labelText: 'Số tiền đã trả (đ)',
                     prefixIcon: Icon(Icons.account_balance_wallet_outlined),
@@ -255,29 +245,35 @@ class _TenantPaymentInstructionsSheetState
                   },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _reference,
-                  decoration: const InputDecoration(
-                    labelText: 'Mã giao dịch / ghi chú trả tiền',
-                    prefixIcon: Icon(Icons.notes_rounded),
+                if (widget.method == 'Chuyển khoản') ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _reference,
+                    enabled: _submittedPayment == null && !_submitting,
+                    decoration: const InputDecoration(
+                      labelText: 'Mã giao dịch chuyển khoản',
+                      prefixIcon: Icon(Icons.notes_rounded),
+                    ),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Nhập mã giao dịch để chủ trọ đối chiếu.'
+                        : null,
                   ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Nhập tham chiếu để chủ trọ đối chiếu.'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _pickProof,
-                  icon: const Icon(Icons.upload_file_outlined),
-                  label: Text(_proofName ?? 'Chọn ảnh minh chứng'),
-                ),
-                if (_proof != null)
-                  Image.memory(
-                    _proof!,
-                    height: 130,
-                    errorBuilder: (_, _, _) =>
-                        const Text('Không đọc được ảnh.'),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _submittedPayment == null && !_submitting
+                        ? _pickProof
+                        : null,
+                    icon: const Icon(Icons.upload_file_outlined),
+                    label: Text(_proofName ?? 'Chọn ảnh minh chứng (tùy chọn)'),
                   ),
+                  if (_proof != null)
+                    Image.memory(
+                      _proof!,
+                      height: 130,
+                      errorBuilder: (_, _, _) =>
+                          const Text('Không đọc được ảnh.'),
+                    ),
+                ],
                 if (_error != null)
                   Text(_error!, style: const TextStyle(color: Colors.red)),
                 const SizedBox(height: 12),
@@ -285,8 +281,7 @@ class _TenantPaymentInstructionsSheetState
                   width: double.infinity,
                   child: FilledButton(
                     onPressed:
-                        methods.isEmpty ||
-                            _submitting ||
+                        _submitting ||
                             (pending && _submittedPayment == null) ||
                             invoice.cancelled ||
                             invoice.remaining == 0
@@ -298,8 +293,10 @@ class _TenantPaymentInstructionsSheetState
                           : _submittedPayment != null
                           ? 'Thử lưu lại'
                           : pending
-                          ? 'Đang chờ chủ trọ duyệt'
-                          : 'Gửi thanh toán',
+                          ? 'Đang chờ chủ trọ xử lý'
+                          : widget.method == 'Tiền mặt'
+                          ? 'Gửi yêu cầu tiền mặt'
+                          : 'Gửi thông tin chuyển khoản',
                     ),
                   ),
                 ),

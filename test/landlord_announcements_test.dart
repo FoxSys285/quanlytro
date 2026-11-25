@@ -14,7 +14,7 @@ import 'package:quanlytro/pages/landlord/rooms/models/landlord_room.dart';
 import 'package:quanlytro/pages/shared/announcements/announcement_store.dart';
 
 void main() {
-  testWidgets('Five owner tabs stay visible across destinations and details', (
+  testWidgets('Four owner tabs stay visible across destinations and details', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -33,23 +33,20 @@ void main() {
     );
     expect(landlordTabs.map((tab) => tab.label).toList(), [
       'Tổng quan',
-      'Phòng',
+      'Nhà trọ',
       'Thu chi',
       'Tin nhắn',
-      'Thông báo',
     ]);
     expect(bar().selectedIndex, 0);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(LandlordBottomNavigation),
-        matching: find.text('Thông báo'),
-      ),
+    RoleLayoutShell.navigateTo(
+      tester.element(find.byType(Scaffold).first),
+      'announcements',
     );
     await tester.pumpAndSettle();
     expect(find.byType(LandlordAnnouncementsPage), findsOneWidget);
-    expect(bar().selectedIndex, 4);
-    expect(find.text('Thông báo & Vận hành'), findsOneWidget);
+    expect(find.text('Nhà trọ'), findsOneWidget);
+    expect(find.text('Hộp thư').first, findsOneWidget);
 
     final invoiceAction = find.text('Xem hóa đơn').first;
     await tester.ensureVisible(invoiceAction);
@@ -58,11 +55,9 @@ void main() {
     expect(find.byType(LandlordBillingPage), findsOneWidget);
     expect(bar().selectedIndex, 2);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(LandlordBottomNavigation),
-        matching: find.text('Thông báo'),
-      ),
+    RoleLayoutShell.navigateTo(
+      tester.element(find.byType(Scaffold).first),
+      'announcements',
     );
     await tester.pumpAndSettle();
 
@@ -73,11 +68,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(bar().selectedIndex, 1);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(LandlordBottomNavigation),
-        matching: find.text('Phòng'),
-      ),
+    RoleLayoutShell.navigateTo(
+      tester.element(find.byType(Scaffold).first),
+      'rooms',
     );
     await tester.pumpAndSettle();
     final vacant = RentalPortfolio.instance.active.roomDetails.firstWhere(

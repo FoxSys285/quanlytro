@@ -70,6 +70,9 @@ class LandlordDemoStore extends ChangeNotifier {
   }
 
   void _changed() => notifyListeners();
+
+  /// Publish a restored local snapshot after an optimistic write is rolled back.
+  void notifyStateRestored() => notifyListeners();
   static LandlordDemoStore instance = LandlordDemoStore.demo();
   static LandlordDemoStore get activeInstance =>
       RentalPortfolio.instance.active;
@@ -804,6 +807,9 @@ class LandlordDemoStore extends ChangeNotifier {
     if (lease.terminationRequestStatus == 'pending') {
       throw ArgumentError('Yêu cầu kết thúc hợp đồng đang chờ chủ trọ xử lý.');
     }
+    if (lease.renewalStatus == 'pending') {
+      throw ArgumentError('Hãy chờ chủ trọ xử lý đề nghị gia hạn trước.');
+    }
     lease
       ..terminationRequestStatus = 'pending'
       ..terminationRequestedAt = DateTime.now()
@@ -861,6 +867,9 @@ class LandlordDemoStore extends ChangeNotifier {
     }
     if (lease.renewalStatus == 'pending') {
       throw ArgumentError('Yêu cầu gia hạn đang chờ chủ trọ xử lý.');
+    }
+    if (lease.terminationRequestStatus == 'pending') {
+      throw ArgumentError('Hãy chờ chủ trọ xử lý đề nghị kết thúc trước.');
     }
     final requestedEnd = DateTime(
       proposedEndDate.year,
@@ -998,6 +1007,10 @@ class LandlordDemoStore extends ChangeNotifier {
     if (invoice == null || invoice.cancelled) {
       throw ArgumentError('Không tìm thấy hóa đơn còn hiệu lực.');
     }
+    if (invoice.pendingPaymentId != null &&
+        invoice.pendingPaymentId != payment.id) {
+      throw ArgumentError('Yêu cầu thanh toán không còn là yêu cầu đang chờ.');
+    }
     if (amount <= 0 ||
         amount > payment.reportedAmount ||
         amount > invoice.remaining) {
@@ -1010,6 +1023,10 @@ class LandlordDemoStore extends ChangeNotifier {
       ..reviewedAt = DateTime.now()
       ..status = LandlordPaymentStatus.approved;
     invoice.paidAmount += amount;
+    invoice.lastApprovedPaymentId = payment.id;
+    if (invoice.pendingPaymentId == payment.id) {
+      invoice.pendingPaymentId = null;
+    }
     notifyListeners();
   }
 
@@ -1023,10 +1040,39 @@ class LandlordDemoStore extends ChangeNotifier {
     if (reason.trim().isEmpty) {
       throw ArgumentError('Hãy nhập lý do từ chối để người thuê biết.');
     }
+    final invoice = invoiceById(payment.invoiceId);
+    if (invoice == null ||
+        (invoice.pendingPaymentId != null &&
+            invoice.pendingPaymentId != payment.id)) {
+      throw ArgumentError('Yêu cầu thanh toán không còn là yêu cầu đang chờ.');
+    }
     payment
       ..status = LandlordPaymentStatus.rejected
       ..reviewedAt = DateTime.now()
       ..rejectionReason = reason.trim();
+    invoice.pendingPaymentId = null;
+    notifyListeners();
+  }
+
+  void restorePendingPaymentReview(
+    LandlordPayment payment, {
+    required int paidAmount,
+    required String? pendingPaymentId,
+    required String? lastApprovedPaymentId,
+  }) {
+    if (!_payments.contains(payment)) return;
+    payment
+      ..status = LandlordPaymentStatus.pending
+      ..approvedAmount = null
+      ..reviewedAt = null
+      ..rejectionReason = null;
+    final invoice = invoiceById(payment.invoiceId);
+    if (invoice != null) {
+      invoice
+        ..paidAmount = paidAmount
+        ..pendingPaymentId = pendingPaymentId
+        ..lastApprovedPaymentId = lastApprovedPaymentId;
+    }
     notifyListeners();
   }
 
@@ -1401,7 +1447,7 @@ class LandlordDemoStore extends ChangeNotifier {
     required String tenantId,
     required String invoiceId,
     required int amount,
-    required String reference,
+    String reference = '',
     required String method,
     List<int>? proofBytes,
     String? proofName,
@@ -1428,8 +1474,21 @@ class LandlordDemoStore extends ChangeNotifier {
         'Chủ trọ chưa có tài khoản nhận tiền đang hoạt động.',
       );
     }
-    if (amount <= 0 || amount > invoice.remaining || reference.trim().isEmpty) {
-      throw ArgumentError('Nhập số tiền hợp lệ và tham chiếu giao dịch.');
+    if (amount <= 0 || amount > invoice.remaining) {
+      throw ArgumentError(
+        'Nhập số tiền hợp lệ, không vượt khoản còn phải trả.',
+      );
+    }
+    if (method == 'Chuyển khoản' && reference.trim().isEmpty) {
+      throw ArgumentError('Nhập mã tham chiếu giao dịch chuyển khoản.');
+    }
+    if (method == 'Tiền mặt' &&
+        (reference.trim().isNotEmpty ||
+            proofBytes != null ||
+            proofName != null)) {
+      throw ArgumentError(
+        'Yêu cầu tiền mặt không cần mã giao dịch hoặc ảnh ngân hàng.',
+      );
     }
     if (_payments.any(
       (payment) =>
@@ -1453,9 +1512,43 @@ class LandlordDemoStore extends ChangeNotifier {
           ? defaultPaymentAccount?.id
           : null,
     );
+    invoice.pendingPaymentId = payment.id;
     _payments.insert(0, payment);
     notifyListeners();
     return payment;
+  }
+
+  void cancelPayment(LandlordPayment payment, {required String tenantId}) {
+    if (!_payments.contains(payment) ||
+        !paymentsForTenant(tenantId).contains(payment)) {
+      throw ArgumentError('Thanh toán không thuộc người thuê này.');
+    }
+    if (payment.status != LandlordPaymentStatus.pending) {
+      throw ArgumentError('Chỉ có thể hủy yêu cầu thanh toán đang chờ.');
+    }
+    payment
+      ..status = LandlordPaymentStatus.cancelled
+      ..reviewedAt = DateTime.now();
+    final invoice = invoiceById(payment.invoiceId);
+    if (invoice?.pendingPaymentId == payment.id) {
+      invoice!.pendingPaymentId = null;
+    }
+    notifyListeners();
+  }
+
+  void restoreCancelledPayment(LandlordPayment payment) {
+    if (!_payments.contains(payment) ||
+        payment.status != LandlordPaymentStatus.cancelled) {
+      return;
+    }
+    payment
+      ..status = LandlordPaymentStatus.pending
+      ..reviewedAt = null;
+    final invoice = invoiceById(payment.invoiceId);
+    if (invoice != null && !invoice.cancelled) {
+      invoice.pendingPaymentId = payment.id;
+    }
+    notifyListeners();
   }
 
   final _members = <LeaseMember>[
@@ -1877,7 +1970,7 @@ class LandlordDemoStore extends ChangeNotifier {
   final _services = <LandlordService>[
     LandlordService(
       id: 'electricity',
-      name: 'Điện',
+      name: 'Tiền điện',
       unit: 'kWh',
       basis: 'Theo chỉ số',
       price: 4000,
@@ -1885,7 +1978,7 @@ class LandlordDemoStore extends ChangeNotifier {
 
     LandlordService(
       id: 'water',
-      name: 'Nước',
+      name: 'Tiền nước',
       unit: 'm³',
       basis: 'Theo chỉ số',
       price: 15000,
@@ -1922,7 +2015,7 @@ class LandlordDemoStore extends ChangeNotifier {
     return null;
   }
 
-  void saveService({
+  LandlordService saveService({
     LandlordService? existing,
     required String name,
     required String unit,
@@ -1940,15 +2033,16 @@ class LandlordDemoStore extends ChangeNotifier {
           normalizedName == 'tiền nước') {
         throw ArgumentError('Tiền điện và tiền nước đã có sẵn trong bảng giá.');
       }
-      _services.add(
-        LandlordService(
-          id: 'service-${_nextService++}',
-          name: name.trim(),
-          unit: unit.trim(),
-          basis: basis,
-          price: price,
-        ),
+      final created = LandlordService(
+        id: 'service-${_nextService++}',
+        name: name.trim(),
+        unit: unit.trim(),
+        basis: basis,
+        price: price,
       );
+      _services.add(created);
+      notifyListeners();
+      return created;
     } else {
       final previousPrice = existing.price;
       if (existing.id == 'electricity') {
@@ -1997,6 +2091,7 @@ class LandlordDemoStore extends ChangeNotifier {
       }
     }
     notifyListeners();
+    return existing;
   }
 
   void setServiceActive(LandlordService service, bool active) {
@@ -2024,6 +2119,20 @@ class LandlordDemoStore extends ChangeNotifier {
         ),
         photos: type.photos,
       );
+    }
+    notifyListeners();
+  }
+
+  void restoreDeletedService(
+    LandlordService service, {
+    required Map<String, LandlordRoomType> roomTypes,
+  }) {
+    if (!_services.any((item) => item.id == service.id)) {
+      _services.add(service);
+    }
+    for (var index = 0; index < _roomTypes.length; index++) {
+      final restored = roomTypes[_roomTypes[index].id];
+      if (restored != null) _roomTypes[index] = restored;
     }
     notifyListeners();
   }

@@ -5,9 +5,10 @@ import '../../tenant_detail_ui.dart';
 import '../../tenant_ui.dart';
 
 class TenantPaymentCard extends StatelessWidget {
-  const TenantPaymentCard({super.key, required this.payment});
+  const TenantPaymentCard({super.key, required this.payment, this.onCancel});
 
   final LandlordPayment payment;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +21,10 @@ class TenantPaymentCard extends StatelessWidget {
       LandlordPaymentStatus.rejected => (
         'Chưa được duyệt',
         const Color(0xFFD64545),
+      ),
+      LandlordPaymentStatus.cancelled => (
+        'Đã hủy yêu cầu',
+        const Color(0xFF73788E),
       ),
     };
     return TenantSurface(
@@ -64,6 +69,18 @@ class TenantPaymentCard extends StatelessWidget {
             TenantDetailNote(
               'Chưa được duyệt. Lý do: ${payment.rejectionReason ?? 'Chủ trọ chưa ghi lý do.'} Hãy kiểm tra thông tin và nộp lại.',
             ),
+          if (payment.status == LandlordPaymentStatus.cancelled)
+            const TenantDetailNote(
+              'Yêu cầu đã được hủy. Bạn có thể chọn phương thức thanh toán khác.',
+            ),
+          if (onCancel != null) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onCancel,
+              icon: const Icon(Icons.cancel_outlined),
+              label: const Text('Hủy yêu cầu tiền mặt'),
+            ),
+          ],
           if (payment.proofName != null)
             TenantDetailRow(label: 'Minh chứng', value: payment.proofName!),
         ],

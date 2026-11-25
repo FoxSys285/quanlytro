@@ -25,7 +25,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: const LandlordBillingPage(),
+            body: LandlordBillingPage(store: LandlordDemoStore.instance),
             bottomNavigationBar: NavigationBar(
               destinations: const [
                 NavigationDestination(
@@ -38,6 +38,9 @@ void main() {
           ),
         ),
       );
+      await tester.ensureVisible(find.text('Lịch sử hóa đơn'));
+      await tester.tap(find.text('Lịch sử hóa đơn'));
+      await tester.pumpAndSettle();
       final invoiceCard = find.textContaining('${invoice.id} ·');
       await tester.ensureVisible(invoiceCard);
       await tester.tap(invoiceCard);

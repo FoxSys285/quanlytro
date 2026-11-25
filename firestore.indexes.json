@@ -497,6 +497,25 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "public_rooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "available", "order": "ASCENDING" },
+        { "fieldPath": "propertyId", "order": "ASCENDING" },
+        { "fieldPath": "published", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "public_rooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "available", "order": "ASCENDING" },
+        { "fieldPath": "propertyId", "order": "ASCENDING" },
+        { "fieldPath": "published", "order": "ASCENDING" },
+        { "fieldPath": "roomCode", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

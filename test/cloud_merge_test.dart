@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/data/rental_cloud_codec.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
@@ -6,6 +7,22 @@ import 'package:quanlytro/pages/shared/announcements/announcement_store.dart';
 import 'package:quanlytro/pages/shared/conversations/conversation_store.dart';
 
 void main() {
+  test('Firestore timestamps fingerprint and merge as stable values', () {
+    final timestamp = Timestamp.fromDate(DateTime.utc(2026, 11, 25, 12));
+    final before = {'updatedAt': timestamp, 'value': 1};
+    final edited = {'updatedAt': timestamp, 'value': 2};
+    final live = {'updatedAt': timestamp, 'value': 1};
+
+    expect(
+      cloudFingerprint(timestamp),
+      cloudFingerprint(Timestamp(timestamp.seconds, timestamp.nanoseconds)),
+    );
+    expect(mergeCloudDocument(before, edited, live), {
+      'updatedAt': timestamp,
+      'value': 2,
+    });
+  });
+
   test(
     'Open chat source receives refresh in place and keeps history on send',
     () {
@@ -176,7 +193,13 @@ void main() {
       () => mergeCloudDocument(before, {
         'data': {'paidAmount': 200, 'tenantUnread': 2},
       }, live),
-      throwsStateError,
+      throwsA(
+        isA<CloudMergeConflict>().having(
+          (conflict) => conflict.fieldPath,
+          'fieldPath',
+          'data.paidAmount',
+        ),
+      ),
     );
     // Two approvals may calculate the same invoice total from a stale balance.
     expect(

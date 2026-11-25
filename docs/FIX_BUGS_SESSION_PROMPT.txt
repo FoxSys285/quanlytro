@@ -1,0 +1,317 @@
+PROMPT CHO SESSION MỚI — SỬA CÁC LỖI TROPREMIUM
+
+Bạn làm việc trong E:\.HUIT\LTAndroid\quanlytro, ứng dụng Flutter TroPremium.
+Hãy trực tiếp điều tra, sửa và kiểm thử đủ 9 nhóm vấn đề bên dưới. Đừng chỉ trả
+về phương án hoặc prompt khác. Đọc AGENTS.md áp dụng nếu có, kiểm tra git status
+và giữ nguyên các thay đổi có sẵn của người dùng.
+
+BỐI CẢNH ĐÃ RÀ SOÁT
+
+- Dữ liệu nghiệp vụ chủ yếu dùng Firebase Auth + Firestore; SQLite là cache theo
+  UID. Supabase trong backend/supabase phục vụ gói đăng ký chủ trọ; không chuyển
+  các nghiệp vụ phòng, chat, lịch xem hoặc hóa đơn sang Supabase tùy tiện.
+- Điểm nối chung: lib/data/app_persistence.dart,
+  lib/data/scoped_firestore_repository.dart, lib/data/rental_cloud_codec.dart,
+  lib/pages/landlord/landlord_demo_store.dart và
+  lib/pages/landlord/rental_portfolio.dart. Tên DemoStore không có nghĩa đây chỉ
+  là dữ liệu demo; các store này cũng tham gia luồng app dùng Firebase.
+- Kiểm tra đồng bộ UI → store → codec/repository → Firestore Rules → đọc lại
+  ở tài khoản bên kia. Không coi test với store trong RAM là bằng chứng đã sửa
+  xong lỗi Firebase.
+- Tại lúc rà soát có thay đổi sẵn: android/app/google-services.json,
+  google-services.json và file Bao_cao_do_an_TroPremium.docx bị xóa. Không hoàn
+  nguyên, ghi đè hay khôi phục các thay đổi này. Không in nội dung cấu hình hoặc
+  thông tin tài khoản ra log/báo cáo.
+- Session rà soát chưa sửa code ứng dụng. Các điểm “nghi vấn” bên dưới cần
+  xác minh bằng exception/stack trace hoặc test tái hiện, không phải kết luận.
+- Cuối lúc rà soát, git status còn xuất hiện thay đổi ở lib/data/local_auth.dart,
+  lib/pages/shared/auth/login_page.dart, pubspec.yaml, pubspec.lock và file mới
+  lib/data/device_login_history.dart. Đọc lại diff hiện tại trước khi sửa; nhận
+  định về đăng nhập dưới đây dựa trên phiên bản đọc trong lúc rà soát, có thể
+  đã được công việc khác cập nhật. Giữ nguyên thay đổi chưa liên quan.
+
+NGUYÊN TẮC THỰC HIỆN
+
+- Với màn hình đỏ, thu exception đầu tiên và stack trace; xác định thao tác gây
+  lỗi là lúc mở form, đổi lựa chọn, bấm lưu, đóng dialog hay rebuild sau lưu.
+  Nếu không có thiết bị, tạo widget test phù hợp và báo giới hạn kiểm thử.
+- Sửa nguyên nhân, không che ErrorWidget, bỏ assertion, nuốt exception hoặc
+  nới Rules thành cho phép ghi rộng rãi.
+- Kiểm tra controller/dialog lifecycle, context sau await/Navigator.pop,
+  notification trong lúc build, dropdown với dữ liệu cũ, GlobalKey và trạng
+  thái đang lưu. Không dùng delay tùy ý để chữa lỗi vòng đời.
+- Phân biệt đang lưu, lưu thất bại, đang chờ xử lý và đã thành công. Cho retry
+  an toàn, không tạo trùng. Không đổi trạng thái tài chính/hợp đồng vĩnh viễn
+  chỉ vì UI đã bấm nút. Không làm mất bản nháp khi ghi thất bại.
+- Thay đổi schema phải tương thích dữ liệu cũ, cập nhật codec/cache/Rules và
+  các test liên quan. Không xóa dữ liệu thật hay reset toàn bộ cache để né lỗi.
+- Chuẩn bị mọi thay đổi mã nguồn, Rules, indexes và script cần thiết trong repo.
+  Nếu cần triển khai hoặc di chuyển dữ liệu production, chuẩn bị bản xem trước,
+  phương án sao lưu và nêu bước triển khai; không tự sửa dữ liệu thật hàng loạt.
+
+1. DIỆN TÍCH PHÒNG KHÔNG LƯU ĐƯỢC VỚI GIÁ TRỊ 100
+
+Người dùng báo nhập diện tích thường thì lưu được, nhập 100 thì báo không lưu.
+
+Đã thấy trong code:
+- lib/pages/landlord/rooms/components/landlord_room_editor.dart:
+  _number(_area, 'Diện tích (m²)', 6, 500), parse bằng int.parse.
+- lib/pages/landlord/rental_portfolio.dart: saveRoom cũng cho 6–500 m².
+- Model lib/pages/landlord/rooms/models/landlord_room.dart dùng int area.
+- Vì vậy 100 nằm trong khoảng hợp lệ hiện tại; chưa có bằng chứng do giới hạn
+  diện tích. Không tự đặt mức tối đa 99 hay coi 100 là dữ liệu sai.
+- _save có _applied, sửa store trước rồi gọi saveChanges; các exception ngoài
+  ArgumentError/StateError có thể bị đổi thành thông báo chung.
+
+Yêu cầu:
+- Tái hiện thêm mới và sửa phòng với 25, 99, 100, 101, các biên 6 và 500;
+  đồng thời kiểm tra rỗng, chữ, 0, âm, vượt biên và giá trị thập phân theo chính
+  sách hiện có. Không tự đổi schema sang double nếu không cần.
+- Kiểm tra lỗi ghi thật, kiểu số khi decode, mã phòng trùng, room type, quyền,
+  gói thuê bao khi thêm phòng và thông báo lỗi. Chỉ kết luận theo bằng chứng.
+- 100 phải lưu và đọc lại được nếu các thông tin khác hợp lệ. Dữ liệu sai phải
+  có lỗi ngay tại trường phù hợp, không báo chung “không lưu được”.
+- Kiểm tra retry sau lỗi ghi và chỉnh nội dung sau lần lưu lỗi: không tạo trùng,
+  không để _applied khiến lần retry lưu dữ liệu khác với nội dung đang hiển thị.
+
+2. THÊM DỊCH VỤ BỊ MÀN HÌNH ĐỎ
+
+Điểm bắt đầu:
+- lib/pages/landlord/services/landlord_dichvubanggia_page.dart:
+  _moFormDichVu, _editUtilityRate, StatefulBuilder và DropdownButtonFormField.
+- _moFormDichVu dispose 3 TextEditingController ngay sau await showDialog;
+  _editUtilityRate có mẫu tương tự. Đây là nghi vấn về vòng đời lúc route đang
+  đóng, cần tái hiện trước khi khẳng định.
+- Store: saveService trong landlord_demo_store.dart; kiểm tra cả
+  LandlordFormDialog ở lib/pages/landlord/landlord_ui.dart.
+
+Yêu cầu:
+- Test mở form, nhập tay, chọn từng mẫu nhanh, đổi cách tính, Lưu, Hủy, back,
+  sửa/xóa và mở lại; kiểm tra cả dialog còn focus/bàn phím đang mở.
+- Form kiểm tra tên/đơn vị/đơn giá trước khi đóng; xử lý giá không hợp lệ rõ ràng.
+- Controller thuộc đúng lifecycle của widget form; không dispose khi widget
+  vẫn dùng trong animation đóng. Dropdown chịu được basis/unit dữ liệu cũ.
+- Lưu bền vững đúng nhà trọ, đọc lại được, không làm mất bảng giá điện/nước hoặc
+  cấu hình dịch vụ loại phòng/hợp đồng đã chốt.
+
+3. MỘT CHỦ TRỌ BỊ TẠO NHIỀU HỘI THOẠI THEO PHÒNG
+
+Đã xác định thiết kế hiện tại:
+- lib/pages/shared/conversations/conversation_store.dart: forRoom tạo id
+  room:{propertyId}:{tenantId}:{roomId}; đổi phòng tạo hội thoại khác.
+- lib/pages/landlord/viewings/data/viewing_conversation_store.dart cũng tạo
+  id viewing:... có phòng.
+- test/room_conversation_test.dart hiện còn khẳng định đổi phòng phải tạo chat
+  khác; test này phải được cập nhật theo yêu cầu mới.
+- Call site gồm tenant_room_details_page.dart và
+  landlord/conversations/landlord_danhsachtinnhan_page.dart.
+- Model hiện gắn propertyId; Firestore encode conversation/messages theo nhà
+  trọ. Không thể chỉ bỏ roomId khỏi key rồi mặc định đã giải quyết đủ.
+
+Yêu cầu:
+- Một cặp người thuê và chủ trọ chỉ có một hội thoại chính, kể cả người thuê
+  hỏi nhiều phòng hoặc nhiều nhà trọ do cùng người chủ sở hữu quản lý.
+- Dùng định danh chủ sở hữu ổn định (owner UID) và định danh người thuê được
+  ánh xạ đúng Firebase UID/tenantId; không gộp theo tên hiển thị hoặc số điện thoại.
+  Hai chủ trọ cùng tên vẫn là hai người khác nhau.
+- Cả nhắn từ chi tiết phòng, lịch xem, danh sách chat và hợp đồng phải dùng cùng
+  cơ chế tìm/tạo; giữ ngữ cảnh phòng/nhà như metadata hoặc nội dung tham chiếu.
+- Thiết kế lại nơi lưu/query/phân quyền nếu cần để hội thoại dùng được ở các
+  nhà cùng chủ. Kiểm tra inbox chủ trọ khi chuyển nhà đang quản lý, trang thông
+  tin chat, liên kết phòng, tin nhắn mới nhất, unread/read và thông báo.
+- Có phương án tương thích/gộp chat cũ không mất tin: giữ timestamp/thứ tự,
+  deduplicate theo message ID, unread hợp lý, retry idempotent, không mở quyền
+  sang chủ/người thuê khác. Không chỉ ẩn các hàng trùng ở UI.
+- Ghi rõ giới hạn migration và cách chuyển dữ liệu hiện có. Không tự chạy
+  migration production trong lúc phát triển.
+
+4. CHỦ TRỌ XÁC NHẬN LỊCH XEM PHÒNG BỊ MÀN HÌNH ĐỎ
+
+Điểm bắt đầu:
+- lib/pages/landlord/viewings/landlord_viewings_page.dart: _confirm.
+- lib/pages/shared/viewings/viewing_store.dart: confirm/_update thay record,
+  notifyListeners rồi UI gọi AppPersistence.flush.
+- Lệnh _store.confirm hiện nằm ngoài try bắt lỗi flush. Không mặc định mọi lỗi
+  là do ghi Firestore; xem cả lỗi đồng bộ/rebuild và store của nhà đang chọn.
+- Có test/viewing_workflow_test.dart kiểm tra xác nhận/hủy trong RAM.
+
+Yêu cầu:
+- Xác nhận đúng lịch pending của nhà thuộc chủ đang đăng nhập; chuyển sang
+  confirmed và đồng bộ tài khoản người thuê, refresh và mở lại app vẫn đúng.
+- Bấm liên tiếp không xử lý trùng; không sửa lịch nhà khác, lịch đã hủy hoặc
+  lịch đã xử lý. Không crash khi lọc danh sách/đổi nhà trong lúc lưu.
+- Ghi lỗi phải có thông báo và cơ chế retry/trạng thái nhất quán, không báo
+  thành công giả. Test cả callback thực và luồng repository/Rules phù hợp.
+
+5. NÚT ĐĂNG NHẬP TỰ ĐỔI THÀNH “NHẬN MÃ OTP”
+
+Đã xác định:
+- lib/pages/shared/auth/login_page.dart: _usingPhone hiện chỉ kiểm tra chuỗi
+  không rỗng và chưa chứa @. Khi gõ dở email như “abc”, app coi là điện thoại.
+- _usingPhone cũng quyết định luồng _login, không chỉ nhãn nút.
+- Luồng số điện thoại đang dùng Firebase Phone Auth trong phone_login_page.dart
+  và firebase_account_gateway.dart. Không tự giả lập phone+password khi backend
+  chưa hỗ trợ.
+
+Yêu cầu:
+- Nếu người dùng đã trả lời lựa chọn đăng nhập trong phiên bàn giao, ưu tiên
+  đúng lựa chọn đó. Nếu chưa có, mặc định giữ nút chính “Đăng nhập” cho email
+  và chỉ vào OTP khi người dùng chọn rõ đăng nhập bằng số điện thoại.
+- Nếu giữ cơ chế tự nhận dạng, chỉ nhận số điện thoại hợp lệ sau normalize;
+  chuỗi email nhập dở không được kích hoạt OTP. UX và hành vi phải khớp nhau.
+- Giữ luồng email+mật khẩu và OTP thật hoạt động; không đổi quyền/tài khoản.
+- Test nhập từng ký tự email, email đầy đủ, số điện thoại, chuỗi sai, paste,
+  xóa hết, đổi qua lại và bàn phím. Nút/loading/lỗi phải nhất quán.
+
+6. CHỌN NGÀY XEM PHÒNG HIỂN THỊ NHƯ NHẬP SỐ NGUYÊN
+
+Đã thấy:
+- lib/pages/tenant/viewings/components/tenant_viewing_request_sheet.dart đã có
+  _datePicker + showDatePicker và hiển thị dd/MM/yyyy.
+- Có trường số người tham dự riêng. Cần kiểm tra đúng entry point, chế độ nhập
+  tay của DatePicker, locale và phiên bản build; không kết luận form chưa có lịch.
+
+Yêu cầu:
+- Ngày muốn xem là chọn lịch rõ ràng, hiển thị dd/MM/yyyy, hỗ trợ nhãn/locale
+  tiếng Việt nhất quán. Nếu hỗ trợ nhập tay, validate ngày thực theo định dạng
+  hiển thị, ví dụ 31/02 không hợp lệ; không parse số nguyên làm ngày.
+- Tách biệt ngày, giờ và số người; không đặt lịch quá khứ. Kiểm tra các biên
+  tháng/năm, hủy chọn, mở lại, thiết bị nhỏ và bàn phím.
+- Kiểm tra lib/main.dart và dependencies nếu bổ sung localization. Không chỉ
+  sửa hint text rồi bỏ qua kiểu dữ liệu hoặc parse ngày.
+
+7. ĐỔI THANH TOÁN HÓA ĐƠN THÀNH HAI PHƯƠNG THỨC RÕ RÀNG
+
+Luồng mong muốn:
+- Hóa đơn còn nợ hiển thị hai nút “Thanh toán bằng tiền mặt” và
+  “Thanh toán chuyển khoản”. Nếu hợp đồng tắt phương thức nào, phản ánh rõ điều
+  đó; không tự bật trái cấu hình hợp đồng.
+- Người thuê chọn tiền mặt: tạo yêu cầu, hiển thị “Đang chờ xác nhận” và nút
+  “Hủy”. Chưa tăng paidAmount, chưa đánh dấu Đã thanh toán.
+- Người thuê hủy khi còn pending: hủy yêu cầu, trở lại hai lựa chọn. Refresh,
+  khởi động lại app và bên chủ trọ đều thấy trạng thái đã hủy tương ứng.
+- Chủ trọ thấy “Đang chờ thanh toán tiền mặt” và nút “Duyệt”. Chỉ sau khi thực
+  nhận tiền và bấm duyệt thì mới cộng thanh toán và đổi “Đã thanh toán” khi đủ
+  tiền; khoản thanh toán một phần phải thể hiện đúng số còn nợ.
+- Chuyển khoản giữ thông tin ngân hàng/VietQR và luồng đối chiếu đang có;
+  không mặc định đã trả tiền chỉ vì bấm nút hoặc mở mã QR.
+
+Điểm bắt đầu và khoảng trống hiện tại:
+- tenant/invoices/tenant_invoice_detail_page.dart hiện có một nút thanh toán;
+  components/tenant_payment_instructions_sheet.dart dùng dropdown phương thức.
+- components/tenant_payment_methods_sheet.dart chủ yếu hiển thị thông tin;
+  components/tenant_payment_card.dart thể hiện pending/approved/rejected.
+- landlord_demo_store.dart: submitPayment, approvePayment, rejectPayment;
+  submitPayment yêu cầu reference không rỗng cả tiền mặt.
+- landlord/finance/landlord_finance_models.dart hiện enum payment chỉ có
+  pending/approved/rejected, chưa có cancelled.
+- landlord/payments/landlord_payments_page.dart là nơi duyệt.
+- firestore.rules: paymentCreate có, nhưng tenantUpdate chưa cho hủy payment.
+
+Yêu cầu kỹ thuật:
+- Thiết kế trạng thái hủy bền vững và tương thích bản ghi cũ. Cập nhật mọi switch,
+  codec/cache, lịch sử, dashboard, thông báo và lọc pending liên quan.
+- Tiền mặt không bắt người dùng nhập mã chuyển khoản hoặc ảnh ngân hàng.
+- Chỉ người có quyền trên hóa đơn mới tạo/hủy yêu cầu của mình; tenant không
+  thể duyệt, sửa số tiền đã duyệt hoặc hủy khoản đã approved.
+- Chống double tap, hai thiết bị gửi đồng thời, duyệt lặp và race hủy-vs-duyệt
+  ở phía lưu trữ có thẩm quyền, không chỉ kiểm tra danh sách trong RAM.
+- Duyệt payment và cập nhật số tiền hóa đơn phải nhất quán, không cộng hai lần.
+- Có test Rules cho quyền hủy mới và test cả hủy trước duyệt/duyệt trước hủy.
+
+8. CHUYỂN TRỌ MÀN HÌNH ĐỎ, VÀO LẠI MẤT NÚT
+
+Cần phân biệt hai luồng đang có:
+- Người đại diện: tenant/leases/tenant_lease_contract_page.dart,
+  _requestTermination gọi requestLeaseTermination trong landlord_demo_store.dart.
+  Store chỉ đặt terminationRequestStatus=pending, không kết thúc hợp đồng ngay.
+  _leaseRequestPanel thay nút bằng thông báo khi pending. Vì vậy mất nút chưa
+  chứng minh hợp đồng đã bị xóa.
+- Thành viên: tenant/members/components/tenant_member_account_actions.dart,
+  _requestLeave; sau dialog dispose controller ngay. Nút ẩn khi có
+  leaveRequestedAt và được thay bằng thông tin ngày rời dự kiến.
+- Cả hai form đều có điểm cần kiểm tra lifecycle controller lúc đóng dialog.
+- Quan trọng: scoped_firestore_repository.dart nhánh tenant loại 'leases' khỏi
+  các kind được ghi; firestore.rules tenantUpdate cũng chưa có nhánh ghi yêu
+  cầu kết thúc/gia hạn vào leases. Đề nghị kết thúc ở UI/store vì thế chưa có
+  đường ghi cloud tương ứng trong lớp này. Cần xác minh và sửa đầy đủ, không chỉ
+  bắt exception. Gia hạn dùng cùng cơ chế nên kiểm tra hồi quy phần liên quan.
+
+Yêu cầu:
+- Xác định đúng luồng phát sinh lỗi; sửa cả lỗi tương tự trong hai luồng nếu có.
+- Gửi yêu cầu không làm người thuê mất phòng/quyền truy cập hoặc kết thúc hợp
+  đồng ngay. Trạng thái chờ và lý do phải thấy được sau reload và phía chủ trọ.
+- Gửi lỗi không làm mất nút vô cớ; có cách thử lại không tạo trùng. Nếu đã gửi
+  thành công thì thay nút bằng trạng thái chờ rõ ràng là phù hợp.
+- Chỉ chủ trọ duyệt mới kết thúc theo nghiệp vụ; từ chối vẫn giữ hợp đồng hiện
+  tại và cho người thuê thấy kết quả. Luồng thành viên giữ đúng thời gian báo
+  trước hiện có, không biến thành yêu cầu kết thúc toàn bộ hợp đồng.
+- Có thể dùng bản ghi yêu cầu riêng hoặc cho cập nhật một tập field yêu cầu
+  hạn chế; không cấp tenant quyền sửa toàn bộ leases/tiền/trạng thái hợp đồng.
+- Kiểm tra hoàn tác/trạng thái chờ lưu trong cache khi cloud lỗi, quyền giữa
+  đại diện và thành viên, và khôi phục từ dữ liệu cũ.
+
+9. KHÁM PHÁ CHỈ HIỂN THỊ MỘT PHÒNG TRỐNG ĐẠI DIỆN MỖI NHÀ TRỌ
+
+Đã xác định:
+- lib/data/discovery_catalog.dart: FirestoreTenantCatalogSource.fetch query
+  public_rooms với published=true, available=true; mặc định sort documentId.
+  public room ID do rental_cloud_codec.dart tạo theo propertyId:roomCode, nên
+  các phòng cùng nhà có thể nằm liên tiếp. Fetch không group theo propertyId.
+- Fetch có cursor, limit mặc định 8 và ngân sách đọc 64 mỗi lần. Không phá
+  các giới hạn này bằng cách tải toàn bộ 15.000+ phòng về máy.
+- DiscoveryHomeFeed.fromRooms, fetchHome và _fetchTrustedPreview cũng cần
+  xem xét; tránh bỏ sót màn Khám phá home trong khi chỉ sửa trang tìm phòng.
+- tenant/discovery/components/tenant_room_details_page.dart hiện kết thúc nội
+  dung sau mô tả/thẻ chủ trọ, chưa có danh sách phòng trống cùng nhà ở cuối.
+- Có property_catalog.dart và tenant_properties_page.dart phục vụ danh sách
+  nhà; tận dụng nếu phù hợp, nhưng không thay card đại diện bằng nhà không còn
+  phòng trống hoặc chọn phòng không khớp bộ lọc.
+
+Yêu cầu:
+- Danh sách Khám phá chính chỉ một phòng trống phù hợp cho mỗi propertyId,
+  không phải mỗi chủ trọ. Một chủ có nhiều nhà vẫn được hiện mỗi nhà một card.
+- Lọc trước khi chọn phòng đại diện. Quy tắc chọn phải ổn định và khớp sort;
+  nếu chọn phòng giá thấp nhất làm mặc định thì nêu rõ trong báo cáo.
+- Không chỉ unique trong từng trang sau fetch: một nhà không được xuất hiện
+  lại ở trang kế tiếp; không có trang rỗng giả khi vẫn còn nhà phù hợp.
+- Chọn giải pháp phân trang/summary/query phù hợp Firestore, giữ ngân sách đọc,
+  không N+1 không giới hạn. Nếu cần summary/index mới, đồng bộ lúc thay đổi giá,
+  phòng trống, hợp đồng, ẩn nhà và khi phòng đại diện hết trống; có backfill
+  bản xem trước cho dữ liệu cũ và cập nhật Rules/indexes/test.
+- Khi vào chi tiết, cuối trang có “Các phòng còn trống cùng nhà trọ”, truy vấn
+  theo propertyId, published/available; tải độc lập với danh sách đã cache,
+  có phân trang/tải thêm phù hợp, loading/empty/error/retry.
+- Hiện phòng đang xem một cách rõ ràng hoặc loại nó khỏi mục phòng khác; mở
+  phòng khác hiển thị đúng ảnh/giá/diện tích và ngữ cảnh đặt lịch/nhắn tin.
+- Nhà hết phòng không hiện ở Khám phá. Chi tiết đang mở phải xử lý được phòng
+  vừa được thuê/nhà vừa bị ẩn mà không cho đặt lịch sai hoặc crash.
+
+KIỂM THỬ VÀ BÀN GIAO
+
+- Thêm/cập nhật test hồi quy có ý nghĩa cho các lỗi đã tái hiện. Test mới phải
+  bắt được lỗi trước sửa, tránh chỉ kiểm tra text/implementation chi tiết.
+- Chạy flutter analyze, test liên quan rồi flutter test nếu môi trường cho phép.
+  Chạy bộ kiểm tra Rules theo hướng dẫn repo khi đổi phân quyền; dùng emulator
+  hoặc môi trường kiểm thử thích hợp. Build APK debug khi có Android toolchain.
+- Các file test nên đọc gồm room_editor_save_test.dart, room_conversation_test.dart,
+  tenant_conversations_test.dart, tenant_inbox_ui_test.dart, viewing_workflow_test.dart,
+  landlord_viewings_test.dart, login_ui_test.dart, auth_flows_test.dart,
+  tenant_contract_ui_test.dart, tenant_cloud_actions_test.dart,
+  rental_synchronization_test.dart, tenant_invoice_dashboard_test.dart,
+  landlord_invoice_details_test.dart, remote_discovery_test.dart,
+  discovery_read_budget_test.dart, catalog_pagination_test.dart,
+  tenant_room_details_test.dart và tool/firestore_rules_test.cjs.
+- Trong session rà soát đã chạy 5 file room_editor_save_test.dart,
+  landlord_viewings_test.dart, tenant_contract_ui_test.dart, login_ui_test.dart,
+  room_conversation_test.dart: 20 test đều pass. Đây là baseline, không chứng
+  minh các bug không tồn tại; riêng test chat còn kiểm tra hành vi cũ theo phòng.
+- Đã chạy thêm viewing_workflow_test.dart, tenant_cloud_actions_test.dart và
+  remote_discovery_test.dart: 9 test pass. Tổng hai lượt: 29 test pass; chưa
+  chạy toàn bộ suite, analyze hoặc xác minh trên thiết bị Android/Firebase thật.
+- Kiểm thử hai tài khoản/thiết bị, refresh/restart, mạng lỗi/ghi bị từ chối và
+  thao tác lặp ở các luồng có sửa trạng thái. Phân biệt đã test local với đã
+  xác minh end-to-end trên Android/Firebase.
+- Báo cáo cuối theo từng mục 1–9: nguyên nhân có bằng chứng, thay đổi, test đã
+  chạy/kết quả, giới hạn còn lại, file sửa và bước triển khai/migration cần thiết.
+  Không tuyên bố xong khi chỉ sửa UI mà Rules/đọc lại vẫn sai.

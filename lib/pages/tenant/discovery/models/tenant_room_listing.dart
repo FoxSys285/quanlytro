@@ -92,6 +92,7 @@ class TenantRoomListing {
     required this.tags,
     this.listingId,
     this.ownerPropertyId,
+    this.ownerUid,
     this.roomCode,
     this.capacity,
     this.description = '',
@@ -119,6 +120,7 @@ class TenantRoomListing {
   final List<String> tags;
   final String? listingId;
   final String? ownerPropertyId;
+  final String? ownerUid;
   final String? roomCode;
   final int? capacity;
   final String description;

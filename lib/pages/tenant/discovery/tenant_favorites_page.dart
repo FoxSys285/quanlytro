@@ -186,6 +186,8 @@ class _TenantFavoritesPageState extends State<TenantFavoritesPage> {
                       onBook: () => _openViewingRequest(room),
                       isFavorite: TenantFavoritesStore.contains(room.id),
                       onFavoriteToggle: () => _toggleFavorite(room),
+                      onBookRoom: _openViewingRequest,
+                      onFavoriteToggleRoom: _toggleFavorite,
                     ),
                   ),
                 ),

@@ -20,13 +20,7 @@ void main() {
 
     await tester.pumpWidget(const MaterialApp(home: LandlordLayout()));
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.descendant(
-        of: find.byType(LandlordBottomNavigation),
-        matching: find.text('Phòng'),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Ghi điện nước'));
     await tester.tap(find.text('Ghi điện nước'));
     await tester.pumpAndSettle();
     expect(find.byType(LandlordChiSoDienNuocPage), findsOneWidget);
@@ -64,6 +58,7 @@ void main() {
       'payments',
       'payment_accounts',
       'incidents',
+      'plans',
       'staff',
       'support',
       'settings',
@@ -74,7 +69,9 @@ void main() {
       expect(tester.takeException(), isNull, reason: destination);
       expect(
         find.byType(LandlordBottomNavigation),
-        findsOneWidget,
+        const {'settings', 'support'}.contains(destination)
+            ? findsNothing
+            : findsOneWidget,
         reason: destination,
       );
     }

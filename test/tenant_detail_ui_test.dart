@@ -142,6 +142,9 @@ void main() {
             find.byType(TextFormField).last,
             'Đèn không sáng khi bật công tắc.',
           );
+          await tester.pumpAndSettle();
+          expect(find.text('Vui lòng nhập tiêu đề.'), findsNothing);
+          expect(find.text('Vui lòng nhập mô tả.'), findsNothing);
           await tester.ensureVisible(find.text('Gửi yêu cầu'));
           await tester.tap(find.text('Gửi yêu cầu'));
           await tester.pumpAndSettle();

@@ -56,14 +56,15 @@ class _LandlordAnnouncementComposerState
       subtitle: 'Chọn người nhận và nhập nội dung gửi cư dân.',
       icon: Icons.campaign_outlined,
       maxWidth: 650,
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      footer: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 8,
+        runSpacing: 8,
         children: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Hủy'),
           ),
-          const SizedBox(width: 8),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: propertyBlue),
             icon: const Icon(Icons.send_outlined),

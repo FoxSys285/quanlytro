@@ -26,6 +26,7 @@ class TenantDiscoveryHome extends StatelessWidget {
     required this.remote,
     required this.loading,
     required this.hasError,
+    this.scanningMore = false,
     required this.offline,
     required this.profileName,
     required this.tenantId,
@@ -75,6 +76,7 @@ class TenantDiscoveryHome extends StatelessWidget {
   final bool remote;
   final bool loading;
   final bool hasError;
+  final bool scanningMore;
   final bool offline;
   final String profileName;
   final String tenantId;
@@ -426,6 +428,25 @@ class TenantDiscoveryHome extends StatelessWidget {
               const Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(child: CircularProgressIndicator()),
+              )
+            else if (remote && scanningMore)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: TenantSurface(
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Đang tìm thêm nhà trọ phù hợp. Còn nhiều tin phòng cần kiểm tra.',
+                        textAlign: TextAlign.center,
+                      ),
+                      TextButton.icon(
+                        onPressed: onRemoteNext,
+                        icon: const Icon(Icons.search_rounded),
+                        label: const Text('Tiếp tục tìm'),
+                      ),
+                    ],
+                  ),
+                ),
               )
             else if (visibleRooms.isEmpty)
               Padding(

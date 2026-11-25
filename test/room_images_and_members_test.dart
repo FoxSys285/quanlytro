@@ -177,7 +177,11 @@ void main() {
         await tester.tapAt(tester.getCenter(gallery));
         await tester.pumpAndSettle();
         expect(find.byType(InteractiveViewer), findsWidgets);
-        await tester.tap(find.byTooltip('Ảnh tiếp theo'));
+        final nextImage = find.ancestor(
+          of: find.byTooltip('Ảnh tiếp theo'),
+          matching: find.byType(IconButton),
+        );
+        tester.widget<IconButton>(nextImage.first).onPressed!();
         await tester.pumpAndSettle();
         expect(find.text('2/2'), findsOneWidget);
         await tester.pageBack();

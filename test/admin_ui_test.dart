@@ -11,6 +11,7 @@ import 'package:quanlytro/data/admin_store.dart';
 import 'package:quanlytro/layouts/admin_layout.dart';
 import 'package:quanlytro/layouts/role_layout.dart';
 import 'package:quanlytro/pages/admin/admin_page_router.dart';
+import 'package:quanlytro/pages/admin/admin_users_page.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
 
 void main() {
@@ -37,11 +38,14 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Toàn cảnh nền tảng'), findsOneWidget);
-      await tester.ensureVisible(find.text('Mở đối soát'));
-      await tester.tap(find.text('Mở đối soát'));
+      expect(find.text('Tổng quan hệ thống'), findsOneWidget);
+      expect(find.text('Yêu cầu hỗ trợ'), findsWidgets);
+      RoleLayoutShell.navigateTo(
+        tester.element(find.text('Tổng quan hệ thống')),
+        'statistics',
+      );
       await tester.pumpAndSettle();
-      expect(find.textContaining('Cơ sở tính:'), findsOneWidget);
+      expect(find.text('Gói dịch vụ & thanh toán'), findsWidgets);
       expect(tester.takeException(), isNull);
       for (final id in [
         'users',
@@ -104,15 +108,15 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).first, 'tenant@tro.local');
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Người thuê'));
     await tester.pumpAndSettle();
-    expect(
-      find.byWidgetPredicate((w) => w is Text && w.data == 'tenant@tro.local'),
-      findsOneWidget,
-    );
+    expect(find.text('tenant@tro.local'), findsOneWidget);
     expect(find.text('landlord@tro.local'), findsNothing);
-    final button = tester.widget<OutlinedButton>(
-      find.widgetWithText(OutlinedButton, 'Khóa tài khoản'),
+    final button = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byTooltip('Khóa tài khoản'),
+        matching: find.byType(IconButton),
+      ),
     );
     expect(button.onPressed, isNull);
   });
@@ -141,16 +145,16 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).first, 'tenant@tro.local');
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Người thuê'));
     await tester.pumpAndSettle();
-    final lock = find.widgetWithText(OutlinedButton, 'Khóa tài khoản');
+    final lock = find.byTooltip('Khóa tài khoản');
     await tester.ensureVisible(lock);
     await tester.tap(lock);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Xác nhận'));
     await tester.pumpAndSettle();
     expect(LocalAuth.instance.isDisabled(AppRole.tenant), isTrue);
-    final unlock = find.widgetWithText(OutlinedButton, 'Mở khóa');
+    final unlock = find.byTooltip('Mở khóa tài khoản');
     await tester.ensureVisible(unlock);
     await tester.tap(unlock);
     await tester.pumpAndSettle();
@@ -162,7 +166,7 @@ void main() {
   });
 
   testWidgets(
-    'Admin photo review supports feedback, large text and reduced motion',
+    'Admin verification page supports large text, reduced motion and feedback',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(390, 900);
@@ -202,18 +206,17 @@ void main() {
             .duration,
         Duration.zero,
       );
-      final property = find.text('Mây House').first;
-      await tester.ensureVisible(property);
-      await tester.tap(property);
-      await tester.pumpAndSettle();
-      expect(find.text('Mở danh sách xác minh'), findsOneWidget);
-      expect(feedback.any((c) => c.method == 'HapticFeedback.vibrate'), isTrue);
-      expect(feedback.any((c) => c.method == 'SystemSound.play'), isTrue);
-      await tester.tap(
-        find.widgetWithText(FilledButton, 'Mở danh sách xác minh'),
+      RoleLayoutShell.navigateTo(
+        tester.element(find.text('Tổng quan hệ thống')),
+        'property_verification',
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Tất cả'));
+      await tester.pumpAndSettle();
       expect(find.text('Xác minh nhà trọ'), findsWidgets);
+      expect(find.text('Mây House'), findsOneWidget);
+      expect(feedback.any((c) => c.method == 'HapticFeedback.vibrate'), isTrue);
+      expect(find.text('THÔNG TIN CÒN THIẾU'), findsWidgets);
       expect(tester.takeException(), isNull);
     },
   );
@@ -370,22 +373,9 @@ void main() {
       () => LocalAuth.instance.signIn('admin@tro.local', 'Tro@2026'),
     );
     addTearDown(() => LocalAuth.instance.signOut());
+    RentalPortfolio.instance = RentalPortfolio.seeded();
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => buildAdminPage(
-              context,
-              const RoleDestination(
-                id: 'users',
-                label: 'Người dùng',
-                icon: Icons.people,
-                group: 'admin',
-              ),
-            ),
-          ),
-        ),
-      ),
+      MaterialApp(home: Scaffold(body: const AdminUsersPage())),
     );
     await tester.pumpAndSettle();
     final membersTab = find.descendant(
@@ -430,7 +420,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Admin navigation opens users, commissions and the more drawer', (
+  testWidgets('Admin navigation opens accounts, packages and the more drawer', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -439,31 +429,29 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const MaterialApp(home: AdminLayout()));
     await tester.pumpAndSettle();
-    Finder destination(String label) => find.descendant(
-      of: find.byType(NavigationBar),
-      matching: find.text(label),
-    );
-    await tester.tap(destination('Người dùng'));
-    await tester.pumpAndSettle();
-    expect(find.text('Người dùng & tài khoản'), findsOneWidget);
-    await tester.tap(destination('Hoa hồng'));
-    await tester.pumpAndSettle();
-    expect(find.text('Cơ sở tính:'), findsOneWidget);
-    await tester.enterText(
-      find.byType(TextField).first,
-      'không có nhà này xyz',
+    RoleLayoutShell.navigateTo(
+      tester.element(find.text('Tổng quan hệ thống')),
+      'users',
     );
     await tester.pumpAndSettle();
-    expect(find.text('Không có nhà trọ phù hợp.'), findsOneWidget);
-    await tester.enterText(find.byType(TextField).first, '');
+    expect(find.text('Tài khoản người dùng'), findsWidgets);
+    RoleLayoutShell.navigateTo(
+      tester.element(find.text('Tài khoản người dùng').first),
+      'statistics',
+    );
     await tester.pumpAndSettle();
-    expect(find.text('Mây House'), findsOneWidget);
-    await tester.tap(destination('Thêm'));
+    expect(find.text('Gói dịch vụ & thanh toán'), findsWidgets);
+    await tester.tap(find.byTooltip('Mở danh mục chức năng'));
     await tester.pumpAndSettle();
     expect(find.byType(Drawer), findsOneWidget);
-    await tester.tap(find.text('Hoạt động ứng dụng').last);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Nhật ký hoạt động'),
+      ),
+    );
     await tester.pumpAndSettle();
-    expect(find.text('Phạm vi thống kê'), findsOneWidget);
+    expect(find.text('Nhật ký hoạt động'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }

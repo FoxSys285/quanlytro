@@ -5,6 +5,7 @@ import 'package:quanlytro/data/local_auth.dart';
 import 'package:quanlytro/layouts/role_layout.dart';
 import 'package:quanlytro/pages/shared/auth/forgot_password_page.dart';
 import 'package:quanlytro/pages/shared/auth/register_page.dart';
+import 'package:quanlytro/pages/shared/legal/legal_consent_checkbox.dart';
 
 class _Gateway extends Fake
     implements AccountGateway, AccountRegistrationGateway {
@@ -85,6 +86,16 @@ Future<void> _fillRegistration(
   }
 }
 
+Future<void> _acceptConsent(WidgetTester tester) async {
+  await _tap(
+    tester,
+    find.descendant(
+      of: find.byType(LegalConsentCheckbox),
+      matching: find.byType(Checkbox),
+    ),
+  );
+}
+
 void main() {
   testWidgets(
     'Registration validates confirmation and consent, then opens the tenant account with phone',
@@ -107,7 +118,7 @@ void main() {
         findsOneWidget,
       );
       expect(gateway.registrations, 0);
-      await _tap(tester, find.byType(CheckboxListTile).last);
+      await _acceptConsent(tester);
       await _tap(tester, submit);
       expect(gateway.registrations, 1);
       expect(gateway.email, 'new@example.com');
@@ -128,7 +139,7 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: RegisterPage(auth: auth)));
       await _tap(tester, find.byType(CheckboxListTile).first);
       await _fillRegistration(tester);
-      await _tap(tester, find.byType(CheckboxListTile).last);
+      await _acceptConsent(tester);
       await _tap(
         tester,
         find.widgetWithText(FilledButton, 'Đăng ký tài khoản'),
@@ -150,7 +161,7 @@ void main() {
     addTearDown(auth.dispose);
     await tester.pumpWidget(MaterialApp(home: RegisterPage(auth: auth)));
     await _fillRegistration(tester);
-    await _tap(tester, find.byType(CheckboxListTile).last);
+    await _acceptConsent(tester);
     await _tap(tester, find.widgetWithText(FilledButton, 'Đăng ký tài khoản'));
     expect(find.text('Email này đã được đăng ký.'), findsOneWidget);
     expect(find.text('Đã tạo tài khoản'), findsNothing);

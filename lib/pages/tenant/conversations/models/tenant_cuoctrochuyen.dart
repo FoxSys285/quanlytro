@@ -69,9 +69,9 @@ class TenantConversation {
       return _contextLabel;
     }
     if (source!.leaseId == null) {
-      return 'Chủ trọ · ${source!.room}';
+      return 'Chủ trọ · ${source!.contextRoom} · ${source!.contextPropertyName}';
     } else {
-      return 'Chủ trọ · Phòng ${source!.room}';
+      return 'Chủ trọ · Phòng ${source!.contextRoom} · ${source!.contextPropertyName}';
     }
   }
 

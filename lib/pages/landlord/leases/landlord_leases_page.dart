@@ -2351,492 +2351,502 @@ class _LeaseEditorState extends State<_LeaseEditor> {
                         Flexible(
                           child: SingleChildScrollView(
                             padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_store.leaseTemplates.isNotEmpty)
-                                  DropdownButtonFormField<String>(
-                                    initialValue: _templateId ?? '',
-                                    isExpanded: true,
-                                    decoration: _inputDecoration(
-                                      'Hợp đồng mẫu chung',
-                                    ),
-                                    items: [
-                                      const DropdownMenuItem<String>(
-                                        value: '',
-                                        child: Text('Không dùng mẫu'),
+                            child: Material(
+                              type: MaterialType.transparency,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_store.leaseTemplates.isNotEmpty)
+                                    DropdownButtonFormField<String>(
+                                      initialValue: _templateId ?? '',
+                                      isExpanded: true,
+                                      decoration: _inputDecoration(
+                                        'Hợp đồng mẫu chung',
                                       ),
-                                      for (final template
-                                          in _store.leaseTemplates)
+                                      items: [
+                                        const DropdownMenuItem<String>(
+                                          value: '',
+                                          child: Text('Không dùng mẫu'),
+                                        ),
+                                        for (final template
+                                            in _store.leaseTemplates)
+                                          DropdownMenuItem(
+                                            value: template.id,
+                                            child: Text(template.name),
+                                          ),
+                                      ],
+                                      onChanged: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          setState(() => _templateId = null);
+                                        } else {
+                                          final template = _store
+                                              .leaseTemplateById(value);
+                                          if (template != null) {
+                                            _applyTemplate(template);
+                                          }
+                                        }
+                                      },
+                                    ),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: _room,
+                                    isExpanded: true,
+                                    style: const TextStyle(
+                                      color: Color(0xFF102F67),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    decoration: _inputDecoration('Phòng')
+                                        .copyWith(
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              19,
+                                            ),
+                                            borderSide: const BorderSide(
+                                              color: landlordBlue,
+                                              width: 1.8,
+                                            ),
+                                          ),
+                                        ),
+                                    items: [
+                                      for (final room in availableRooms)
                                         DropdownMenuItem(
-                                          value: template.id,
-                                          child: Text(template.name),
+                                          value: room,
+                                          child: Text('Phòng $room'),
                                         ),
                                     ],
                                     onChanged: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        setState(() => _templateId = null);
-                                      } else {
-                                        final template = _store
-                                            .leaseTemplateById(value);
-                                        if (template != null) {
-                                          _applyTemplate(template);
+                                      if (value == null) return;
+                                      setState(() {
+                                        _room = value;
+                                        final price = _roomRent(value);
+                                        if (price != null) {
+                                          _rent.text = price.toString();
+                                          _deposit.text = price.toString();
                                         }
-                                      }
+                                        _applyRoomDefaults(value);
+                                      });
                                     },
                                   ),
-                                DropdownButtonFormField<String>(
-                                  initialValue: _room,
-                                  isExpanded: true,
-                                  style: const TextStyle(
-                                    color: Color(0xFF102F67),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
+                                  _textField(
+                                    _rentalAddress,
+                                    'Địa chỉ phòng trọ',
+                                    validator: _requiredValidator(
+                                      'Nhập địa chỉ phòng trọ.',
+                                    ),
                                   ),
-                                  decoration: _inputDecoration('Phòng')
-                                      .copyWith(
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            19,
-                                          ),
-                                          borderSide: const BorderSide(
-                                            color: landlordBlue,
-                                            width: 1.8,
-                                          ),
-                                        ),
-                                      ),
-                                  items: [
-                                    for (final room in availableRooms)
-                                      DropdownMenuItem(
-                                        value: room,
-                                        child: Text('Phòng $room'),
-                                      ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value == null) return;
-                                    setState(() {
-                                      _room = value;
-                                      final price = _roomRent(value);
-                                      if (price != null) {
-                                        _rent.text = price.toString();
-                                        _deposit.text = price.toString();
-                                      }
-                                      _applyRoomDefaults(value);
-                                    });
-                                  },
-                                ),
-                                _textField(
-                                  _rentalAddress,
-                                  'Địa chỉ phòng trọ',
-                                  validator: _requiredValidator(
-                                    'Nhập địa chỉ phòng trọ.',
+                                  _sectionTitle(
+                                    'BÊN A · BÊN CHO THUÊ PHÒNG',
+                                    icon: Icons.home_outlined,
                                   ),
-                                ),
-                                _sectionTitle(
-                                  'BÊN A · BÊN CHO THUÊ PHÒNG',
-                                  icon: Icons.home_outlined,
-                                ),
-                                _textField(
-                                  _landlordName,
-                                  'Họ tên bên A',
-                                  validator: _requiredValidator(
-                                    'Nhập họ tên bên A.',
+                                  _textField(
+                                    _landlordName,
+                                    'Họ tên bên A',
+                                    validator: _requiredValidator(
+                                      'Nhập họ tên bên A.',
+                                    ),
+                                    capitalization: TextCapitalization.words,
                                   ),
-                                  capitalization: TextCapitalization.words,
-                                ),
-                                _dateField(
-                                  'Sinh ngày bên A',
-                                  _landlordBirthDate,
-                                  (date) =>
-                                      setState(() => _landlordBirthDate = date),
-                                  required: false,
-                                  lastDate: DateTime.now(),
-                                ),
-                                _textField(
-                                  _landlordAddress,
-                                  'Địa chỉ thường trú',
-                                  validator: _requiredValidator(
-                                    'Nhập địa chỉ thường trú bên A.',
-                                  ),
-                                ),
-                                _textField(
-                                  _landlordId,
-                                  'CCCD bên A',
-                                  keyboardType: TextInputType.number,
-                                  validator: _citizenIdValidator,
-                                ),
-                                _pairFields(
                                   _dateField(
-                                    'Ngày cấp CCCD bên A',
-                                    _landlordIssueDate,
+                                    'Sinh ngày bên A',
+                                    _landlordBirthDate,
                                     (date) => setState(
-                                      () => _landlordIssueDate = date,
+                                      () => _landlordBirthDate = date,
                                     ),
                                     required: false,
                                     lastDate: DateTime.now(),
                                   ),
                                   _textField(
-                                    _landlordIssuePlace,
-                                    'Nơi cấp CCCD bên A',
-                                  ),
-                                ),
-                                _textField(
-                                  _landlordContact,
-                                  'Điện thoại / Zalo bên A',
-                                  keyboardType: TextInputType.phone,
-                                  validator: _phoneValidator,
-                                ),
-                                _sectionTitle(
-                                  'BÊN B · BÊN THUÊ PHÒNG',
-                                  icon: Icons.person_outline_rounded,
-                                ),
-                                _textField(
-                                  _tenantKey,
-                                  'Mã người thuê (tenantId trong hồ sơ tài khoản)',
-                                  readOnly: widget.lease != null,
-                                  capitalization: TextCapitalization.characters,
-                                  onChanged: _scheduleTenantLookup,
-                                  validator: (value) =>
-                                      value == null ||
-                                          value.trim().isEmpty ||
-                                          RegExp(r'^[^\s/:]+$')
-                                              .hasMatch(value.trim())
-                                      ? null
-                                      : 'Mã người thuê không chứa khoảng trắng, / hoặc :.',
-                                ),
-                                if (_tenantLookupPending ||
-                                    _tenantLookupStatus != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 5),
-                                    child: Row(
-                                      children: [
-                                        if (_tenantLookupPending)
-                                          const SizedBox(
-                                            width: 13,
-                                            height: 13,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
-                                        if (_tenantLookupPending)
-                                          const SizedBox(width: 7),
-                                        Expanded(
-                                          child: Text(
-                                            _tenantLookupPending
-                                                ? 'Đang tra cứu hồ sơ người thuê…'
-                                                : _tenantLookupStatus!,
-                                            style: TextStyle(
-                                              color:
-                                                  _tenantLookupStatus
-                                                          ?.startsWith(
-                                                            'Không tìm thấy',
-                                                          ) ==
-                                                      true
-                                                  ? const Color(0xFFB42318)
-                                                  : LandlordPalette.of(context)
-                                                        .muted,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                    _landlordAddress,
+                                    'Địa chỉ thường trú',
+                                    validator: _requiredValidator(
+                                      'Nhập địa chỉ thường trú bên A.',
                                     ),
                                   ),
-                                _textField(
-                                  _name,
-                                  'Họ tên bên B',
-                                  validator: _requiredValidator(
-                                    'Nhập họ tên bên B.',
-                                  ),
-                                  capitalization: TextCapitalization.words,
-                                ),
-                                _dateField(
-                                  'Sinh ngày bên B',
-                                  _tenantBirthDate,
-                                  (date) =>
-                                      setState(() => _tenantBirthDate = date),
-                                  required: false,
-                                  lastDate: DateTime.now(),
-                                ),
-                                if (_tenantBirthDate == null &&
-                                    widget.lease?.tenantBirthDate == null &&
-                                    _birthYear.text.isNotEmpty)
                                   _textField(
-                                    _birthYear,
-                                    'Năm sinh (hồ sơ cũ)',
+                                    _landlordId,
+                                    'CCCD bên A',
                                     keyboardType: TextInputType.number,
-                                    validator: _birthYearValidator,
+                                    validator: _citizenIdValidator,
                                   ),
-                                _textField(
-                                  _tenantId,
-                                  'CCCD bên B',
-                                  keyboardType: TextInputType.number,
-                                  validator: _citizenIdValidator,
-                                ),
-                                _pairFields(
+                                  _pairFields(
+                                    _dateField(
+                                      'Ngày cấp CCCD bên A',
+                                      _landlordIssueDate,
+                                      (date) => setState(
+                                        () => _landlordIssueDate = date,
+                                      ),
+                                      required: false,
+                                      lastDate: DateTime.now(),
+                                    ),
+                                    _textField(
+                                      _landlordIssuePlace,
+                                      'Nơi cấp CCCD bên A',
+                                    ),
+                                  ),
+                                  _textField(
+                                    _landlordContact,
+                                    'Điện thoại / Zalo bên A',
+                                    keyboardType: TextInputType.phone,
+                                    validator: _phoneValidator,
+                                  ),
+                                  _sectionTitle(
+                                    'BÊN B · BÊN THUÊ PHÒNG',
+                                    icon: Icons.person_outline_rounded,
+                                  ),
+                                  _textField(
+                                    _tenantKey,
+                                    'Mã người thuê (tenantId trong hồ sơ tài khoản)',
+                                    readOnly: widget.lease != null,
+                                    capitalization:
+                                        TextCapitalization.characters,
+                                    onChanged: _scheduleTenantLookup,
+                                    validator: (value) =>
+                                        value == null ||
+                                            value.trim().isEmpty ||
+                                            RegExp(r'^[^\s/:]+$')
+                                                .hasMatch(value.trim())
+                                        ? null
+                                        : 'Mã người thuê không chứa khoảng trắng, / hoặc :.',
+                                  ),
+                                  if (_tenantLookupPending ||
+                                      _tenantLookupStatus != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 5),
+                                      child: Row(
+                                        children: [
+                                          if (_tenantLookupPending)
+                                            const SizedBox(
+                                              width: 13,
+                                              height: 13,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                          if (_tenantLookupPending)
+                                            const SizedBox(width: 7),
+                                          Expanded(
+                                            child: Text(
+                                              _tenantLookupPending
+                                                  ? 'Đang tra cứu hồ sơ người thuê…'
+                                                  : _tenantLookupStatus!,
+                                              style: TextStyle(
+                                                color:
+                                                    _tenantLookupStatus
+                                                            ?.startsWith(
+                                                              'Không tìm thấy',
+                                                            ) ==
+                                                        true
+                                                    ? const Color(0xFFB42318)
+                                                    : LandlordPalette.of(
+                                                        context,
+                                                      ).muted,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  _textField(
+                                    _name,
+                                    'Họ tên bên B',
+                                    validator: _requiredValidator(
+                                      'Nhập họ tên bên B.',
+                                    ),
+                                    capitalization: TextCapitalization.words,
+                                  ),
                                   _dateField(
-                                    'Ngày cấp CCCD',
-                                    _tenantIssueDate,
+                                    'Sinh ngày bên B',
+                                    _tenantBirthDate,
                                     (date) =>
-                                        setState(() => _tenantIssueDate = date),
+                                        setState(() => _tenantBirthDate = date),
+                                    required: false,
                                     lastDate: DateTime.now(),
                                   ),
+                                  if (_tenantBirthDate == null &&
+                                      widget.lease?.tenantBirthDate == null &&
+                                      _birthYear.text.isNotEmpty)
+                                    _textField(
+                                      _birthYear,
+                                      'Năm sinh (hồ sơ cũ)',
+                                      keyboardType: TextInputType.number,
+                                      validator: _birthYearValidator,
+                                    ),
                                   _textField(
-                                    _tenantIssuePlace,
-                                    'Nơi cấp CCCD bên B',
+                                    _tenantId,
+                                    'CCCD bên B',
+                                    keyboardType: TextInputType.number,
+                                    validator: _citizenIdValidator,
+                                  ),
+                                  _pairFields(
+                                    _dateField(
+                                      'Ngày cấp CCCD',
+                                      _tenantIssueDate,
+                                      (date) => setState(
+                                        () => _tenantIssueDate = date,
+                                      ),
+                                      lastDate: DateTime.now(),
+                                    ),
+                                    _textField(
+                                      _tenantIssuePlace,
+                                      'Nơi cấp CCCD bên B',
+                                      validator: _requiredValidator(
+                                        'Nhập nơi cấp CCCD bên B.',
+                                      ),
+                                    ),
+                                  ),
+                                  _textField(
+                                    _phone,
+                                    'Điện thoại / Zalo bên B',
+                                    keyboardType: TextInputType.phone,
+                                    validator: _phoneValidator,
+                                  ),
+                                  _textField(
+                                    _tenantAddress,
+                                    'Địa chỉ thường trú',
                                     validator: _requiredValidator(
-                                      'Nhập nơi cấp CCCD bên B.',
+                                      'Nhập địa chỉ thường trú bên B.',
                                     ),
                                   ),
-                                ),
-                                _textField(
-                                  _phone,
-                                  'Điện thoại / Zalo bên B',
-                                  keyboardType: TextInputType.phone,
-                                  validator: _phoneValidator,
-                                ),
-                                _textField(
-                                  _tenantAddress,
-                                  'Địa chỉ thường trú',
-                                  validator: _requiredValidator(
-                                    'Nhập địa chỉ thường trú bên B.',
+                                  _sectionTitle(
+                                    'PHÒNG VÀ CÁC KHOẢN TIỀN',
+                                    icon: Icons.meeting_room_outlined,
                                   ),
-                                ),
-                                _sectionTitle(
-                                  'PHÒNG VÀ CÁC KHOẢN TIỀN',
-                                  icon: Icons.meeting_room_outlined,
-                                ),
-                                _pairFields(
+                                  _pairFields(
+                                    _textField(
+                                      _rent,
+                                      'Giá phòng / tháng',
+                                      keyboardType: TextInputType.number,
+                                      validator: _positiveAmountValidator,
+                                    ),
+                                    _textField(
+                                      _deposit,
+                                      'Tiền đặt cọc',
+                                      keyboardType: TextInputType.number,
+                                      validator: _nonNegativeAmountValidator,
+                                    ),
+                                  ),
+                                  _rateDropdown(water: false),
                                   _textField(
-                                    _rent,
-                                    'Giá phòng / tháng',
+                                    _electricity,
+                                    'Đơn giá điện / kWh',
+                                    readOnly: true,
+                                  ),
+                                  _rateDropdown(water: true),
+                                  _textField(
+                                    _water,
+                                    'Đơn giá nước',
+                                    readOnly: true,
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 5),
+                                    child: Text(
+                                      'Đơn vị nước: ${_waterUnit(_waterType)} · lấy từ Bảng giá & dịch vụ.',
+                                      style: TextStyle(
+                                        color: LandlordPalette.of(context)
+                                            .muted,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                  _serviceFields(),
+                                  _pairFields(
+                                    _textField(
+                                      _dueDay,
+                                      'Ngày đóng tiền (1–31)',
+                                      keyboardType: TextInputType.number,
+                                      validator: _dueDayValidator,
+                                    ),
+                                    _textField(
+                                      _occupants,
+                                      'Số người ở theo hợp đồng',
+                                      keyboardType: TextInputType.number,
+                                      validator: _occupantsValidator,
+                                      onChanged: (_) => setState(
+                                        _updateOccupantServiceAmounts,
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 5),
+                                    child: Text(
+                                      'Số lượng dịch vụ theo người mặc định lấy theo số người ở; bạn có thể chỉnh riêng từng dịch vụ.',
+                                      style: TextStyle(
+                                        color: LandlordPalette.of(context)
+                                            .muted,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                  _sectionTitle(
+                                    'THỜI HẠN THUÊ',
+                                    icon: Icons.calendar_month_outlined,
+                                  ),
+                                  _textField(
+                                    _termMonths,
+                                    'Thời hạn bên B thuê (tháng)',
                                     keyboardType: TextInputType.number,
-                                    validator: _positiveAmountValidator,
+                                    validator: _termMonthsValidator,
                                   ),
-                                  _textField(
-                                    _deposit,
-                                    'Tiền đặt cọc',
-                                    keyboardType: TextInputType.number,
-                                    validator: _nonNegativeAmountValidator,
-                                  ),
-                                ),
-                                _rateDropdown(water: false),
-                                _textField(
-                                  _electricity,
-                                  'Đơn giá điện / kWh',
-                                  readOnly: true,
-                                ),
-                                _rateDropdown(water: true),
-                                _textField(
-                                  _water,
-                                  'Đơn giá nước',
-                                  readOnly: true,
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 5),
-                                  child: Text(
-                                    'Đơn vị nước: ${_waterUnit(_waterType)} · lấy từ Bảng giá & dịch vụ.',
-                                    style: TextStyle(
-                                      color: LandlordPalette.of(context).muted,
-                                      fontSize: 11,
+                                  _pairFields(
+                                    _dateField(
+                                      'Từ ngày',
+                                      _start,
+                                      (date) => setState(() => _start = date!),
+                                    ),
+                                    _dateField(
+                                      'Đến ngày',
+                                      _end,
+                                      (date) => setState(() => _end = date!),
                                     ),
                                   ),
-                                ),
-                                _serviceFields(),
-                                _pairFields(
-                                  _textField(
-                                    _dueDay,
-                                    'Ngày đóng tiền (1–31)',
-                                    keyboardType: TextInputType.number,
-                                    validator: _dueDayValidator,
+                                  _sectionTitle(
+                                    'PHƯƠNG THỨC THANH TOÁN',
+                                    icon: Icons.payments_outlined,
                                   ),
-                                  _textField(
-                                    _occupants,
-                                    'Số người ở theo hợp đồng',
-                                    keyboardType: TextInputType.number,
-                                    validator: _occupantsValidator,
-                                    onChanged: (_) =>
-                                        setState(_updateOccupantServiceAmounts),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 5),
-                                  child: Text(
-                                    'Số lượng dịch vụ theo người mặc định lấy theo số người ở; bạn có thể chỉnh riêng từng dịch vụ.',
-                                    style: TextStyle(
-                                      color: LandlordPalette.of(context).muted,
-                                      fontSize: 11,
+                                  CheckboxListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    dense: true,
+                                    activeColor: landlordBlue,
+                                    tileColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(17),
+                                      side: const BorderSide(
+                                        color: Color(0xFFD4E3FF),
+                                      ),
+                                    ),
+                                    controlAffinity:
+                                        ListTileControlAffinity.leading,
+                                    value: _cashEnabled,
+                                    onChanged: (value) => setState(
+                                      () => _cashEnabled = value ?? false,
+                                    ),
+                                    title: Text(
+                                      'Tiền mặt',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                _sectionTitle(
-                                  'THỜI HẠN THUÊ',
-                                  icon: Icons.calendar_month_outlined,
-                                ),
-                                _textField(
-                                  _termMonths,
-                                  'Thời hạn bên B thuê (tháng)',
-                                  keyboardType: TextInputType.number,
-                                  validator: _termMonthsValidator,
-                                ),
-                                _pairFields(
-                                  _dateField(
-                                    'Từ ngày',
-                                    _start,
-                                    (date) => setState(() => _start = date!),
-                                  ),
-                                  _dateField(
-                                    'Đến ngày',
-                                    _end,
-                                    (date) => setState(() => _end = date!),
-                                  ),
-                                ),
-                                _sectionTitle(
-                                  'PHƯƠNG THỨC THANH TOÁN',
-                                  icon: Icons.payments_outlined,
-                                ),
-                                CheckboxListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                  dense: true,
-                                  activeColor: landlordBlue,
-                                  tileColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(17),
-                                    side: const BorderSide(
-                                      color: Color(0xFFD4E3FF),
+                                  if (_cashEnabled)
+                                    _textField(
+                                      _cashLocation,
+                                      'Địa điểm nhận tiền mặt',
+                                      validator: _requiredValidator(
+                                        'Nhập nơi nhận tiền mặt.',
+                                      ),
+                                    ),
+                                  CheckboxListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    dense: true,
+                                    activeColor: landlordBlue,
+                                    tileColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(17),
+                                      side: const BorderSide(
+                                        color: Color(0xFFD4E3FF),
+                                      ),
+                                    ),
+                                    controlAffinity:
+                                        ListTileControlAffinity.leading,
+                                    value: _bankEnabled,
+                                    onChanged: (value) => setState(
+                                      () => _bankEnabled = value ?? false,
+                                    ),
+                                    title: Text(
+                                      'Chuyển khoản ngân hàng',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                  controlAffinity:
-                                      ListTileControlAffinity.leading,
-                                  value: _cashEnabled,
-                                  onChanged: (value) => setState(
-                                    () => _cashEnabled = value ?? false,
-                                  ),
-                                  title: Text(
-                                    'Tiền mặt',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
+                                  if (_bankEnabled) ...[
+                                    _textField(
+                                      _bankName,
+                                      'Tên ngân hàng',
+                                      validator: _requiredValidator(
+                                        'Nhập tên ngân hàng.',
+                                      ),
                                     ),
-                                  ),
-                                ),
-                                if (_cashEnabled)
-                                  _textField(
-                                    _cashLocation,
-                                    'Địa điểm nhận tiền mặt',
-                                    validator: _requiredValidator(
-                                      'Nhập nơi nhận tiền mặt.',
-                                    ),
-                                  ),
-                                CheckboxListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                  dense: true,
-                                  activeColor: landlordBlue,
-                                  tileColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(17),
-                                    side: const BorderSide(
-                                      color: Color(0xFFD4E3FF),
-                                    ),
-                                  ),
-                                  controlAffinity:
-                                      ListTileControlAffinity.leading,
-                                  value: _bankEnabled,
-                                  onChanged: (value) => setState(
-                                    () => _bankEnabled = value ?? false,
-                                  ),
-                                  title: Text(
-                                    'Chuyển khoản ngân hàng',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                if (_bankEnabled) ...[
-                                  _textField(
-                                    _bankName,
-                                    'Tên ngân hàng',
-                                    validator: _requiredValidator(
-                                      'Nhập tên ngân hàng.',
-                                    ),
-                                  ),
-                                  _textField(
-                                    _bankAccount,
-                                    'Số tài khoản',
-                                    keyboardType: TextInputType.number,
-                                    validator: _bankAccountValidator,
-                                  ),
-                                ],
-                                _sectionTitle(
-                                  'GHI CHÚ',
-                                  icon: Icons.notes_rounded,
-                                ),
-                                TextFormField(
-                                  controller: _note,
-                                  minLines: 2,
-                                  maxLines: 4,
-                                  style: const TextStyle(
-                                    color: Color(0xFF102F67),
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  decoration: _inputDecoration(
-                                    'Ghi chú thêm trong hợp đồng',
-                                  ).copyWith(alignLabelWithHint: true),
-                                ),
-                                _sectionTitle(
-                                  'TRÁCH NHIỆM CÁC BÊN',
-                                  icon: Icons.fact_check_outlined,
-                                ),
-                                _textArea(
-                                  _responsibilityA,
-                                  'Trách nhiệm của bên A',
-                                ),
-                                _textArea(
-                                  _responsibilityB,
-                                  'Trách nhiệm của bên B',
-                                ),
-                                _textArea(
-                                  _commonResponsibilities,
-                                  'Trách nhiệm chung',
-                                ),
-                                const SizedBox(height: 8),
-                                DropdownButtonFormField<LandlordLeaseStatus>(
-                                  initialValue: _status,
-                                  isExpanded: true,
-                                  style: const TextStyle(
-                                    color: Color(0xFF102F67),
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  decoration: _inputDecoration(
-                                    'Trạng thái lưu',
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: LandlordLeaseStatus.active,
-                                      child: Text('Đang hiệu lực'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: LandlordLeaseStatus.draft,
-                                      child: Text('Nháp'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: LandlordLeaseStatus.terminated,
-                                      child: Text('Đã kết thúc'),
+                                    _textField(
+                                      _bankAccount,
+                                      'Số tài khoản',
+                                      keyboardType: TextInputType.number,
+                                      validator: _bankAccountValidator,
                                     ),
                                   ],
-                                  onChanged: (value) => setState(
-                                    () => _status = value ?? _status,
+                                  _sectionTitle(
+                                    'GHI CHÚ',
+                                    icon: Icons.notes_rounded,
                                   ),
-                                ),
-                              ],
+                                  TextFormField(
+                                    controller: _note,
+                                    minLines: 2,
+                                    maxLines: 4,
+                                    style: const TextStyle(
+                                      color: Color(0xFF102F67),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    decoration: _inputDecoration(
+                                      'Ghi chú thêm trong hợp đồng',
+                                    ).copyWith(alignLabelWithHint: true),
+                                  ),
+                                  _sectionTitle(
+                                    'TRÁCH NHIỆM CÁC BÊN',
+                                    icon: Icons.fact_check_outlined,
+                                  ),
+                                  _textArea(
+                                    _responsibilityA,
+                                    'Trách nhiệm của bên A',
+                                  ),
+                                  _textArea(
+                                    _responsibilityB,
+                                    'Trách nhiệm của bên B',
+                                  ),
+                                  _textArea(
+                                    _commonResponsibilities,
+                                    'Trách nhiệm chung',
+                                  ),
+                                  const SizedBox(height: 8),
+                                  DropdownButtonFormField<LandlordLeaseStatus>(
+                                    initialValue: _status,
+                                    isExpanded: true,
+                                    style: const TextStyle(
+                                      color: Color(0xFF102F67),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    decoration: _inputDecoration(
+                                      'Trạng thái lưu',
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: LandlordLeaseStatus.active,
+                                        child: Text('Đang hiệu lực'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: LandlordLeaseStatus.draft,
+                                        child: Text('Nháp'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: LandlordLeaseStatus.terminated,
+                                        child: Text('Đã kết thúc'),
+                                      ),
+                                    ],
+                                    onChanged: (value) => setState(
+                                      () => _status = value ?? _status,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -3481,9 +3491,9 @@ class _LeaseTemplateEditorState extends State<_LeaseTemplateEditor> {
   );
   late DateTime? _birthDate = widget.template?.landlordBirthDate;
   late DateTime? _issueDate = widget.template?.landlordCitizenIssueDate;
-  late String _electricityServiceId = 'electricity';
-  late String _waterServiceId = 'water';
-  late String _waterType = _serviceRecord(_waterServiceId) == null
+  late final String _electricityServiceId = 'electricity';
+  late final String _waterServiceId = 'water';
+  late final String _waterType = _serviceRecord(_waterServiceId) == null
       ? widget.template?.waterType ?? 'Theo m³'
       : _waterTypeForService(_serviceRecord(_waterServiceId));
   late bool _cashEnabled = widget.template?.cashPaymentEnabled ?? true;

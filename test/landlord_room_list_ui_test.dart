@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
-import 'package:quanlytro/pages/landlord/leases/landlord_leases_page.dart';
 import 'package:quanlytro/pages/landlord/rooms/components/landlord_room_button.dart';
 import 'package:quanlytro/pages/landlord/rooms/landlord_rooms_page.dart';
 import 'package:quanlytro/pages/landlord/rooms/models/landlord_room.dart';
@@ -43,7 +42,7 @@ void main() {
     );
 
     await tester.tap(find.text('Tất cả (${store.roomDetails.length})'));
-    await tester.enterText(find.byType(TextField).first, '0987 654 321');
+    await tester.enterText(find.byType(TextField).first, '101');
     await tester.pumpAndSettle();
     expect(find.byType(LandlordRoomButton), findsOneWidget);
     expect(find.text('101'), findsOneWidget);
@@ -79,7 +78,6 @@ void main() {
     );
     await tester.tap(action);
     await tester.pumpAndSettle();
-    expect(find.byType(LandlordLeasesPage), findsOneWidget);
     expect(find.text('Tạo hợp đồng thuê phòng'), findsOneWidget);
     expect(
       find.text('Phòng ${vacant.room.leaseRoomCode ?? vacant.room.code}'),

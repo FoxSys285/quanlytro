@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/app_persistence.dart';
+import '../../../data/local_auth.dart';
 import '../../landlord/finance/landlord_finance_models.dart';
 import '../../landlord/landlord_demo_store.dart';
 import '../../shared/rental/tenant_session.dart';
@@ -35,79 +36,52 @@ Future<void> _requestRenewal(
   LandlordLease lease,
   String tenantId,
 ) async {
-  final months = TextEditingController(text: '12');
-  final reason = TextEditingController();
-  final submitted = await showDialog<bool>(
+  final request = await showDialog<_RenewalRequestDraft>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Đề nghị gia hạn hợp đồng'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: months,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Số tháng muốn gia hạn',
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: reason,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Lời nhắn cho chủ trọ (không bắt buộc)',
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text('Gửi đề nghị'),
-        ),
-      ],
-    ),
+    builder: (_) => const _RenewalRequestDialog(),
   );
-  final count = int.tryParse(months.text.trim());
-  months.dispose();
-  if (submitted != true || !context.mounted) {
-    reason.dispose();
-    return;
-  }
-  if (count == null || count < 1 || count > 60) {
-    reason.dispose();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Thời hạn gia hạn phải từ 1 đến 60 tháng.')),
-    );
-    return;
-  }
+  if (request == null || !context.mounted) return;
+  final previous = (
+    lease.renewalStatus,
+    lease.renewalRequestedAt,
+    lease.renewalRequestedBy,
+    lease.renewalProposedEndDate,
+    lease.renewalReason,
+    lease.renewalReviewedAt,
+    lease.renewalRejectionReason,
+  );
   try {
     store.requestLeaseRenewal(
       tenantId: tenantId,
       leaseId: lease.id,
-      proposedEndDate: _endAfterMonths(lease.endDate, count),
-      reason: reason.text.trim(),
+      proposedEndDate: _endAfterMonths(lease.endDate, request.months),
+      reason: request.reason,
     );
-    await AppPersistence.current?.flush();
+    final persistence = AppPersistence.current;
+    if (persistence == null && LocalAuth.instance.isCloudMode) {
+      throw StateError('Chưa kết nối phiên lưu Firebase.');
+    }
+    await persistence?.flush();
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Đã gửi đề nghị gia hạn cho chủ trọ.')),
     );
   } catch (failure) {
+    lease
+      ..renewalStatus = previous.$1
+      ..renewalRequestedAt = previous.$2
+      ..renewalRequestedBy = previous.$3
+      ..renewalProposedEndDate = previous.$4
+      ..renewalReason = previous.$5
+      ..renewalReviewedAt = previous.$6
+      ..renewalRejectionReason = previous.$7;
+    store.notifyStateRestored();
     if (!context.mounted) return;
     final message = failure is ArgumentError
         ? failure.message.toString()
         : AppPersistence.saveFailureMessage(failure);
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
-  } finally {
-    reason.dispose();
   }
 }
 
@@ -117,44 +91,30 @@ Future<void> _requestTermination(
   LandlordLease lease,
   String tenantId,
 ) async {
-  final reason = TextEditingController();
-  final submitted = await showDialog<bool>(
+  final reason = await showDialog<String>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Đề nghị kết thúc hợp đồng'),
-      content: TextField(
-        controller: reason,
-        autofocus: true,
-        minLines: 2,
-        maxLines: 4,
-        maxLength: 300,
-        decoration: const InputDecoration(
-          labelText: 'Lý do chuyển trọ / kết thúc hợp đồng',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text('Gửi đề nghị'),
-        ),
-      ],
-    ),
+    builder: (_) => const _TerminationRequestDialog(),
   );
-  if (submitted != true || !context.mounted) {
-    reason.dispose();
-    return;
-  }
+  if (reason == null || !context.mounted) return;
+  final previous = (
+    lease.terminationRequestStatus,
+    lease.terminationRequestedAt,
+    lease.terminationRequestedBy,
+    lease.terminationRequestReason,
+    lease.terminationReviewedAt,
+    lease.terminationRejectionReason,
+  );
   try {
     store.requestLeaseTermination(
       tenantId: tenantId,
       leaseId: lease.id,
-      reason: reason.text.trim(),
+      reason: reason,
     );
-    await AppPersistence.current?.flush();
+    final persistence = AppPersistence.current;
+    if (persistence == null && LocalAuth.instance.isCloudMode) {
+      throw StateError('Chưa kết nối phiên lưu Firebase.');
+    }
+    await persistence?.flush();
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -162,14 +122,20 @@ Future<void> _requestTermination(
       ),
     );
   } catch (failure) {
+    lease
+      ..terminationRequestStatus = previous.$1
+      ..terminationRequestedAt = previous.$2
+      ..terminationRequestedBy = previous.$3
+      ..terminationRequestReason = previous.$4
+      ..terminationReviewedAt = previous.$5
+      ..terminationRejectionReason = previous.$6;
+    store.notifyStateRestored();
     if (!context.mounted) return;
     final message = failure is ArgumentError
         ? failure.message.toString()
         : AppPersistence.saveFailureMessage(failure);
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
-  } finally {
-    reason.dispose();
   }
 }
 
@@ -547,4 +513,140 @@ class TenantLeaseContractPage extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _RenewalRequestDraft {
+  const _RenewalRequestDraft(this.months, this.reason);
+  final int months;
+  final String reason;
+}
+
+class _RenewalRequestDialog extends StatefulWidget {
+  const _RenewalRequestDialog();
+
+  @override
+  State<_RenewalRequestDialog> createState() => _RenewalRequestDialogState();
+}
+
+class _RenewalRequestDialogState extends State<_RenewalRequestDialog> {
+  final _form = GlobalKey<FormState>();
+  final _months = TextEditingController(text: '12');
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _months.dispose();
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    scrollable: true,
+    title: const Text('Đề nghị gia hạn hợp đồng'),
+    content: Form(
+      key: _form,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextFormField(
+            controller: _months,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Số tháng muốn gia hạn',
+            ),
+            validator: (value) {
+              final months = int.tryParse((value ?? '').trim());
+              return months == null || months < 1 || months > 60
+                  ? 'Thời hạn gia hạn phải từ 1 đến 60 tháng.'
+                  : null;
+            },
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _reason,
+            minLines: 2,
+            maxLines: 4,
+            maxLength: 300,
+            decoration: const InputDecoration(
+              labelText: 'Lời nhắn cho chủ trọ (không bắt buộc)',
+            ),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Hủy'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (!_form.currentState!.validate()) return;
+          Navigator.pop(
+            context,
+            _RenewalRequestDraft(
+              int.parse(_months.text.trim()),
+              _reason.text.trim(),
+            ),
+          );
+        },
+        child: const Text('Gửi đề nghị'),
+      ),
+    ],
+  );
+}
+
+class _TerminationRequestDialog extends StatefulWidget {
+  const _TerminationRequestDialog();
+
+  @override
+  State<_TerminationRequestDialog> createState() =>
+      _TerminationRequestDialogState();
+}
+
+class _TerminationRequestDialogState extends State<_TerminationRequestDialog> {
+  final _form = GlobalKey<FormState>();
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    scrollable: true,
+    title: const Text('Đề nghị kết thúc hợp đồng'),
+    content: Form(
+      key: _form,
+      child: TextFormField(
+        controller: _reason,
+        autofocus: true,
+        minLines: 2,
+        maxLines: 4,
+        maxLength: 300,
+        decoration: const InputDecoration(
+          labelText: 'Lý do chuyển trọ / kết thúc hợp đồng',
+        ),
+        validator: (value) => (value ?? '').trim().length < 5
+            ? 'Nhập lý do (ít nhất 5 ký tự).'
+            : null,
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Hủy'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (!_form.currentState!.validate()) return;
+          Navigator.pop(context, _reason.text.trim());
+        },
+        child: const Text('Gửi đề nghị'),
+      ),
+    ],
+  );
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -8,6 +9,7 @@ import '../layouts/role_layout.dart';
 import 'auth_validation.dart';
 import 'firebase_account_gateway.dart';
 import 'account_provider.dart';
+import 'device_login_history.dart';
 
 /// Local demo accounts, or Firebase accounts when explicitly configured.
 class LocalAuth extends ChangeNotifier {
@@ -58,8 +60,29 @@ class LocalAuth extends ChangeNotifier {
     await _onSignedIn!(session);
     _session = session;
     _role = session.role;
+    _rememberDeviceAccount(
+      identifier: session.email.isNotEmpty
+          ? session.email
+          : session.phoneNumber,
+      displayName: session.displayName,
+      role: session.role,
+    );
     notifyListeners();
     return true;
+  }
+
+  void _rememberDeviceAccount({
+    required String identifier,
+    required String displayName,
+    required AppRole role,
+  }) {
+    unawaited(
+      DeviceLoginHistory.remember(
+        identifier: identifier,
+        displayName: displayName,
+        role: role,
+      ),
+    );
   }
 
   /// Reopens the Firebase session saved by the platform after app restarts.
@@ -243,6 +266,13 @@ class LocalAuth extends ChangeNotifier {
         await _onSignedIn!(session);
         _session = session;
         _role = session.role;
+        _rememberDeviceAccount(
+          identifier: session.email.isNotEmpty
+              ? session.email
+              : session.phoneNumber,
+          displayName: session.displayName,
+          role: session.role,
+        );
         notifyListeners();
         return;
       } catch (error) {
@@ -279,6 +309,7 @@ class LocalAuth extends ChangeNotifier {
     }
     _role = AppRole.values.byName(account['role'] as String);
     _localSessionEmail = key;
+    _rememberDeviceAccount(identifier: key, displayName: '', role: _role!);
     notifyListeners();
   }
 
@@ -317,6 +348,13 @@ class LocalAuth extends ChangeNotifier {
         await _onSignedIn!(session);
         _session = session;
         _role = session.role;
+        _rememberDeviceAccount(
+          identifier: session.email.isNotEmpty
+              ? session.email
+              : session.phoneNumber,
+          displayName: session.displayName,
+          role: session.role,
+        );
         notifyListeners();
       } catch (_) {
         try {

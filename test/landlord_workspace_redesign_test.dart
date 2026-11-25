@@ -17,6 +17,7 @@ import 'package:quanlytro/pages/landlord/landlord_glass.dart';
 import 'package:quanlytro/pages/landlord/landlord_theme.dart';
 import 'package:quanlytro/pages/landlord/rooms/components/landlord_room_button.dart';
 import 'package:quanlytro/pages/landlord/rooms/landlord_room_detail_page.dart';
+import 'package:quanlytro/pages/landlord/rooms/landlord_room_finance_detail_page.dart';
 import 'package:quanlytro/pages/landlord/rooms/landlord_rooms_page.dart';
 import 'package:quanlytro/pages/shared/conversations/conversation_store.dart';
 
@@ -112,10 +113,7 @@ void main() {
       find.byType(LandlordRoomBalanceCard),
     );
     expect(unpaid, isNotEmpty);
-    expect(
-      unpaid.every((card) => card.balance.state == RoomPaymentState.unpaid),
-      isTrue,
-    );
+    expect(unpaid.every((card) => card.balance.remaining > 0), isTrue);
     final card = find.byType(LandlordIncidentGlassCard).first;
     await tester.ensureVisible(card);
     await tester.tap(card);
@@ -133,39 +131,29 @@ void main() {
       const MaterialApp(home: Scaffold(body: LandlordBillingPage())),
     );
     await tester.pumpAndSettle();
+    final propertyAction = find.text('Xem thu chi');
+    await tester.ensureVisible(propertyAction);
+    await tester.tap(propertyAction);
+    await tester.pumpAndSettle();
     expect(
-      find.byType(LandlordRoomBalanceCard),
+      find.byType(LandlordRoomButton),
       findsNWidgets(rental.catalog.length),
     );
-    final cards = tester
-        .widgetList<LandlordRoomBalanceCard>(
-          find.byType(LandlordRoomBalanceCard),
-        )
-        .toList();
-    expect(cards.any((c) => c.balance.state == RoomPaymentState.paid), isTrue);
-    expect(
-      cards.any((c) => c.balance.state == RoomPaymentState.unpaid),
-      isTrue,
-    );
-    final search = find.byType(LandlordGlassSearch);
-    await tester.ensureVisible(search);
-    await tester.enterText(
-      find.descendant(of: search, matching: find.byType(TextField)),
-      '101',
-    );
+    final paidFilter = find.textContaining('Đã đóng tiền (');
+    await tester.ensureVisible(paidFilter);
+    await tester.tap(paidFilter);
     await tester.pumpAndSettle();
-    expect(find.byType(LandlordRoomBalanceCard), findsOneWidget);
-    expect(
-      tester
-          .widget<LandlordRoomBalanceCard>(find.byType(LandlordRoomBalanceCard))
-          .balance
-          .state,
-      RoomPaymentState.paid,
-    );
-    await tester.ensureVisible(find.byType(LandlordRoomBalanceCard));
-    await tester.tap(find.byType(LandlordRoomBalanceCard));
+    final paidRoom = find.byKey(const ValueKey('101'));
+    expect(paidRoom, findsOneWidget);
+    final paidBalance = landlordRoomBalances(
+      rental,
+      DateTime(DateTime.now().year, DateTime.now().month),
+    ).firstWhere((balance) => balance.details.room.code == '101');
+    expect(paidBalance.state, RoomPaymentState.paid);
+    await tester.tap(paidRoom);
     await tester.pumpAndSettle();
-    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byType(LandlordRoomFinanceDetailPage), findsOneWidget);
+    expect(find.text('Lịch sử hóa đơn'), findsOneWidget);
     expect(find.text('Đã đóng tiền'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
@@ -211,20 +199,39 @@ void main() {
       const MaterialApp(home: Scaffold(body: LandlordBillingPage())),
     );
     await tester.pumpAndSettle();
-    LandlordRoomBalance roomBalance() => tester
-        .widgetList<LandlordRoomBalanceCard>(
-          find.byType(LandlordRoomBalanceCard),
-        )
-        .firstWhere((card) => card.balance.details.room.code == 'A.302')
-        .balance;
-    expect(roomBalance().state, RoomPaymentState.unpaid);
+    final propertyAction = find.text('Xem thu chi');
+    await tester.ensureVisible(propertyAction);
+    await tester.tap(propertyAction);
+    await tester.pumpAndSettle();
+    final room = find.byKey(const ValueKey('A.302'));
+    final period = DateTime(DateTime.now().year, DateTime.now().month);
+    expect(
+      landlordRoomBalances(
+        rental,
+        period,
+      ).firstWhere((balance) => balance.details.room.code == 'A.302').state,
+      RoomPaymentState.pendingReview,
+    );
+    expect(
+      tester.widget<LandlordRoomButton>(room).valueText,
+      startsWith('Chờ duyệt ·'),
+    );
     rental.approvePayment(
       rental.payments.first,
       rental.payments.first.reportedAmount,
     );
     await tester.pumpAndSettle();
-    expect(roomBalance().state, RoomPaymentState.paid);
-    expect(roomBalance().remaining, 0);
+    expect(
+      landlordRoomBalances(
+        rental,
+        period,
+      ).firstWhere((balance) => balance.details.room.code == 'A.302').state,
+      RoomPaymentState.paid,
+    );
+    expect(
+      tester.widget<LandlordRoomButton>(room).valueText,
+      startsWith('Đã thu ·'),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -238,15 +245,19 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final card = find.byType(LandlordRoomBalanceCard);
+    final card = find.byKey(const ValueKey('101'));
+    expect(card, findsOneWidget);
     expect(
-      tester.widget<LandlordRoomBalanceCard>(card).balance.state,
+      landlordRoomBalances(
+        rental,
+        DateTime(DateTime.now().year, DateTime.now().month),
+      ).firstWhere((balance) => balance.details.room.code == '101').state,
       RoomPaymentState.unbilled,
     );
     await tester.ensureVisible(card);
     await tester.tap(card);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Lập hóa đơn cho phòng này'));
+    await tester.tap(find.text('Lập phiếu thu'));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
     final leaseField = tester.widget<DropdownButtonFormField<String>>(
@@ -255,6 +266,67 @@ void main() {
     expect(
       leaseField.initialValue,
       rental.leases.firstWhere((l) => l.room == 'A.101').id,
+    );
+    final electric = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.labelText == 'Điện tiêu thụ (kWh)',
+      ),
+    );
+    final water = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.labelText == 'Nước tiêu thụ (m³)',
+      ),
+    );
+    final extraName = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.labelText == 'Tên khoản thu',
+      ),
+    );
+    final extraAmount = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.labelText == 'Số tiền (đ)',
+      ),
+    );
+    await tester.enterText(electric, '-1');
+    await tester.enterText(water, '3');
+    await tester.enterText(extraName, 'Vệ sinh thêm');
+    await tester.enterText(extraAmount, '25000');
+    final invoiceCount = rental.invoices.length;
+    await tester.tap(find.text('Phát hành hóa đơn'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(rental.invoices, hasLength(invoiceCount));
+
+    await tester.enterText(electric, '12');
+    await tester.tap(find.text('Phát hành hóa đơn'));
+    await tester.pumpAndSettle();
+    expect(rental.invoices, hasLength(invoiceCount + 1));
+    final invoice = rental.invoices.first;
+    expect(invoice.leaseId, leaseField.initialValue);
+    expect(invoice.room, 'A.101');
+    expect(
+      invoice.charges.any((charge) => charge.name.startsWith('Điện')),
+      isTrue,
+    );
+    expect(
+      invoice.charges.any((charge) => charge.name.startsWith('Nước')),
+      isTrue,
+    );
+    expect(
+      invoice.charges.any((charge) => charge.name == 'Vệ sinh thêm'),
+      isTrue,
     );
     expect(tester.takeException(), isNull);
   });

@@ -269,6 +269,7 @@ class LandlordFormDialog extends StatelessWidget {
     required this.child,
     required this.footer,
     this.maxWidth = 620,
+    this.canClose = true,
   });
 
   final String title;
@@ -277,88 +278,95 @@ class LandlordFormDialog extends StatelessWidget {
   final Widget child;
   final Widget footer;
   final double maxWidth;
+  final bool canClose;
 
   @override
-  Widget build(BuildContext context) => Dialog(
-    insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
-    backgroundColor: Colors.transparent,
-    surfaceTintColor: Colors.transparent,
-    child: ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: maxWidth,
-        maxHeight: MediaQuery.sizeOf(context).height * .9,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFF4F8FF),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x40547AB4),
-              blurRadius: 34,
-              offset: Offset(0, 16),
-            ),
-          ],
+  Widget build(BuildContext context) => PopScope(
+    canPop: canClose,
+    child: Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxWidth,
+          maxHeight: MediaQuery.sizeOf(context).height * .9,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 14, 8),
-              child: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE4EFFF),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(icon, color: propertyBlue),
-                  ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            color: Color(0xFF102F67),
-                            fontSize: 19,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: LandlordPalette.of(context).muted,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Đóng',
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F8FF),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x40547AB4),
+                blurRadius: 34,
+                offset: Offset(0, 16),
               ),
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                child: child,
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 14, 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE4EFFF),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(icon, color: propertyBlue),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: Color(0xFF102F67),
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              color: LandlordPalette.of(context).muted,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Đóng',
+                      onPressed: canClose ? () => Navigator.pop(context) : null,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 2, 18, 16),
-              child: footer,
-            ),
-          ],
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: child,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 2, 18, 16),
+                child: footer,
+              ),
+            ],
+          ),
         ),
       ),
     ),

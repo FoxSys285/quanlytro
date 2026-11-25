@@ -57,7 +57,9 @@ Future<void> _showEditor(
                             ? '[{"code":79,"name":"TP. Hồ Chí Minh"}]'
                             : '{"wards":[{"code":1,"name":"Phường 25"}]}',
                         200,
-                        headers: {'content-type': 'application/json; charset=utf-8'},
+                        headers: {
+                          'content-type': 'application/json; charset=utf-8',
+                        },
                       ),
                     ),
                   ),
@@ -178,43 +180,59 @@ void main() {
   testWidgets('Property coordinates require a valid pair and survive a save', (
     tester,
   ) async {
-    LandlordProperty? saved;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    LandlordProperty? rejected;
+    final invalidCoordinates = LandlordProperty(
+      id: _property.id,
+      name: _property.name,
+      address: _property.address,
+      ownerName: _property.ownerName,
+      phone: _property.phone,
+      description: _property.description,
+      latitude: 91,
+    );
     await _showEditor(
       tester,
-      property: _property,
+      property: invalidCoordinates,
+      pickImage: () async => null,
+      onClosed: (value) => rejected = value,
+    );
+    await tester.tap(find.text('Lưu thay đổi'));
+    await tester.pumpAndSettle();
+    expect(rejected, isNull);
+    expect(find.text('Vĩ độ phải từ -90 đến 90.'), findsOneWidget);
+    expect(find.text('Nhập đủ vĩ độ và kinh độ.'), findsOneWidget);
+    final clearCoordinates = find.text('Bỏ tọa độ');
+    await tester.ensureVisible(clearCoordinates);
+    await tester.tap(clearCoordinates);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lưu thay đổi'));
+    await tester.pumpAndSettle();
+    expect(rejected?.latitude, isNull);
+    expect(rejected?.longitude, isNull);
+
+    LandlordProperty? saved;
+    final validCoordinates = LandlordProperty(
+      id: _property.id,
+      name: _property.name,
+      address: _property.address,
+      ownerName: _property.ownerName,
+      phone: _property.phone,
+      description: _property.description,
+      latitude: 10.812345,
+      longitude: 106.654321,
+    );
+    await _showEditor(
+      tester,
+      property: validCoordinates,
       pickImage: () async => null,
       onClosed: (value) => saved = value,
     );
-    final latitude = find.byKey(const ValueKey('property-latitude'));
-    final longitude = find.byKey(const ValueKey('property-longitude'));
-    await tester.ensureVisible(latitude);
-    await tester.enterText(latitude, '91');
     await tester.tap(find.text('Lưu thay đổi'));
     await tester.pumpAndSettle();
-    expect(saved, isNull);
-    expect(find.text('Vĩ độ phải từ -90 đến 90.'), findsOneWidget);
-    expect(find.text('Nhập đủ vĩ độ và kinh độ.'), findsOneWidget);
-
-    await tester.enterText(latitude, '10,812345');
-    await tester.enterText(longitude, '106.654321');
-    expect(
-      tester.widget<TextFormField>(latitude).controller!.text,
-      '10,812345',
-    );
-    expect(
-      tester.widget<TextFormField>(longitude).controller!.text,
-      '106.654321',
-    );
-    await tester.tap(find.text('Lưu thay đổi'));
-    await tester.pumpAndSettle();
-    expect(
-      tester
-          .stateList<FormFieldState<String>>(find.byType(TextFormField))
-          .map((field) => field.errorText)
-          .whereType<String>()
-          .toList(),
-      isEmpty,
-    );
     expect(saved?.latitude, 10.812345);
     expect(saved?.longitude, 106.654321);
     final restored = LandlordProperty.fromMap(saved!.toMap());

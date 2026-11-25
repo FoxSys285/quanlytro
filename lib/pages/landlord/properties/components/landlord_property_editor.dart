@@ -488,6 +488,7 @@ class _LandlordPropertyEditorState extends State<LandlordPropertyEditor> {
                           validator: _required,
                         );
                         final phone = TextFormField(
+                          key: const ValueKey('property-phone'),
                           controller: _phone,
                           maxLength: 25,
                           keyboardType: TextInputType.phone,

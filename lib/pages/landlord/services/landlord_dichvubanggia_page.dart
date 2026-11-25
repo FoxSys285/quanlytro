@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/app_persistence.dart';
+import '../../../data/local_auth.dart';
 import '../landlord_theme.dart';
 
 import '../landlord_glass.dart';
@@ -20,36 +21,6 @@ class LandlordDichVuBangGiaPage extends StatefulWidget {
 class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
   // 1. DỮ KIỆN (Kho lưu trữ và biến trạng thái đưa lên đầu)
   final _store = LandlordDemoStore.activeInstance;
-
-  static const _danhSachCachTinh = [
-    'Theo chỉ số',
-    'Theo phòng',
-    'Theo người',
-    'Theo cái / xe',
-    'Cố định',
-  ];
-
-  // Danh mục mẫu dịch vụ chuẩn bị sẵn để chọn nhanh khi tạo mới
-  static const _mauDichVu = [
-    {
-      'name': 'Internet',
-      'unit': 'phòng',
-      'price': '100000',
-      'basis': 'Theo phòng',
-    },
-    {
-      'name': 'Gửi xe máy',
-      'unit': 'cái',
-      'price': '80000',
-      'basis': 'Theo cái / xe',
-    },
-    {
-      'name': 'Vệ sinh',
-      'unit': 'người',
-      'price': '20000',
-      'basis': 'Theo người',
-    },
-  ];
 
   bool _isUtilityRate(LandlordService service) =>
       service.id == 'electricity' || service.id == 'water';
@@ -100,289 +71,81 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
     }
   }
 
-  // Hàm tạo danh sách lựa chọn cho Dropdown bằng LINQ gọn gàng
-  List<DropdownMenuItem<String>> _taoDanhSachLuaChonCachTinh() {
-    return _danhSachCachTinh
-        .map((cach) => DropdownMenuItem(value: cach, child: Text(cach)))
-        .toList();
-  }
-
   Future<void> _moFormGiaTienIch(LandlordService service) async {
-    final isElectricity = service.id == 'electricity';
-    final priceController = TextEditingController(text: '${service.price}');
-    var unit = service.unit.toLowerCase().contains('người') ? 'người' : 'm³';
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => LandlordFormDialog(
-          title: isElectricity ? 'Bảng giá tiền điện' : 'Bảng giá tiền nước',
-          subtitle: isElectricity
-              ? 'Cập nhật đơn giá điện áp dụng cho kWh tiêu thụ.'
-              : 'Cập nhật đơn giá và cách tính tiền nước.',
-          icon: isElectricity ? Icons.bolt_outlined : Icons.water_drop_outlined,
-          footer: Row(
-            children: [
-              const Spacer(),
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Hủy'),
-              ),
-              const SizedBox(width: 7),
-              FilledButton.icon(
-                onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: landlordBlue,
-                  foregroundColor: Colors.white,
-                ),
-                icon: const Icon(Icons.save_outlined, size: 17),
-                label: const Text('Lưu'),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: priceController,
-                keyboardType: TextInputType.number,
-                decoration: landlordModernInputDecoration(
-                  isElectricity
-                      ? 'Đơn giá tiền điện (đ/kWh)'
-                      : 'Đơn giá tiền nước (đ)',
-                  prefixIcon: const Icon(Icons.payments_outlined),
-                ),
-              ),
-              if (!isElectricity) ...[
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  key: ValueKey(unit),
-                  initialValue: unit,
-                  isExpanded: true,
-                  decoration: landlordModernInputDecoration('Đơn vị tính'),
-                  items: const [
-                    DropdownMenuItem(value: 'm³', child: Text('m³')),
-                    DropdownMenuItem(value: 'người', child: Text('người')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setDialogState(() => unit = value);
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
+      builder: (_) => _ServiceEditorDialog(
+        service: service,
+        utilityRate: true,
+        onSave: (name, unit, basis, price) async {
+          _store.saveService(
+            existing: service,
+            name: name,
+            unit: unit,
+            basis: basis,
+            price: price,
+          );
+          await _flushServiceChanges();
+        },
       ),
     );
-    final price = int.tryParse(priceController.text.trim());
-    priceController.dispose();
     if (saved != true || !mounted) return;
-    if (price == null || price < 0) {
-      showLandlordMessage(context, 'Vui lòng nhập đơn giá hợp lệ.');
-      return;
-    }
-    _store.saveService(
-      existing: service,
-      name: service.name,
-      unit: isElectricity ? service.unit : unit,
-      basis: isElectricity || unit == 'm³' ? 'Theo chỉ số' : 'Theo người',
-      price: price,
+    showLandlordMessage(
+      context,
+      'Đã cập nhật ${service.id == 'electricity' ? 'tiền điện' : 'tiền nước'}.',
     );
-    try {
-      await AppPersistence.current?.flush();
-    } catch (failure) {
-      if (!mounted) return;
-      showLandlordMessage(context, AppPersistence.saveFailureMessage(failure));
-      return;
-    }
-    if (mounted) {
-      showLandlordMessage(
-        context,
-        'Đã cập nhật ${isElectricity ? 'tiền điện' : 'tiền nước'}.',
-      );
-    }
   }
 
-  // Hàm mở form thêm mới hoặc chỉnh sửa dịch vụ
   Future<void> _moFormDichVu({LandlordService? dichVuCanSua}) async {
-    String tenBanDau = '';
-    String donViBanDau = '';
-    String giaBanDau = '';
-    String cachTinh = _danhSachCachTinh.first;
-
-    if (dichVuCanSua != null) {
-      tenBanDau = dichVuCanSua.name;
-      donViBanDau = dichVuCanSua.unit;
-      giaBanDau = dichVuCanSua.price.toString();
-      cachTinh = dichVuCanSua.basis;
-    }
-
-    final oNhapTen = TextEditingController(text: tenBanDau);
-    final oNhapDonVi = TextEditingController(text: donViBanDau);
-    final oNhapDonGia = TextEditingController(text: giaBanDau);
-
-    String tieuDeHopThoai = 'Thêm dịch vụ';
-    if (dichVuCanSua != null) {
-      tieuDeHopThoai = 'Sửa dịch vụ';
-    }
-
-    final daLuu = await showDialog<bool>(
+    var stagedService = dichVuCanSua;
+    var deleted = false;
+    final originalRoomTypes = {
+      for (final type in _store.roomTypes) type.id: type,
+    };
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => LandlordFormDialog(
-          title: tieuDeHopThoai,
-          subtitle: 'Thiết lập đơn giá và cách tính dịch vụ.',
-          icon: Icons.price_change_outlined,
-          footer: Row(
-            children: [
-              if (dichVuCanSua != null)
-                Expanded(
-                  child: TextButton.icon(
-                    onPressed: () {
-                      _store.deleteService(dichVuCanSua);
-                      Navigator.pop(context, false);
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFD64545),
-                    ),
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    label: const Text('Xóa'),
-                  ),
-                )
-              else
-                const Spacer(),
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Hủy'),
-              ),
-              const SizedBox(width: 7),
-              FilledButton.icon(
-                onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: landlordBlue,
-                  foregroundColor: Colors.white,
-                ),
-                icon: const Icon(Icons.save_outlined, size: 17),
-                label: const Text('Lưu'),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Gợi ý chọn mẫu nhanh khi tạo dịch vụ mới
-              if (dichVuCanSua == null) ...[
-                Text(
-                  'Chọn mẫu nhanh:',
-                  style: TextStyle(
-                    color: LandlordPalette.of(context).muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _mauDichVu.map((mau) {
-                      final daChon = oNhapTen.text == mau['name'];
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: ChoiceChip(
-                          label: Text(mau['name']!),
-                          selected: daChon,
-                          onSelected: (_) {
-                            setDialogState(() {
-                              oNhapTen.text = mau['name']!;
-                              oNhapDonVi.text = mau['unit']!;
-                              oNhapDonGia.text = mau['price']!;
-                              cachTinh = mau['basis']!;
-                            });
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              TextField(
-                controller: oNhapTen,
-                decoration: landlordModernInputDecoration('Tên dịch vụ'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: oNhapDonVi,
-                decoration: landlordModernInputDecoration(
-                  'Đơn vị',
-                  hintText: 'kWh, m³, cái, phòng...',
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: oNhapDonGia,
-                keyboardType: TextInputType.number,
-                decoration: landlordModernInputDecoration(
-                  'Đơn giá (đ)',
-                  prefixIcon: const Icon(Icons.payments_outlined),
-                ),
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                key: ValueKey(cachTinh),
-                initialValue: _danhSachCachTinh.contains(cachTinh)
-                    ? cachTinh
-                    : _danhSachCachTinh.first,
-
-                isExpanded: true,
-                decoration: landlordModernInputDecoration('Cách tính'),
-                items: _taoDanhSachLuaChonCachTinh(),
-                onChanged: (giaTri) {
-                  setDialogState(() {
-                    if (giaTri != null) {
-                      cachTinh = giaTri;
-                    }
-                  });
-                },
-              ),
-            ],
-          ),
-        ),
+      builder: (_) => _ServiceEditorDialog(
+        service: dichVuCanSua,
+        onSave: (name, unit, basis, price) async {
+          stagedService = _store.saveService(
+            existing: stagedService,
+            name: name,
+            unit: unit,
+            basis: basis,
+            price: price,
+          );
+          await _flushServiceChanges();
+        },
+        onDelete: dichVuCanSua == null
+            ? null
+            : () async {
+                _store.deleteService(dichVuCanSua);
+                try {
+                  await _flushServiceChanges();
+                  deleted = true;
+                } catch (_) {
+                  _store.restoreDeletedService(
+                    dichVuCanSua,
+                    roomTypes: originalRoomTypes,
+                  );
+                  rethrow;
+                }
+              },
       ),
     );
+    if (saved != true || !mounted) return;
+    showLandlordMessage(
+      context,
+      deleted ? 'Đã xóa dịch vụ.' : 'Đã lưu dịch vụ ${stagedService!.name}.',
+    );
+  }
 
-    final tenDichVu = oNhapTen.text.trim();
-    final donVi = oNhapDonVi.text.trim();
-    final donGia = int.tryParse(oNhapDonGia.text.trim());
-    oNhapTen.dispose();
-    oNhapDonVi.dispose();
-    oNhapDonGia.dispose();
-    if (daLuu != true || !mounted) return;
-    if (tenDichVu.isEmpty || donVi.isEmpty || donGia == null || donGia < 0) {
-      showLandlordMessage(context, 'Vui lòng nhập đầy đủ và đúng đơn giá.');
-      return;
+  Future<void> _flushServiceChanges() async {
+    final persistence = AppPersistence.current;
+    if (persistence == null && LocalAuth.instance.isCloudMode) {
+      throw StateError('Chưa kết nối phiên lưu Firebase.');
     }
-
-    try {
-      _store.saveService(
-        existing: dichVuCanSua,
-        name: tenDichVu,
-        unit: donVi,
-        basis: cachTinh,
-        price: donGia,
-      );
-    } on ArgumentError catch (failure) {
-      showLandlordMessage(context, failure.message.toString());
-      return;
-    }
-    try {
-      await AppPersistence.current?.flush();
-    } catch (failure) {
-      if (!mounted) return;
-      showLandlordMessage(context, AppPersistence.saveFailureMessage(failure));
-      return;
-    }
-    if (!mounted) return;
-    showLandlordMessage(context, 'Đã lưu dịch vụ $tenDichVu.');
+    await persistence?.flush();
   }
 
   // 4. HÀM BUILD ĐẶT Ở DƯỚI CÙNG
@@ -526,6 +289,301 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ServiceEditorDialog extends StatefulWidget {
+  const _ServiceEditorDialog({
+    required this.service,
+    required this.onSave,
+    this.onDelete,
+    this.utilityRate = false,
+  });
+
+  final LandlordService? service;
+  final Future<void> Function(String name, String unit, String basis, int price)
+  onSave;
+  final Future<void> Function()? onDelete;
+  final bool utilityRate;
+
+  @override
+  State<_ServiceEditorDialog> createState() => _ServiceEditorDialogState();
+}
+
+class _ServiceEditorDialogState extends State<_ServiceEditorDialog> {
+  static const _bases = [
+    'Theo chỉ số',
+    'Theo phòng',
+    'Theo người',
+    'Theo cái / xe',
+    'Cố định',
+  ];
+  static const _templates = [
+    ('Internet', 'phòng', '100000', 'Theo phòng'),
+    ('Gửi xe máy', 'cái', '80000', 'Theo cái / xe'),
+    ('Vệ sinh', 'người', '20000', 'Theo người'),
+  ];
+
+  final _form = GlobalKey<FormState>();
+  late final _name = TextEditingController(text: widget.service?.name ?? '');
+  late final _unit = TextEditingController(text: widget.service?.unit ?? '');
+  late final _price = TextEditingController(
+    text: widget.service?.price.toString() ?? '',
+  );
+  late String _basis = _bases.contains(widget.service?.basis)
+      ? widget.service!.basis
+      : _bases.first;
+  late String _utilityUnit =
+      widget.service?.unit.toLowerCase().contains('người') == true
+      ? 'người'
+      : 'm³';
+  String? _error;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _unit.dispose();
+    _price.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving || !_form.currentState!.validate()) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final isElectricity = widget.service?.id == 'electricity';
+      final name = widget.utilityRate
+          ? widget.service!.name
+          : _name.text.trim();
+      final unit = widget.utilityRate
+          ? (isElectricity ? widget.service!.unit : _utilityUnit)
+          : _unit.text.trim();
+      final basis = widget.utilityRate
+          ? (isElectricity || _utilityUnit == 'm³'
+                ? 'Theo chỉ số'
+                : 'Theo người')
+          : _basis;
+      await widget.onSave(name, unit, basis, int.parse(_price.text.trim()));
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (failure) {
+      if (mounted) {
+        setState(() {
+          _error = switch (failure) {
+            ArgumentError(:final message) => message.toString(),
+            StateError(:final message) => message.toString(),
+            _ => 'Không lưu được dịch vụ. Vui lòng thử lại.',
+          };
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    final onDelete = widget.onDelete;
+    if (_saving || onDelete == null) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await onDelete();
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (failure) {
+      if (mounted) {
+        setState(() {
+          _error = AppPersistence.saveFailureMessage(failure);
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final service = widget.service;
+    final isElectricity = service?.id == 'electricity';
+    final title = widget.utilityRate
+        ? (isElectricity ? 'Bảng giá tiền điện' : 'Bảng giá tiền nước')
+        : service == null
+        ? 'Thêm dịch vụ'
+        : 'Sửa dịch vụ';
+    return LandlordFormDialog(
+      canClose: !_saving,
+      title: title,
+      subtitle: widget.utilityRate
+          ? (isElectricity
+                ? 'Cập nhật đơn giá điện áp dụng cho kWh tiêu thụ.'
+                : 'Cập nhật đơn giá và cách tính tiền nước.')
+          : 'Thiết lập đơn giá và cách tính dịch vụ.',
+      icon: widget.utilityRate
+          ? (isElectricity ? Icons.bolt_outlined : Icons.water_drop_outlined)
+          : Icons.price_change_outlined,
+      footer: Row(
+        children: [
+          if (widget.onDelete != null)
+            Expanded(
+              child: TextButton.icon(
+                onPressed: _saving ? null : _delete,
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFD64545),
+                ),
+                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                label: const Text('Xóa'),
+              ),
+            )
+          else
+            const Spacer(),
+          TextButton(
+            onPressed: _saving ? null : () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          const SizedBox(width: 7),
+          FilledButton.icon(
+            onPressed: _saving ? null : _save,
+            style: FilledButton.styleFrom(
+              backgroundColor: landlordBlue,
+              foregroundColor: Colors.white,
+            ),
+            icon: _saving
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save_outlined, size: 17),
+            label: Text(_saving ? 'Đang lưu...' : 'Lưu'),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!widget.utilityRate && service == null) ...[
+              const Text('Chọn mẫu nhanh:'),
+              const SizedBox(height: 6),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final template in _templates)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(template.$1),
+                          selected: _name.text == template.$1,
+                          onSelected: _saving
+                              ? null
+                              : (_) {
+                                  setState(() {
+                                    _name.text = template.$1;
+                                    _unit.text = template.$2;
+                                    _price.text = template.$3;
+                                    _basis = template.$4;
+                                  });
+                                },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (!widget.utilityRate)
+              TextFormField(
+                controller: _name,
+                enabled: !_saving,
+                decoration: landlordModernInputDecoration('Tên dịch vụ'),
+                validator: (value) =>
+                    (value ?? '').trim().isEmpty ? 'Nhập tên dịch vụ.' : null,
+              ),
+            if (!widget.utilityRate) const SizedBox(height: 8),
+            if (!widget.utilityRate)
+              TextFormField(
+                controller: _unit,
+                enabled: !_saving,
+                decoration: landlordModernInputDecoration(
+                  'Đơn vị',
+                  hintText: 'kWh, m³, cái, phòng...',
+                ),
+                validator: (value) => (value ?? '').trim().isEmpty
+                    ? 'Nhập đơn vị dịch vụ.'
+                    : null,
+              ),
+            if (!widget.utilityRate) const SizedBox(height: 8),
+            TextFormField(
+              controller: _price,
+              enabled: !_saving,
+              keyboardType: TextInputType.number,
+              decoration: landlordModernInputDecoration(
+                widget.utilityRate
+                    ? (isElectricity
+                          ? 'Đơn giá điện (đ/kWh)'
+                          : 'Đơn giá nước (đ)')
+                    : 'Đơn giá (đ)',
+                prefixIcon: const Icon(Icons.payments_outlined),
+              ),
+              validator: (value) {
+                final price = int.tryParse((value ?? '').trim());
+                return price == null || price < 0
+                    ? 'Nhập đơn giá là số nguyên không âm.'
+                    : null;
+              },
+            ),
+            if (widget.utilityRate && !isElectricity) ...[
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                key: ValueKey(_utilityUnit),
+                initialValue: _utilityUnit,
+                isExpanded: true,
+                decoration: landlordModernInputDecoration('Đơn vị tính'),
+                items: const [
+                  DropdownMenuItem(value: 'm³', child: Text('m³')),
+                  DropdownMenuItem(value: 'người', child: Text('người')),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) {
+                        if (value != null) {
+                          setState(() => _utilityUnit = value);
+                        }
+                      },
+              ),
+            ],
+            if (!widget.utilityRate) ...[
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                key: ValueKey(_basis),
+                initialValue: _basis,
+                isExpanded: true,
+                decoration: landlordModernInputDecoration('Cách tính'),
+                items: [
+                  for (final basis in _bases)
+                    DropdownMenuItem(value: basis, child: Text(basis)),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) {
+                        if (value != null) setState(() => _basis = value);
+                      },
+              ),
+            ],
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

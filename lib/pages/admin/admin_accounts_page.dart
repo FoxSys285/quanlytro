@@ -139,8 +139,7 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
       final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
       if (nextCursor != null) _cursors[_page + 1] = nextCursor;
       final hasMore =
-          snapshot.docs.length == _pageSize &&
-          (_page + 1) * _pageSize < _total;
+          snapshot.docs.length == _pageSize && (_page + 1) * _pageSize < _total;
       if (cacheKey != null) {
         _pageCache[cacheKey] = _CachedAdminAccountPage(
           rows: rows,
@@ -326,7 +325,11 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
         : account.role == 'admin'
         ? adminPurple
         : adminBlue;
-    final isSelf = LocalAuth.instance.session?.uid == account.id;
+    final auth = LocalAuth.instance;
+    final isSelf = auth.session?.uid == account.id;
+    final canManage =
+        auth.role == AppRole.admin &&
+        (!auth.isCloudMode || auth.session != null);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AdminPanel(
@@ -378,7 +381,7 @@ class _AdminAccountsPageState extends State<AdminAccountsPage> {
                 tooltip: account.disabled
                     ? 'Mở khóa tài khoản'
                     : 'Khóa tài khoản',
-                onPressed: isSelf || _busyIds.contains(account.id)
+                onPressed: !canManage || isSelf || _busyIds.contains(account.id)
                     ? null
                     : () => _setDisabled(account),
                 icon: _busyIds.contains(account.id)

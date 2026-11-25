@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/app_persistence.dart';
+import '../../../data/local_auth.dart';
 import '../../../layouts/landlord_navigation.dart';
 import '../landlord_theme.dart';
 
 import '../../shared/viewings/components/viewing_status_badge.dart';
 import '../../shared/viewings/viewing_store.dart';
 import '../conversations/landlord_tinnhan_page.dart';
+import '../conversations/models/landlord_cuoctrochuyen.dart';
 import '../landlord_demo_store.dart';
 import '../landlord_glass.dart';
 import '../landlord_ui.dart';
@@ -38,6 +40,7 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
   String get _propertyId => LandlordDemoStore.activeInstance.property.id;
   String _query = '';
   ViewingStatus? _status;
+  final Set<String> _savingViewingIds = {};
 
   @override
   void initState() {
@@ -63,20 +66,33 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
   }
 
   Future<void> _confirm(LandlordViewing viewing) async {
-    if (_store.confirm(viewing.id, propertyId: _propertyId)) {
-      try {
-        await AppPersistence.current?.flush();
-      } catch (failure) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
-        );
-        return;
+    if (!_savingViewingIds.add(viewing.id)) return;
+    setState(() {});
+    try {
+      if (!_store.confirm(viewing.id, propertyId: _propertyId)) return;
+      final persistence = AppPersistence.current;
+      if (persistence == null && LocalAuth.instance.isCloudMode) {
+        throw StateError('Chưa kết nối phiên lưu Firebase.');
       }
+      await persistence?.flush();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đã xác nhận lịch xem phòng.')),
       );
+    } catch (failure) {
+      _store.restoreStatus(
+        viewing.id,
+        propertyId: _propertyId,
+        expectedStatus: ViewingStatus.confirmed,
+        status: ViewingStatus.pending,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    } finally {
+      _savingViewingIds.remove(viewing.id);
+      if (mounted) setState(() {});
     }
   }
 
@@ -103,29 +119,48 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
       ),
     );
     if (!mounted || confirmed != true) return;
-    if (_store.cancel(viewing.id, propertyId: _propertyId)) {
-      try {
-        await AppPersistence.current?.flush();
-      } catch (failure) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
-        );
-        return;
+    if (!_savingViewingIds.add(viewing.id)) return;
+    setState(() {});
+    try {
+      if (!_store.cancel(viewing.id, propertyId: _propertyId)) return;
+      final persistence = AppPersistence.current;
+      if (persistence == null && LocalAuth.instance.isCloudMode) {
+        throw StateError('Chưa kết nối phiên lưu Firebase.');
       }
+      await persistence?.flush();
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đã hủy lịch xem phòng.')));
+    } catch (failure) {
+      _store.restoreStatus(
+        viewing.id,
+        propertyId: _propertyId,
+        expectedStatus: ViewingStatus.cancelled,
+        status: viewing.status,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    } finally {
+      _savingViewingIds.remove(viewing.id);
+      if (mounted) setState(() {});
     }
   }
 
   void _message(LandlordViewing viewing) {
     ScaffoldMessenger.of(context).clearSnackBars();
-    final conversation =
-        (widget.conversations ?? ViewingConversationStore.instance).forViewing(
-          viewing,
-        );
+    late final LandlordConversation conversation;
+    try {
+      conversation = (widget.conversations ?? ViewingConversationStore.instance)
+          .forViewing(viewing);
+    } catch (failure) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+      return;
+    }
     LandlordNavigation.push<void>(
       context,
       page: LandlordTinNhanPage(conversation: conversation),
@@ -200,10 +235,14 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
               LandlordViewingCard(
                 key: ValueKey(viewing.id),
                 viewing: viewing,
-                onConfirm: viewing.status == ViewingStatus.pending
+                onConfirm:
+                    viewing.status == ViewingStatus.pending &&
+                        !_savingViewingIds.contains(viewing.id)
                     ? () => _confirm(viewing)
                     : null,
-                onCancel: viewing.status != ViewingStatus.cancelled
+                onCancel:
+                    viewing.status != ViewingStatus.cancelled &&
+                        !_savingViewingIds.contains(viewing.id)
                     ? () => _cancel(viewing)
                     : null,
                 onMessage: () => _message(viewing),

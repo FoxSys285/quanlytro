@@ -46,7 +46,10 @@ void main() {
     final db = MemoryFirestore({
       'public_rooms': {
         for (var i = 0; i < 1000; i++)
-          'room-${i.toString().padLeft(4, '0')}': _room(i),
+          'room-${i.toString().padLeft(4, '0')}': _room(
+            i,
+            propertyId: 'property-$i',
+          ),
       },
     });
     final source = FirestoreTenantCatalogSource(firestore: db);
@@ -106,13 +109,19 @@ void main() {
     });
     final page = await FirestoreTenantCatalogSource(firestore: db)
         .fetch(const TenantCatalogQuery(propertyId: 'may', sort: 'rentDesc'));
+    expect(page.items, hasLength(1));
     expect(page.items.first.name, 'Phòng trọ 999');
-    expect(db.documentsRead, 9);
-    expect(db.reads.single.filters, {
-      'published': true,
-      'available': true,
-      'propertyId': 'may',
-    });
+    expect(db.documentsRead, 20);
+    expect(db.reads, isNotEmpty);
+    expect(
+      db.reads.every(
+        (read) =>
+            read.filters['published'] == true &&
+            read.filters['available'] == true &&
+            read.filters['propertyId'] == 'may',
+      ),
+      isTrue,
+    );
   });
 
   test('Verified property pagination reads a bounded page instead of every property', () async {
@@ -146,6 +155,7 @@ void main() {
         for (var i = 0; i < 1000; i++)
           'room-${i.toString().padLeft(4, '0')}': {
             ..._room(i),
+            'propertyId': 'property-$i',
             'city': i < 980 ? 'Thành phố Hà Nội' : 'TP. Hồ Chí Minh',
           },
       },
@@ -157,6 +167,31 @@ void main() {
     expect(db.documentsRead, 9);
     expect(db.reads.single.filters['city'], contains('TP. Hồ Chí Minh'));
     expect(db.reads.single.filters['ward'], contains('Phường 25'));
+  });
+
+  test('Room pages filter first, choose one matching room per property and never repeat houses', () async {
+    final db = MemoryFirestore({
+      'public_rooms': {
+        'a-01': _room(1, name: 'Không khớp', propertyId: 'house-a'),
+        'a-02': _room(2, name: 'needle rẻ', propertyId: 'house-a'),
+        'a-03': _room(3, name: 'needle đắt', propertyId: 'house-a'),
+        'b-01': _room(4, name: 'needle B', propertyId: 'house-b'),
+        'c-01': _room(5, name: 'needle C', propertyId: 'house-c'),
+      },
+    });
+    final source = FirestoreTenantCatalogSource(firestore: db);
+    final first = await source.fetch(
+      const TenantCatalogQuery(query: 'needle'),
+      limit: 2,
+    );
+    expect(first.items.map((room) => room.propertyId), ['house-a', 'house-b']);
+    expect(first.items.first.name, 'needle rẻ 2');
+    final second = await source.fetch(
+      const TenantCatalogQuery(query: 'needle'),
+      after: first.nextCursor,
+      limit: 2,
+    );
+    expect(second.items.map((room) => room.propertyId), ['house-c']);
   });
 
   test('Tenant business sync reads only properties referenced by their own records', () async {
@@ -215,15 +250,25 @@ void main() {
     final db = MemoryFirestore({
       'public_rooms': {
         for (var i = 0; i < 1000; i++)
-          'room-${i.toString().padLeft(4, '0')}': _room(i),
+          'room-${i.toString().padLeft(4, '0')}': _room(
+            i,
+            propertyId: i < 10 ? 'verified-$i' : 'room-property-$i',
+          ),
       },
       'rental_properties': {
-        'may': {
-          'data': raw,
-          'verified': true,
-          'published': true,
-          'verificationProof': propertyVerificationProof(raw),
-        },
+        for (var i = 0; i < 10; i++)
+          'verified-$i': {
+            'data': {
+              ...raw,
+              'property': {...raw['property'] as Map, 'id': 'verified-$i'},
+            },
+            'verified': true,
+            'published': true,
+            'verificationProof': propertyVerificationProof({
+              ...raw,
+              'property': {...raw['property'] as Map, 'id': 'verified-$i'},
+            }),
+          },
         for (var i = 0; i < 680; i++)
           'unverified-$i': {'verified': false, 'published': true},
       },
@@ -232,7 +277,7 @@ void main() {
     expect(feed.featured, hasLength(10));
     expect(feed.goodPrice, hasLength(10));
     expect(feed.trusted, hasLength(10));
-    expect(db.documentsRead, 33);
+    expect(db.documentsRead, 42);
     expect(
       db.reads.every((read) => read.limit != null && read.limit! <= 11),
       isTrue,

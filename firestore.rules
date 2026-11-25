@@ -217,9 +217,18 @@ service cloud.firestore {
         (tenant(request.resource.data) && tenantCreate());
       allow update: if admin() || (owner(resource.data) && resource.data.kind != 'messages' &&
         resource.data.kind != 'verificationReview' &&
+        resource.data.kind != 'payments' &&
         request.resource.data.ownerUid == resource.data.ownerUid &&
         request.resource.data.propertyId == resource.data.propertyId &&
-        request.resource.data.kind == resource.data.kind) ||
+        request.resource.data.kind == resource.data.kind &&
+        (resource.data.kind != 'conversations' ||
+          (request.resource.data.data.get('ownerUid', resource.data.ownerUid) == resource.data.ownerUid &&
+           request.resource.data.data.get('tenantId', '') == resource.data.data.tenantId)) &&
+        (resource.data.kind != 'invoices' || ownerInvoiceUpdate())) ||
+        (owner(resource.data) && resource.data.kind == 'payments' &&
+          request.resource.data.ownerUid == resource.data.ownerUid &&
+          request.resource.data.propertyId == resource.data.propertyId &&
+          request.resource.data.kind == resource.data.kind && ownerPaymentUpdate()) ||
         (tenant(resource.data) && sameEnvelope() && tenantUpdate());
       allow delete: if false;
       function validTarget() {
@@ -241,10 +250,24 @@ service cloud.firestore {
           (request.resource.data.kind == 'viewings' && request.resource.data.tenantIds == [profile().tenantId] && d.tenantId == profile().tenantId && d.status == 'pending' && acceptingViewings()) ||
           (request.resource.data.kind == 'incidents' && d.reporterId == profile().tenantId && d.status == 'newly' && ownLease() && request.resource.data.tenantIds.hasOnly(get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':leases:' + d.leaseId)).data.tenantIds)) ||
           (request.resource.data.kind == 'members' && d.requestedBy == profile().tenantId && d.status == 'pending' && d.isRepresentative == false && validTenantCode(d.tenantId) && d.tenantId != profile().tenantId && exists(/databases/$(database)/documents/tenant_codes/$(d.tenantId)) && ownLease() && get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':leases:' + d.leaseId)).data.data.tenantId == profile().tenantId && request.resource.data.tenantIds.hasOnly(get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':leases:' + d.leaseId)).data.tenantIds)) ||
-          (request.resource.data.kind == 'conversations' && request.resource.data.tenantIds == [profile().tenantId] && d.tenantId == profile().tenantId && d.messages == []) ||
+          (request.resource.data.kind == 'conversations' && tenantConversationCreate(d)) ||
           (request.resource.data.kind == 'messages' && messageCreate()) ||
           (request.resource.data.kind == 'payments' && paymentCreate())
         );
+      }
+      function tenantConversationCreate(d) {
+        let context = d.get('lastRoomContext', null);
+        let contexts = d.get('roomContexts', []);
+        let noContext = context == null && contexts.size() == 0;
+        let oneContext = context is map && contexts.size() == 1 &&
+          contexts[0] == context &&
+          context.propertyId == request.resource.data.propertyId &&
+          context.roomId is string && context.roomName is string &&
+          context.propertyName is string;
+        return request.resource.data.tenantIds == [profile().tenantId] &&
+          d.tenantId == profile().tenantId &&
+          d.ownerUid == request.resource.data.ownerUid && d.messages == [] &&
+          contexts is list && (noContext || oneContext);
       }
       function acceptingViewings() {
         return !exists(/databases/$(database)/documents/public_settings/viewings) ||
@@ -257,7 +280,7 @@ service cloud.firestore {
           conversation.propertyId == request.resource.data.propertyId &&
           conversation.tenantIds == request.resource.data.tenantIds && conversation.data.id == d.conversationId &&
           d.fromLandlord == true && d.text is string && d.text.size() > 0 && d.text.size() <= 5000 &&
-          d.index is int && d.index >= 0;
+          d.index is int && d.index >= 0 && validRoomContext(d, conversation);
       }
       function messageCreate() {
         let d = request.resource.data.data;
@@ -266,15 +289,32 @@ service cloud.firestore {
           conversation.propertyId == request.resource.data.propertyId &&
           conversation.data.id == d.conversationId &&
           d.fromLandlord == false && d.text is string && d.text.size() > 0 && d.text.size() <= 5000 &&
-          d.index is int && d.index >= 0;
+          d.index is int && d.index >= 0 && validRoomContext(d, conversation);
+      }
+      function validRoomContext(message, conversation) {
+        let context = message.get('roomContext', null);
+        return context == null || (context is map &&
+          context.keys().hasOnly(['propertyId', 'roomId', 'roomName', 'propertyName', 'source']) &&
+          context.propertyId is string && context.propertyId.size() > 0 &&
+          context.roomId is string && context.roomId.size() > 0 &&
+          context.roomName is string && context.roomName.size() > 0 &&
+          get(/databases/$(database)/documents/rental_properties/$(context.propertyId)).data.ownerUid == conversation.ownerUid);
       }
       function paymentCreate() {
         let d = request.resource.data.data;
         let invoice = get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':invoices:' + d.invoiceId)).data;
+        let lease = get(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':leases:' + invoice.data.leaseId)).data;
+        let invoiceAfter = getAfter(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':invoices:' + d.invoiceId)).data;
         return tenant(invoice) && invoice.kind == 'invoices' && invoice.archived == false && invoice.data.cancelled == false &&
           request.resource.data.tenantIds.hasOnly(invoice.tenantIds) &&
           invoice.ownerUid == request.resource.data.ownerUid && d.status == 'pending' && d.approvedAmount == null &&
           d.reviewedAt == null && d.reportedAmount is int && d.reportedAmount > 0 &&
+          d.id is string && invoiceAfter.data.get('pendingPaymentId', null) == d.id &&
+          lease.kind == 'leases' && lease.data.status == 'active' && tenant(lease) &&
+          ((d.method == 'Tiền mặt' && lease.data.cashPaymentEnabled == true &&
+              d.reference == '' && d.proofUrl == null) ||
+            (d.method == 'Chuyển khoản' && lease.data.bankTransferEnabled == true &&
+              d.reference is string && d.reference.size() > 0)) &&
           d.reportedAmount <= 1000000000;
       }
       function tenantUpdate() {
@@ -284,6 +324,9 @@ service cloud.firestore {
         return
           (resource.data.kind == 'viewings' && changed.hasOnly(['status']) && old.status != 'cancelled' && d.status == 'cancelled') ||
           (resource.data.kind == 'incidents' && changed.hasOnly(['status']) && old.status == 'resolved' && d.status in ['closed', 'newly']) ||
+          (resource.data.kind == 'leases' && leaseRequestUpdate()) ||
+          (resource.data.kind == 'invoices' && invoicePaymentLockUpdate()) ||
+          (resource.data.kind == 'payments' && paymentCancelUpdate()) ||
           (resource.data.kind == 'conversations' && conversationUpdate()) ||
           (resource.data.kind == 'members' && memberIdentityUpdate()) ||
           (resource.data.kind == 'tenantAnnouncements' && changed.hasOnly(['readByTenant']) &&
@@ -296,10 +339,51 @@ service cloud.firestore {
         let old = resource.data.data;
         let changed = d.diff(old).affectedKeys();
         let identityUpdate = changed.hasOnly(['identityFrontPath', 'identityBackPath', 'portraitPath']);
-        let leaveUpdate = changed.hasOnly(['leaveReason', 'leaveRequestedAt', 'leaveEffectiveAt']);
+        let leaveUpdate = changed.hasOnly([
+          'leaveReason', 'leaveRequestedAt', 'leaveEffectiveAt', 'leaveAcknowledgedAt'
+        ]) &&
+          changed.hasAll(['leaveReason', 'leaveRequestedAt', 'leaveEffectiveAt']) &&
+          old.get('isRepresentative', true) == false && d.isRepresentative == false &&
+          d.leaveReason is string && d.leaveReason.size() <= 300 &&
+          d.leaveRequestedAt is string && d.leaveEffectiveAt is string &&
+          d.leaveAcknowledgedAt == null;
         return (identityUpdate || leaveUpdate) &&
           old.status == 'active' && d.status == 'active' &&
           old.tenantId == profile().tenantId && d.tenantId == profile().tenantId;
+      }
+      function leaseRequestUpdate() {
+        let d = request.resource.data.data;
+        let old = resource.data.data;
+        let changed = d.diff(old).affectedKeys();
+        let terminationFields = [
+          'terminationRequestStatus', 'terminationRequestedAt',
+          'terminationRequestedBy', 'terminationRequestReason',
+          'terminationReviewedAt', 'terminationRejectionReason'
+        ];
+        let renewalFields = [
+          'renewalStatus', 'renewalRequestedAt', 'renewalRequestedBy',
+          'renewalProposedEndDate', 'renewalReason', 'renewalReviewedAt',
+          'renewalRejectionReason'
+        ];
+        let terminationRequest = changed.hasOnly(terminationFields) &&
+          d.terminationRequestStatus == 'pending' &&
+          old.get('terminationRequestStatus', '') != 'pending' &&
+          old.get('renewalStatus', '') != 'pending' &&
+          d.terminationRequestedBy == profile().tenantId &&
+          d.terminationRequestedAt is string &&
+          d.terminationRequestReason is string &&
+          d.terminationRequestReason.size() >= 5 &&
+          d.terminationRequestReason.size() <= 300;
+        let renewalRequest = changed.hasOnly(renewalFields) &&
+          d.renewalStatus == 'pending' && old.get('renewalStatus', '') != 'pending' &&
+          old.get('terminationRequestStatus', '') != 'pending' &&
+          d.renewalRequestedBy == profile().tenantId &&
+          d.renewalRequestedAt is string &&
+          d.renewalProposedEndDate is string &&
+          d.renewalReason is string && d.renewalReason.size() <= 300;
+        return old.status == 'active' && d.status == 'active' &&
+          old.tenantId == profile().tenantId && d.tenantId == old.tenantId &&
+          (terminationRequest || renewalRequest);
       }
       function conversationUpdate() {
         let d = request.resource.data.data;
@@ -308,6 +392,94 @@ service cloud.firestore {
         return changed.hasOnly(['tenantUnread', 'unread']) &&
           (d.tenantUnread == old.tenantUnread || d.tenantUnread == 0) &&
           (d.unread == old.unread || d.unread == old.unread + 1);
+      }
+      function invoicePaymentLockUpdate() {
+        let d = request.resource.data.data;
+        let old = resource.data.data;
+        let changed = d.diff(old).affectedKeys();
+        let createPayment = getAfter(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':payments:' + d.pendingPaymentId)).data;
+        let cancelPayment = getAfter(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':payments:' + old.pendingPaymentId)).data;
+        return changed.hasOnly(['pendingPaymentId']) &&
+          ((old.get('pendingPaymentId', null) == null && d.pendingPaymentId is string &&
+              createPayment.kind == 'payments' && createPayment.data.id == d.pendingPaymentId &&
+              createPayment.data.invoiceId == d.id && createPayment.data.status == 'pending' && tenant(createPayment)) ||
+            (old.pendingPaymentId is string && d.get('pendingPaymentId', null) == null &&
+              cancelPayment.kind == 'payments' && cancelPayment.data.id == old.pendingPaymentId &&
+              cancelPayment.data.invoiceId == d.id && cancelPayment.data.status == 'cancelled' &&
+              tenant(cancelPayment)));
+      }
+      function paymentCancelUpdate() {
+        let d = request.resource.data.data;
+        let old = resource.data.data;
+        let changed = d.diff(old).affectedKeys();
+        let invoiceAfter = getAfter(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':invoices:' + d.invoiceId)).data;
+        return changed.hasOnly(['status', 'reviewedAt']) && old.status == 'pending' &&
+          d.status == 'cancelled' && d.reviewedAt is string &&
+          d.invoiceId == old.invoiceId && d.reportedAmount == old.reportedAmount &&
+          d.approvedAmount == old.approvedAmount && invoiceAfter.data.get('pendingPaymentId', null) == null;
+      }
+      function ownerPaymentUpdate() {
+        let d = request.resource.data.data;
+        let old = resource.data.data;
+        let changed = d.diff(old).affectedKeys();
+        let invoicePath = /databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':invoices:' + d.invoiceId);
+        let invoiceBefore = get(invoicePath).data;
+        let invoiceAfter = getAfter(invoicePath).data;
+        let approved = d.status == 'approved' && d.approvedAmount is int &&
+          d.approvedAmount > 0 && d.approvedAmount <= old.reportedAmount &&
+          d.reviewedAt is string && invoiceAfter.data.paidAmount == invoiceBefore.data.paidAmount + d.approvedAmount &&
+          invoiceAfter.data.get('lastApprovedPaymentId', null) == d.id &&
+          invoiceAfter.data.get('pendingPaymentId', null) == null &&
+          invoiceAfter.data.paidAmount == invoiceBefore.data.paidAmount + d.approvedAmount;
+        let rejected = d.status == 'rejected' && d.approvedAmount == null &&
+          d.rejectionReason is string && d.rejectionReason.size() > 0 &&
+          d.reviewedAt is string && invoiceAfter.data.paidAmount == invoiceBefore.data.paidAmount &&
+          invoiceAfter.data.get('pendingPaymentId', null) == null &&
+          invoiceAfter.data.get('lastApprovedPaymentId', null) == invoiceBefore.data.get('lastApprovedPaymentId', null);
+        return old.status == 'pending' && changed.hasOnly([
+            'status', 'approvedAmount', 'reviewedAt', 'rejectionReason'
+          ]) && d.invoiceId == old.invoiceId && d.reportedAmount == old.reportedAmount &&
+          d.method == old.method && d.reference == old.reference && (approved || rejected);
+      }
+      function ownerInvoiceUpdate() {
+        let d = request.resource.data.data;
+        let old = resource.data.data;
+        let changed = d.diff(old).affectedKeys();
+        let financialChanged = changed.hasAny(['paidAmount', 'pendingPaymentId', 'lastApprovedPaymentId']);
+        return !financialChanged || ownerInvoiceApprovedUpdate(d, old) ||
+          ownerInvoiceResolvedUpdate(d, old);
+      }
+      function ownerInvoiceApprovedUpdate(d, old) {
+        let paymentId = d.get('lastApprovedPaymentId', null);
+        let paymentPath = /databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':payments:' + paymentId);
+        let payment = paymentId is string
+          ? getAfter(paymentPath).data
+          : {};
+        let paymentBefore = paymentId is string ? get(paymentPath).data : {};
+        return paymentId is string && payment.kind == 'payments' &&
+          payment.data.id == paymentId && payment.data.invoiceId == d.id &&
+          payment.data.status == 'approved' &&
+          payment.data.approvedAmount == d.paidAmount - old.paidAmount &&
+          old.get('lastApprovedPaymentId', null) != paymentId &&
+          (old.get('pendingPaymentId', null) == paymentId ||
+            (old.get('pendingPaymentId', null) == null &&
+              paymentBefore.kind == 'payments' && paymentBefore.data.status == 'pending')) &&
+          d.get('pendingPaymentId', null) == null;
+      }
+      function ownerInvoiceResolvedUpdate(d, old) {
+        let pendingId = old.get('pendingPaymentId', null);
+        let payment = pendingId is string
+          ? getAfter(/databases/$(database)/documents/rental_records/$(request.resource.data.propertyId + ':payments:' + pendingId)).data
+          : {};
+        return pendingId is string && d.get('pendingPaymentId', null) == null &&
+          payment.kind == 'payments' && payment.data.id == pendingId &&
+          payment.data.invoiceId == d.id &&
+          payment.data.status in ['approved', 'rejected'] &&
+          (payment.data.status == 'approved'
+            ? d.get('lastApprovedPaymentId', null) == pendingId &&
+              d.paidAmount == old.paidAmount + payment.data.approvedAmount
+            : d.paidAmount == old.paidAmount &&
+              d.get('lastApprovedPaymentId', null) == old.get('lastApprovedPaymentId', null));
       }
     }
   }

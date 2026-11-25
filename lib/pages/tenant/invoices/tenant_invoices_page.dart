@@ -94,12 +94,14 @@ class _TenantInvoicesPageState extends State<TenantInvoicesPage> {
                                     payment.status ==
                                         LandlordPaymentStatus.pending,
                               ),
-                              onPay: () => showTenantPaymentInstructions(
-                                context,
-                                invoiceId: invoice.id,
-                                store: _store,
-                                tenantId: widget.tenantId,
-                              ),
+                              onPayMethod: (method) =>
+                                  showTenantPaymentInstructions(
+                                    context,
+                                    invoiceId: invoice.id,
+                                    method: method,
+                                    store: _store,
+                                    tenantId: widget.tenantId,
+                                  ),
                             ),
                             if (invoice != outstanding.last)
                               const SizedBox(height: 12),
@@ -246,5 +248,4 @@ class _TenantInvoicesPageState extends State<TenantInvoicesPage> {
           TenantPaymentHistoryPage(store: _store, tenantId: widget.tenantId),
     ),
   );
-
 }
