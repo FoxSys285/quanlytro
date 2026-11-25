@@ -40,14 +40,13 @@ class LandlordRoomFinanceDetailPage extends StatelessWidget {
         period,
       ).where((item) => item.details.room.code == roomCode).firstOrNull;
       if (balance == null) {
-        return LandlordGlassPage(
-          title: 'Chi tiết thu chi',
-          subtitle: store.property.name,
-          kicker: 'QUẢN LÝ TÀI CHÍNH',
-          store: store,
-          children: const [
-            LandlordGlassCard(child: Text('Phòng không còn tồn tại.')),
-          ],
+        return _RoomFinanceDetailShell(
+          roomCode: roomCode,
+          period: period,
+          propertyName: store.property.name,
+          child: const LandlordGlassCard(
+            child: Text('Phòng không còn tồn tại.'),
+          ),
         );
       }
       final details = balance.details;
@@ -60,21 +59,13 @@ class LandlordRoomFinanceDetailPage extends StatelessWidget {
           : store.invoiceById(latestPayment.invoiceId);
       final canRecordMeters = _canRecordMeters(balance, lease);
 
-      return LandlordGlassPage(
-        title: 'Chi tiết thu chi phòng $roomCode',
-        subtitle: '${store.property.name} · Kỳ ${landlordMonth(period)}',
-        kicker: 'QUẢN LÝ TÀI CHÍNH',
-        store: store,
-        children: [
-          LandlordGlassSection(
-            title: 'Phòng $roomCode',
-            subtitle: details.typeName,
-            trailing: IconButton.filledTonal(
-              tooltip: 'Quay lại danh sách phòng',
-              onPressed: () => Navigator.maybePop(context),
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
-          ),
+      return _RoomFinanceDetailShell(
+        roomCode: roomCode,
+        period: period,
+        propertyName: store.property.name,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           LandlordBluePanel(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,7 +206,8 @@ class LandlordRoomFinanceDetailPage extends StatelessWidget {
                     .toList(),
               ),
             ),
-        ],
+          ],
+        ),
       );
     },
   );
@@ -395,6 +387,152 @@ class LandlordRoomFinanceDetailPage extends StatelessWidget {
     title: 'Ghi điện nước',
     page: LandlordChiSoDienNuocPage(store: store, initialRoom: roomCode),
   );
+}
+
+class _RoomFinanceDetailShell extends StatelessWidget {
+  const _RoomFinanceDetailShell({
+    required this.roomCode,
+    required this.period,
+    required this.propertyName,
+    required this.child,
+  });
+
+  final String roomCode;
+  final DateTime period;
+  final String propertyName;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = LandlordPalette.of(context);
+    final month = landlordMonth(period);
+    return PropertyPortfolioBackdrop(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: palette.surface.withValues(alpha: .88),
+                      borderRadius: BorderRadius.circular(21),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: .9),
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x185A99E9),
+                          blurRadius: 18,
+                          offset: Offset(0, 7),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton.filledTonal(
+                          tooltip: 'Quay lại',
+                          onPressed: () => Navigator.maybePop(context),
+                          style: IconButton.styleFrom(
+                            foregroundColor: const Color(0xFF0866FF),
+                            backgroundColor: const Color(0xFFE6F0FF),
+                            fixedSize: const Size(44, 44),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                          icon: const Icon(Icons.arrow_back_rounded),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Chi tiết thu chi',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: palette.ink,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -.3,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '$propertyName · Phòng $roomCode',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: palette.muted,
+                                  fontSize: 10.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: palette.primarySoft,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.calendar_month_outlined,
+                                size: 15,
+                                color: Color(0xFF0866FF),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                month,
+                                style: const TextStyle(
+                                  color: Color(0xFF0866FF),
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                key: PageStorageKey('room-finance-$roomCode-$month'),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1040),
+                    child: child,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _PaymentSubmissionCard extends StatelessWidget {
