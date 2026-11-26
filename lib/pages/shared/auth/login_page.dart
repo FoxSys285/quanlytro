@@ -613,7 +613,7 @@ class _LoginPageState extends State<LoginPage> {
             runSpacing: 6,
             children: [
               const Text(
-                'Điền nhanh tài khoản',
+                'Đăng nhập nhanh',
                 style: TextStyle(
                   color: _ink,
                   fontSize: 13,
@@ -635,13 +635,33 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       (
                         role: AppRole.landlord,
-                        email: 'demo-owner-01-07@example.com',
-                        label: 'Chủ trọ',
+                        email: 'demo-owner-01-01@example.com',
+                        label: 'Chủ trọ 1',
+                      ),
+                      (
+                        role: AppRole.landlord,
+                        email: 'demo-owner-01-02@example.com',
+                        label: 'Chủ trọ 2',
+                      ),
+                      (
+                        role: AppRole.landlord,
+                        email: 'demo-owner-01-03@example.com',
+                        label: 'Chủ trọ 3',
                       ),
                       (
                         role: AppRole.tenant,
-                        email: 'demo-tenant-t0116001@example.com',
-                        label: 'Người thuê',
+                        email: 'demo-tenant-t0101001@example.com',
+                        label: 'Người thuê 1',
+                      ),
+                      (
+                        role: AppRole.tenant,
+                        email: 'demo-tenant-t0102001@example.com',
+                        label: 'Người thuê 2',
+                      ),
+                      (
+                        role: AppRole.tenant,
+                        email: 'demo-tenant-t0103001@example.com',
+                        label: 'Người thuê 3',
                       ),
                     ]
                   : [
@@ -657,9 +677,10 @@ class _LoginPageState extends State<LoginPage> {
                 runSpacing: 6,
                 children: [
                   for (final acc in accounts.where(
-                    (account) => account.role == AppRole.admin,
+                    (account) => isCloud || account.role == AppRole.admin,
                   ))
                     ActionChip(
+                      key: ValueKey('quick-fill-${acc.role.name}-${acc.label}'),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       avatar: Icon(acc.role.icon, size: 16, color: _green),
                       label: Text(acc.label),
@@ -684,30 +705,31 @@ class _LoginPageState extends State<LoginPage> {
                               isCloud ? 'TroDemo!o5rFqjmo6Va1NA' : 'Tro@2026',
                             ),
                     ),
-                  for (final role in [AppRole.landlord, AppRole.tenant])
-                    ActionChip(
-                      key: ValueKey('quick-fill-${role.name}'),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      avatar: Icon(role.icon, size: 16, color: _green),
-                      label: Text(role.label),
-                      labelStyle: const TextStyle(
-                        color: _ink,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                  if (!isCloud)
+                    for (final role in [AppRole.landlord, AppRole.tenant])
+                      ActionChip(
+                        key: ValueKey('quick-fill-${role.name}'),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        avatar: Icon(role.icon, size: 16, color: _green),
+                        label: Text(role.label),
+                        labelStyle: const TextStyle(
+                          color: _ink,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        backgroundColor: const Color(0xFFEAF9F0),
+                        side: const BorderSide(color: Color(0xFFBFEDD4)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 6,
+                        ),
+                        onPressed: _busy
+                            ? null
+                            : () => _openDeviceAccountList(role),
                       ),
-                      backgroundColor: const Color(0xFFEAF9F0),
-                      side: const BorderSide(color: Color(0xFFBFEDD4)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 6,
-                      ),
-                      onPressed: _busy
-                          ? null
-                          : () => _openDeviceAccountList(role),
-                    ),
                 ],
               );
             },
