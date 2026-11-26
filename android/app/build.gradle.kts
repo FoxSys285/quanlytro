@@ -15,7 +15,7 @@ if (localPropertiesFile.exists()) {
     }
 }
 val googleMapsApiKey = localProperties.getProperty("GOOGLE_MAPS_API_KEY", "").ifBlank {
-    "AIzaSyBRftbOlLWHE6egJTX1duxfbB-LIuV0EQI"
+    "AIzaSyB5gscEB0Nrw1S8vkdlToQEgjKyJu4p1qY"
 }
 
 android {

@@ -29,6 +29,11 @@ migrate_working_dir/
 /.local-backups/
 /artifacts/DU_LIEU_60_NHA_TRO.xlsx
 /artifacts/DU_LIEU_680_NHA_TRO_34_TINH.xlsx
+/artifacts/*.docx
+/artifacts/*.md
+/artifacts/diagrams/
+/.report_work/
+__pycache__/
 /.mcp.json
 /AGENTS.md
 /CLAUDE.md
