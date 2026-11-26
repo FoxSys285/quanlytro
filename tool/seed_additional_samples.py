@@ -1914,6 +1914,22 @@ def build_enrichment(existing_docs, mgmt_fields, now):
                 except ValueError:
                     pass
 
+    # 1c. Enable bankTransferEnabled on active leases when disabled so VietQR renders.
+    for path, l_doc in list(merged_records.items()):
+        if l_doc.get('kind') != 'leases' or l_doc.get('archived'):
+            continue
+        l_data = copy.deepcopy(l_doc.get('data') or {})
+        if l_data.get('status') == 'active' and not l_data.get('bankTransferEnabled'):
+            pid = l_doc.get('propertyId', '')
+            owner_uid = l_doc.get('ownerUid', '')
+            default_acc = _payment_accounts_for(pid, owner_uid)[0]
+            l_data['bankTransferEnabled'] = True
+            if not l_data.get('bankName'):
+                l_data['bankName'] = default_acc['bankName']
+            if not l_data.get('bankAccountNumber'):
+                l_data['bankAccountNumber'] = default_acc['accountNumber']
+            record_updates[path] = {**l_doc, 'data': l_data}
+
     # 2. Enrich op26-01-01..03 announcements & tenantAnnouncements if fewer than 3 notices.
     for pid, _, tid, _, pname in OWNER_PROPERTY_SPECS:
         owner = [o for p, o, *_ in [(pid, f'report-demo-owner-{pid[-1]}')]][0]
