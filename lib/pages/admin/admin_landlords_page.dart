@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../data/admin_store.dart';
-import '../../layouts/role_layout.dart';
 import '../landlord/landlord_demo_store.dart';
 import '../shared/widgets/list_pagination.dart';
 import 'admin_ui.dart';
+import 'admin_workspace_page.dart';
 
 class AdminLandlordsPage extends StatefulWidget {
   const AdminLandlordsPage({super.key});
@@ -365,10 +365,11 @@ class _AdminLandlordsPageState extends State<AdminLandlordsPage> {
     bool verified,
   ) {
     final property = store.property;
+    final shellContext = context;
     showDialog<void>(
       context: context,
-      builder: (context) {
-        final dialogWidth = (MediaQuery.sizeOf(context).width - 88)
+      builder: (dialogContext) {
+        final dialogWidth = (MediaQuery.sizeOf(dialogContext).width - 88)
             .clamp(280.0, 520.0)
             .toDouble();
         return AlertDialog(
@@ -401,13 +402,18 @@ class _AdminLandlordsPageState extends State<AdminLandlordsPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Đóng'),
             ),
             FilledButton.tonalIcon(
               onPressed: () {
-                Navigator.pop(context);
-                RoleLayoutShell.navigateTo(context, 'property_verification');
+                Navigator.pop(dialogContext);
+                if (!shellContext.mounted) return;
+                AdminWorkspacePage.openPropertyVerification(
+                  shellContext,
+                  store: store,
+                  verified: verified,
+                );
               },
               icon: const Icon(Icons.verified_user_outlined),
               label: const Text('Tới trang xác minh'),

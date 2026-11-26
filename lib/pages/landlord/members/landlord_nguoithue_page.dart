@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
 import '../../../data/firebase_media_store.dart';
 import '../landlord_theme.dart';
 
@@ -38,14 +39,90 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
       if (!mounted || result == null) return;
       reason = result;
     }
+    final lease = _store.leaseById(member.leaseId);
+    final oldStatus = member.status;
+    final oldReason = member.rejectionReason;
+    final oldOccupants = lease?.occupantCount;
+    final oldServices = lease?.services;
+    final oldServiceFee = lease?.serviceFee;
     try {
       _store.reviewMember(member, approve: approve, reason: reason);
+      await AppPersistence.current?.flush();
+      if (!mounted) return;
       showLandlordMessage(
         context,
         'Đã ${approve ? 'duyệt' : 'từ chối'} ${member.name}.',
       );
     } on ArgumentError catch (error) {
-      showLandlordMessage(context, error.message.toString());
+      if (mounted) showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      member.status = oldStatus;
+      member.rejectionReason = oldReason;
+      if (lease != null &&
+          oldOccupants != null &&
+          oldServices != null &&
+          oldServiceFee != null) {
+        lease.occupantCount = oldOccupants;
+        lease.services = oldServices;
+        lease.serviceFee = oldServiceFee;
+      }
+      _store.notifyStateRestored();
+      if (mounted) {
+        showLandlordMessage(
+          context,
+          AppPersistence.saveFailureMessage(failure),
+        );
+      }
+    }
+  }
+
+  Future<void> _acknowledgeLeave(LeaseMember member) async {
+    final previous = member.leaveAcknowledgedAt;
+    try {
+      _store.acknowledgeMemberLeave(member);
+      await AppPersistence.current?.flush();
+    } on ArgumentError catch (error) {
+      if (mounted) showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      member.leaveAcknowledgedAt = previous;
+      _store.notifyStateRestored();
+      if (mounted) {
+        showLandlordMessage(
+          context,
+          AppPersistence.saveFailureMessage(failure),
+        );
+      }
+    }
+  }
+
+  Future<void> _completeLeave(LeaseMember member) async {
+    final lease = _store.leaseById(member.leaseId);
+    final oldStatus = member.status;
+    final oldOccupants = lease?.occupantCount;
+    final oldServices = lease?.services;
+    final oldServiceFee = lease?.serviceFee;
+    try {
+      _store.completeMemberLeave(member);
+      await AppPersistence.current?.flush();
+    } on ArgumentError catch (error) {
+      if (mounted) showLandlordMessage(context, error.message.toString());
+    } catch (failure) {
+      member.status = oldStatus;
+      if (lease != null &&
+          oldOccupants != null &&
+          oldServices != null &&
+          oldServiceFee != null) {
+        lease.occupantCount = oldOccupants;
+        lease.services = oldServices;
+        lease.serviceFee = oldServiceFee;
+      }
+      _store.notifyStateRestored();
+      if (mounted) {
+        showLandlordMessage(
+          context,
+          AppPersistence.saveFailureMessage(failure),
+        );
+      }
     }
   }
 
@@ -133,7 +210,7 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _store,
+    listenable: Listenable.merge([RentalPortfolio.instance, _store]),
     builder: (context, _) {
       final current = _store.members
           .where(
@@ -301,11 +378,8 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
                                 children: [
                                   if (member.leaveAcknowledgedAt == null)
                                     TextButton(
-                                      onPressed: () => setState(
-                                        () => _store.acknowledgeMemberLeave(
-                                          member,
-                                        ),
-                                      ),
+                                      onPressed: () =>
+                                          _acknowledgeLeave(member),
                                       child: const Text('Đã nhận'),
                                     ),
                                   if (member.leaveEffectiveAt != null &&
@@ -313,10 +387,7 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
                                         member.leaveEffectiveAt!,
                                       ))
                                     TextButton(
-                                      onPressed: () => setState(
-                                        () =>
-                                            _store.completeMemberLeave(member),
-                                      ),
+                                      onPressed: () => _completeLeave(member),
                                       child: const Text('Hoàn tất rời'),
                                     ),
                                 ],
@@ -423,16 +494,13 @@ class _LandlordNguoiThuePageState extends State<LandlordNguoiThuePage> {
                   children: [
                     if (member.leaveAcknowledgedAt == null)
                       OutlinedButton(
-                        onPressed: () => setState(
-                          () => _store.acknowledgeMemberLeave(member),
-                        ),
+                        onPressed: () => _acknowledgeLeave(member),
                         child: const Text('Xác nhận đã nhận yêu cầu'),
                       ),
                     if (member.leaveEffectiveAt != null &&
                         !DateTime.now().isBefore(member.leaveEffectiveAt!))
                       FilledButton(
-                        onPressed: () =>
-                            setState(() => _store.completeMemberLeave(member)),
+                        onPressed: () => _completeLeave(member),
                         child: const Text('Hoàn tất rời phòng'),
                       ),
                   ],

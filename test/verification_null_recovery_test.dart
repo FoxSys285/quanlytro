@@ -182,4 +182,51 @@ void main() {
       expect(admin.isVerified(id), isFalse);
     },
   );
+
+  test(
+    'Verified cloud property omitting null borderColorValue stays verified',
+    () {
+      final source = RentalPortfolio.seeded();
+      addTearDown(source.dispose);
+      final raw = source.stores.first.toMap();
+      for (final type in raw['roomTypes'] as List) {
+        (type as Map).remove('borderColorValue');
+      }
+      final rawProof = propertyVerificationProof(raw);
+      final doc = <String, dynamic>{
+        'ownerUid': 'owner',
+        'published': true,
+        'verified': true,
+        'verificationProof': rawProof,
+        'data': raw,
+      };
+      final adminMap = <String, dynamic>{};
+      restoreCloudPropertyVerification(adminMap, [doc]);
+      expect(adminMap['verified'][raw['property']['id']], isTrue);
+
+      final restoredStore = LandlordDemoStore.empty()..restore(raw);
+      addTearDown(restoredStore.dispose);
+      final portfolio = RentalPortfolio([restoredStore]);
+      addTearDown(portfolio.dispose);
+      final admin = AdminStore(portfolio: portfolio)..restore(adminMap);
+      addTearDown(admin.dispose);
+      final id = restoredStore.property.id;
+      expect(admin.isVerified(id), isTrue);
+
+      final encoded = encodeCloudDocuments(
+        {'portfolio': portfolio.toMap(), 'admin': admin.toMap()},
+        owners: {id: 'owner'},
+      )['rental_properties/$id']!;
+      expect(encoded['verified'], isTrue);
+      expect(encoded['verificationProof'], rawProof);
+
+      final firstType = restoredStore.roomTypes.first;
+      restoredStore.saveRoomType(
+        firstType.name,
+        id: firstType.id,
+        monthlyRent: firstType.monthlyRent + 100000,
+      );
+      expect(admin.isVerified(id), isFalse);
+    },
+  );
 }

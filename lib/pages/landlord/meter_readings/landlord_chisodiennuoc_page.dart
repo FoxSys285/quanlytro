@@ -23,8 +23,9 @@ class LandlordChiSoDienNuocPage extends StatefulWidget {
 
 class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
   // 1. DỮ KIỆN (Kho lưu trữ và biến trạng thái đưa lên đầu)
-  late final LandlordDemoStore _store =
+  LandlordDemoStore get _store =>
       widget.store ?? LandlordDemoStore.activeInstance;
+  late LandlordDemoStore _observedStore;
 
   DateTime _ngayKyGhi = DateTime(DateTime.now().year, DateTime.now().month);
   List<DateTime> get _cacKy => List.generate(
@@ -43,10 +44,27 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
   @override
   void initState() {
     super.initState();
-    _store.addListener(_capNhat);
+    _observedStore = _store;
+    _observedStore.addListener(_capNhat);
+    if (widget.store == null) {
+      RentalPortfolio.instance.addListener(_dongBoKhoHoatDong);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _store.prepareReadings(_ngayKyGhi);
     });
+  }
+
+  void _dongBoKhoHoatDong() {
+    final current = _store;
+    if (!identical(_observedStore, current)) {
+      _observedStore.removeListener(_capNhat);
+      _observedStore = current;
+      _observedStore.addListener(_capNhat);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _store.prepareReadings(_ngayKyGhi);
+      });
+    }
+    _capNhat();
   }
 
   void _capNhat() {
@@ -57,7 +75,10 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
 
   @override
   void dispose() {
-    _store.removeListener(_capNhat);
+    if (widget.store == null) {
+      RentalPortfolio.instance.removeListener(_dongBoKhoHoatDong);
+    }
+    _observedStore.removeListener(_capNhat);
     super.dispose();
   }
 
@@ -165,106 +186,22 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
   }
 
   Future<void> _moHopThoaiNhapChiSo(LandlordMeterReading chiSo) async {
-    String chuoiDienBanDau = '';
-    if (chiSo.newElectric != null) {
-      chuoiDienBanDau = chiSo.newElectric.toString();
-    }
-
-    String chuoiNuocBanDau = '';
-    if (chiSo.newWater != null) {
-      chuoiNuocBanDau = chiSo.newWater.toString();
-    }
-
-    final controllerDien = TextEditingController(text: chuoiDienBanDau);
-    final controllerNuoc = TextEditingController(text: chuoiNuocBanDau);
-
-    final daBamLuu = await showDialog<bool>(
+    final result = await showDialog<({int electric, int water})>(
       context: context,
-      builder: (dialogContext) {
-        final palette = LandlordPalette.of(dialogContext);
-        return AlertDialog(
-          scrollable: true,
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 24,
-          ),
-          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-          contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
-          backgroundColor: palette.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          title: Text(
-            'Nhập chỉ số phòng ${chiSo.room}',
-            style: TextStyle(
-              color: palette.ink,
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          content: SizedBox(
-            width: 340,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cập nhật chỉ số điện nước cho kỳ ghi hiện tại.',
-                  style: TextStyle(color: palette.muted, fontSize: 13),
-                ),
-                const SizedBox(height: 20),
-                _truongNhapChiSo(
-                  controller: controllerDien,
-                  icon: Icons.bolt_outlined,
-                  ten: 'Chỉ số điện',
-                  donVi: 'kWh',
-                  chiSoCu: chiSo.oldElectric,
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 20),
-                _truongNhapChiSo(
-                  controller: controllerNuoc,
-                  icon: Icons.water_drop_outlined,
-                  ten: 'Chỉ số nước',
-                  donVi: 'm³',
-                  chiSoCu: chiSo.oldWater,
-                  textInputAction: TextInputAction.done,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Hủy'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Lưu'),
-            ),
-          ],
-        );
-      },
+      builder: (_) => _MeterReadingInputDialog(
+        chiSo: chiSo,
+        fieldBuilder: _truongNhapChiSo,
+      ),
     );
-
-    if (daBamLuu != true || !mounted) {
+    if (result == null || !mounted) {
       return;
     }
-
-    final chiSoDienMoi = int.tryParse(controllerDien.text.trim());
-    final chiSoNuocMoi = int.tryParse(controllerNuoc.text.trim());
-    if (chiSoDienMoi == null || chiSoNuocMoi == null) {
-      showLandlordMessage(context, 'Vui lòng nhập số hợp lệ.');
-      return;
-    }
-
-    if (chiSoDienMoi < chiSo.oldElectric || chiSoNuocMoi < chiSo.oldWater) {
+    if (result.electric < chiSo.oldElectric || result.water < chiSo.oldWater) {
       showLandlordMessage(context, 'Chỉ số mới không được nhỏ hơn chỉ số cũ.');
       return;
     }
 
-    _store.saveReading(chiSo, chiSoDienMoi, chiSoNuocMoi);
+    _store.saveReading(chiSo, result.electric, result.water);
     try {
       await AppPersistence.current?.flush();
     } catch (failure) {
@@ -485,6 +422,124 @@ class _LandlordChiSoDienNuocPageState extends State<LandlordChiSoDienNuocPage> {
       kicker: 'QUẢN LÝ VẬN HÀNH',
       store: _store,
       children: danhSachWidget,
+    );
+  }
+}
+
+class _MeterReadingInputDialog extends StatefulWidget {
+  const _MeterReadingInputDialog({
+    required this.chiSo,
+    required this.fieldBuilder,
+  });
+
+  final LandlordMeterReading chiSo;
+  final Widget Function({
+    required TextEditingController controller,
+    required IconData icon,
+    required String ten,
+    required String donVi,
+    required int chiSoCu,
+    required TextInputAction textInputAction,
+  })
+  fieldBuilder;
+
+  @override
+  State<_MeterReadingInputDialog> createState() =>
+      _MeterReadingInputDialogState();
+}
+
+class _MeterReadingInputDialogState extends State<_MeterReadingInputDialog> {
+  late final TextEditingController _controllerDien = TextEditingController(
+    text: widget.chiSo.newElectric?.toString() ?? '',
+  );
+  late final TextEditingController _controllerNuoc = TextEditingController(
+    text: widget.chiSo.newWater?.toString() ?? '',
+  );
+  String? _error;
+
+  @override
+  void dispose() {
+    _controllerDien.dispose();
+    _controllerNuoc.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final electric = int.tryParse(_controllerDien.text.trim());
+    final water = int.tryParse(_controllerNuoc.text.trim());
+    if (electric == null || water == null) {
+      setState(() => _error = 'Vui lòng nhập số hợp lệ.');
+      return;
+    }
+    if (electric < widget.chiSo.oldElectric ||
+        water < widget.chiSo.oldWater) {
+      setState(() => _error = 'Chỉ số mới không được nhỏ hơn chỉ số cũ.');
+      return;
+    }
+    Navigator.pop(context, (electric: electric, water: water));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = LandlordPalette.of(context);
+    return AlertDialog(
+      scrollable: true,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+      backgroundColor: palette.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      title: Text(
+        'Nhập chỉ số phòng ${widget.chiSo.room}',
+        style: TextStyle(
+          color: palette.ink,
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      content: SizedBox(
+        width: 340,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Cập nhật chỉ số điện nước cho kỳ ghi hiện tại.',
+              style: TextStyle(color: palette.muted, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            widget.fieldBuilder(
+              controller: _controllerDien,
+              icon: Icons.bolt_outlined,
+              ten: 'Chỉ số điện',
+              donVi: 'kWh',
+              chiSoCu: widget.chiSo.oldElectric,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 20),
+            widget.fieldBuilder(
+              controller: _controllerNuoc,
+              icon: Icons.water_drop_outlined,
+              ten: 'Chỉ số nước',
+              donVi: 'm³',
+              chiSoCu: widget.chiSo.oldWater,
+              textInputAction: TextInputAction.done,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Lưu')),
+      ],
     );
   }
 }

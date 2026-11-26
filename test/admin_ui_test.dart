@@ -12,6 +12,7 @@ import 'package:quanlytro/layouts/admin_layout.dart';
 import 'package:quanlytro/layouts/role_layout.dart';
 import 'package:quanlytro/pages/admin/admin_page_router.dart';
 import 'package:quanlytro/pages/admin/admin_users_page.dart';
+import 'package:quanlytro/pages/admin/admin_workspace_page.dart';
 import 'package:quanlytro/pages/landlord/landlord_demo_store.dart';
 
 void main() {
@@ -39,6 +40,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Tổng quan hệ thống'), findsOneWidget);
+      expect(find.text('Tổng số phòng'), findsOneWidget);
+      expect(find.text('Lượt tải ứng dụng'), findsNothing);
       expect(find.text('Yêu cầu hỗ trợ'), findsWidgets);
       RoleLayoutShell.navigateTo(
         tester.element(find.text('Tổng quan hệ thống')),
@@ -454,4 +457,35 @@ void main() {
     expect(find.text('Nhật ký hoạt động'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Tapping Tới trang xác minh in AdminLandlordsPage opens property verification',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 900);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final target = RentalPortfolio.instance.stores[1];
+      await tester.pumpWidget(const MaterialApp(home: AdminLayout()));
+      await tester.pumpAndSettle();
+
+      RoleLayoutShell.navigateTo(
+        tester.element(find.text('Tổng quan hệ thống')),
+        'landlords',
+      );
+      await tester.pumpAndSettle();
+      final detailButton = find.text('Xem hồ sơ nhà trọ').at(1);
+      await tester.ensureVisible(detailButton);
+      await tester.tap(detailButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Tới trang xác minh'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AdminWorkspacePage), findsOneWidget);
+      expect(find.text('Xác minh nhà trọ'), findsWidgets);
+      expect(find.textContaining(target.property.name), findsWidgets);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

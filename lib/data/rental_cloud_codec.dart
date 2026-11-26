@@ -27,6 +27,20 @@ String propertyVerificationProof(Map<String, dynamic> store) => sha256
     )
     .toString();
 
+/// Matches cloud property proofs computed before nullable `borderColorValue`
+/// keys were emitted by [LandlordRoomType.toMap].
+String propertyVerificationProofUnpadded(Map<String, dynamic> store) =>
+    propertyVerificationProof({
+      ...store,
+      'roomTypes': [
+        for (final raw in store['roomTypes'] as List? ?? const [])
+          Map<String, dynamic>.from(raw as Map)
+            ..removeWhere(
+              (key, value) => key == 'borderColorValue' && value == null,
+            ),
+      ],
+    });
+
 /// Property documents carry the approval used by public catalogue readers.
 /// Restore the same state for landlord/tenant sessions and stale admin caches.
 void restoreCloudPropertyVerification(
@@ -102,9 +116,11 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
     }
     final leases = (store['leases'] as List).cast<Map>();
     final proof = propertyVerificationProof(store);
+    final savedProof = snapshot['admin']?['verificationProofs']?[id];
     final verified =
         snapshot['admin']?['verified']?[id] == true &&
-        snapshot['admin']?['verificationProofs']?[id] == proof;
+        (savedProof == proof ||
+            savedProof == propertyVerificationProofUnpadded(store));
     final publicProperty = Map<String, dynamic>.from(property)
       ..remove('verificationDocuments')
       ..remove('verificationSubmittedAt')
@@ -138,7 +154,7 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
       'ownerUid': owner,
       'published': !hidden.contains(id),
       'verified': verified,
-      'verificationProof': verified ? proof : '',
+      'verificationProof': verified ? savedProof as String : '',
       'data': {
         if (store['schemaVersion'] != null)
           'schemaVersion': store['schemaVersion'],

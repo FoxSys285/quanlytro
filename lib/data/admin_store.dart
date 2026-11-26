@@ -61,9 +61,9 @@ class AdminStore extends ChangeNotifier {
   bool acceptingViewings = true;
   bool isVerified(String id) {
     final store = _portfolio.byId(id);
-    return store != null &&
-        _verified[id] == true &&
-        _verificationProofs[id] == _proof(store);
+    if (store == null || _verified[id] != true) return false;
+    final saved = _verificationProofs[id];
+    return saved == _proof(store) || saved == _unpaddedProof(store);
   }
 
   String reviewNote(String id) => _reviewNotes[id] ?? '';
@@ -105,11 +105,17 @@ class AdminStore extends ChangeNotifier {
     record('Cập nhật liên hệ người thuê ${member.tenantId} tại $propertyId');
   }
 
-  static String _proof(LandlordDemoStore store) => propertyVerificationProof({
+  static Map<String, dynamic> _proofPayload(LandlordDemoStore store) => {
     'property': store.property.toMap(),
     'rooms': store.catalog.map((r) => r.toMap()).toList(),
     'roomTypes': store.roomTypes.map((r) => r.toMap()).toList(),
-  });
+  };
+
+  static String _proof(LandlordDemoStore store) =>
+      propertyVerificationProof(_proofPayload(store));
+
+  static String _unpaddedProof(LandlordDemoStore store) =>
+      propertyVerificationProofUnpadded(_proofPayload(store));
 
   static List<String> verificationIssues(LandlordDemoStore store) {
     final p = store.property;

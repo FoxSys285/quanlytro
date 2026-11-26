@@ -64,4 +64,50 @@ void main() {
       expect(tester.getRect(fields.last).bottom, lessThanOrEqualTo(740 - 260));
     });
   }
+
+  testWidgets('Meter dialog validates input inline and updates on switch', (
+    tester,
+  ) async {
+    final originalPortfolio = RentalPortfolio.instance;
+    final portfolio = RentalPortfolio.seeded();
+    RentalPortfolio.instance = portfolio;
+    addTearDown(() {
+      RentalPortfolio.instance = originalPortfolio;
+      portfolio.dispose();
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: LandlordChiSoDienNuocPage())),
+    );
+    await tester.pumpAndSettle();
+
+    final roomCard = find
+        .ancestor(
+          of: find.textContaining('Phòng '),
+          matching: find.byType(LandlordGlassCard),
+        )
+        .first;
+    await tester.tap(roomCard);
+    await tester.pumpAndSettle();
+
+    final fields = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(fields.first, '1');
+    await tester.enterText(fields.last, '1');
+    await tester.tap(find.text('Lưu'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Chỉ số mới không được nhỏ hơn chỉ số cũ.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Hủy'));
+    await tester.pumpAndSettle();
+
+    portfolio.select(portfolio.stores[1].property.id);
+    await tester.pumpAndSettle();
+    expect(find.text(portfolio.stores[1].property.name), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

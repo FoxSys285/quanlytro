@@ -5,6 +5,7 @@ import '../../data/admin_store.dart';
 import '../../data/local_auth.dart';
 import '../../layouts/role_layout.dart';
 import '../landlord/landlord_demo_store.dart';
+import '../landlord/rooms/models/landlord_room.dart';
 import '../shared/widgets/list_pagination.dart';
 import 'admin_ui.dart';
 
@@ -81,6 +82,13 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
       final verified = stores
           .where((store) => admin.isVerified(store.property.id))
           .length;
+      final roomDetails = stores.expand((store) => store.roomDetails).toList();
+      final occupiedRooms = roomDetails
+          .where((room) => room.status == LandlordRoomStatus.occupied)
+          .length;
+      final vacantRooms = roomDetails
+          .where((room) => room.status == LandlordRoomStatus.vacant)
+          .length;
       final tickets = admin.tickets;
       final lastPage = ListPagination.lastPage(tickets.length, 10);
       if (_ticketPage > lastPage) _ticketPage = lastPage;
@@ -130,11 +138,16 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
                     ),
                     _MetricCard(
                       width: width,
-                      title: 'Lượt tải ứng dụng',
-                      value: '—',
-                      detail: 'Chưa có dữ liệu phân tích lượt tải',
-                      icon: Icons.download_rounded,
+                      title: 'Tổng số phòng',
+                      value: '${roomDetails.length}',
+                      detail:
+                          '$occupiedRooms đang thuê · $vacantRooms phòng trống',
+                      icon: Icons.meeting_room_rounded,
                       color: adminPurple,
+                      onTap: () => RoleLayoutShell.navigateTo(
+                        context,
+                        'landlords',
+                      ),
                     ),
                     _MetricCard(
                       width: width,
@@ -269,7 +282,7 @@ class _AdminOverviewPageState extends State<AdminOverviewPage> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Lượt tải và số người đang online chưa được ứng dụng ghi nhận. Chỉ số tài khoản hoạt động hiện phản ánh các tài khoản chưa bị khóa.',
+            'Số liệu được tổng hợp trực tiếp từ dữ liệu nhà trọ, phòng và tài khoản trên Firebase; tài khoản hoạt động phản ánh các tài khoản chưa bị khóa.',
             style: TextStyle(color: adminMuted, fontSize: 12, height: 1.45),
           ),
         ],

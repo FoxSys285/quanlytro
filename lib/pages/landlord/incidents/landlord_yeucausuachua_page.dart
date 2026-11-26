@@ -25,13 +25,29 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
 
   LandlordDemoStore get _store =>
       widget.store ?? LandlordDemoStore.activeInstance;
+  late LandlordDemoStore _observedStore;
   List<LandlordIncident> get _danhSachSuCo => _store.incidents;
+  bool _savingStatus = false;
 
   // 2. VÒNG ĐỜI VÀ LẮNG NGHE
   @override
   void initState() {
     super.initState();
-    _store.addListener(_capNhat);
+    _observedStore = _store;
+    _observedStore.addListener(_capNhat);
+    if (widget.store == null) {
+      RentalPortfolio.instance.addListener(_dongBoKhoHoatDong);
+    }
+  }
+
+  void _dongBoKhoHoatDong() {
+    final current = _store;
+    if (!identical(_observedStore, current)) {
+      _observedStore.removeListener(_capNhat);
+      _observedStore = current;
+      _observedStore.addListener(_capNhat);
+    }
+    _capNhat();
   }
 
   void _capNhat() {
@@ -42,7 +58,10 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
 
   @override
   void dispose() {
-    _store.removeListener(_capNhat);
+    if (widget.store == null) {
+      RentalPortfolio.instance.removeListener(_dongBoKhoHoatDong);
+    }
+    _observedStore.removeListener(_capNhat);
     super.dispose();
   }
 
@@ -155,11 +174,12 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
                   runSpacing: 8,
                   children: [
                     for (final trangThai in IncidentStatus.values)
-                      _statusChoice(
-                        suCo,
-                        trangThai,
-                        () => Navigator.pop(nguCanhBang),
-                      ),
+                      _statusChoice(suCo, trangThai, () {
+                        if (nguCanhBang.mounted &&
+                            Navigator.of(nguCanhBang).canPop()) {
+                          Navigator.pop(nguCanhBang);
+                        }
+                      }),
                   ],
                 ),
               ],
@@ -186,23 +206,29 @@ class _LandlordYeuCauSuaChuaPageState extends State<LandlordYeuCauSuaChuaPage> {
         fontWeight: FontWeight.w700,
       ),
       onSelected: (_) async {
-        _store.updateIncident(suCo, trangThai);
+        if (_savingStatus) return;
+        _savingStatus = true;
+        final previousStatus = suCo.status;
         try {
+          _store.updateIncident(suCo, trangThai);
           await AppPersistence.current?.flush();
+          if (!mounted) return;
+          close();
+          showLandlordMessage(
+            context,
+            'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
+          );
         } catch (failure) {
+          suCo.status = previousStatus;
+          _store.notifyStateRestored();
           if (!mounted) return;
           showLandlordMessage(
             context,
             AppPersistence.saveFailureMessage(failure),
           );
-          return;
+        } finally {
+          _savingStatus = false;
         }
-        if (!mounted) return;
-        close();
-        showLandlordMessage(
-          context,
-          'Đã chuyển "${suCo.title}" sang ${trangThai.label}.',
-        );
       },
     );
   }

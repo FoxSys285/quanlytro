@@ -20,7 +20,9 @@ class LandlordDichVuBangGiaPage extends StatefulWidget {
 
 class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
   // 1. DỮ KIỆN (Kho lưu trữ và biến trạng thái đưa lên đầu)
-  final _store = LandlordDemoStore.activeInstance;
+  LandlordDemoStore get _store => LandlordDemoStore.activeInstance;
+  late LandlordDemoStore _observedStore;
+  final Set<String> _togglingIds = <String>{};
 
   bool _isUtilityRate(LandlordService service) =>
       service.id == 'electricity' || service.id == 'water';
@@ -38,7 +40,19 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
   @override
   void initState() {
     super.initState();
-    _store.addListener(_capNhat);
+    _observedStore = _store;
+    _observedStore.addListener(_capNhat);
+    RentalPortfolio.instance.addListener(_dongBoKhoHoatDong);
+  }
+
+  void _dongBoKhoHoatDong() {
+    final current = _store;
+    if (!identical(_observedStore, current)) {
+      _observedStore.removeListener(_capNhat);
+      _observedStore = current;
+      _observedStore.addListener(_capNhat);
+    }
+    _capNhat();
   }
 
   void _capNhat() {
@@ -49,7 +63,8 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
 
   @override
   void dispose() {
-    _store.removeListener(_capNhat);
+    RentalPortfolio.instance.removeListener(_dongBoKhoHoatDong);
+    _observedStore.removeListener(_capNhat);
     super.dispose();
   }
 
@@ -138,6 +153,25 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
       context,
       deleted ? 'Đã xóa dịch vụ.' : 'Đã lưu dịch vụ ${stagedService!.name}.',
     );
+  }
+
+  Future<void> _doiTrangThaiDichVu(
+    LandlordService dichVu,
+    bool giaTriKichHoat,
+  ) async {
+    final previous = dichVu.active;
+    setState(() => _togglingIds.add(dichVu.id));
+    _store.setServiceActive(dichVu, giaTriKichHoat);
+    try {
+      await _flushServiceChanges();
+    } catch (failure) {
+      _store.setServiceActive(dichVu, previous);
+      if (mounted) {
+        showLandlordMessage(context, AppPersistence.saveFailureMessage(failure));
+      }
+    } finally {
+      if (mounted) setState(() => _togglingIds.remove(dichVu.id));
+    }
   }
 
   Future<void> _flushServiceChanges() async {
@@ -280,9 +314,10 @@ class _LandlordDichVuBangGiaPageState extends State<LandlordDichVuBangGiaPage> {
                   Switch(
                     value: dichVu.active,
                     activeThumbColor: landlordBlue,
-                    onChanged: (giaTriKichHoat) {
-                      _store.setServiceActive(dichVu, giaTriKichHoat);
-                    },
+                    onChanged: _togglingIds.contains(dichVu.id)
+                        ? null
+                        : (giaTriKichHoat) =>
+                            _doiTrangThaiDichVu(dichVu, giaTriKichHoat),
                   ),
                 ],
               ),

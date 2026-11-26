@@ -440,7 +440,7 @@ class AdminDashboard extends StatelessWidget {
                     ),
                     TextButton.icon(
                       onPressed: () =>
-                          RoleLayoutShell.navigateTo(context, 'activity'),
+                          RoleLayoutShell.navigateTo(context, 'audit_logs'),
                       icon: const Icon(Icons.sensors_outlined, size: 20),
                       label: Text(
                         'Phiên trên thiết bị: ${auth.role != null && auth.isForeground ? 1 : 0} · Xem phạm vi theo dõi',

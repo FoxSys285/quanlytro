@@ -22,7 +22,16 @@ class TenantBaoSuCoPage extends StatefulWidget {
 }
 
 class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
-  LandlordDemoStore get _store => widget.store ?? LandlordDemoStore.instance;
+  LandlordDemoStore get _store {
+    if (widget.store != null) return widget.store!;
+    for (final store in RentalPortfolio.instance.stores) {
+      if (store.currentLeaseForTenant(widget.tenantId) != null) return store;
+    }
+    for (final store in RentalPortfolio.instance.stores) {
+      if (store.leasesForTenant(widget.tenantId).isNotEmpty) return store;
+    }
+    return LandlordDemoStore.instance;
+  }
 
   Future<void> _updateStatus(
     LandlordIncident incident,
@@ -72,7 +81,7 @@ class _TenantBaoSuCoPageState extends State<TenantBaoSuCoPage> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _store,
+    listenable: Listenable.merge([RentalPortfolio.instance, _store]),
     builder: (context, _) {
       final lease = _store.currentLeaseForTenant(widget.tenantId);
       final incidents = _store.incidentsForTenant(widget.tenantId);

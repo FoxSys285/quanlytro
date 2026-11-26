@@ -126,4 +126,32 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('Switching active property updates service prices page', (
+    tester,
+  ) async {
+    final previous = RentalPortfolio.instance;
+    final portfolio = RentalPortfolio.seeded();
+    RentalPortfolio.instance = portfolio;
+    addTearDown(() {
+      RentalPortfolio.instance = previous;
+      portfolio.dispose();
+    });
+    portfolio.stores[1].saveService(
+      name: 'Dịch vụ riêng nhà 2',
+      unit: 'phòng',
+      basis: 'Theo phòng',
+      price: 55000,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: LandlordDichVuBangGiaPage())),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Dịch vụ riêng nhà 2'), findsNothing);
+
+    portfolio.select(portfolio.stores[1].property.id);
+    await tester.pumpAndSettle();
+    expect(find.text('Dịch vụ riêng nhà 2'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

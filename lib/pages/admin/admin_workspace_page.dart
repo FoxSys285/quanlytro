@@ -16,6 +16,32 @@ import '../shared/widgets/list_pagination.dart';
 class AdminWorkspacePage extends StatefulWidget {
   const AdminWorkspacePage({super.key, required this.destination});
   final RoleDestination destination;
+
+  static final _focusNotifier =
+      ValueNotifier<({String propertyId, String filter})?>(null);
+
+  /// Navigates to property verification and brings [store] to the top under
+  /// the matching review filter.
+  static void openPropertyVerification(
+    BuildContext context, {
+    required LandlordDemoStore store,
+    required bool verified,
+  }) {
+    final id = store.property.id;
+    final admin = AdminStore.instance;
+    final filter = verified
+        ? 'ready'
+        : admin.verificationResubmitted(id)
+        ? 'resubmitted'
+        : admin.pendingReviewNote(id).isNotEmpty
+        ? 'supplement'
+        : store.property.verificationSubmittedAt != null
+        ? 'pending'
+        : 'all';
+    _focusNotifier.value = (propertyId: id, filter: filter);
+    RoleLayoutShell.navigateTo(context, 'property_verification');
+  }
+
   @override
   State<AdminWorkspacePage> createState() => _AdminWorkspacePageState();
 }
@@ -24,8 +50,41 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
   AdminStore get _admin => AdminStore.instance;
   String _query = '';
   String _filter = 'pending';
+  String? _focusedPropertyId;
   int _page = 0;
   final Set<String> _savingVerificationIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    AdminWorkspacePage._focusNotifier.addListener(_applyFocus);
+    _applyFocus(notify: false);
+  }
+
+  @override
+  void dispose() {
+    AdminWorkspacePage._focusNotifier.removeListener(_applyFocus);
+    super.dispose();
+  }
+
+  void _applyFocus({bool notify = true}) {
+    if (widget.destination.id != 'property_verification') return;
+    final target = AdminWorkspacePage._focusNotifier.value;
+    if (target == null) return;
+    AdminWorkspacePage._focusNotifier.value = null;
+    void assign() {
+      _filter = target.filter;
+      _focusedPropertyId = target.propertyId;
+      _query = '';
+      _page = 0;
+    }
+
+    if (!notify || !mounted) {
+      assign();
+      return;
+    }
+    setState(assign);
+  }
 
   Future<void> _commitVerificationChange({
     required String propertyId,
@@ -145,6 +204,7 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
                   selected: _filter == item.id,
                   onSelected: (_) => setState(() {
                     _filter = item.id;
+                    _focusedPropertyId = null;
                     _page = 0;
                   }),
                 ),
@@ -176,6 +236,11 @@ class _AdminWorkspacePageState extends State<AdminWorkspacePage> {
         }).toList();
         if (verification) {
           matched.sort((a, b) {
+            if (_focusedPropertyId != null) {
+              final focusRank = (a.property.id == _focusedPropertyId ? 0 : 1)
+                  .compareTo(b.property.id == _focusedPropertyId ? 0 : 1);
+              if (focusRank != 0) return focusRank;
+            }
             final priority =
                 (admin.verificationResubmitted(b.property.id) ? 1 : 0)
                     .compareTo(
