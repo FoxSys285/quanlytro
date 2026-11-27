@@ -11,11 +11,13 @@ class LandlordViewingCard extends StatelessWidget {
     super.key,
     required this.viewing,
     this.onConfirm,
+    this.onMarkViewed,
     this.onCancel,
     this.onMessage,
   });
   final LandlordViewing viewing;
   final VoidCallback? onConfirm;
+  final VoidCallback? onMarkViewed;
   final VoidCallback? onCancel;
   final VoidCallback? onMessage;
 
@@ -123,6 +125,12 @@ class LandlordViewingCard extends StatelessWidget {
                   icon: const Icon(Icons.check_circle_outline, size: 18),
                   label: const Text('Xác nhận lịch'),
                 ),
+                if (onMarkViewed != null)
+                  FilledButton.tonalIcon(
+                    onPressed: onMarkViewed,
+                    icon: const Icon(Icons.visibility_outlined, size: 18),
+                    label: const Text('Đã xem phòng'),
+                  ),
                 OutlinedButton.icon(
                   onPressed: onCancel,
                   style: OutlinedButton.styleFrom(

@@ -886,6 +886,46 @@ extension RentalStorePersistence on LandlordDemoStore {
     _changed();
   }
 
+  /// Changes room types for several rooms in one store notification/write.
+  /// Returns the previous type IDs so the caller can roll back a failed save.
+  Map<String, String> updateRoomTypeAssignments(
+    Map<String, String> assignments,
+  ) {
+    if (assignments.isEmpty) {
+      throw ArgumentError('Chọn ít nhất một phòng để đổi loại phòng.');
+    }
+    final validTypeIds = _roomTypes.map((type) => type.id).toSet();
+    final previous = <String, String>{};
+    final indexes = <int, String>{};
+    for (final entry in assignments.entries) {
+      if (!validTypeIds.contains(entry.value)) {
+        throw ArgumentError('Loại phòng được chọn không còn tồn tại.');
+      }
+      final index = _rooms.indexWhere(
+        (room) => canonicalRoom(room.code) == canonicalRoom(entry.key),
+      );
+      if (index < 0) throw ArgumentError('Không tìm thấy phòng ${entry.key}.');
+      indexes[index] = entry.value;
+      previous[_rooms[index].code] = _rooms[index].roomTypeId;
+    }
+    var changed = false;
+    for (final entry in indexes.entries) {
+      final room = _rooms[entry.key];
+      if (room.roomTypeId == entry.value) continue;
+      _rooms[entry.key] = LandlordRoom(
+        code: room.code,
+        floor: room.floor,
+        roomTypeId: entry.value,
+        area: room.area,
+        capacity: room.capacity,
+        leaseRoomCode: room.leaseRoomCode,
+      );
+      changed = true;
+    }
+    if (changed) _changed();
+    return previous;
+  }
+
   void createRoomsForFloorPlan(
     Map<int, int> roomCounts, {
     required String roomTypeId,

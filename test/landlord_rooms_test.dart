@@ -103,6 +103,8 @@ void main() {
       expect(find.byType(LandlordRoomButton), findsOneWidget);
       store.saveRoomType('Ban công mới', id: 'balcony', monthlyRent: 4400000);
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byType(LandlordRoomButton));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(LandlordRoomButton));
       await tester.pumpAndSettle();
       expect(find.text('4.400.000 đ / tháng'), findsOneWidget);

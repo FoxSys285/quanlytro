@@ -1,6 +1,7 @@
 enum ViewingStatus {
   pending('Đang chờ xác nhận'),
   confirmed('Đã xác nhận'),
+  viewed('Đã xem phòng'),
   cancelled('Đã hủy');
 
   const ViewingStatus(this.label);

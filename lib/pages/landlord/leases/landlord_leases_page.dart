@@ -1070,13 +1070,13 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
   );
 
   Future<String?> _askReason(String title, String label) async {
-    final controller = TextEditingController();
-    final reason = await showDialog<String>(
+    var reason = '';
+    return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(title),
         content: TextField(
-          controller: controller,
+          onChanged: (value) => reason = value,
           autofocus: true,
           minLines: 2,
           maxLines: 4,
@@ -1085,18 +1085,16 @@ class _LandlordLeasesPageState extends State<LandlordLeasesPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            onPressed: () => Navigator.pop(dialogContext, reason.trim()),
             child: const Text('Xác nhận'),
           ),
         ],
       ),
     );
-    controller.dispose();
-    return reason;
   }
 
   Future<void> _reviewRenewal(LandlordLease lease, bool approve) async {

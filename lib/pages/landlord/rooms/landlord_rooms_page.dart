@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/app_persistence.dart';
+import '../../../data/local_auth.dart';
 import '../../../layouts/landlord_navigation.dart';
+import '../../shared/viewings/models/room_viewing.dart';
+import '../../shared/viewings/viewing_store.dart';
 import '../../shared/widgets/list_pagination.dart';
 import '../billing/landlord_billing_page.dart';
 import '../announcements/landlord_announcements_page.dart';
@@ -55,6 +59,9 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
   int? _floor;
   int _page = 0;
   bool _grid = false;
+  bool _bulkEditMode = false;
+  bool _bulkSaving = false;
+  final Set<String> _selectedRoomCodes = {};
   _RoomFilter _filter = _RoomFilter.all;
   _RoomSort _sort = _RoomSort.code;
 
@@ -69,6 +76,89 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
     context: context,
     builder: (_) => LandlordRoomEditor(store: _store, room: room),
   );
+
+  Future<void> _changeSelectedRoomTypes() async {
+    if (_selectedRoomCodes.isEmpty || _bulkSaving) return;
+    String? selectedTypeId = _store.roomTypes.firstOrNull?.id;
+    final typeId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Đổi loại phòng hàng loạt'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Đã chọn ${_selectedRoomCodes.length} phòng.'),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                initialValue: selectedTypeId,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Loại phòng mới'),
+                items: [
+                  for (final type in _store.roomTypes)
+                    DropdownMenuItem(value: type.id, child: Text(type.name)),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => selectedTypeId = value),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: selectedTypeId == null
+                  ? null
+                  : () => Navigator.pop(dialogContext, selectedTypeId),
+              child: const Text('Áp dụng'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (typeId == null || !mounted) return;
+
+    final persistence = AppPersistence.current;
+    if (persistence == null && LocalAuth.instance.isCloudMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chưa kết nối phiên lưu Firebase.')),
+      );
+      return;
+    }
+    setState(() => _bulkSaving = true);
+    Map<String, String>? previous;
+    try {
+      previous = _store.updateRoomTypeAssignments({
+        for (final code in _selectedRoomCodes) code: typeId,
+      });
+      await persistence?.saveChanges();
+      _selectedRoomCodes.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã cập nhật loại phòng đã chọn.')),
+        );
+      }
+    } catch (failure) {
+      if (previous != null) {
+        try {
+          _store.updateRoomTypeAssignments(previous);
+          await persistence?.saveChanges();
+        } catch (_) {
+          // Keep the original save error visible.
+        }
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _bulkSaving = false);
+    }
+  }
 
   void _openPage(String title, Widget page) {
     final destination = switch (page) {
@@ -201,7 +291,7 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
           label: 'Lịch xem',
           icon: Icons.calendar_month_outlined,
           onTap: () =>
-              _openPage('Lịch xem phòng', const LandlordViewingsPage()),
+              _openPage('Lịch xem phòng', LandlordViewingsPage(rental: _store)),
         ),
       ];
     }
@@ -211,7 +301,7 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
           label: 'Lịch xem',
           icon: Icons.calendar_month_outlined,
           onTap: () =>
-              _openPage('Lịch xem phòng', const LandlordViewingsPage()),
+              _openPage('Lịch xem phòng', LandlordViewingsPage(rental: _store)),
         ),
       ];
     }
@@ -233,7 +323,7 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _store,
+    listenable: Listenable.merge([_store, ViewingStore.instance]),
     builder: (context, _) {
       final palette = LandlordPalette.of(context);
       if (_propertyId != _store.property.id) {
@@ -242,6 +332,8 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
         _filter = _RoomFilter.all;
         _page = 0;
         _query = '';
+        _bulkEditMode = false;
+        _selectedRoomCodes.clear();
         _searchController.clear();
       }
       final all = _store.roomDetails;
@@ -252,6 +344,10 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
           .length;
       final vacantCount = all
           .where((item) => item.status == LandlordRoomStatus.vacant)
+          .length;
+      final pendingViewingCount = ViewingStore.instance
+          .forProperty(_store.property.id)
+          .where((viewing) => viewing.status == ViewingStatus.pending)
           .length;
       if (all.isEmpty) {
         final needsTypes = _store.roomTypes.isEmpty;
@@ -397,6 +493,37 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
               ),
               icon: const Icon(Icons.grid_view_rounded, size: 17),
               label: const Text('Sơ đồ tầng'),
+            ),
+            FilledButton.icon(
+              onPressed: () => _openPage(
+                'Lịch xem phòng',
+                LandlordViewingsPage(rental: _store),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: propertyBlue,
+                foregroundColor: Colors.white,
+              ),
+              icon: Badge(
+                isLabelVisible: pendingViewingCount > 0,
+                label: Text('$pendingViewingCount'),
+                child: const Icon(Icons.calendar_month_outlined, size: 18),
+              ),
+              label: const Text('Lịch xem'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _bulkSaving
+                  ? null
+                  : () => setState(() {
+                      _bulkEditMode = !_bulkEditMode;
+                      _selectedRoomCodes.clear();
+                    }),
+              icon: Icon(
+                _bulkEditMode ? Icons.close_rounded : Icons.checklist_rounded,
+                size: 18,
+              ),
+              label: Text(
+                _bulkEditMode ? 'Thoát chọn phòng' : 'Chỉnh sửa hàng loạt',
+              ),
             ),
             FilledButton.icon(
               onPressed: () => _openPage(
@@ -631,6 +758,48 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
           ],
         ),
         const SizedBox(height: 7),
+        if (_bulkEditMode)
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text('${_selectedRoomCodes.length} phòng đã chọn'),
+                  TextButton.icon(
+                    onPressed: () => setState(() {
+                      _selectedRoomCodes.addAll(
+                        visible.map((item) => item.room.code),
+                      );
+                    }),
+                    icon: const Icon(Icons.select_all_rounded, size: 18),
+                    label: const Text('Chọn trang này'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _selectedRoomCodes.isEmpty || _bulkSaving
+                        ? null
+                        : _changeSelectedRoomTypes,
+                    icon: _bulkSaving
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.category_outlined, size: 18),
+                    label: const Text('Đổi loại phòng'),
+                  ),
+                  TextButton(
+                    onPressed: _selectedRoomCodes.isEmpty || _bulkSaving
+                        ? null
+                        : () => setState(_selectedRoomCodes.clear),
+                    child: const Text('Bỏ chọn'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         if (matches.isEmpty)
           const LandlordEmptyState(
             message: 'Không có phòng phù hợp với bộ lọc.',
@@ -666,8 +835,24 @@ class _LandlordRoomsPageState extends State<LandlordRoomsPage> {
                             details: details,
                             highlight: highlight,
                             compact: _grid,
-                            actions: _actionsFor(details, highlight),
-                            onTap: () => _showRoom(details.room.code),
+                            selectionMode: _bulkEditMode,
+                            selected: _selectedRoomCodes.contains(
+                              details.room.code,
+                            ),
+                            actions: _bulkEditMode
+                                ? const []
+                                : _actionsFor(details, highlight),
+                            onTap: () => _bulkEditMode
+                                ? setState(() {
+                                    if (!_selectedRoomCodes.add(
+                                      details.room.code,
+                                    )) {
+                                      _selectedRoomCodes.remove(
+                                        details.room.code,
+                                      );
+                                    }
+                                  })
+                                : _showRoom(details.room.code),
                           );
                         },
                       ),

@@ -21,12 +21,14 @@ class LandlordViewingsPage extends StatefulWidget {
     super.key,
     this.viewings,
     this.store,
+    this.rental,
     this.conversations,
   }) : assert(viewings == null || store == null);
 
   // Supply database records here when the data source is connected.
   final List<LandlordViewing>? viewings;
   final ViewingStore? store;
+  final LandlordDemoStore? rental;
   final ViewingConversationStore? conversations;
 
   @override
@@ -37,7 +39,9 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
   ViewingStore? _localStore;
   ViewingStore get _store =>
       widget.store ?? _localStore ?? ViewingStore.instance;
-  String get _propertyId => LandlordDemoStore.activeInstance.property.id;
+  String get _propertyId =>
+      widget.rental?.property.id ??
+      LandlordDemoStore.activeInstance.property.id;
   String _query = '';
   ViewingStatus? _status;
   final Set<String> _savingViewingIds = {};
@@ -85,6 +89,37 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
         propertyId: _propertyId,
         expectedStatus: ViewingStatus.confirmed,
         status: ViewingStatus.pending,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
+      );
+    } finally {
+      _savingViewingIds.remove(viewing.id);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _markViewed(LandlordViewing viewing) async {
+    if (!_savingViewingIds.add(viewing.id)) return;
+    setState(() {});
+    try {
+      if (!_store.markViewed(viewing.id, propertyId: _propertyId)) return;
+      final persistence = AppPersistence.current;
+      if (persistence == null && LocalAuth.instance.isCloudMode) {
+        throw StateError('Chưa kết nối phiên lưu Firebase.');
+      }
+      await persistence?.flush();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã cập nhật trạng thái đã xem phòng.')),
+      );
+    } catch (failure) {
+      _store.restoreStatus(
+        viewing.id,
+        propertyId: _propertyId,
+        expectedStatus: ViewingStatus.viewed,
+        status: ViewingStatus.confirmed,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -240,8 +275,14 @@ class _LandlordViewingsPageState extends State<LandlordViewingsPage> {
                         !_savingViewingIds.contains(viewing.id)
                     ? () => _confirm(viewing)
                     : null,
+                onMarkViewed:
+                    viewing.status == ViewingStatus.confirmed &&
+                        !_savingViewingIds.contains(viewing.id)
+                    ? () => _markViewed(viewing)
+                    : null,
                 onCancel:
-                    viewing.status != ViewingStatus.cancelled &&
+                    (viewing.status == ViewingStatus.pending ||
+                            viewing.status == ViewingStatus.confirmed) &&
                         !_savingViewingIds.contains(viewing.id)
                     ? () => _cancel(viewing)
                     : null,

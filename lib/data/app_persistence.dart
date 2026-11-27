@@ -184,7 +184,9 @@ class AppPersistence {
     try {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       if (_disposed) return;
-      final data = await repository.readAll();
+      final data = await repository
+          .readAll()
+          .timeout(const Duration(seconds: 30));
       if (_disposed) return;
       await Future<void>.delayed(Duration.zero);
       if (_disposed) return;

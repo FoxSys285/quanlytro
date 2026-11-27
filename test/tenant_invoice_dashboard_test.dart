@@ -35,6 +35,64 @@ LandlordInvoice issue(
 );
 
 void main() {
+  test('payment history labels deposit and rent transactions by invoice', () {
+    final depositInvoice = LandlordInvoice(
+      id: 'deposit-invoice',
+      leaseId: 'lease-1',
+      room: 'P101',
+      tenantName: 'Tenant',
+      period: DateTime(2026, 11),
+      dueDate: DateTime(2026, 11, 5),
+      charges: const [
+        LandlordInvoiceCharge(name: 'Tiền đặt cọc', amount: 3500000),
+      ],
+      paidAmount: 3500000,
+      isDeposit: true,
+    );
+    final rentInvoice = LandlordInvoice(
+      id: 'rent-invoice',
+      leaseId: 'lease-1',
+      room: 'P101',
+      tenantName: 'Tenant',
+      period: DateTime(2026, 11),
+      dueDate: DateTime(2026, 11, 25),
+      charges: const [
+        LandlordInvoiceCharge(name: 'Tiền thuê phòng', amount: 3500000),
+      ],
+      paidAmount: 3500000,
+    );
+    LandlordPayment paymentFor(String invoiceId) => LandlordPayment(
+      id: 'payment-$invoiceId',
+      invoiceId: invoiceId,
+      tenantName: 'Tenant',
+      room: 'P101',
+      reportedAmount: 3500000,
+      approvedAmount: 3500000,
+      paidAt: DateTime(2026, 11, 27),
+      method: 'Chuyển khoản',
+      reference: 'TEST',
+      status: LandlordPaymentStatus.approved,
+    );
+
+    final transactions = tenantInvoiceTransactions(
+      [depositInvoice, rentInvoice],
+      [paymentFor(depositInvoice.id), paymentFor(rentInvoice.id)],
+    );
+
+    expect(
+      transactions
+          .singleWhere((item) => item.invoiceId == depositInvoice.id)
+          .title,
+      'Thanh toán tiền đặt cọc',
+    );
+    expect(
+      transactions
+          .singleWhere((item) => item.invoiceId == rentInvoice.id)
+          .title,
+      'Thanh toán tiền thuê phòng',
+    );
+  });
+
   testWidgets('Cash request needs no transfer reference and can be cancelled', (
     tester,
   ) async {

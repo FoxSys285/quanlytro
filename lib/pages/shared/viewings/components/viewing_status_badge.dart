@@ -10,6 +10,7 @@ class ViewingStatusBadge extends StatelessWidget {
     final color = switch (status) {
       ViewingStatus.pending => const Color(0xFF946000),
       ViewingStatus.confirmed => const Color(0xFF16836F),
+      ViewingStatus.viewed => const Color(0xFF2563EB),
       ViewingStatus.cancelled => const Color(0xFFBE3434),
     };
     return Container(

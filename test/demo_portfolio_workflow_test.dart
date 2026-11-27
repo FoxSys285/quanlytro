@@ -209,6 +209,10 @@ void main() {
       templateId: template.id,
     );
     final lease = store.currentLeaseForTenant(tenantId)!;
+    final depositInvoice = store.invoicesForTenant(tenantId).single;
+    expect(depositInvoice.isDeposit, isTrue);
+    expect(depositInvoice.total, listing.price);
+    expect(depositInvoice.charges.single.name, 'Tiền đặt cọc');
     final conversation = conversations.forRoom(
       propertyId: store.property.id,
       roomId: listing.id,
@@ -252,6 +256,20 @@ void main() {
         const LandlordInvoiceCharge(name: 'Internet', amount: 100000),
       ],
     );
+    expect(invoice.isDeposit, isFalse);
+    expect(store.invoicesForTenant(tenantId), hasLength(2));
+    expect(
+      () => store.createInvoice(
+        lease: lease,
+        period: DateTime(now.year, now.month),
+        dueDate: now,
+        charges: [
+          LandlordInvoiceCharge(name: 'Tiền đặt cọc', amount: listing.price),
+        ],
+        isDeposit: true,
+      ),
+      throwsArgumentError,
+    );
     final payment = store.submitPayment(
       tenantId: tenantId,
       invoiceId: invoice.id,
@@ -286,10 +304,9 @@ void main() {
     expect(saved.roomTypes.last.servicePrices[internet.id], 125000);
     expect(saved.leaseTemplates.single.id, template.id);
     expect(saved.currentLeaseForTenant(tenantId)!.id, lease.id);
-    expect(
-      saved.invoicesForTenant(tenantId).single.status,
-      LandlordInvoiceStatus.paid,
-    );
+    expect(saved.invoicesForTenant(tenantId), hasLength(2));
+    expect(saved.invoiceById(depositInvoice.id)!.isDeposit, isTrue);
+    expect(saved.invoiceById(invoice.id)!.status, LandlordInvoiceStatus.paid);
     final savedPayment = saved.payments.firstWhere((p) => p.id == payment.id);
     expect(savedPayment.status, LandlordPaymentStatus.approved);
     expect(savedPayment.proofBytes, isNull);

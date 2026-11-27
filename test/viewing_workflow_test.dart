@@ -18,7 +18,11 @@ void main() {
       addTearDown(store.dispose);
       expect(
         store.forTenant(ViewingStore.demoTenantId).map((item) => item.id),
-        ['viewing-demo-1', 'viewing-demo-5', 'viewing-demo-0'],
+        [
+          'viewing-demo-1',
+          'viewing-demo-5',
+          'viewing-demo-0',
+        ],
       );
       expect(store.forTenant('another-tenant'), isEmpty);
       expect(store.forProperty('another-house'), isEmpty);
@@ -33,6 +37,25 @@ void main() {
       expect(store.cancel('viewing-demo-1', propertyId: 'may'), isFalse);
     },
   );
+
+  test('Confirmed appointments can be marked viewed once and restored', () {
+    final store = ViewingStore.demo(referenceDate: DateTime(2026, 12, 31));
+    final restored = ViewingStore([]);
+    addTearDown(store.dispose);
+    addTearDown(restored.dispose);
+
+    expect(store.confirm('viewing-demo-1', propertyId: 'may'), isTrue);
+    expect(store.markViewed('viewing-demo-1', propertyId: 'may'), isTrue);
+    expect(store.markViewed('viewing-demo-1', propertyId: 'may'), isFalse);
+    expect(store.cancel('viewing-demo-1', propertyId: 'may'), isFalse);
+    restored.restore(store.toMap());
+    expect(
+      restored.records
+          .singleWhere((item) => item.id == 'viewing-demo-1')
+          .status,
+      ViewingStatus.viewed,
+    );
+  });
 
   testWidgets('Tenant menu opens the real viewing page', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: TenantLayout()));
@@ -71,7 +94,11 @@ void main() {
         ]);
         expect(
           cards.map((card) => card.viewing.status).toSet(),
-          ViewingStatus.values.toSet(),
+          {
+            ViewingStatus.pending,
+            ViewingStatus.confirmed,
+            ViewingStatus.cancelled,
+          },
         );
         expect(find.text('Thứ Sáu, 01/01/2027'), findsNWidgets(2));
         expect(find.text('09:00'), findsOneWidget);
@@ -158,6 +185,39 @@ void main() {
           ViewingStatus.cancelled,
         );
         expect(tester.widget<OutlinedButton>(cancel).onPressed, isNull);
+
+        final secondCard = find.byKey(const ValueKey('viewing-demo-3'));
+        final secondConfirm = find.descendant(
+          of: secondCard,
+          matching: find.widgetWithText(FilledButton, 'Xác nhận lịch'),
+        );
+        await tester.ensureVisible(secondConfirm);
+        await tester.tap(secondConfirm);
+        await tester.pumpAndSettle();
+        final markViewed = find.descendant(
+          of: secondCard,
+          matching: find.widgetWithText(FilledButton, 'Đã xem phòng'),
+        );
+        await tester.ensureVisible(markViewed);
+        await tester.tap(markViewed);
+        await tester.pumpAndSettle();
+        expect(
+          store.records
+              .singleWhere((item) => item.id == 'viewing-demo-3')
+              .status,
+          ViewingStatus.viewed,
+        );
+        expect(
+          tester
+              .widget<OutlinedButton>(
+                find.descendant(
+                  of: secondCard,
+                  matching: find.widgetWithText(OutlinedButton, 'Hủy lịch'),
+                ),
+              )
+              .onPressed,
+          isNull,
+        );
         await tester.ensureVisible(message);
         await tester.tap(message);
         await tester.pumpAndSettle();

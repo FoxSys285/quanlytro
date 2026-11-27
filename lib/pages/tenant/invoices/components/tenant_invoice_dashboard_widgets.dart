@@ -264,7 +264,9 @@ class TenantCurrentInvoiceCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        'Hóa đơn ${landlordMonth(invoice.period)}',
+                        invoice.isDeposit
+                            ? 'Hóa đơn tiền đặt cọc'
+                            : 'Hóa đơn ${landlordMonth(invoice.period)}',
                         style: TextStyle(
                           color: tenantInk,
                           fontSize: 15,
@@ -567,6 +569,7 @@ class TenantInvoiceQuickActions extends StatelessWidget {
 class TenantInvoiceTransaction {
   const TenantInvoiceTransaction({
     required this.invoiceId,
+    required this.title,
     required this.amount,
     required this.date,
     required this.dateLabel,
@@ -576,6 +579,7 @@ class TenantInvoiceTransaction {
     this.approved = false,
   });
   final String invoiceId;
+  final String title;
   final int amount;
   final DateTime date;
   final String dateLabel;
@@ -589,6 +593,7 @@ List<TenantInvoiceTransaction> tenantInvoiceTransactions(
   List<LandlordInvoice> invoices,
   List<LandlordPayment> payments,
 ) {
+  final invoicesById = {for (final invoice in invoices) invoice.id: invoice};
   final items = payments.map((payment) {
     final (label, color, icon) = switch (payment.status) {
       LandlordPaymentStatus.approved => (
@@ -615,6 +620,9 @@ List<TenantInvoiceTransaction> tenantInvoiceTransactions(
     final at = payment.paidAt;
     return TenantInvoiceTransaction(
       invoiceId: payment.invoiceId,
+      title: invoicesById[payment.invoiceId]?.isDeposit == true
+          ? 'Thanh toán tiền đặt cọc'
+          : 'Thanh toán tiền thuê phòng',
       amount: payment.status == LandlordPaymentStatus.approved
           ? payment.approvedAmount ?? payment.reportedAmount
           : payment.reportedAmount,
@@ -638,6 +646,9 @@ List<TenantInvoiceTransaction> tenantInvoiceTransactions(
     items.add(
       TenantInvoiceTransaction(
         invoiceId: invoice.id,
+        title: invoice.isDeposit
+            ? 'Thanh toán tiền đặt cọc'
+            : 'Thanh toán tiền thuê phòng',
         amount: invoice.paidAmount,
         date: invoice.period,
         dateLabel: 'Kỳ ${landlordMonth(invoice.period).toLowerCase()}',
@@ -697,8 +708,8 @@ class TenantInvoiceTransactionTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Thanh toán tiền thuê phòng',
+                      Text(
+                        transaction.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

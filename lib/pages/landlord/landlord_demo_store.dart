@@ -771,6 +771,28 @@ class LandlordDemoStore extends ChangeNotifier {
         ..rentalAddress = rentalAddress.trim()
         ..status = status;
     }
+    final savedLease = existing ?? _leases.last;
+    if ((savedLease.isCurrent || savedLease.isUpcoming) &&
+        savedLease.deposit > 0 &&
+        !_invoices.any(
+          (invoice) =>
+              invoice.leaseId == savedLease.id &&
+              invoice.isDeposit &&
+              !invoice.cancelled,
+        )) {
+      _createInvoice(
+        lease: savedLease,
+        period: DateTime(savedLease.startDate.year, savedLease.startDate.month),
+        dueDate: savedLease.startDate,
+        charges: [
+          LandlordInvoiceCharge(
+            name: 'Tiền đặt cọc',
+            amount: savedLease.deposit,
+          ),
+        ],
+        isDeposit: true,
+      );
+    }
     notifyListeners();
   }
 
@@ -929,8 +951,27 @@ class LandlordDemoStore extends ChangeNotifier {
     required DateTime period,
     required DateTime dueDate,
     required List<LandlordInvoiceCharge> charges,
+    bool isDeposit = false,
   }) {
-    if (!lease.isCurrent) {
+    final invoice = _createInvoice(
+      lease: lease,
+      period: period,
+      dueDate: dueDate,
+      charges: charges,
+      isDeposit: isDeposit,
+    );
+    notifyListeners();
+    return invoice;
+  }
+
+  LandlordInvoice _createInvoice({
+    required LandlordLease lease,
+    required DateTime period,
+    required DateTime dueDate,
+    required List<LandlordInvoiceCharge> charges,
+    bool isDeposit = false,
+  }) {
+    if (!lease.isCurrent && !(isDeposit && lease.isUpcoming)) {
       throw ArgumentError('Chỉ lập hóa đơn cho hợp đồng đang hiệu lực.');
     }
     if (!identical(leaseById(lease.id), lease)) {
@@ -947,10 +988,13 @@ class LandlordDemoStore extends ChangeNotifier {
           invoice.leaseId == lease.id &&
           invoice.period.year == period.year &&
           invoice.period.month == period.month &&
+          invoice.isDeposit == isDeposit &&
           !invoice.cancelled,
     );
     if (alreadyExists) {
-      throw ArgumentError('Hợp đồng này đã có hóa đơn cho kỳ đã chọn.');
+      throw ArgumentError(
+        'Hợp đồng này đã có hóa đơn cùng loại cho kỳ đã chọn.',
+      );
     }
     if (charges.isEmpty ||
         charges.any(
@@ -972,9 +1016,9 @@ class LandlordDemoStore extends ChangeNotifier {
       period: DateTime(period.year, period.month),
       dueDate: dueDate,
       charges: List.unmodifiable(charges),
+      isDeposit: isDeposit,
     );
     _invoices.insert(0, invoice);
-    notifyListeners();
     return invoice;
   }
 

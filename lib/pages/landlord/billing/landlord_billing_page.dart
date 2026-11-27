@@ -1233,7 +1233,9 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Phòng ${invoice.room} · ${landlordMonth(invoice.period)}',
+                        invoice.isDeposit
+                            ? 'Phòng ${invoice.room} · Tiền đặt cọc'
+                            : 'Phòng ${invoice.room} · ${landlordMonth(invoice.period)}',
                         style: TextStyle(
                           color: LandlordPalette.of(context).ink,
                           fontSize: 14,
@@ -1364,7 +1366,9 @@ class _LandlordBillingPageState extends State<LandlordBillingPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Phòng ${invoice.room} · ${invoice.tenantName} · ${landlordMonth(invoice.period)}',
+                  invoice.isDeposit
+                      ? 'Phòng ${invoice.room} · ${invoice.tenantName} · Tiền đặt cọc'
+                      : 'Phòng ${invoice.room} · ${invoice.tenantName} · ${landlordMonth(invoice.period)}',
                   style: TextStyle(
                     color: LandlordPalette.of(context).muted,
                     fontSize: 12,

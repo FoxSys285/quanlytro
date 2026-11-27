@@ -19,6 +19,7 @@ const { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, write
       await setDoc(doc(db, 'rental_records/may:leases:HD-2'), row('leases', {id:'HD-2', tenantId:'tenant-a', status:'active', cashPaymentEnabled:true, bankTransferEnabled:true}));
       await setDoc(doc(db, 'rental_records/may:members:member-1'), row('members', {id:'member-1', leaseId:'HD-1', tenantId:'tenant-a', status:'active', isRepresentative:false, leaveReason:'', leaveRequestedAt:null, leaveEffectiveAt:null, leaveAcknowledgedAt:null}));
       await setDoc(doc(db, 'rental_records/may:invoices:INV-1'), row('invoices', {id:'INV-1', leaseId:'HD-1', paidAmount:0, cancelled:false, pendingPaymentId:null, lastApprovedPaymentId:null}));
+      await setDoc(doc(db, 'rental_records/may:invoices:INV-TRANSFER'), row('invoices', {id:'INV-TRANSFER', leaseId:'HD-1', paidAmount:0, cancelled:false, pendingPaymentId:null, lastApprovedPaymentId:null}));
       await setDoc(doc(db, 'rental_records/may:viewings:viewing-1'), row('viewings', {id:'viewing-1', tenantId:'tenant-a', status:'pending', startsAt:'2026-11-28T10:00:00.000Z'}));
       await setDoc(doc(db, 'rental_records/chat-a'), row('conversations', {id:'chat-a', messages:[], unread:0, tenantUnread:1}));
       await setDoc(doc(db, 'public_rooms/room-a'), {ownerUid:'owner-a', propertyId:'may', published:false, price:100});
@@ -59,6 +60,11 @@ const { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, write
     cashRequest.update(doc(tenant, 'rental_records/may:invoices:INV-1'), {'data.pendingPaymentId':'payment-a'});
     cashRequest.set(doc(tenant, 'rental_records/may:payments:payment-a'), payment);
     await assertSucceeds(cashRequest.commit());
+    const transferPayment = row('payments', {id:'payment-transfer',invoiceId:'INV-TRANSFER',status:'pending',reportedAmount:100000,method:'Chuyển khoản',reference:'TEST-NO-TRANSFER',approvedAmount:null,reviewedAt:null,proofUrl:'https://media.example/proof.jpg'});
+    const transferRequest = writeBatch(tenant);
+    transferRequest.update(doc(tenant, 'rental_records/may:invoices:INV-TRANSFER'), {'data.pendingPaymentId':'payment-transfer'});
+    transferRequest.set(doc(tenant, 'rental_records/may:payments:payment-transfer'), transferPayment);
+    await assertSucceeds(transferRequest.commit());
     const competingPayment = row('payments', {id:'payment-competing',invoiceId:'INV-1',status:'pending',reportedAmount:50000,method:'Tiền mặt',reference:'',approvedAmount:null,reviewedAt:null,proofUrl:null});
     const competingRequest = writeBatch(tenant);
     competingRequest.update(doc(tenant, 'rental_records/may:invoices:INV-1'), {'data.pendingPaymentId':'payment-competing'});

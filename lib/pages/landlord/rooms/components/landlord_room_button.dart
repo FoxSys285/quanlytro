@@ -38,6 +38,8 @@ class LandlordRoomButton extends StatelessWidget {
     this.highlight,
     this.actions = const [],
     this.compact = false,
+    this.selectionMode = false,
+    this.selected = false,
     this.secondaryText,
     this.valueText,
   });
@@ -47,6 +49,8 @@ class LandlordRoomButton extends StatelessWidget {
   final LandlordRoomHighlight? highlight;
   final List<LandlordRoomAction> actions;
   final bool compact;
+  final bool selectionMode;
+  final bool selected;
   final String? secondaryText;
   final String? valueText;
 
@@ -167,6 +171,16 @@ class LandlordRoomButton extends StatelessWidget {
                           ),
                         ),
                         if (!compact) ...[const SizedBox(width: 8), statusPill],
+                        if (selectionMode) ...[
+                          const SizedBox(width: 7),
+                          Icon(
+                            selected
+                                ? Icons.check_circle_rounded
+                                : Icons.circle_outlined,
+                            color: selected ? palette.primary : palette.muted,
+                            size: 22,
+                          ),
+                        ],
                       ],
                     ),
                     if (compact) ...[

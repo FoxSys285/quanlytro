@@ -43,6 +43,28 @@ void main() {
       );
     },
   );
+  test('Lease templates are saved with rental settings for cloud restore', () {
+    final portfolio = RentalPortfolio.seeded();
+    addTearDown(portfolio.dispose);
+    final snapshot = portfolio.toMap();
+    final stores = snapshot['properties'] as List;
+    final store = Map<String, dynamic>.from(stores.first as Map);
+    const template = {'id': 'template-test', 'name': 'Mẫu kiểm thử'};
+    store['leaseTemplates'] = [template];
+    stores[0] = store;
+
+    final docs = encodeCloudDocuments(
+      {'portfolio': snapshot},
+      owners: {for (final s in portfolio.stores) s.property.id: 'owner-a'},
+    );
+
+    expect(
+      (docs['rental_records/may:settings:may']!['data'] as Map)[
+        'leaseTemplates'
+      ],
+      [template],
+    );
+  });
   test('Catalog criteria combine prices, decimals, amenities and location', () {
     final portfolio = RentalPortfolio.seeded();
     addTearDown(portfolio.dispose);

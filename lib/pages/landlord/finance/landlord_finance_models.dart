@@ -418,6 +418,7 @@ class LandlordInvoice {
     required this.charges,
     this.paidAmount = 0,
     this.cancelled = false,
+    this.isDeposit = false,
     this.pendingPaymentId,
     this.lastApprovedPaymentId,
   });
@@ -431,6 +432,7 @@ class LandlordInvoice {
   final List<LandlordInvoiceCharge> charges;
   int paidAmount;
   bool cancelled;
+  final bool isDeposit;
   String? pendingPaymentId;
   String? lastApprovedPaymentId;
 
@@ -469,6 +471,7 @@ class LandlordInvoice {
     'charges': charges.map((item) => item.toMap()).toList(),
     'paidAmount': paidAmount,
     'cancelled': cancelled,
+    'isDeposit': isDeposit,
     'pendingPaymentId': pendingPaymentId,
     'lastApprovedPaymentId': lastApprovedPaymentId,
   };
@@ -489,6 +492,7 @@ class LandlordInvoice {
         .toList(),
     paidAmount: map['paidAmount'] as int,
     cancelled: map['cancelled'] as bool,
+    isDeposit: map['isDeposit'] as bool? ?? false,
     pendingPaymentId: map['pendingPaymentId'] as String?,
     lastApprovedPaymentId: map['lastApprovedPaymentId'] as String?,
   );

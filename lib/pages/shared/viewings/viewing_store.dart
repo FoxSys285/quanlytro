@@ -272,6 +272,8 @@ class ViewingStore extends ChangeNotifier {
 
   bool confirm(String id, {required String propertyId}) =>
       _update(id, propertyId, ViewingStatus.confirmed);
+  bool markViewed(String id, {required String propertyId}) =>
+      _update(id, propertyId, ViewingStatus.viewed);
   bool cancel(String id, {required String propertyId}) =>
       _update(id, propertyId, ViewingStatus.cancelled);
 
@@ -296,10 +298,14 @@ class ViewingStore extends ChangeNotifier {
     );
     if (index == -1) return false;
     final current = _records[index];
-    if (current.status == ViewingStatus.cancelled ||
-        current.status == status ||
-        (status == ViewingStatus.confirmed &&
-            current.status != ViewingStatus.pending)) {
+    final allowed = switch (current.status) {
+      ViewingStatus.pending =>
+        status == ViewingStatus.confirmed || status == ViewingStatus.cancelled,
+      ViewingStatus.confirmed =>
+        status == ViewingStatus.viewed || status == ViewingStatus.cancelled,
+      ViewingStatus.viewed || ViewingStatus.cancelled => false,
+    };
+    if (!allowed) {
       return false;
     }
     _records[index] = current.withStatus(status);

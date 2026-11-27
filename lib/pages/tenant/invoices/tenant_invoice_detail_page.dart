@@ -73,12 +73,16 @@ class TenantInvoiceDetailPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'HÓA ĐƠN · PHÒNG ${invoice.room}',
+                      invoice.isDeposit
+                          ? 'TIỀN ĐẶT CỌC · PHÒNG ${invoice.room}'
+                          : 'HÓA ĐƠN · PHÒNG ${invoice.room}',
                       style: const TextStyle(color: Colors.white70),
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      landlordMonth(invoice.period),
+                      invoice.isDeposit
+                          ? 'Tiền đặt cọc'
+                          : landlordMonth(invoice.period),
                       style: const TextStyle(color: Colors.white, fontSize: 17),
                     ),
                     Text(

@@ -85,4 +85,47 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Bulk room edits change only the selected room types', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = LandlordDemoStore.demo();
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: LandlordRoomsPage(store: store)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chỉnh sửa hàng loạt'));
+    await tester.pumpAndSettle();
+
+    for (final code in ['101', '102']) {
+      final room = find.byKey(ValueKey(code));
+      await tester.ensureVisible(room);
+      await tester.tap(room);
+    }
+    await tester.pumpAndSettle();
+    expect(find.text('2 phòng đã chọn'), findsOneWidget);
+    await tester.ensureVisible(find.text('Đổi loại phòng'));
+    await tester.tap(find.text('Đổi loại phòng'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Phòng có gác').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Áp dụng'));
+    await tester.pumpAndSettle();
+
+    expect(store.roomByCode('101')?.roomTypeId, 'loft');
+    expect(store.roomByCode('102')?.roomTypeId, 'loft');
+    expect(store.roomByCode('B.105')?.roomTypeId, 'studio');
+    expect(find.text('0 phòng đã chọn'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

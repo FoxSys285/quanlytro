@@ -166,6 +166,7 @@ Map<String, Map<String, dynamic>> encodeCloudDocuments(
     };
     record('settings', id, {
       'counters': store['counters'],
+      'leaseTemplates': store['leaseTemplates'],
       'paymentAccounts': store['paymentAccounts'],
     }, tenants);
     // Always encode an empty note too, so approval clears a previous request.

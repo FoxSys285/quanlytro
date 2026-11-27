@@ -255,7 +255,6 @@ class ScopedFirestoreRentalRepository
 
   @override
   Future<Map<String, Map<String, dynamic>>?> readCachedSnapshot() async {
-    if (session.role != AppRole.admin) return null;
     try {
       final snapshot = await _readSnapshot(
         const GetOptions(source: Source.cache),
@@ -263,6 +262,9 @@ class ScopedFirestoreRentalRepository
         rememberSnapshot: false,
       );
       final properties = snapshot['portfolio']?['properties'] as List?;
+      // Firestore persists documents fetched in earlier sessions. Rehydrate
+      // that role-scoped snapshot before starting the server read so tenants
+      // and landlords see their existing data immediately on return visits.
       return properties == null || properties.isEmpty ? null : snapshot;
     } on FirebaseException catch (failure) {
       if (failure.code == 'unavailable' ||
@@ -303,6 +305,20 @@ class ScopedFirestoreRentalRepository
         throw ArgumentError('Tài khoản chưa có mã người thuê.');
       }
       records = records.where('tenantIds', arrayContains: session.tenantId);
+    } else {
+      // Admin screens need static property data, verification evidence, and
+      // tenant/lease records. Fetching every invoice, meter reading, message,
+      // and announcement for every property makes the first admin sync grow
+      // with the entire platform's transaction history.
+      records = records.where(
+        'kind',
+        whereIn: const [
+          'verification',
+          'verificationReview',
+          'members',
+          'leases',
+        ],
+      );
     }
     Query<Map<String, dynamic>> tickets = _firestore.collection(
       'support_tickets',
