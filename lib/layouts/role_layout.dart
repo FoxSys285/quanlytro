@@ -326,11 +326,35 @@ class _RoleLayoutShellState extends State<RoleLayoutShell> {
     _selectDestination(widget.tabs[index].destinationId);
   }
 
+  bool _logoutInProgress = false;
+
   Future<void> _showLogoutMessage() async {
+    if (_logoutInProgress) return;
+    _logoutInProgress = true;
+    try {
+      await _logout();
+    } finally {
+      _logoutInProgress = false;
+    }
+  }
+
+  Future<void> _logout() async {
     final persistence = AppPersistence.current;
     if (persistence?.hasPendingChanges == true) {
       try {
-        await persistence!.flush();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đang đồng bộ trước khi đăng xuất…')),
+        );
+        try {
+          await persistence!.flush().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => throw StateError(
+              'Hết thời gian chờ đồng bộ. Kiểm tra kết nối mạng rồi thử lại.',
+            ),
+          );
+        } finally {
+          if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        }
       } catch (failure) {
         if (!mounted) return;
         final discard = await showDialog<bool>(

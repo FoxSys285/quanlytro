@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../data/app_persistence.dart';
@@ -37,14 +39,8 @@ class _TenantDanhSachTinNhanPageState extends State<TenantDanhSachTinNhanPage> {
     } else {
       setState(() => conversation.unread = 0);
     }
-    try {
-      await AppPersistence.current?.flush();
-    } catch (failure) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
-      );
-    }
+    // Reading must stay responsive while Firebase saves in the background.
+    unawaited(AppPersistence.current?.flushInBackground());
     if (!mounted) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(

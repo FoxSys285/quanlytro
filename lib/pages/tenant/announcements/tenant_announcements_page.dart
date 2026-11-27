@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../data/app_persistence.dart';
@@ -52,14 +54,8 @@ class _TenantAnnouncementsPageState extends State<TenantAnnouncementsPage> {
 
   Future<void> _open(TenantAnnouncement item) async {
     _store.markTenantRead(item.id, widget.tenantId);
-    try {
-      await AppPersistence.current?.flush();
-    } catch (failure) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
-      );
-    }
+    // Reading must stay responsive while Firebase saves in the background.
+    unawaited(AppPersistence.current?.flushInBackground());
     if (!mounted) return;
     if (item.id.startsWith('payment-rejected:')) {
       final paymentId = item.id.substring('payment-rejected:'.length);

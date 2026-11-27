@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../data/app_persistence.dart';
@@ -28,14 +30,8 @@ class _LandlordDanhSachTinNhanPageState
 
   Future<void> _open(LandlordConversation conversation) async {
     _store.markRead(conversation, landlord: true);
-    try {
-      await AppPersistence.current?.flush();
-    } catch (failure) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppPersistence.saveFailureMessage(failure))),
-      );
-    }
+    // Reading must stay responsive while Firebase saves in the background.
+    unawaited(AppPersistence.current?.flushInBackground());
     if (!mounted) return;
     await LandlordNavigation.push<void>(
       context,
