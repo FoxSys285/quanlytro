@@ -329,12 +329,6 @@ class _LandlordLayoutState extends State<LandlordLayout> {
                 group: 'Vận hành',
               ),
               RoleDestination(
-                id: 'staff',
-                label: 'Nhân viên',
-                icon: Icons.badge_outlined,
-                group: 'Vận hành',
-              ),
-              RoleDestination(
                 id: 'plans',
                 label: 'Gói dịch vụ',
                 icon: Icons.workspace_premium_outlined,
